@@ -32,7 +32,10 @@ export const compile = async ({
     error: cargoMidenError,
   } = await cargoMidenBuild(entrypoint ? `${tmpDir}/${entrypoint}` : tmpDir);
   if (cargoMidenError) {
-    throw new Error(cargoMidenError);
+    return {
+      stdout,
+      stderr: cargoMidenError,
+    };
   }
   const maspPath = `/cache/target/miden/release/${name}.masp`;
   const [

@@ -51,6 +51,21 @@ describe("POST /compile", () => {
     expect(res.body).toEqual({ error: "Missing Cargo.toml" });
   });
 
+  it("doesn't compile the buggy counter-account", async () => {
+    const files = await readProjectFiles(`${templateDir}/counter-account`);
+    expect(files["Cargo.toml"]).toBeDefined();
+    files["src/lib.rs"] = files["src/lib.rs"].replace(", Word", "");
+
+    const res = await api.post("/compile").send({ files });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("stdout");
+    expect(res.body).toHaveProperty("stderr");
+    expect(res.body).not.toHaveProperty("masp");
+    expect(res.body).not.toHaveProperty("digest");
+    expect(res.body).not.toHaveProperty("manifest");
+  });
+
   it("compiles the counter-account", async () => {
     const files = await readProjectFiles(`${templateDir}/counter-account`);
     expect(files["Cargo.toml"]).toBeDefined();

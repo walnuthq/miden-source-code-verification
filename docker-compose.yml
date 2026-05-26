@@ -9,6 +9,7 @@ services:
       - "8080:8080"
     environment:
       - PORT=8080
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080"]
       interval: 5s

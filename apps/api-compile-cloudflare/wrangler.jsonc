@@ -17,6 +17,15 @@
       "image": "../api-compile/Dockerfile",
       "max_instances": 1,
       "instance_type": "standard-1",
+      "ssh": {
+        "enabled": true,
+      },
+      "authorized_keys": [
+        {
+          "name": "id_ed25519",
+          "public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEO4U1JPl2zWsLIv9EYDcijCKkrvdibCTvM4v0RwoIoD saimeunt@gmail.com",
+        },
+      ],
     },
   ],
   "durable_objects": {

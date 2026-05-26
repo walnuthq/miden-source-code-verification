@@ -4,18 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "cf-typegen": "wrangler types",
-    "deploy": "wrangler deploy",
-    "dev": "MINIFLARE_CONTAINER_EGRESS_IMAGE=cloudflare/proxy-everything:3cb1195@sha256:78c7910f4575a511d928d7824b1cbcaec6b7c4bf4dbb3fafaeeae3104030e73c wrangler dev",
-    "start": "wrangler dev"
+    "cf:typegen": "wrangler types",
+    "cf:deploy": "wrangler deploy",
+    "cf:dev": "MINIFLARE_CONTAINER_EGRESS_IMAGE=cloudflare/proxy-everything:3cb1195@sha256:78c7910f4575a511d928d7824b1cbcaec6b7c4bf4dbb3fafaeeae3104030e73c wrangler dev"
   },
   "dependencies": {
-    "@cloudflare/containers": "^0.3.3",
-    "hono": "^4.12.14"
+    "@cloudflare/containers": "0.3.4",
+    "hono": "4.12.23"
   },
   "devDependencies": {
-    "@types/node": "^25.6.0",
-    "typescript": "^6.0.3",
-    "wrangler": "^4.87.0"
+    "@types/node": "25.9.1",
+    "typescript": "6.0.3",
+    "wrangler": "4.94.0"
   }
 }

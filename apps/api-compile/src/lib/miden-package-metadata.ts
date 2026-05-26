@@ -8,7 +8,7 @@ export const midenPackageMetadata = async (maspPath: string) => {
     return { stdout, stderr };
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "cargo-miden failed";
+      error instanceof Error ? error.message : "miden-package-metadata failed";
     return { error: message };
   }
 };

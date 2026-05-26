@@ -1,3 +1,7 @@
 packages:
   - "apps/api-compile-cloudflare"
   - "packages/*"
+allowBuilds:
+  esbuild: true
+  sharp: true
+  workerd: true
