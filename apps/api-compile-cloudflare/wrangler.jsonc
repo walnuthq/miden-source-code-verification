@@ -20,12 +20,13 @@
       "ssh": {
         "enabled": true,
       },
-      "authorized_keys": [
+      /* add SSH public key when debugging with wrangler tail */
+      /* "authorized_keys": [
         {
           "name": "id_ed25519",
-          "public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEO4U1JPl2zWsLIv9EYDcijCKkrvdibCTvM4v0RwoIoD saimeunt@gmail.com",
+          "public_key": "ssh-ed25519 PUBLIC_KEY EMAIL_ADDRESS",
         },
-      ],
+      ], */
     },
   ],
   "durable_objects": {
