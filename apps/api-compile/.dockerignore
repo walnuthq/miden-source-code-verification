@@ -1,0 +1,7 @@
+__tests__/
+target/
+keysore/
+store.sqlite3
+dist/
+node_modules/
+vitest.config.ts

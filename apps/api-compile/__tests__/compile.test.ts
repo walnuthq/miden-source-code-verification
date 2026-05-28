@@ -3,38 +3,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import request from "supertest";
 import { describe, it, expect } from "vitest";
+import { readProjectFiles } from "./utils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const templateDir = path.resolve(__dirname, "../project-template");
 
 const api = request(process.env.API_URL ?? "http://localhost:8080");
-
-const readProjectFiles = async (
-  rootDir: string,
-): Promise<Record<string, string>> => {
-  const entries = await readdir(rootDir, {
-    recursive: true,
-    withFileTypes: true,
-  });
-  const files = await Promise.all(
-    entries.map(async (entry) => {
-      if (!entry.isFile()) return;
-      const full = path.join(entry.parentPath, entry.name);
-      const rel = path.relative(rootDir, full);
-      return { path: rel, content: await readFile(full, "utf8") };
-    }),
-  );
-  return files
-    .filter((file) => file !== undefined)
-    .reduce<Record<string, string>>(
-      (previousValue, currentValue) => ({
-        ...previousValue,
-        [currentValue.path]: currentValue.content,
-      }),
-      {},
-    );
-};
 
 describe("POST /compile", () => {
   it("rejects requests with no files object", async () => {

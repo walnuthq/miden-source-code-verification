@@ -69,6 +69,10 @@ logs/
 tmp/
 temp/
 
+# Miden
+keystore/
+store.sqlite3
+
 # Cloudflare
 .wrangler
 

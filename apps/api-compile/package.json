@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "CARGO_TARGET_DIR=/tmp/target MIDEN_VERIFIER_CACHE_DIR=/tmp tsx watch src/server.ts",
     "build": "tsc && tsc-alias",
     "start": "node dist/src/server.js",
     "compose:up": "docker compose -f ../../docker-compose.yml up -d --build --wait api-compile",

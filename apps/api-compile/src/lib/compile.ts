@@ -2,6 +2,7 @@ import { mkdtemp, writeFile, mkdir, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import lodash from "lodash";
+import { CARGO_TARGET_DIR } from "@/lib/constants.js";
 import { cargoMidenBuild } from "@/lib/cargo-miden.js";
 import { midenPackageMetadata } from "@/lib/miden-package-metadata.js";
 import type { Manifest } from "@/lib/types.js";
@@ -37,7 +38,7 @@ export const compile = async ({
       stderr: cargoMidenError,
     };
   }
-  const maspPath = `/cache/target/miden/release/${name}.masp`;
+  const maspPath = `${CARGO_TARGET_DIR}/miden/release/${name}.masp`;
   const [
     maspBuffer,
     {
@@ -56,6 +57,7 @@ export const compile = async ({
     stdout,
     stderr,
     masp: maspBuffer.toString("base64"),
+    maspPath,
     digest,
     manifest,
   };

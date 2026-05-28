@@ -35,4 +35,9 @@ app.post("/compile", (c) => {
   return container.fetch(c.req.raw);
 });
 
+app.post("/verify", (c) => {
+  const container = getContainer(c.env.COMPILER);
+  return container.fetch(c.req.raw);
+});
+
 export default app;
