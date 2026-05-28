@@ -1,3 +1,4 @@
+import { CARGO_TARGET_DIR } from "@/lib/constants.js";
 import { execFile } from "@/lib/utils.js";
 
 export const cargoMidenVersion = async () => {
@@ -14,7 +15,7 @@ export const cargoMidenBuild = async (projectDir: string) => {
       ["miden", "build", "--release"],
       {
         cwd: projectDir,
-        env: { ...process.env, CARGO_TARGET_DIR: "/cache/target" },
+        env: { ...process.env, CARGO_TARGET_DIR },
       },
     );
     return { stdout, stderr };
