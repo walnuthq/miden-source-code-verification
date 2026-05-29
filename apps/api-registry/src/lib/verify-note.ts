@@ -1,0 +1,65 @@
+import { API_COMPILE_URL } from "@/lib/constants.js";
+import { getVerifiedNote, insertVerifiedNote } from "@/db/verified-notes.js";
+import { insertPackage } from "@/db/packages.js";
+import { parseCargoToml } from "@/lib/utils.js";
+import type { Manifest } from "@/lib/types.js";
+
+export const verifyNote = async ({
+  networkId,
+  noteId,
+  files,
+  entrypoint,
+}: {
+  networkId: string;
+  noteId: string;
+  files: Record<string, string>;
+  entrypoint?: string;
+}) => {
+  const cargoTomlPath = entrypoint ? `${entrypoint}/Cargo.toml` : "Cargo.toml";
+  const cargoToml = files[cargoTomlPath] ?? "";
+  const {
+    package: { name },
+  } = parseCargoToml(cargoToml);
+  const response = await fetch(`${API_COMPILE_URL}/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      files,
+      entrypoint,
+      networkId,
+      resourceId: noteId,
+    }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    const { error } = data as { error: string };
+    throw new Error(error);
+  }
+  const { verified, masp, digest, manifest } = data as {
+    verified: boolean;
+    masp: string;
+    digest: string;
+    manifest: Manifest;
+  };
+  if (verified) {
+    const verifiedNote = await getVerifiedNote({ networkId, noteId });
+    if (verifiedNote) {
+      throw new Error("note already verified");
+    }
+    const packageId = await insertPackage({
+      name,
+      type: "note-script",
+      files,
+      masp,
+      digest,
+      manifest,
+    });
+    await insertVerifiedNote({
+      networkId,
+      noteId,
+      packageId,
+      packageDigest: digest,
+    });
+  }
+  return verified;
+};

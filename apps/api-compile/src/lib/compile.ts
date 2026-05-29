@@ -17,10 +17,13 @@ export const compile = async ({
   entrypoint?: string;
 }) => {
   const tmpDir = await mkdtemp(join(tmpdir(), "miden-project-")); // Write project files
-  const name = snakeCase(tmpDir.split("/").at(-1) ?? "");
+  const outputName = snakeCase(tmpDir.split("/").at(-1) ?? "");
   const cargoTomlPath = entrypoint ? `${entrypoint}/Cargo.toml` : "Cargo.toml";
   const cargoToml = files[cargoTomlPath] ?? "";
-  files[cargoTomlPath] = cargoToml.replace("[lib]", `[lib]\nname = "${name}"`);
+  files[cargoTomlPath] = cargoToml.replace(
+    "[lib]",
+    `[lib]\nname = "${outputName}"`,
+  );
   for (const [path, content] of Object.entries(files)) {
     const fullPath = join(tmpDir, path);
     const dir = fullPath.substring(0, fullPath.lastIndexOf("/"));
@@ -38,7 +41,7 @@ export const compile = async ({
       stderr: cargoMidenError,
     };
   }
-  const maspPath = `${CARGO_TARGET_DIR}/miden/release/${name}.masp`;
+  const maspPath = `${CARGO_TARGET_DIR}/miden/release/${outputName}.masp`;
   const [
     maspBuffer,
     {
@@ -56,8 +59,8 @@ export const compile = async ({
   return {
     stdout,
     stderr,
-    masp: maspBuffer.toString("base64"),
     maspPath,
+    masp: maspBuffer.toString("base64"),
     digest,
     manifest,
   };

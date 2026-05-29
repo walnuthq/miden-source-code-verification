@@ -20,33 +20,41 @@ const readDataFile = (filename: string) => {
 describe("POST /verify", () => {
   it("rejects requests with no files object", async () => {
     const res = await api.post("/verify").send({});
+
     expect(res.status).toBe(400);
-    expect(res.body).toEqual({ error: "Missing files object" });
+
+    expect(res.body).toHaveProperty("error", "missing files");
   });
 
   it("rejects requests missing Cargo.toml", async () => {
     const res = await api.post("/verify").send({ files: { "src/lib.rs": "" } });
+
     expect(res.status).toBe(400);
-    expect(res.body).toEqual({ error: "Missing Cargo.toml" });
+
+    expect(res.body).toHaveProperty("error", "missing Cargo.toml");
   });
 
   it("rejects requests missing network ID", async () => {
     const files = await readProjectFiles(`${templateDir}/counter-account`);
     expect(files["Cargo.toml"]).toBeDefined();
+
     const res = await api.post("/verify").send({ files });
+
     expect(res.status).toBe(400);
-    expect(res.body).toEqual({ error: "Missing network ID" });
+    expect(res.body).toHaveProperty("error", "missing networkId");
   });
 
   it("rejects requests missing resource ID", async () => {
     const files = await readProjectFiles(`${templateDir}/counter-account`);
     expect(files["Cargo.toml"]).toBeDefined();
+
     const res = await api.post("/verify").send({
       files,
       networkId: "mtst",
     });
+
     expect(res.status).toBe(400);
-    expect(res.body).toEqual({ error: "Missing resource ID" });
+    expect(res.body).toHaveProperty("error", "missing resourceId");
   });
 
   it("verifies a local counter-account", async () => {
@@ -61,8 +69,10 @@ describe("POST /verify", () => {
       .send({ files, networkId: "mtst", resourceId, resource });
 
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified");
-    expect(res.body.verified).toBe(true);
+    expect(res.body).toHaveProperty("verified", true);
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("manifest");
   });
 
   it("verifies an on-chain counter-account", async () => {
@@ -76,8 +86,10 @@ describe("POST /verify", () => {
       .send({ files, networkId: "mtst", resourceId });
 
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified");
-    expect(res.body.verified).toBe(true);
+    expect(res.body).toHaveProperty("verified", true);
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("manifest");
   });
 
   it("doesn't verify a counter-account not found on network", async () => {
@@ -109,8 +121,7 @@ describe("POST /verify", () => {
       .send({ files, networkId: "mtst", resourceId, resource });
 
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified");
-    expect(res.body.verified).toBe(false);
+    expect(res.body).toHaveProperty("verified", false);
   });
 
   it("verifies a local increment-note", async () => {
@@ -127,8 +138,10 @@ describe("POST /verify", () => {
       .send({ files, entrypoint, networkId: "mtst", resourceId, resource });
 
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified");
-    expect(res.body.verified).toBe(true);
+    expect(res.body).toHaveProperty("verified", true);
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("manifest");
   });
 
   it("verifies an on-chain increment-note", async () => {
@@ -144,8 +157,10 @@ describe("POST /verify", () => {
       .send({ files, entrypoint, networkId: "mtst", resourceId });
 
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified");
-    expect(res.body.verified).toBe(true);
+    expect(res.body).toHaveProperty("verified", true);
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("manifest");
   });
 
   it("doesn't verify an increment-note not found on network", async () => {
@@ -167,8 +182,8 @@ describe("POST /verify", () => {
     const files = await readProjectFiles(templateDir);
     const entrypoint = "increment-note";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
-    files["increment-note/src/lib.rs"] = files[
-      "increment-note/src/lib.rs"
+    files[`${entrypoint}/src/lib.rs`] = files[
+      `${entrypoint}/src/lib.rs`
     ].replace("Felt::from_u32", "felt!");
 
     const resourceId =
@@ -180,7 +195,6 @@ describe("POST /verify", () => {
       .send({ files, entrypoint, networkId: "mtst", resourceId, resource });
 
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified");
-    expect(res.body.verified).toBe(false);
+    expect(res.body).toHaveProperty("verified", false);
   });
 });

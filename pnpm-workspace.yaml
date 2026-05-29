@@ -1,5 +1,6 @@
 packages:
   - "apps/api-compile-cloudflare"
+  - "apps/api-registry"
   - "packages/*"
 allowBuilds:
   esbuild: true
