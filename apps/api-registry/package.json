@@ -1,5 +1,5 @@
 {
-  "name": "miden-sourcify-api-compile",
+  "name": "miden-sourcify-api-registry",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,23 +7,23 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc && tsc-alias",
     "start": "node dist/src/server.js",
-    "compose:up": "docker compose -f ../../docker-compose.yml up -d --build --wait api-compile",
-    "compose:down": "docker compose -f ../../docker-compose.yml down",
-    "test": "npm run compose:up && vitest run; e=$?; npm run compose:down; exit $e",
-    "test:watch": "npm run compose:up && vitest"
+    "test": "vitest run",
+    "db:push": "drizzle-kit push"
   },
   "dependencies": {
     "cors": "2.8.6",
     "dotenv": "17.4.2",
+    "drizzle-orm": "1.0.0-beta.22",
     "express": "5.2.1",
-    "lodash": "4.18.1"
+    "pg": "8.21.0",
+    "smol-toml": "1.6.1"
   },
   "devDependencies": {
     "@types/cors": "2.8.19",
     "@types/express": "5.0.6",
-    "@types/lodash": "4.17.24",
     "@types/node": "25.9.1",
     "@types/supertest": "7.2.0",
+    "drizzle-kit": "1.0.0-beta.22",
     "supertest": "7.2.2",
     "tsc-alias": "1.8.17",
     "tsx": "4.22.3",
