@@ -21,12 +21,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*.ts", "worker-configuration.d.ts"],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "__tests__",
-    "drizzle.config.ts",
-    "vitest.config.ts"
-  ]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

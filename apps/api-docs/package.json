@@ -1,0 +1,25 @@
+{
+  "name": "miden-sourcify-api-docs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsx src/build.ts",
+    "preview": "sirv dist --port 8082",
+    "dev": "tsx src/build.ts && sirv dist --port 8082 --dev",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dotenv": "17.4.2",
+    "swagger-jsdoc": "6.3.0",
+    "swagger-ui-dist": "5.32.6"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.1",
+    "@types/swagger-jsdoc": "6.0.4",
+    "@types/swagger-ui-dist": "3.30.6",
+    "sirv-cli": "3.0.1",
+    "tsx": "4.22.4",
+    "typescript": "6.0.3"
+  }
+}
