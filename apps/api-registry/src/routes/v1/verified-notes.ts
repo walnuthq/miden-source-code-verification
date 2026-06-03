@@ -10,6 +10,75 @@ type VerifyNoteRequestBody = {
   entrypoint?: string;
 };
 
+/**
+ * @openapi
+ * /v1/{networkId}/verified-notes:
+ *   post:
+ *     tags: [verified-notes]
+ *     summary: Verify a note
+ *     description: >
+ *       Verifies a note against its on-chain note on the given network and
+ *       records it in the registry when it matches.
+ *     parameters:
+ *       - in: path
+ *         name: networkId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Network identifier (e.g. `mtst`, `mlcl`).
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [noteId, files]
+ *             properties:
+ *               noteId:
+ *                 type: string
+ *                 description: On-chain note identifier to verify against.
+ *               files:
+ *                 type: object
+ *                 description: >
+ *                   Map of project-relative file paths to their UTF-8 contents.
+ *                   Must contain a `Cargo.toml` at the project root (or under
+ *                   `entrypoint` when set).
+ *                 additionalProperties:
+ *                   type: string
+ *               entrypoint:
+ *                 type: string
+ *                 description: >
+ *                   Optional subdirectory containing the project to compile.
+ *                   When set, the `Cargo.toml` is read from `<entrypoint>/Cargo.toml`.
+ *     responses:
+ *       "200":
+ *         description: Verification result.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 verified:
+ *                   type: boolean
+ *       "400":
+ *         description: Invalid request (missing `noteId`, `files` or `Cargo.toml`).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *       "500":
+ *         description: Verification failed.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ */
 router.post("/:networkId/verified-notes", async (req, res) => {
   const { noteId, files, entrypoint } = req.body as VerifyNoteRequestBody;
   if (!noteId) {
@@ -41,6 +110,52 @@ router.post("/:networkId/verified-notes", async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /v1/{networkId}/verified-notes/{noteId}:
+ *   get:
+ *     tags: [verified-notes]
+ *     summary: Get a verified note
+ *     description: Returns the verified note record for the given network and note id.
+ *     parameters:
+ *       - in: path
+ *         name: networkId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Network identifier (e.g. `mtst`, `mlcl`).
+ *       - in: path
+ *         name: noteId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: On-chain note identifier.
+ *     responses:
+ *       "200":
+ *         description: The verified note record.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       "404":
+ *         description: No verified note found for the given parameters.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *       "500":
+ *         description: Retrieval failed.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ */
 router.get("/:networkId/verified-notes/:noteId", async (req, res) => {
   const { networkId, noteId } = req.params;
   try {

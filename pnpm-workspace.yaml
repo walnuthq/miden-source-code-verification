@@ -1,8 +1,10 @@
 packages:
   - "apps/api-compile-cloudflare"
   - "apps/api-registry"
+  - "apps/api-docs"
   - "packages/*"
 allowBuilds:
+  '@scarf/scarf': false
   esbuild: true
   sharp: true
   workerd: true
