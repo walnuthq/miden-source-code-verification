@@ -1,12 +1,12 @@
-import express from "express";
 import cors from "cors";
+import express from "express";
+import { cargoMidenVersion } from "@/lib/cargo-miden.js";
 import {
-  PORT,
   ALLOWED_ORIGINS,
   CARGO_TARGET_DIR,
   MIDEN_VERIFIER_CACHE_DIR,
+  PORT,
 } from "@/lib/constants.js";
-import { cargoMidenVersion } from "@/lib/cargo-miden.js";
 import compileRouter from "@/routes/compile.js";
 import verifyRouter from "@/routes/verify.js";
 
@@ -24,7 +24,7 @@ app.use(
 
 app.use(express.json({ limit: "1mb" }));
 
-app.get("/", async (req, res) => {
+app.get("/", async (_req, res) => {
   res.json({
     timestamp: Date.now(),
     env: { PORT, ALLOWED_ORIGINS, CARGO_TARGET_DIR, MIDEN_VERIFIER_CACHE_DIR },
@@ -36,5 +36,5 @@ app.use(compileRouter);
 app.use(verifyRouter);
 
 app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });

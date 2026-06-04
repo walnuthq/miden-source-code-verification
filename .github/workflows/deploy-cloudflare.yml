@@ -1,4 +1,4 @@
-name: Deploy api-compile-cloudflare
+name: Deploy api-compile-cloudflare & api-registry-cloudflare
 
 on:
   push:
@@ -25,8 +25,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Deploy to Cloudflare
+      - name: Deploy api-compile to Cloudflare
         working-directory: apps/api-compile-cloudflare
+        run: pnpm cf:deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Deploy api-registry to Cloudflare
+        working-directory: apps/api-registry-cloudflare
         run: pnpm cf:deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

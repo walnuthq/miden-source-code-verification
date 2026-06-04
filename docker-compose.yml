@@ -2,7 +2,8 @@ services:
   postgres:
     image: postgres:16-alpine
     ports:
-      - "5433:5432"
+      # Host port is overridable to avoid clashing with a local Postgres.
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - miden-sourcify-postgres:/var/lib/postgresql/data
     environment:
@@ -16,14 +17,79 @@ services:
       retries: 5
   api-compile:
     build:
-      context: apps/api-compile
-    env_file: apps/api-compile/.env
+      # Build context is the monorepo root so pnpm can resolve the workspace.
+      context: .
+      dockerfile: apps/api-compile/Dockerfile
+    # Self-contained dev config (no .env file needed). CARGO_TARGET_DIR /
+    # MIDEN_VERIFIER_CACHE_DIR must match the warm cache paths baked into the image.
+    environment:
+      - PORT=8080
+      - ALLOWED_ORIGINS=*
+      - CARGO_TARGET_DIR=/cache/target
+      - MIDEN_VERIFIER_CACHE_DIR=/cache
     image: miden-sourcify-api-compile
     container_name: miden-sourcify-api-compile
     ports:
       - "8080:8080"
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8080"]
+      # Health check via Node's global fetch (no extra tooling required).
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:8080/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+  api-registry-migrate:
+    build:
+      # Build context is the monorepo root so pnpm can resolve the workspace.
+      context: .
+      dockerfile: apps/api-registry/Dockerfile
+      target: migrate
+    environment:
+      # In-network address of the compose postgres service.
+      - DATABASE_URL=postgresql://miden-sourcify:miden_sourcify_dev_password@postgres:5432/miden-sourcify
+    image: miden-sourcify-api-registry-migrate
+    container_name: miden-sourcify-api-registry-migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+  api-registry:
+    build:
+      # Build context is the monorepo root so pnpm can resolve the workspace.
+      context: .
+      dockerfile: apps/api-registry/Dockerfile
+    # Self-contained dev config (no .env file needed); uses in-network service addresses.
+    environment:
+      - PORT=8081
+      - ALLOWED_ORIGINS=*
+      - DATABASE_URL=postgresql://miden-sourcify:miden_sourcify_dev_password@postgres:5432/miden-sourcify
+      - API_COMPILE_URL=http://api-compile:8080
+    image: miden-sourcify-api-registry
+    container_name: miden-sourcify-api-registry
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api-registry-migrate:
+        condition: service_completed_successfully
+      api-compile:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    healthcheck:
+      # node:slim has no curl; use Node's global fetch instead.
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:8081/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 5s
       timeout: 3s
       retries: 30

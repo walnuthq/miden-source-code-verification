@@ -1,19 +1,18 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "miden-sourcify-api-registry",
-  "main": "src/worker.ts",
+  "main": "src/server.ts",
   "compatibility_date": "2025-09-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
-    "enabled": true,
+    "enabled": true
   },
   "vars": {
-    "NODE_ENV": "production",
     "PORT": "8081",
     "ALLOWED_ORIGINS": "https://playground.miden.xyz",
-    "API_COMPILE_URL": "https://miden-sourcify-api-compile.walnut.dev",
+    "API_COMPILE_URL": "https://miden-sourcify-api-compile.walnut.dev"
   },
   "secrets": {
-    "required": ["DATABASE_URL"],
-  },
+    "required": ["DATABASE_URL"]
+  }
 }

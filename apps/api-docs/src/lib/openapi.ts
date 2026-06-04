@@ -14,7 +14,7 @@ const findRepoRoot = (start: string): string => {
     }
     const parent = path.dirname(dir);
     if (parent === dir) {
-      throw new Error("Could not locate the monorepo root from " + start);
+      throw new Error(`Could not locate the monorepo root from ${start}`);
     }
     dir = parent;
   }

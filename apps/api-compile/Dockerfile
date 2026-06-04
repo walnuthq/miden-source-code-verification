@@ -1,9 +1,18 @@
 # syntax=docker/dockerfile:1
 
+# api-compile is a pnpm workspace package, so the build context is the monorepo
+# root (it needs pnpm-lock.yaml + the workspace manifests). See the root
+# .dockerignore for what is excluded from the context.
+
 FROM node:24-slim AS base
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl ca-certificates build-essential \
  && rm -rf /var/lib/apt/lists/*
+ENV PNPM_HOME="/pnpm" \
+    PATH="/pnpm:$PATH" \
+    COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+# Pin pnpm via the root package.json "packageManager" field.
+RUN corepack enable
 
 # Rust toolchain (shared by builder and runtime)
 FROM base AS rust
@@ -22,7 +31,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cargo install cargo-miden --locked
 
 WORKDIR /home/node/crates
-COPY crates .
+COPY apps/api-compile/crates .
 
 WORKDIR /home/node/crates/miden-package-metadata
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
@@ -36,23 +45,22 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 
 RUN strip /usr/local/cargo/bin/cargo-miden /usr/local/cargo/bin/miden-package-metadata /usr/local/cargo/bin/miden-verifier
 
-# Build the API (TypeScript -> JS) — runs in parallel with rust-builder
+# Build the API (TypeScript -> JS) from the pnpm workspace — runs in parallel with rust-builder
 FROM base AS api-builder
-WORKDIR /home/node/api
-COPY package.json package-lock.json tsconfig.json ./
-RUN npm ci
-COPY src src
-RUN npm run build
-
-# Production-only node_modules
-FROM base AS api-deps
-WORKDIR /home/node/api
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --ignore-scripts \
- && npm cache clean --force
+WORKDIR /repo
+COPY . .
+# Install only what api-compile needs (and its workspace deps), with a cached store.
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter=miden-sourcify-api-compile...
+# Compile TypeScript -> dist/ (tsc + tsc-alias rewrites the @/* path aliases).
+RUN pnpm --filter=miden-sourcify-api-compile build
+# Produce a self-contained, production-only bundle (no workspace symlinks).
+# --legacy is required since api-compile has no injected workspace deps (pnpm v10+).
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm deploy --legacy --filter=miden-sourcify-api-compile --prod /prod/api-compile
 
 # Final runtime image — slim, no build tools
-FROM base
+FROM base AS runtime
 
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
@@ -64,15 +72,16 @@ COPY --from=rust-builder /usr/local/cargo /usr/local/cargo
 
 # Copy project template
 WORKDIR /cache/project-template
-COPY project-template .
+COPY apps/api-compile/project-template .
 # Warm cargo-miden
 WORKDIR /cache/project-template/counter-account
 RUN CARGO_TARGET_DIR=/cache/target cargo miden build --release
 
+# App: only the built output + production dependencies from the deploy bundle
 WORKDIR /home/node/api
-COPY package.json .
-COPY --from=api-deps /home/node/api/node_modules node_modules
-COPY --from=api-builder /home/node/api/dist dist
+COPY --from=api-builder /prod/api-compile/package.json .
+COPY --from=api-builder /prod/api-compile/node_modules node_modules
+COPY --from=api-builder /prod/api-compile/dist dist
 
 EXPOSE 8080
-CMD ["npm", "start"]
+CMD ["node", "dist/src/server.js"]

@@ -7,7 +7,9 @@
     "build": "tsx src/build.ts",
     "preview": "sirv dist --port 8082",
     "dev": "tsx src/build.ts && sirv dist --port 8082 --dev",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write ."
   },
   "dependencies": {
     "dotenv": "17.4.2",
