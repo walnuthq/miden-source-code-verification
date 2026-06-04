@@ -1,0 +1,36 @@
+# Root build context ignore (used by apps/api-registry/Dockerfile, which builds
+# from the monorepo root). Keep this lean: only manifests, lockfile and source
+# are needed to install and build.
+
+# Git / OS
+.git
+.gitignore
+**/.DS_Store
+
+# Dependencies & build outputs — reinstalled / rebuilt inside the image
+**/node_modules
+**/dist
+**/.wrangler
+**/target
+
+# Secrets — never copy real env files into the image
+**/.env
+**/.env.*
+!**/.env.example
+
+# Tests, coverage and local tooling
+**/__tests__
+**/coverage
+**/*.log
+**/vitest.config.ts
+
+# Local runtime state (api-compile)
+**/keystore
+**/store.sqlite3
+
+# Not needed for the build
+.github
+docs
+**/Dockerfile
+**/.dockerignore
+docker-compose.yml

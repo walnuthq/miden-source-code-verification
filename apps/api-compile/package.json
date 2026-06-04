@@ -6,11 +6,11 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc && tsc-alias",
+    "typecheck": "tsc --noEmit",
     "start": "node dist/src/server.js",
-    "compose:up": "docker compose -f ../../docker-compose.yml up -d --build --wait api-compile",
-    "compose:down": "docker compose -f ../../docker-compose.yml down",
-    "test": "npm run compose:up && vitest run; e=$?; npm run compose:down; exit $e",
-    "test:watch": "npm run compose:up && vitest"
+    "test": "vitest run",
+    "lint": "biome check .",
+    "format": "biome check --write ."
   },
   "dependencies": {
     "cors": "2.8.6",
@@ -24,6 +24,7 @@
     "@types/lodash": "4.17.24",
     "@types/node": "25.9.1",
     "@types/supertest": "7.2.0",
+    "miden-sourcify-test-utils": "workspace:*",
     "supertest": "7.2.2",
     "tsc-alias": "1.8.17",
     "tsx": "4.22.4",

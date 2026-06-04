@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { verifyNote } from "@/lib/verify-note.js";
 import { getVerifiedNote } from "@/db/verified-notes.js";
+import { verifyNote } from "@/lib/verify-note.js";
 
-const router = Router();
+const router: Router = Router();
 
 type VerifyNoteRequestBody = {
   noteId?: string;

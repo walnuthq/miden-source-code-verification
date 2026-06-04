@@ -11,17 +11,14 @@ export const readProjectFiles = async (rootDir: string) => {
       if (!entry.isFile()) return;
       const full = path.join(entry.parentPath, entry.name);
       const rel = path.relative(rootDir, full);
-      if (rel.includes("target/")) return;
+      if (rel.includes("target/") || rel === ".DS_Store") return;
       return { path: rel, content: await readFile(full, "utf8") };
     }),
   );
   return files
     .filter((file) => file !== undefined)
-    .reduce<Record<string, string>>(
-      (previousValue, currentValue) => ({
-        ...previousValue,
-        [currentValue.path]: currentValue.content,
-      }),
-      {},
-    );
+    .reduce<Record<string, string>>((previousValue, currentValue) => {
+      previousValue[currentValue.path] = currentValue.content;
+      return previousValue;
+    }, {});
 };

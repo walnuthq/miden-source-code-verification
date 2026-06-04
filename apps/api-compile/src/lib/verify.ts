@@ -1,6 +1,6 @@
 import { mkdtemp, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { midenVerifier } from "@/lib/miden-verifier.js";
 
 export const writeResourceFile = async (resource: string) => {

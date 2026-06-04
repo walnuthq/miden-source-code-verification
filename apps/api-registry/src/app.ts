@@ -1,10 +1,10 @@
-import express from "express";
 import cors from "cors";
-import { PORT, ALLOWED_ORIGINS, API_COMPILE_URL } from "@/lib/constants.js";
+import express, { type Express } from "express";
+import { ALLOWED_ORIGINS, API_COMPILE_URL, PORT } from "@/lib/constants.js";
 import verifiedAccountsRouterV1 from "@/routes/v1/verified-accounts.js";
 import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
 
-export const createApp = () => {
+export const createApp = (): Express => {
   const app = express();
 
   const allowedOrigins = ALLOWED_ORIGINS.split(",")
@@ -19,7 +19,7 @@ export const createApp = () => {
 
   app.use(express.json({ limit: "1mb" }));
 
-  app.get("/", (req, res) => {
+  app.get("/", (_req, res) => {
     res.json({
       timestamp: Date.now(),
       env: { PORT, ALLOWED_ORIGINS, API_COMPILE_URL },

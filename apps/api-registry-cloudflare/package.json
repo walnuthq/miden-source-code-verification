@@ -1,0 +1,22 @@
+{
+  "name": "miden-sourcify-api-registry-cloudflare",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "pnpm --filter miden-sourcify-api-registry build && tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "cf:typegen": "wrangler types",
+    "cf:dev": "pnpm --filter miden-sourcify-api-registry build && wrangler dev --port 8081",
+    "cf:deploy": "pnpm --filter miden-sourcify-api-registry build && wrangler deploy"
+  },
+  "dependencies": {
+    "miden-sourcify-api-registry": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.1",
+    "typescript": "6.0.3",
+    "wrangler": "4.98.0"
+  }
+}

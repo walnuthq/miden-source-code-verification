@@ -1,11 +1,11 @@
 import {
+  jsonb,
   pgEnum,
+  pgTable,
   text,
   timestamp,
-  pgTable,
-  varchar,
   uuid,
-  jsonb,
+  varchar,
 } from "drizzle-orm/pg-core";
 
 export const packageTypeEnum = pgEnum("package_type", [

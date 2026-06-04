@@ -4,22 +4,33 @@
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "api-compile",
+  "name": "miden-sourcify-api-compile",
   "main": "src/server.ts",
   "compatibility_date": "2026-05-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
-    "enabled": true,
+    "enabled": true
+  },
+  "vars": {
+    "PORT": "8080",
+    "ALLOWED_ORIGINS": "*",
+    "CARGO_TARGET_DIR": "/cache/target",
+    "MIDEN_VERIFIER_CACHE_DIR": "/cache"
   },
   "containers": [
     {
       "class_name": "Compiler",
       "image": "../api-compile/Dockerfile",
+      // api-compile is a pnpm workspace package whose Dockerfile builds from the
+      // monorepo root (needs the workspace lockfile + apps/api-compile/* paths),
+      // matching docker-compose's `context: .`. Default context is the
+      // Dockerfile's dir, so point it at the repo root instead.
+      "image_build_context": "../../",
       "max_instances": 1,
       "instance_type": "standard-1",
       "ssh": {
-        "enabled": true,
-      },
+        "enabled": true
+      }
       /* add SSH public key when debugging with wrangler tail */
       /* "authorized_keys": [
         {
@@ -27,21 +38,21 @@
           "public_key": "ssh-ed25519 PUBLIC_KEY EMAIL_ADDRESS",
         },
       ], */
-    },
+    }
   ],
   "durable_objects": {
     "bindings": [
       {
         "class_name": "Compiler",
-        "name": "COMPILER",
-      },
-    ],
+        "name": "COMPILER"
+      }
+    ]
   },
   "migrations": [
     {
       "new_sqlite_classes": ["Compiler"],
-      "tag": "v1",
-    },
+      "tag": "v1"
+    }
   ],
-  "upload_source_maps": true,
+  "upload_source_maps": true
 }

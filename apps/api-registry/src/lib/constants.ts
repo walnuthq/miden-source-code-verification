@@ -6,4 +6,4 @@ export const API_COMPILE_URL =
   process.env.API_COMPILE_URL ?? "http://localhost:8080";
 export const DATABASE_URL =
   process.env.DATABASE_URL ??
-  "postgresql://postgres:password@localhost:5432/postgres";
+  "postgres://miden-sourcify:miden_sourcify_dev_password@localhost:5432/miden-sourcify";

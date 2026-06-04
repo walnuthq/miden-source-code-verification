@@ -1,9 +1,9 @@
-import { mkdtemp, writeFile, mkdir, readFile, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 import lodash from "lodash";
-import { CARGO_TARGET_DIR } from "@/lib/constants.js";
 import { cargoMidenBuild } from "@/lib/cargo-miden.js";
+import { CARGO_TARGET_DIR } from "@/lib/constants.js";
 import { midenPackageMetadata } from "@/lib/miden-package-metadata.js";
 import type { Manifest } from "@/lib/types.js";
 

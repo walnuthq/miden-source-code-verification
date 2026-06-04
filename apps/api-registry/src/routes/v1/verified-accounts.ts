@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { verifyAccountComponent } from "@/lib/verify-account-component.js";
 import { getVerifiedAccount } from "@/db/verified-accounts.js";
+import { verifyAccountComponent } from "@/lib/verify-account-component.js";
 
-const router = Router();
+const router: Router = Router();
 
 type VerifyAccountRequestBody = {
   accountId?: string;

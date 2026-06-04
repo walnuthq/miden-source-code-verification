@@ -1,8 +1,8 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readProjectFiles } from "miden-sourcify-test-utils";
 import request from "supertest";
-import { describe, it, expect } from "vitest";
-import { readProjectFiles } from "./utils";
+import { describe, expect, it } from "vitest";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -6,12 +6,20 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc && tsc-alias",
+    "typecheck": "tsc --noEmit",
     "start": "node dist/src/server.js",
     "test": "vitest run",
     "db:push": "drizzle-kit push",
-    "cf:dev": "wrangler dev --port 8081",
-    "cf:deploy": "pnpm build && wrangler deploy",
-    "cf:typegen": "wrangler types"
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "lint": "biome check .",
+    "format": "biome check --write ."
+  },
+  "exports": {
+    "./app": {
+      "types": "./dist/src/app.d.ts",
+      "default": "./dist/src/app.js"
+    }
   },
   "dependencies": {
     "cors": "2.8.6",
@@ -25,13 +33,14 @@
     "@types/cors": "2.8.19",
     "@types/express": "5.0.6",
     "@types/node": "25.9.1",
+    "@types/pg": "^8.20.0",
     "@types/supertest": "7.2.0",
     "drizzle-kit": "1.0.0-beta.22",
+    "miden-sourcify-test-utils": "workspace:*",
     "supertest": "7.2.2",
     "tsc-alias": "1.8.17",
-    "tsx": "4.22.3",
+    "tsx": "4.22.4",
     "typescript": "6.0.3",
-    "vitest": "4.1.7",
-    "wrangler": "4.95.0"
+    "vitest": "4.1.8"
   }
 }

@@ -1,15 +1,15 @@
-import { API_COMPILE_URL } from "@/lib/constants.js";
-import {
-  getVerifiedAccount,
-  insertVerifiedAccount,
-} from "@/db/verified-accounts.js";
+import { insertPackage } from "@/db/packages.js";
 import {
   getVerifiedAccountComponent,
   insertVerifiedAccountComponent,
 } from "@/db/verified-account-components.js";
-import { insertPackage } from "@/db/packages.js";
-import { parseCargoToml } from "@/lib/utils.js";
+import {
+  getVerifiedAccount,
+  insertVerifiedAccount,
+} from "@/db/verified-accounts.js";
+import { API_COMPILE_URL } from "@/lib/constants.js";
 import type { Manifest } from "@/lib/types.js";
+import { parseCargoToml } from "@/lib/utils.js";
 
 export const verifyAccountComponent = async ({
   networkId,

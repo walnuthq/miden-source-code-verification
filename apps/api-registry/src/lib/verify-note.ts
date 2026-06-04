@@ -1,8 +1,8 @@
-import { API_COMPILE_URL } from "@/lib/constants.js";
-import { getVerifiedNote, insertVerifiedNote } from "@/db/verified-notes.js";
 import { insertPackage } from "@/db/packages.js";
-import { parseCargoToml } from "@/lib/utils.js";
+import { getVerifiedNote, insertVerifiedNote } from "@/db/verified-notes.js";
+import { API_COMPILE_URL } from "@/lib/constants.js";
 import type { Manifest } from "@/lib/types.js";
+import { parseCargoToml } from "@/lib/utils.js";
 
 export const verifyNote = async ({
   networkId,
