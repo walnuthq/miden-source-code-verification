@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { Router } from "express";
 import { getVerifiedNote } from "@/db/verified-notes.js";
 import { verifyNote } from "@/lib/verify-note.js";
@@ -80,7 +81,7 @@ type VerifyNoteRequestBody = {
  *                   type: string
  */
 router.post("/:networkId/verified-notes", async (req, res) => {
-  const { noteId, files, entrypoint } = req.body as VerifyNoteRequestBody;
+  const { noteId, files, entrypoint = "." } = req.body as VerifyNoteRequestBody;
   if (!noteId) {
     res.status(400).json({ error: "missing noteId" });
     return;
@@ -89,7 +90,7 @@ router.post("/:networkId/verified-notes", async (req, res) => {
     res.status(400).json({ error: "missing files" });
     return;
   }
-  const cargoTomlPath = entrypoint ? `${entrypoint}/Cargo.toml` : "Cargo.toml";
+  const cargoTomlPath = join(entrypoint, "Cargo.toml");
   if (!files[cargoTomlPath]) {
     res.status(400).json({ error: "missing Cargo.toml" });
     return;

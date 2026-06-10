@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { insertPackage } from "@/db/packages.js";
 import { getVerifiedNote, insertVerifiedNote } from "@/db/verified-notes.js";
 import { API_COMPILE_URL } from "@/lib/constants.js";
@@ -8,14 +9,14 @@ export const verifyNote = async ({
   networkId,
   noteId,
   files,
-  entrypoint,
+  entrypoint = ".",
 }: {
   networkId: string;
   noteId: string;
   files: Record<string, string>;
   entrypoint?: string;
 }) => {
-  const cargoTomlPath = entrypoint ? `${entrypoint}/Cargo.toml` : "Cargo.toml";
+  const cargoTomlPath = join(entrypoint, "Cargo.toml");
   const cargoToml = files[cargoTomlPath] ?? "";
   const {
     package: { name },

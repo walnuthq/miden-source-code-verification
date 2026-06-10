@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { insertPackage } from "@/db/packages.js";
 import {
   getVerifiedAccountComponent,
@@ -15,12 +16,15 @@ export const verifyAccountComponent = async ({
   networkId,
   accountId,
   files,
+  entrypoint = ".",
 }: {
   networkId: string;
   accountId: string;
   files: Record<string, string>;
+  entrypoint?: string;
 }) => {
-  const cargoToml = files["Cargo.toml"] ?? "";
+  const cargoTomlPath = join(entrypoint, "Cargo.toml");
+  const cargoToml = files[cargoTomlPath] ?? "";
   const {
     package: { name },
   } = parseCargoToml(cargoToml);
@@ -31,6 +35,7 @@ export const verifyAccountComponent = async ({
       files,
       networkId,
       resourceId: accountId,
+      entrypoint,
     }),
   });
   const data = await response.json();
