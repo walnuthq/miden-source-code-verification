@@ -11,14 +11,14 @@ const { snakeCase } = lodash;
 
 export const compile = async ({
   files,
-  entrypoint,
+  entrypoint = ".",
 }: {
   files: Record<string, string>;
   entrypoint?: string;
 }) => {
   const tmpDir = await mkdtemp(join(tmpdir(), "miden-project-")); // Write project files
   const outputName = snakeCase(tmpDir.split("/").at(-1) ?? "");
-  const cargoTomlPath = entrypoint ? `${entrypoint}/Cargo.toml` : "Cargo.toml";
+  const cargoTomlPath = join(entrypoint, "Cargo.toml");
   const cargoToml = files[cargoTomlPath] ?? "";
   files[cargoTomlPath] = cargoToml.replace(
     "[lib]",

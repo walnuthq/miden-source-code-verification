@@ -12,11 +12,11 @@
     "cf:dev": "MINIFLARE_CONTAINER_EGRESS_IMAGE=cloudflare/proxy-everything:3cb1195@sha256:78c7910f4575a511d928d7824b1cbcaec6b7c4bf4dbb3fafaeeae3104030e73c wrangler dev"
   },
   "dependencies": {
-    "@cloudflare/containers": "0.3.6",
-    "hono": "4.12.23"
+    "@cloudflare/containers": "0.3.7",
+    "hono": "4.12.25"
   },
   "devDependencies": {
-    "@types/node": "25.9.1",
+    "@types/node": "25.9.2",
     "typescript": "6.0.3",
     "wrangler": "4.98.0"
   }

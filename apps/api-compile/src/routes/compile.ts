@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { Router } from "express";
 import { compile } from "@/lib/compile.js";
 
@@ -19,12 +20,12 @@ type CompileRequestBody = {
 // };
 
 router.post("/compile", async (req, res) => {
-  const { files, entrypoint } = req.body as CompileRequestBody;
+  const { files, entrypoint = "." } = req.body as CompileRequestBody;
   if (!files || typeof files !== "object") {
     res.status(400).json({ error: "missing files" });
     return;
   }
-  const cargoTomlPath = entrypoint ? `${entrypoint}/Cargo.toml` : "Cargo.toml";
+  const cargoTomlPath = join(entrypoint, "Cargo.toml");
   if (!files[cargoTomlPath]) {
     res.status(400).json({ error: "missing Cargo.toml" });
     return;

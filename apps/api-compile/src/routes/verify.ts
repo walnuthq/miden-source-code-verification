@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { Router } from "express";
 import { compile } from "@/lib/compile.js";
 import { verify, writeResourceFile } from "@/lib/verify.js";
@@ -13,13 +14,18 @@ type VerifyRequestBody = {
 };
 
 router.post("/verify", async (req, res) => {
-  const { files, entrypoint, networkId, resourceId, resource } =
-    req.body as VerifyRequestBody;
+  const {
+    files,
+    entrypoint = ".",
+    networkId,
+    resourceId,
+    resource,
+  } = req.body as VerifyRequestBody;
   if (!files || typeof files !== "object") {
     res.status(400).json({ error: "missing files" });
     return;
   }
-  const cargoTomlPath = entrypoint ? `${entrypoint}/Cargo.toml` : "Cargo.toml";
+  const cargoTomlPath = join(entrypoint, "Cargo.toml");
   if (!files[cargoTomlPath]) {
     res.status(400).json({ error: "missing Cargo.toml" });
     return;

@@ -17,7 +17,7 @@
     "swagger-ui-dist": "5.32.6"
   },
   "devDependencies": {
-    "@types/node": "25.9.1",
+    "@types/node": "25.9.2",
     "@types/swagger-jsdoc": "6.0.4",
     "@types/swagger-ui-dist": "3.30.6",
     "sirv-cli": "3.0.1",

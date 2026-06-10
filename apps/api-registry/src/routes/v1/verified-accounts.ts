@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { Router } from "express";
 import { getVerifiedAccount } from "@/db/verified-accounts.js";
 import { verifyAccountComponent } from "@/lib/verify-account-component.js";
@@ -7,6 +8,7 @@ const router: Router = Router();
 type VerifyAccountRequestBody = {
   accountId?: string;
   files?: Record<string, string>;
+  entrypoint?: string;
 };
 
 /**
@@ -40,9 +42,16 @@ type VerifyAccountRequestBody = {
  *                 type: object
  *                 description: >
  *                   Map of project-relative file paths to their UTF-8 contents.
- *                   Must contain a `Cargo.toml` entry.
+ *                   Must contain a `Cargo.toml` at the project root (or under
+ *                   `entrypoint` when set).
  *                 additionalProperties:
  *                   type: string
+ *               entrypoint:
+ *                 type: string
+ *                 description: >
+ *                   Optional subdirectory containing the project to compile.
+ *                   When set, the `Cargo.toml` is read from `<entrypoint>/Cargo.toml`.
+ *                   Defaults to the project root (`.`).
  *     responses:
  *       "200":
  *         description: Verification result.
@@ -73,7 +82,11 @@ type VerifyAccountRequestBody = {
  *                   type: string
  */
 router.post("/:networkId/verified-accounts", async (req, res) => {
-  const { accountId, files } = req.body as VerifyAccountRequestBody;
+  const {
+    accountId,
+    files,
+    entrypoint = ".",
+  } = req.body as VerifyAccountRequestBody;
   if (!accountId) {
     res.status(400).json({ error: "missing accountId" });
     return;
@@ -82,7 +95,8 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
     res.status(400).json({ error: "missing files" });
     return;
   }
-  if (!files["Cargo.toml"]) {
+  const cargoTomlPath = join(entrypoint, "Cargo.toml");
+  if (!files[cargoTomlPath]) {
     res.status(400).json({ error: "missing Cargo.toml" });
     return;
   }
@@ -91,6 +105,7 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
       networkId: req.params.networkId,
       accountId,
       files,
+      entrypoint,
     });
     res.json({ verified });
   } catch (error) {
