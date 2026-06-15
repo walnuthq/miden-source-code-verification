@@ -20,17 +20,17 @@ type CompileRequestBody = {
 // };
 
 router.post("/compile", async (req, res) => {
-  const { files, entrypoint = "." } = req.body as CompileRequestBody;
-  if (!files || typeof files !== "object") {
-    res.status(400).json({ error: "missing files" });
-    return;
-  }
-  const cargoTomlPath = join(entrypoint, "Cargo.toml");
-  if (!files[cargoTomlPath]) {
-    res.status(400).json({ error: "missing Cargo.toml" });
-    return;
-  }
   try {
+    const { files, entrypoint = "." } = req.body as CompileRequestBody;
+    if (!files || typeof files !== "object") {
+      res.status(400).json({ error: "missing files" });
+      return;
+    }
+    const cargoTomlPath = join(entrypoint, "Cargo.toml");
+    if (!files[cargoTomlPath]) {
+      res.status(400).json({ error: "missing Cargo.toml" });
+      return;
+    }
     const { stdout, stderr, masp, digest, manifest } = await compile({
       files,
       entrypoint,

@@ -81,21 +81,25 @@ type VerifyNoteRequestBody = {
  *                   type: string
  */
 router.post("/:networkId/verified-notes", async (req, res) => {
-  const { noteId, files, entrypoint = "." } = req.body as VerifyNoteRequestBody;
-  if (!noteId) {
-    res.status(400).json({ error: "missing noteId" });
-    return;
-  }
-  if (!files || typeof files !== "object") {
-    res.status(400).json({ error: "missing files" });
-    return;
-  }
-  const cargoTomlPath = join(entrypoint, "Cargo.toml");
-  if (!files[cargoTomlPath]) {
-    res.status(400).json({ error: "missing Cargo.toml" });
-    return;
-  }
   try {
+    const {
+      noteId,
+      files,
+      entrypoint = ".",
+    } = req.body as VerifyNoteRequestBody;
+    if (!noteId) {
+      res.status(400).json({ error: "missing noteId" });
+      return;
+    }
+    if (!files || typeof files !== "object") {
+      res.status(400).json({ error: "missing files" });
+      return;
+    }
+    const cargoTomlPath = join(entrypoint, "Cargo.toml");
+    if (!files[cargoTomlPath]) {
+      res.status(400).json({ error: "missing Cargo.toml" });
+      return;
+    }
     const verified = await verifyNote({
       networkId: req.params.networkId,
       noteId,
@@ -158,8 +162,8 @@ router.post("/:networkId/verified-notes", async (req, res) => {
  *                   type: string
  */
 router.get("/:networkId/verified-notes/:noteId", async (req, res) => {
-  const { networkId, noteId } = req.params;
   try {
+    const { networkId, noteId } = req.params;
     const verifiedNote = await getVerifiedNote({
       networkId,
       noteId,

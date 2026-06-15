@@ -14,31 +14,31 @@ type VerifyRequestBody = {
 };
 
 router.post("/verify", async (req, res) => {
-  const {
-    files,
-    entrypoint = ".",
-    networkId,
-    resourceId,
-    resource,
-  } = req.body as VerifyRequestBody;
-  if (!files || typeof files !== "object") {
-    res.status(400).json({ error: "missing files" });
-    return;
-  }
-  const cargoTomlPath = join(entrypoint, "Cargo.toml");
-  if (!files[cargoTomlPath]) {
-    res.status(400).json({ error: "missing Cargo.toml" });
-    return;
-  }
-  if (!networkId) {
-    res.status(400).json({ error: "missing networkId" });
-    return;
-  }
-  if (!resourceId) {
-    res.status(400).json({ error: "missing resourceId" });
-    return;
-  }
   try {
+    const {
+      files,
+      entrypoint = ".",
+      networkId,
+      resourceId,
+      resource,
+    } = req.body as VerifyRequestBody;
+    if (!files || typeof files !== "object") {
+      res.status(400).json({ error: "missing files" });
+      return;
+    }
+    const cargoTomlPath = join(entrypoint, "Cargo.toml");
+    if (!files[cargoTomlPath]) {
+      res.status(400).json({ error: "missing Cargo.toml" });
+      return;
+    }
+    if (!networkId) {
+      res.status(400).json({ error: "missing networkId" });
+      return;
+    }
+    if (!resourceId) {
+      res.status(400).json({ error: "missing resourceId" });
+      return;
+    }
     const [{ stderr, maspPath, masp, digest, manifest }, resourcePath] =
       await Promise.all([
         compile({

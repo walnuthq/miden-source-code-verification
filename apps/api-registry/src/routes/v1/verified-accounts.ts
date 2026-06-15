@@ -82,25 +82,25 @@ type VerifyAccountRequestBody = {
  *                   type: string
  */
 router.post("/:networkId/verified-accounts", async (req, res) => {
-  const {
-    accountId,
-    files,
-    entrypoint = ".",
-  } = req.body as VerifyAccountRequestBody;
-  if (!accountId) {
-    res.status(400).json({ error: "missing accountId" });
-    return;
-  }
-  if (!files || typeof files !== "object") {
-    res.status(400).json({ error: "missing files" });
-    return;
-  }
-  const cargoTomlPath = join(entrypoint, "Cargo.toml");
-  if (!files[cargoTomlPath]) {
-    res.status(400).json({ error: "missing Cargo.toml" });
-    return;
-  }
   try {
+    const {
+      accountId,
+      files,
+      entrypoint = ".",
+    } = req.body as VerifyAccountRequestBody;
+    if (!accountId) {
+      res.status(400).json({ error: "missing accountId" });
+      return;
+    }
+    if (!files || typeof files !== "object") {
+      res.status(400).json({ error: "missing files" });
+      return;
+    }
+    const cargoTomlPath = join(entrypoint, "Cargo.toml");
+    if (!files[cargoTomlPath]) {
+      res.status(400).json({ error: "missing Cargo.toml" });
+      return;
+    }
     const verified = await verifyAccountComponent({
       networkId: req.params.networkId,
       accountId,
@@ -163,8 +163,8 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
  *                   type: string
  */
 router.get("/:networkId/verified-accounts/:accountId", async (req, res) => {
-  const { networkId, accountId } = req.params;
   try {
+    const { networkId, accountId } = req.params;
     const verifiedAccount = await getVerifiedAccount({
       networkId,
       accountId,
