@@ -26,7 +26,7 @@ type VerifyAccountRequestBody = {
  *         required: true
  *         schema:
  *           type: string
- *         description: Network identifier (e.g. `mtst`, `mlcl`).
+ *         description: Network identifier (e.g. `mtst`, `mdev`).
  *     requestBody:
  *       required: true
  *       content:
@@ -129,7 +129,7 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
  *         required: true
  *         schema:
  *           type: string
- *         description: Network identifier (e.g. `mtst`, `mlcl`).
+ *         description: Network identifier (e.g. `mtst`, `mdev`).
  *       - in: path
  *         name: accountId
  *         required: true

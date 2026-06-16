@@ -26,7 +26,7 @@ type VerifyNoteRequestBody = {
  *         required: true
  *         schema:
  *           type: string
- *         description: Network identifier (e.g. `mtst`, `mlcl`).
+ *         description: Network identifier (e.g. `mtst`, `mdev`).
  *     requestBody:
  *       required: true
  *       content:
@@ -128,7 +128,7 @@ router.post("/:networkId/verified-notes", async (req, res) => {
  *         required: true
  *         schema:
  *           type: string
- *         description: Network identifier (e.g. `mtst`, `mlcl`).
+ *         description: Network identifier (e.g. `mtst`, `mdev`).
  *       - in: path
  *         name: noteId
  *         required: true

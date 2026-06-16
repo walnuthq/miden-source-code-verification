@@ -1,0 +1,21 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "miden-source-code-verification-web-verifier",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-01",
+  "observability": {
+    "enabled": true,
+  },
+  // Serve the built web-verifier SPA from static assets. web-verifier is a Vite
+  // app whose Dockerless build output lives in `apps/web-verifier/dist` (built
+  // by the cf:dev / cf:deploy scripts), so point the assets directory there.
+  "assets": {
+    "directory": "../web-verifier/dist",
+    "binding": "ASSETS",
+    // Serve index.html for unknown routes (client-side routing).
+    "not_found_handling": "single-page-application",
+    // Run the Worker in front of every asset response so it can attach the
+    // COOP/COEP cross-origin-isolation headers the Miden SDK requires.
+    "run_worker_first": true,
+  },
+}
