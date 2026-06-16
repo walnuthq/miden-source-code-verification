@@ -1,0 +1,22 @@
+{
+  "name": "miden-source-code-verification-web-verifier-cloudflare",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "cf:typegen": "wrangler types",
+    "cf:dev": "pnpm --filter miden-source-code-verification-web-verifier build && wrangler dev --port 5173",
+    "cf:deploy": "VITE_API_REGISTRY_URL=https://miden-source-code-verification-api-registry.walnut.dev pnpm --filter miden-source-code-verification-web-verifier build && wrangler deploy"
+  },
+  "dependencies": {
+    "miden-source-code-verification-web-verifier": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.3",
+    "typescript": "6.0.3",
+    "wrangler": "4.100.0"
+  }
+}

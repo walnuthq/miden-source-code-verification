@@ -28,11 +28,15 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 # --- Migrate stage: reuses the build stage (drizzle-kit + the committed
 #     drizzle/ migrations) to apply versioned migrations. One-shot compose service. ---
 FROM build AS migrate
+# cwd must be the package dir so drizzle.config.ts resolves its relative paths
+# (./drizzle, ./src/db/schema.ts) and DATABASE_URL.
 WORKDIR /repo/apps/api-registry
 # Invoke drizzle-kit directly (not via `pnpm run`) to bypass pnpm's
 # verify-deps-before-run check, which would try to reinstall the filtered
 # workspace and abort in a non-TTY container.
-CMD ["node", "node_modules/drizzle-kit/bin.cjs", "migrate"]
+# The workspace uses pnpm's `hoisted` nodeLinker (flat, npm-style layout), so
+# drizzle-kit lives in the repo-root node_modules, not the package's.
+CMD ["node", "/repo/node_modules/drizzle-kit/bin.cjs", "migrate"]
 
 # --- Runtime stage: minimal image with just the built app + prod deps ---
 FROM base AS runtime

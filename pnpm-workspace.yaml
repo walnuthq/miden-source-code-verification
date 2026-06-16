@@ -1,11 +1,14 @@
 packages:
   - "apps/*"
   - "packages/*"
+# Flat, npm/yarn-style node_modules. The Vite dep optimizer (Rolldown) and the
+# Miden SDK tooling resolve transitive deps (e.g. scheduler, zustand,
+# @floating-ui/utils) from a flat layout; pnpm's default symlinked store leaves
+# them unresolvable and breaks apps/web-verifier at build and runtime.
+nodeLinker: hoisted
 allowBuilds:
   "@scarf/scarf": false
   esbuild: true
   sharp: true
   workerd: true
-minimumReleaseAgeExclude:
-  - miniflare@4.20260603.0
-  - wrangler@4.98.0
+  msw: false
