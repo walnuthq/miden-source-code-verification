@@ -9,7 +9,7 @@
   },
   "vars": {
     "PORT": "8081",
-    "ALLOWED_ORIGINS": "https://playground.miden.xyz",
+    "ALLOWED_ORIGINS": "https://playground.miden.xyz,https://testnet.midenscan.com,https://devnet.midenscan.com,https://explorer.devnet.miden.io,https://explorer.testnet.miden.io",
     "API_COMPILE_URL": "https://miden-source-code-verification-api-compile.walnut.dev",
   },
   "secrets": {
