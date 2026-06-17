@@ -1,4 +1,4 @@
-name: Deploy api-compile-cloudflare, api-registry-cloudflare & web-verifier-cloudflare
+name: Deploy api-compile-cloudflare, api-registry-cloudflare and web-verifier-cloudflare
 
 on:
   push:
@@ -30,15 +30,18 @@ jobs:
         run: pnpm cf:deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy api-registry to Cloudflare
         working-directory: apps/api-registry-cloudflare
         run: pnpm cf:deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy web-verifier to Cloudflare
         working-directory: apps/web-verifier-cloudflare
         run: pnpm cf:deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
