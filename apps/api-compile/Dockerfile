@@ -51,13 +51,13 @@ WORKDIR /repo
 COPY . .
 # Install only what api-compile needs (and its workspace deps), with a cached store.
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --filter=miden-sourcify-api-compile...
+    pnpm install --frozen-lockfile --filter=miden-source-code-verification-api-compile...
 # Compile TypeScript -> dist/ (tsc + tsc-alias rewrites the @/* path aliases).
-RUN pnpm --filter=miden-sourcify-api-compile build
+RUN pnpm --filter=miden-source-code-verification-api-compile build
 # Produce a self-contained, production-only bundle (no workspace symlinks).
 # --legacy is required since api-compile has no injected workspace deps (pnpm v10+).
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm deploy --legacy --filter=miden-sourcify-api-compile --prod /prod/api-compile
+    pnpm deploy --legacy --filter=miden-source-code-verification-api-compile --prod /prod/api-compile
 
 # Final runtime image — slim, no build tools
 FROM base AS runtime

@@ -1,6 +1,6 @@
 # api-docs
 
-Static OpenAPI documentation for the Miden Sourcify `api-registry` service,
+Static OpenAPI documentation for the Miden Source Code Verification `api-registry` service,
 hosted on GitHub Pages.
 
 It uses [`swagger-jsdoc`](https://github.com/Surnet/swagger-jsdoc) to build an
@@ -26,13 +26,13 @@ here.
 
 ```bash
 # Generate the static site into dist/
-pnpm --filter miden-sourcify-api-docs build
+pnpm --filter miden-source-code-verification-api-docs build
 
 # Build, then serve dist/ locally at http://localhost:8082
-pnpm --filter miden-sourcify-api-docs dev
+pnpm --filter miden-source-code-verification-api-docs dev
 
 # Serve an already-built dist/ without rebuilding
-pnpm --filter miden-sourcify-api-docs preview
+pnpm --filter miden-source-code-verification-api-docs preview
 ```
 
 The build emits, into `dist/`:

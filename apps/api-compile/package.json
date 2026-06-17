@@ -1,5 +1,5 @@
 {
-  "name": "miden-sourcify-api-compile",
+  "name": "miden-source-code-verification-api-compile",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -24,7 +24,7 @@
     "@types/lodash": "4.17.24",
     "@types/node": "25.9.3",
     "@types/supertest": "7.2.0",
-    "miden-sourcify-test-utils": "workspace:*",
+    "miden-source-code-verification-test-utils": "workspace:*",
     "supertest": "7.2.2",
     "tsc-alias": "1.8.17",
     "tsx": "4.22.4",

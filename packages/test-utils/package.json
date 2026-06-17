@@ -1,5 +1,5 @@
 {
-  "name": "miden-sourcify-test-utils",
+  "name": "miden-source-code-verification-test-utils",
   "version": "0.1.0",
   "private": true,
   "type": "module",

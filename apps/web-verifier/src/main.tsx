@@ -14,8 +14,11 @@ if (!rootElement) {
 createRoot(rootElement).render(
   <StrictMode>
     <ThemeProvider>
-      <MidenProvider config={{ rpcUrl: "testnet", prover: "testnet" }}>
-        <App />
+      <MidenProvider
+        config={{ rpcUrl: "testnet", prover: "testnet" }}
+        loadingComponent={<App />}
+      >
+        <App ready />
       </MidenProvider>
     </ThemeProvider>
   </StrictMode>,

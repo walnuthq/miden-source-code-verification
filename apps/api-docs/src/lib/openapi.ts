@@ -34,10 +34,10 @@ export const openapiSpec = swaggerJSDoc({
   definition: {
     openapi: "3.1.0",
     info: {
-      title: "Miden Sourcify Registry API",
+      title: "Miden Source Code Verification Registry API",
       version: "0.1.0",
       description:
-        "API documentation for the Miden Sourcify `api-registry` service " +
+        "API documentation for the Miden Source Code Verification `api-registry` service " +
         "(verified account & note registry).",
     },
     servers: [{ url: API_REGISTRY_URL, description: "api-registry" }],

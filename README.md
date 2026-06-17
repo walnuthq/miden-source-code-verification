@@ -1,6 +1,6 @@
-# Miden Sourcify
+# Miden Source Code Verification
 
-Miden Sourcify is a set of self-hostable services for verifying that on-chain Miden accounts and notes correspond to specific Rust source packages.
+Miden Source Code Verification is a set of self-hostable services for verifying that on-chain Miden accounts and notes correspond to specific Rust source packages.
 
 ## Architecture overview
 
@@ -65,7 +65,7 @@ cp apps/api-registry/.env.example apps/api-registry/.env   # then edit as needed
 
 # The registry needs Postgres + api-compile reachable, so start those first:
 docker compose up -d postgres api-compile
-pnpm --filter miden-sourcify-api-registry dev
+pnpm --filter miden-source-code-verification-api-registry dev
 ```
 
 (The defaults in `.env.example` expect Postgres on `localhost:5433` and api-compile on `localhost:8080`, matching the compose stack above.)
@@ -74,12 +74,12 @@ pnpm --filter miden-sourcify-api-registry dev
 
 Interactive OpenAPI (Swagger UI) docs for the **Registry API** are published live at:
 
-**https://walnuthq.github.io/miden-sourcify/**
+**https://walnuthq.github.io/miden-source-code-verification/**
 
 The docs are generated from the `api-registry` route annotations by the `api-docs` app and deployed to GitHub Pages. To preview them locally:
 
 ```bash
-pnpm --filter miden-sourcify-api-docs dev   # serves the docs at http://localhost:8082
+pnpm --filter miden-source-code-verification-api-docs dev   # serves the docs at http://localhost:8082
 ```
 
 ## Deployment
@@ -89,8 +89,8 @@ The backend services run anywhere Docker does (see the `Dockerfile` in each `app
 A [Cloudflare Workers](https://workers.cloudflare.com) deployment path is also provided via dedicated, opt-in packages:
 
 ```bash
-pnpm --filter miden-sourcify-api-compile-cloudflare cf:deploy
-pnpm --filter miden-sourcify-api-registry-cloudflare cf:deploy
+pnpm --filter miden-source-code-verification-api-compile-cloudflare cf:deploy
+pnpm --filter miden-source-code-verification-api-registry-cloudflare cf:deploy
 ```
 
 These wrap the vendor-neutral services; deleting them removes Cloudflare with no impact on the core apps.

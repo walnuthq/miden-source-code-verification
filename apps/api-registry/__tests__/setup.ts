@@ -9,7 +9,7 @@ import { afterAll, beforeAll, beforeEach } from "vitest";
 // compose database.
 const connectionString =
   process.env.DATABASE_URL ??
-  "postgresql://miden-sourcify:miden_sourcify_dev_password@localhost:5433/miden-sourcify";
+  "postgresql://miden-source-code-verification:miden_source_code_verification_dev_password@localhost:5433/miden-source-code-verification";
 
 // Safety guard: TRUNCATE is destructive — never let it run against a remote DB
 // by accident

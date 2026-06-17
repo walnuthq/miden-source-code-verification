@@ -1,5 +1,5 @@
 {
-  "name": "miden-sourcify-api-registry",
+  "name": "miden-source-code-verification-api-registry",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -36,7 +36,7 @@
     "@types/pg": "^8.20.0",
     "@types/supertest": "7.2.0",
     "drizzle-kit": "1.0.0-beta.22",
-    "miden-sourcify-test-utils": "workspace:*",
+    "miden-source-code-verification-test-utils": "workspace:*",
     "supertest": "7.2.2",
     "tsc-alias": "1.8.17",
     "tsx": "4.22.4",
