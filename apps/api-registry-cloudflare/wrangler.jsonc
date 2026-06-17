@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "miden-sourcify-api-registry",
+  "name": "miden-source-code-verification-api-registry",
   "main": "src/server.ts",
   "compatibility_date": "2026-06-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -10,7 +10,7 @@
   "vars": {
     "PORT": "8081",
     "ALLOWED_ORIGINS": "https://playground.miden.xyz",
-    "API_COMPILE_URL": "https://miden-sourcify-api-compile.walnut.dev",
+    "API_COMPILE_URL": "https://miden-source-code-verification-api-compile.walnut.dev",
   },
   "secrets": {
     "required": ["DATABASE_URL"],

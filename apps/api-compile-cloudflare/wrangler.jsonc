@@ -4,7 +4,7 @@
  */
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "miden-sourcify-api-compile",
+  "name": "miden-source-code-verification-api-compile",
   "main": "src/server.ts",
   "compatibility_date": "2026-06-01",
   "compatibility_flags": ["nodejs_compat"],

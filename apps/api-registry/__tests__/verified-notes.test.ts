@@ -1,6 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readProjectFiles } from "miden-sourcify-test-utils";
+import { readProjectFiles } from "miden-source-code-verification-test-utils";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 

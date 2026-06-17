@@ -5,13 +5,13 @@ services:
       # Host port is overridable to avoid clashing with a local Postgres.
       - "${POSTGRES_PORT:-5433}:5432"
     volumes:
-      - miden-sourcify-postgres:/var/lib/postgresql/data
+      - miden-source-code-verification-postgres:/var/lib/postgresql/data
     environment:
-      - POSTGRES_USER=miden-sourcify
-      - POSTGRES_PASSWORD=miden_sourcify_dev_password
-      - POSTGRES_DB=miden-sourcify
+      - POSTGRES_USER=miden-source-code-verification
+      - POSTGRES_PASSWORD=miden_source_code_verification_dev_password
+      - POSTGRES_DB=miden-source-code-verification
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U miden-sourcify -d miden-sourcify"]
+      test: ["CMD-SHELL", "pg_isready -U miden-source-code-verification -d miden-source-code-verification"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -27,8 +27,8 @@ services:
       - ALLOWED_ORIGINS=*
       - CARGO_TARGET_DIR=/cache/target
       - MIDEN_VERIFIER_CACHE_DIR=/cache
-    image: miden-sourcify-api-compile
-    container_name: miden-sourcify-api-compile
+    image: miden-source-code-verification-api-compile
+    container_name: miden-source-code-verification-api-compile
     ports:
       - "8080:8080"
     healthcheck:
@@ -52,9 +52,9 @@ services:
       target: migrate
     environment:
       # In-network address of the compose postgres service.
-      - DATABASE_URL=postgresql://miden-sourcify:miden_sourcify_dev_password@postgres:5432/miden-sourcify
-    image: miden-sourcify-api-registry-migrate
-    container_name: miden-sourcify-api-registry-migrate
+      - DATABASE_URL=postgresql://miden-source-code-verification:miden_source_code_verification_dev_password@postgres:5432/miden-source-code-verification
+    image: miden-source-code-verification-api-registry-migrate
+    container_name: miden-source-code-verification-api-registry-migrate
     depends_on:
       postgres:
         condition: service_healthy
@@ -68,10 +68,10 @@ services:
     environment:
       - PORT=8081
       - ALLOWED_ORIGINS=*
-      - DATABASE_URL=postgresql://miden-sourcify:miden_sourcify_dev_password@postgres:5432/miden-sourcify
+      - DATABASE_URL=postgresql://miden-source-code-verification:miden_source_code_verification_dev_password@postgres:5432/miden-source-code-verification
       - API_COMPILE_URL=http://api-compile:8080
-    image: miden-sourcify-api-registry
-    container_name: miden-sourcify-api-registry
+    image: miden-source-code-verification-api-registry
+    container_name: miden-source-code-verification-api-registry
     depends_on:
       postgres:
         condition: service_healthy
@@ -96,4 +96,4 @@ services:
       start_period: 10s
 
 volumes:
-  miden-sourcify-postgres:
+  miden-source-code-verification-postgres:

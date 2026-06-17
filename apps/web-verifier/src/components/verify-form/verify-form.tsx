@@ -46,7 +46,10 @@ const RESOURCE_ID_PATTERN =
   "0x[0-9a-fA-F]{30}|0x[0-9a-fA-F]{64}|[a-z]+1[02-9ac-hj-np-z]{6,}";
 
 // Whether the value parses as a valid Miden Account address (bech32 + checksum).
-function isValidAddress(value: string): boolean {
+// `Address.fromBech32` lives in the Miden SDK WASM, so this can only run once the
+// SDK is ready — `ready` guards against calling into uninitialized WASM.
+function isValidAddress(value: string, ready: boolean): boolean {
+  if (!ready) return false;
   const trimmed = value.trim();
   if (!trimmed) return false;
   try {
@@ -58,12 +61,12 @@ function isValidAddress(value: string): boolean {
 }
 
 // Whether the value is a valid Resource ID (hex account/note ID or address).
-function isValidResourceId(value: string): boolean {
+function isValidResourceId(value: string, ready: boolean): boolean {
   const trimmed = value.trim();
   return (
     ACCOUNT_ID_REGEX.test(trimmed) ||
     NOTE_ID_REGEX.test(trimmed) ||
-    isValidAddress(trimmed)
+    isValidAddress(trimmed, ready)
   );
 }
 
@@ -71,9 +74,9 @@ function isValidResourceId(value: string): boolean {
 // encoded in it (e.g. "mtst" / "mdev"); otherwise null. The Address object does
 // not expose its network, but a bech32 string's HRP is everything before the
 // "1" separator (the bech32 data charset excludes "1", so there is exactly one).
-function detectNetwork(value: string): string | null {
+function detectNetwork(value: string, ready: boolean): string | null {
   const trimmed = value.trim();
-  if (!isValidAddress(trimmed)) return null;
+  if (!isValidAddress(trimmed, ready)) return null;
   const prefix = trimmed.slice(0, trimmed.lastIndexOf("1")).toLowerCase();
   return networkValues.has(prefix) ? prefix : null;
 }
@@ -96,7 +99,7 @@ type VerifyResult =
   | { status: "success" | "warning"; kind: "account" | "note" }
   | { status: "error"; message: string };
 
-export function VerifyForm() {
+export function VerifyForm({ ready }: { ready: boolean }) {
   // Read `resource` / `network` query params once on mount to seed the form.
   const [params] = useState(() => new URLSearchParams(window.location.search));
   // The verification server endpoint, configurable via the Settings dialog.
@@ -129,7 +132,7 @@ export function VerifyForm() {
   // The form is valid when the Resource ID is well-formed and at least one
   // source file was imported. Network and Entrypoint always have valid defaults.
   const isFormValid =
-    isValidResourceId(resourceId) && Object.keys(files).length > 0;
+    isValidResourceId(resourceId, ready) && Object.keys(files).length > 0;
 
   const onSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -197,7 +200,7 @@ export function VerifyForm() {
                   onChange={(event) => {
                     const value = event.target.value;
                     setResourceId(value);
-                    const detected = detectNetwork(value);
+                    const detected = detectNetwork(value, ready);
                     if (detected) setNetwork(detected);
                   }}
                 />

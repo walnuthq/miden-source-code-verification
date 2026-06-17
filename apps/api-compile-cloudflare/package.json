@@ -1,5 +1,5 @@
 {
-  "name": "miden-sourcify-api-compile-cloudflare",
+  "name": "miden-source-code-verification-api-compile-cloudflare",
   "version": "0.1.0",
   "private": true,
   "type": "module",

@@ -1,8 +1,8 @@
-# Miden Sourcify PRD
+# Miden Source Code Verification PRD
 
 ## Summary
 
-Miden Sourcify is a set of self-hostable services for verifying that on-chain Miden accounts and notes correspond to specific Rust source packages. It extracts the verification logic currently baked into the miden-playground API into an independently deployable monorepo, enabling the broader Miden ecosystem (explorers, wallets, third-party developers) to run their own verifier and reducing reliance on a single hosted instance.
+Miden Source Code Verification is a set of self-hostable services for verifying that on-chain Miden accounts and notes correspond to specific Rust source packages. It extracts the verification logic currently baked into the miden-playground API into an independently deployable monorepo, enabling the broader Miden ecosystem (explorers, wallets, third-party developers) to run their own verifier and reducing reliance on a single hosted instance.
 
 ## Background & motivation
 
@@ -173,7 +173,7 @@ CREATE TABLE verified_notes (
 ## Monorepo layout
 
 ```
-miden-sourcify/
+miden-source-code-verification/
 ├── apps/
 │   ├── api-compile/      # Node orchestrator + Rust container
 │   ├── api-registry/     # Node + Postgres
