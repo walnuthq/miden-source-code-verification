@@ -94,6 +94,29 @@ services:
       timeout: 3s
       retries: 30
       start_period: 10s
+  web-verifier:
+    build:
+      # Build context is the monorepo root so pnpm can resolve the workspace.
+      context: .
+      dockerfile: apps/web-verifier/Dockerfile
+    image: miden-source-code-verification-web-verifier
+    container_name: miden-source-code-verification-web-verifier
+    depends_on:
+      api-registry:
+        condition: service_healthy
+    ports:
+      # Host 5173 -> nginx :80. The SPA is served here and (per the baked-in
+      # default) calls api-registry at the host-published http://localhost:8081.
+      - "5173:80"
+    healthcheck:
+      # nginx:alpine ships busybox wget (no curl); probe the served index. Use
+      # 127.0.0.1 (not localhost) — in-container `localhost` resolves to ::1,
+      # but nginx `listen 80;` binds IPv4 only, so localhost would be refused.
+      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
 
 volumes:
   miden-source-code-verification-postgres:
