@@ -1,0 +1,46 @@
+name: Deploy api-registry to Cloudflare
+
+on:
+  push:
+    branches: [main]
+    # Deploy only when this service, its Cloudflare wrapper, or a shared
+    # dependency/workspace manifest changes — unrelated changes don't redeploy.
+    paths:
+      - "apps/api-registry/**"
+      - "apps/api-registry-cloudflare/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/deploy-api-registry-cloudflare.yml"
+  workflow_dispatch:
+
+# Never run two deploys of this service at once; queue rather than cancel so an
+# in-flight deploy is not interrupted.
+concurrency:
+  group: deploy-api-registry-cloudflare
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy api-registry to Cloudflare
+        working-directory: apps/api-registry-cloudflare
+        run: pnpm cf:deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

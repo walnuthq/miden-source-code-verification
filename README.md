@@ -138,7 +138,13 @@ pnpm --filter miden-source-code-verification-api-registry-cloudflare cf:deploy
 pnpm --filter miden-source-code-verification-web-verifier-cloudflare cf:deploy
 ```
 
-These wrap the vendor-neutral services; deleting them removes Cloudflare with no impact on the core apps. On push to `main`, `.github/workflows/deploy-cloudflare.yml` deploys all three automatically (requires the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets).
+These wrap the vendor-neutral services; deleting them removes Cloudflare with no impact on the core apps. On push to `main`, a dedicated workflow per service deploys it automatically — and only when that service is affected:
+
+- `.github/workflows/deploy-api-compile-cloudflare.yml`
+- `.github/workflows/deploy-api-registry-cloudflare.yml`
+- `.github/workflows/deploy-web-verifier-cloudflare.yml`
+
+Each runs only when its own `apps/<service>/**` or `apps/<service>-cloudflare/**` paths change (or a shared `pnpm-lock.yaml` / `pnpm-workspace.yaml`), so an unrelated change never redeploys every service. Each can also be triggered manually via `workflow_dispatch`, and all require the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets.
 
 ## License
 

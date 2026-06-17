@@ -1,10 +1,23 @@
-name: Deploy api-compile-cloudflare, api-registry-cloudflare and web-verifier-cloudflare
+name: Deploy web-verifier to Cloudflare
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+    # Deploy only when this service, its Cloudflare wrapper, or a shared
+    # dependency/workspace manifest changes — unrelated changes don't redeploy.
+    paths:
+      - "apps/web-verifier/**"
+      - "apps/web-verifier-cloudflare/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/deploy-web-verifier-cloudflare.yml"
   workflow_dispatch:
+
+# Never run two deploys of this service at once; queue rather than cancel so an
+# in-flight deploy is not interrupted.
+concurrency:
+  group: deploy-web-verifier-cloudflare
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -24,20 +37,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Deploy api-compile to Cloudflare
-        working-directory: apps/api-compile-cloudflare
-        run: pnpm cf:deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      - name: Deploy api-registry to Cloudflare
-        working-directory: apps/api-registry-cloudflare
-        run: pnpm cf:deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy web-verifier to Cloudflare
         working-directory: apps/web-verifier-cloudflare
