@@ -1,9 +1,3 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import { relations } from "@/db/relations.js";
-import { DATABASE_URL } from "@/lib/constants.js";
-
-const db = drizzle(DATABASE_URL, {
-  relations,
-});
-
-export default db;
+// Re-export the database from the request-context module. Keeping this barrel
+// means every `import db from "@/db/index.js"` call site stays unchanged.
+export { createDb, type Database, dbScope, default } from "@/db/context.js";
