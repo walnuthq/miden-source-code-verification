@@ -19,6 +19,10 @@
     "./app": {
       "types": "./dist/src/app.d.ts",
       "default": "./dist/src/app.js"
+    },
+    "./db": {
+      "types": "./dist/src/db/index.d.ts",
+      "default": "./dist/src/db/index.js"
     }
   },
   "dependencies": {

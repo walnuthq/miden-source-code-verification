@@ -12,7 +12,23 @@
     "ALLOWED_ORIGINS": "https://miden-source-code-verification-web-verifier.walnut.dev,https://playground.miden.xyz,https://testnet.midenscan.com,https://devnet.midenscan.com,https://explorer.devnet.miden.io,https://explorer.testnet.miden.io",
     "API_COMPILE_URL": "https://miden-source-code-verification-api-compile.walnut.dev",
   },
-  "secrets": {
-    "required": ["DATABASE_URL"],
-  },
+  // Edge connection pooler in front of the origin Postgres. The origin
+  // connection string is configured on the Hyperdrive resource itself
+  // (`wrangler hyperdrive create`), not here. `localConnectionString` is used by
+  // `wrangler dev` to reach a local database.
+  //
+  // NOTE: query caching MUST stay disabled on this resource. This is a
+  // read-after-write registry (e.g. detecting an already-verified component), and
+  // Hyperdrive's default SELECT cache (max_age 60s) serves stale empty reads that
+  // break that invariant. Caching is a resource-level setting (not configurable
+  // here); disable it with:
+  //   wrangler hyperdrive update 44a405d826c74d5db09d601fee6587c7 \
+  //     --origin-password '<DB_PASSWORD>' --caching-disabled true
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "44a405d826c74d5db09d601fee6587c7",
+      "localConnectionString": "postgres://miden-source-code-verification:miden_source_code_verification_dev_password@localhost:5433/miden-source-code-verification",
+    },
+  ],
 }
