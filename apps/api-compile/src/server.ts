@@ -4,6 +4,7 @@ import { cargoMidenVersion } from "@/lib/cargo-miden.js";
 import {
   ALLOWED_ORIGINS,
   CARGO_TARGET_DIR,
+  MIDENC_TARGET_DIR,
   MIDEN_VERIFIER_CACHE_DIR,
   PORT,
 } from "@/lib/constants.js";
@@ -27,7 +28,13 @@ app.use(express.json({ limit: "1mb" }));
 app.get("/", async (_req, res) => {
   res.json({
     timestamp: Date.now(),
-    env: { PORT, ALLOWED_ORIGINS, CARGO_TARGET_DIR, MIDEN_VERIFIER_CACHE_DIR },
+    env: {
+      PORT,
+      ALLOWED_ORIGINS,
+      CARGO_TARGET_DIR,
+      MIDENC_TARGET_DIR,
+      MIDEN_VERIFIER_CACHE_DIR,
+    },
     cargoMidenVersion: await cargoMidenVersion(),
   });
 });

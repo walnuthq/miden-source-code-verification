@@ -1,9 +1,7 @@
 use anyhow::{Result, anyhow, bail};
 use base64::prelude::*;
-use clap::Parser;
 use miden_client::{
     account::{Account, AccountId, AccountInterfaceExt},
-    address::{Address, AddressId, NetworkId},
     builder::ClientBuilder,
     keystore::FilesystemKeyStore,
     note::{Note, NoteFile, NoteId, NoteScript},
@@ -13,76 +11,36 @@ use miden_client::{
     vm::{Package, PackageExport},
 };
 use miden_client_sqlite_store::ClientBuilderSqliteExt;
-// use miden_standards::account::components::{
-//     basic_fungible_faucet_library, basic_wallet_library, multisig_library, multisig_psm_library,
-//     network_fungible_faucet_library, no_auth_library, singlesig_acl_library, singlesig_library,
+// use miden_standards::account::access::{Authority, Ownable2Step, RoleBasedAccessControl};
+// use miden_standards::account::auth::{
+//     AuthGuardedMultisig, AuthMultisig, AuthMultisigSmart, AuthNetworkAccount, AuthSingleSig,
+//     AuthSingleSigAcl, NoAuth,
 // };
-// use miden_standards::note::{BurnNote, MintNote, P2idNote, P2ideNote, StandardNote, SwapNote};
+// use miden_standards::account::faucets::FungibleFaucet;
+// use miden_standards::account::wallets::BasicWallet;
+// use miden_standards::note::{
+//     BurnNote, MintNote, P2idNote, P2ideNote, PswapNote, StandardNote, SwapNote,
+// };
 use miden_standards::note::StandardNote;
 use std::fs;
 use std::sync::Arc;
 
-#[derive(Parser, Debug)]
-#[command(version, about)]
-struct Args {
-    #[arg(long, default_value = "mtst")]
-    network_id: String,
-
-    #[arg(long)]
-    resource_id: String,
-
-    #[arg(long)]
-    resource_path: Option<String>,
-
-    #[arg(long)]
-    masp_path: String,
-}
-
-// --- Resource parsing ---
-
-enum Resource {
-    Account {
-        network_id: Option<NetworkId>,
-        account_id: AccountId,
-    },
-    Note(NoteId),
-}
-
-fn parse_resource_id(resource_id: &str) -> Result<Resource> {
-    if let Ok((account_id, network_id)) = AccountId::parse(resource_id) {
-        return Ok(Resource::Account {
-            network_id,
-            account_id,
-        });
-    }
-    if let Ok((network_id, address)) = Address::decode(resource_id) {
-        let AddressId::AccountId(account_id) = address.id() else {
-            bail!("address '{}' does not contain an account ID", resource_id);
-        };
-        return Ok(Resource::Account {
-            network_id: Some(network_id),
-            account_id,
-        });
-    }
-    if let Ok(note_id) = NoteId::try_from_hex(resource_id) {
-        return Ok(Resource::Note(note_id));
-    }
-    bail!(
-        "'{}' is not a valid account address, account ID, or note ID",
-        resource_id
-    )
-}
-
-fn verify_account_component(account: Account, package: Package) -> Result<()> {
+fn verify_account_component(account: Account, package_opt: Option<Package>) -> Result<()> {
     let account_interface = AccountInterface::from_account(&account);
     for component in account_interface.components() {
         match component {
             AccountComponentInterface::BasicWallet => println!("BasicWallet"),
-            AccountComponentInterface::BasicFungibleFaucet => {
-                println!("BasicFungibleFaucet")
+            AccountComponentInterface::FungibleFaucet => {
+                println!("FungibleFaucet")
             }
-            AccountComponentInterface::NetworkFungibleFaucet => {
-                println!("NetworkFungibleFaucet")
+            AccountComponentInterface::Authority => {
+                println!("Authority")
+            }
+            AccountComponentInterface::Ownable2Step => {
+                println!("Ownable2Step")
+            }
+            AccountComponentInterface::RoleBasedAccessControl => {
+                println!("RoleBasedAccessControl")
             }
             AccountComponentInterface::AuthSingleSig => {
                 println!("AuthSingleSig")
@@ -93,25 +51,34 @@ fn verify_account_component(account: Account, package: Package) -> Result<()> {
             AccountComponentInterface::AuthMultisig => {
                 println!("AuthMultisig")
             }
-            AccountComponentInterface::AuthMultisigPsm => {
-                println!("AuthMultisigPsm")
+            AccountComponentInterface::AuthMultisigSmart => {
+                println!("AuthMultisigSmart")
+            }
+            AccountComponentInterface::AuthGuardedMultisig => {
+                println!("AuthGuardedMultisig")
             }
             AccountComponentInterface::AuthNoAuth => println!("AuthNoAuth"),
+            AccountComponentInterface::AuthNetworkAccount => {
+                println!("AuthNetworkAccount")
+            }
             AccountComponentInterface::Custom(_) => {
-                if package.manifest.num_exports() == 0 {
-                    bail!("Package has no exports");
-                }
-                let mut procedures = package
-                    .manifest
-                    .exports()
-                    .filter_map(|export| match export {
-                        PackageExport::Procedure(procedure) => Some(procedure),
-                        _ => None,
-                    });
-                let verified =
-                    procedures.all(|procedure| account.code().has_procedure(procedure.digest));
-                if verified {
-                    println!("Custom({})", package.digest());
+                if let Some(package) = package_opt.clone() {
+                    if package.manifest.num_exports() == 0 {
+                        bail!("Package has no exports");
+                    }
+                    let mut procedures =
+                        package
+                            .manifest
+                            .exports()
+                            .filter_map(|export| match export {
+                                PackageExport::Procedure(procedure) => Some(procedure),
+                                _ => None,
+                            });
+                    let verified =
+                        procedures.all(|procedure| account.code().has_procedure(procedure.digest));
+                    if verified {
+                        println!("Custom({})", package.digest());
+                    }
                 }
             }
         }
@@ -120,10 +87,10 @@ fn verify_account_component(account: Account, package: Package) -> Result<()> {
     Ok(())
 }
 
-fn verify_note_script(note_script: &NoteScript, package: Package) -> Result<()> {
+fn verify_note_script(note_script: &NoteScript, package_opt: Option<Package>) -> Result<()> {
     if let Some(standard_note) = StandardNote::from_script(note_script) {
         println!("{}", standard_note.name());
-    } else {
+    } else if let Some(package) = package_opt.clone() {
         let mut procedures = package
             .manifest
             .exports()
@@ -133,56 +100,73 @@ fn verify_note_script(note_script: &NoteScript, package: Package) -> Result<()> 
             });
         let run_procedure_opt =
             procedures.find(|procedure| procedure.path.as_str().ends_with("::run"));
-        if let Some(run_procedure) = run_procedure_opt {
-            let verified = run_procedure.digest == note_script.root();
-            if verified {
-                println!("Custom({})", package.digest());
-            }
-        } else {
-            bail!("Run procedure not found");
+        if let Some(run_procedure) = run_procedure_opt
+            && run_procedure.digest == note_script.root().into()
+        {
+            println!("Custom({})", package.digest());
         }
     }
     Ok(())
 }
 
-// cargo run --release
 #[tokio::main]
 async fn main() -> Result<()> {
-    // println!("standard notes script roots");
-    // println!("P2ID: {}", P2idNote::script_root());
-    // println!("P2IDE: {}", P2ideNote::script_root());
-    // println!("SWAP: {}", SwapNote::script_root());
-    // println!("MINT: {}", MintNote::script_root());
-    // println!("BURN: {}", BurnNote::script_root());
-    // println!("standard account components");
-    // let libraries = vec![
-    //     basic_wallet_library(),
-    //     basic_fungible_faucet_library(),
-    //     network_fungible_faucet_library(),
-    //     singlesig_library(),
-    //     singlesig_acl_library(),
-    //     multisig_library(),
-    //     multisig_psm_library(),
-    //     no_auth_library(),
-    // ];
-    // for library in libraries {
-    //     println!("{}", library.digest().to_hex());
-    //     let exports: Vec<_> = library.exports().collect();
-    //     for export in exports {
-    //         println!(
-    //             "{} {}",
-    //             export.path(),
-    //             library
-    //                 .get_procedure_root_by_path(export.path())
-    //                 .unwrap()
-    //                 .to_hex()
-    //         );
-    //     }
-    // }
-    let args = Args::parse();
-    let args_network_id = NetworkId::new(&args.network_id)?;
+    /*
+    println!("standard notes script roots");
+    println!();
+    println!("P2ID: {}", P2idNote::script_root());
+    println!("P2IDE: {}", P2ideNote::script_root());
+    println!("SWAP: {}", SwapNote::script_root());
+    println!("PSWAP: {}", PswapNote::script_root());
+    println!("MINT: {}", MintNote::script_root());
+    println!("BURN: {}", BurnNote::script_root());
+    println!();
+    println!("standard account components");
+    let components = vec![
+        ("BasicWallet", BasicWallet::code()),
+        ("FungibleFaucet", FungibleFaucet::code()),
+        ("Authority", Authority::code()),
+        ("Ownable2Step", Ownable2Step::code()),
+        ("RoleBasedAccessControl", RoleBasedAccessControl::code()),
+        ("AuthSingleSig", AuthSingleSig::code()),
+        ("AuthSingleSigAcl", AuthSingleSigAcl::code()),
+        ("AuthMultisig", AuthMultisig::code()),
+        ("AuthMultisigSmart", AuthMultisigSmart::code()),
+        ("AuthGuardedMultisig", AuthGuardedMultisig::code()),
+        ("AuthNoAuth", NoAuth::code()),
+        ("AuthNetworkAccount", AuthNetworkAccount::code()),
+    ];
+    for (name, code) in components {
+        println!();
+        println!("{} {}", name, code.as_library().digest().to_hex());
+        for export in code.exports() {
+            println!(
+                "{} {}",
+                export.path,
+                code.get_procedure_root_by_path(&export.path)
+                    .unwrap()
+                    .mast_root()
+                    .to_hex()
+            );
+        }
+    }
+    Ok(())
+    */
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() != 6 {
+        eprintln!(
+            "Usage: {} <network-id> <account-component|note-script|transaction-script> <resource-id> <resource-path> <masp-path>",
+            args[0]
+        );
+        bail!("Wrong number of arguments");
+    }
+    let network_id = &args[1];
+    let resource_type = &args[2];
+    let resource_id = &args[3];
+    let resource_path = &args[4];
+    let masp_path = &args[5];
     // Initialize client
-    let endpoint = match args_network_id.as_str() {
+    let endpoint = match network_id.as_str() {
         "mtst" => Endpoint::testnet(),
         "mdev" => Endpoint::devnet(),
         "mlcl" => Endpoint::localhost(),
@@ -205,51 +189,68 @@ async fn main() -> Result<()> {
         .build()
         .await?;
 
-    let package_bytes = fs::read(&args.masp_path)?;
-    let package = Package::read_from_bytes(&package_bytes)?;
+    let package_opt = if masp_path.as_str() == "/dev/null" {
+        None
+    } else {
+        let package_bytes = fs::read(masp_path)?;
+        Some(Package::read_from_bytes(&package_bytes)?)
+    };
 
-    match parse_resource_id(&args.resource_id)? {
-        Resource::Account {
-            network_id: network_id_opt,
-            account_id,
-        } => {
-            if let Some(network_id) = network_id_opt {
-                if network_id != args_network_id {
-                    bail!(
-                        "network ID of resource ({}) does not match provided network ID ({})",
-                        network_id.as_str(),
-                        args_network_id.as_str()
-                    );
-                }
-            }
-
-            let account = if let Some(resource_path) = args.resource_path {
-                let resource = fs::read_to_string(&resource_path)?;
-                let resource_bytes = BASE64_STANDARD.decode(resource)?;
-                Account::read_from_bytes(&resource_bytes)?
+    match resource_type.as_str() {
+        "account-component" => {
+            let account_id = if resource_id.starts_with("0x") {
+                AccountId::from_hex(resource_id)?
             } else {
-                client.import_account_by_id(account_id).await?;
-                let account_record = client.get_account(account_id).await?.unwrap();
-                Account::try_from(account_record).map_err(|e: std::convert::Infallible| {
-                    anyhow!("Account is missing full account data: {}", e)
-                })?
+                let (_, decoded_account_id) = AccountId::from_bech32(resource_id)?;
+                decoded_account_id
             };
 
-            verify_account_component(account, package)
+            let account = if resource_path.as_str() == "/dev/null" {
+                match client.import_account_by_id(account_id).await {
+                    Ok(()) => {}
+                    Err(_) => {
+                        return Ok(());
+                    }
+                };
+                let account_record = client.get_account(account_id).await?.unwrap();
+                Account::try_from(account_record)
+                    .map_err(|e| anyhow!("Account is missing full account data: {}", e))?
+            } else {
+                let resource = fs::read_to_string(resource_path)?;
+                let resource_bytes = BASE64_STANDARD.decode(resource)?;
+                Account::read_from_bytes(&resource_bytes)?
+            };
+
+            verify_account_component(account, package_opt)
         }
-        Resource::Note(note_id) => {
-            let note_script = if let Some(resource_path) = args.resource_path {
-                let resource = fs::read_to_string(&resource_path)?;
+        "note-script" => {
+            let note_id = NoteId::try_from_hex(resource_id)?;
+
+            let note_script = if resource_path.as_str() == "/dev/null" {
+                match client.import_notes(&[NoteFile::NoteId(note_id)]).await {
+                    Ok(_) => {}
+                    Err(_) => {
+                        return Ok(());
+                    }
+                };
+                let note_record = client.get_input_note(note_id).await?.unwrap();
+                note_record.details().script().clone()
+            } else {
+                let resource = fs::read_to_string(resource_path)?;
                 let resource_bytes = BASE64_STANDARD.decode(resource)?;
                 let note = Note::read_from_bytes(&resource_bytes)?;
                 note.script().clone()
-            } else {
-                client.import_notes(&[NoteFile::NoteId(note_id)]).await?;
-                let note_record = client.get_input_note(note_id).await?.unwrap();
-                note_record.details().script().clone()
             };
 
-            verify_note_script(&note_script, package)
+            verify_note_script(&note_script, package_opt)
         }
+        "transaction-script" => {
+            // TODO unimplemented
+            // let tx_ix = TransactionId::from_raw(Word::try_from(resource_id)?);
+            Ok(())
+        }
+        _ => Err(anyhow!(
+            "Resource type should be one of account-component|note-script|transaction-script"
+        )),
     }
 }
