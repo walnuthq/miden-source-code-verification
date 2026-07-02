@@ -14,7 +14,7 @@
   "dependencies": {
     "dotenv": "17.4.2",
     "swagger-jsdoc": "6.3.0",
-    "swagger-ui-dist": "5.32.6"
+    "swagger-ui-dist": "5.32.8"
   },
   "devDependencies": {
     "@types/node": "25.9.3",
