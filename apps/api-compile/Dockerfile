@@ -22,7 +22,7 @@ ENV RUSTUP_HOME=/usr/local/rustup \
     PATH=/usr/local/cargo/bin:$PATH
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-  | sh -s -- -y --no-modify-path --profile minimal --default-toolchain nightly-2025-12-10
+  | sh -s -- -y --no-modify-path --profile minimal --default-toolchain nightly-2026-04-30
 
 # Build cargo-miden + miden-package-metadata + miden-verifier (cargo cache via BuildKit, never persisted in layer)
 FROM rust AS rust-builder
@@ -50,8 +50,13 @@ FROM base AS api-builder
 WORKDIR /repo
 COPY . .
 # Install only what api-compile needs (and its workspace deps), with a cached store.
+# --network-concurrency=2 (down from the default 16) for the slow-network Docker
+# build only: on a thin pipe, many parallel multi-MB binary downloads (workerd,
+# biome, miden-sdk) starve each other into the fetch timeout; serializing lets
+# each use the full bandwidth. The generous fetch timeout/retries live in
+# pnpm-workspace.yaml (pnpm 11 only honors these there, not in .npmrc).
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --filter=miden-source-code-verification-api-compile...
+    pnpm install --frozen-lockfile --network-concurrency=2 --filter=miden-source-code-verification-api-compile...
 # Compile TypeScript -> dist/ (tsc + tsc-alias rewrites the @/* path aliases).
 RUN pnpm --filter=miden-source-code-verification-api-compile build
 # Produce a self-contained, production-only bundle (no workspace symlinks).
@@ -75,7 +80,7 @@ WORKDIR /cache/project-template
 COPY apps/api-compile/project-template .
 # Warm cargo-miden
 WORKDIR /cache/project-template/counter-account
-RUN CARGO_TARGET_DIR=/cache/target cargo miden build --release
+RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release
 
 # App: only the built output + production dependencies from the deploy bundle
 WORKDIR /home/node/api

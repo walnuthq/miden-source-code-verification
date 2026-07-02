@@ -6,6 +6,14 @@ packages:
 # @floating-ui/utils) from a flat layout; pnpm's default symlinked store leaves
 # them unresolvable and breaks apps/web-verifier at build and runtime.
 nodeLinker: hoisted
+# Slow-network resilience for registry fetches. pnpm defaults to a 60s
+# per-request timeout with only 2 retries, which aborts when pulling large
+# platform binaries (workerd, biome, miden-sdk) over a slow link (e.g. the
+# Docker build). pnpm 11 only reads these from pnpm-workspace.yaml, not .npmrc.
+fetchTimeout: 1200000
+fetchRetries: 10
+fetchRetryMintimeout: 20000
+fetchRetryMaxtimeout: 300000
 allowBuilds:
   "@scarf/scarf": false
   esbuild: true

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import lodash from "lodash";
 import { cargoMidenBuild } from "@/lib/cargo-miden.js";
-import { CARGO_TARGET_DIR } from "@/lib/constants.js";
+import { MIDENC_TARGET_DIR } from "@/lib/constants.js";
 import { midenPackageMetadata } from "@/lib/miden-package-metadata.js";
 import type { Manifest } from "@/lib/types.js";
 
@@ -41,7 +41,7 @@ export const compile = async ({
       stderr: cargoMidenError,
     };
   }
-  const maspPath = `${CARGO_TARGET_DIR}/miden/release/${outputName}.masp`;
+  const maspPath = `${MIDENC_TARGET_DIR}/release/${outputName}.masp`;
   const [
     maspBuffer,
     {
