@@ -11,7 +11,11 @@ services:
       - POSTGRES_PASSWORD=miden_source_code_verification_dev_password
       - POSTGRES_DB=miden-source-code-verification
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U miden-source-code-verification -d miden-source-code-verification"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U miden-source-code-verification -d miden-source-code-verification",
+        ]
       interval: 5s
       timeout: 5s
       retries: 5

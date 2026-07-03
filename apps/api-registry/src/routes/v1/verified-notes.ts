@@ -42,15 +42,16 @@ type VerifyNoteRequestBody = {
  *                 type: object
  *                 description: >
  *                   Map of project-relative file paths to their UTF-8 contents.
- *                   Must contain a `Cargo.toml` at the project root (or under
- *                   `entrypoint` when set).
+ *                   Must contain a `Cargo.toml` and a `miden-project.toml` at the
+ *                   project root (or under `entrypoint` when set).
  *                 additionalProperties:
  *                   type: string
  *               entrypoint:
  *                 type: string
  *                 description: >
  *                   Optional subdirectory containing the project to compile.
- *                   When set, the `Cargo.toml` is read from `<entrypoint>/Cargo.toml`.
+ *                   When set, `Cargo.toml` and `miden-project.toml` are read from
+ *                   `<entrypoint>/`. Defaults to the project root (`.`).
  *     responses:
  *       "200":
  *         description: Verification result.
@@ -62,7 +63,9 @@ type VerifyNoteRequestBody = {
  *                 verified:
  *                   type: boolean
  *       "400":
- *         description: Invalid request (missing `noteId`, `files` or `Cargo.toml`).
+ *         description: >
+ *           Invalid request (missing `noteId`, `files`, `Cargo.toml` or
+ *           `miden-project.toml`).
  *         content:
  *           application/json:
  *             schema:
@@ -98,6 +101,11 @@ router.post("/:networkId/verified-notes", async (req, res) => {
     const cargoTomlPath = join(entrypoint, "Cargo.toml");
     if (!files[cargoTomlPath]) {
       res.status(400).json({ error: "missing Cargo.toml" });
+      return;
+    }
+    const midenProjectTomlPath = join(entrypoint, "miden-project.toml");
+    if (!files[midenProjectTomlPath]) {
+      res.status(400).json({ error: "missing miden-project.toml" });
       return;
     }
     const verified = await verifyNote({

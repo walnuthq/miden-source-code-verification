@@ -2,22 +2,12 @@ import { join } from "node:path";
 import { Router } from "express";
 import { compile } from "@/lib/compile.js";
 
-// import type { Manifest } from "@/lib/types.js";
-
 const router = Router();
 
 type CompileRequestBody = {
   files?: Record<string, string>;
   entrypoint?: string;
 };
-
-// type CompileRequestResponse = {
-//   stdout: string;
-//   stderr: string;
-//   masp: string;
-//   digest: string;
-//   manifest: Manifest;
-// };
 
 router.post("/compile", async (req, res) => {
   try {
@@ -29,6 +19,11 @@ router.post("/compile", async (req, res) => {
     const cargoTomlPath = join(entrypoint, "Cargo.toml");
     if (!files[cargoTomlPath]) {
       res.status(400).json({ error: "missing Cargo.toml" });
+      return;
+    }
+    const midenProjectTomlPath = join(entrypoint, "miden-project.toml");
+    if (!files[midenProjectTomlPath]) {
+      res.status(400).json({ error: "missing miden-project.toml" });
       return;
     }
     const { stdout, stderr, masp, digest, manifest } = await compile({

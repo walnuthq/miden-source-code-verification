@@ -19,7 +19,12 @@ COPY . .
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter=miden-source-code-verification-api-registry...
 # Compile TypeScript -> dist/ (tsc + tsc-alias rewrites the @/* path aliases).
-RUN pnpm --filter=miden-source-code-verification-api-registry build
+# The trailing `...` also builds api-registry's workspace deps (e.g. the utils
+# package) first, so their JS exists in dist/. Production runs on plain `node`,
+# which cannot type-strip the raw .ts these packages ship for dev (that is the
+# ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING error); the built JS is what the
+# package's default export condition resolves to at runtime.
+RUN pnpm --filter=miden-source-code-verification-api-registry... build
 # Produce a self-contained, production-only bundle (no workspace symlinks).
 # --legacy is required since api-registry has no injected workspace deps (pnpm v10+).
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \

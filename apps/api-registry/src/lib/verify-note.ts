@@ -3,7 +3,7 @@ import { insertPackage } from "@/db/packages.js";
 import { getVerifiedNote, insertVerifiedNote } from "@/db/verified-notes.js";
 import { API_COMPILE_URL } from "@/lib/constants.js";
 import type { Manifest } from "@/lib/types.js";
-import { parseCargoToml } from "@/lib/utils.js";
+import { parseCargoToml } from "miden-source-code-verification-utils";
 
 export const verifyNote = async ({
   networkId,
@@ -49,7 +49,7 @@ export const verifyNote = async ({
     }
     const packageId = await insertPackage({
       name,
-      type: "note-script",
+      type: "note",
       files,
       masp,
       digest,

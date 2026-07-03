@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch --conditions development src/server.ts",
     "build": "tsc && tsc-alias",
     "typecheck": "tsc --noEmit",
     "start": "node dist/src/server.js",
@@ -16,18 +16,19 @@
     "cors": "2.8.6",
     "dotenv": "17.4.2",
     "express": "5.2.1",
-    "lodash": "4.18.1"
+    "lodash": "4.18.1",
+    "miden-source-code-verification-utils": "workspace:*"
   },
   "devDependencies": {
     "@types/cors": "2.8.19",
     "@types/express": "5.0.6",
     "@types/lodash": "4.17.24",
-    "@types/node": "25.9.3",
+    "@types/node": "24.13.2",
     "@types/supertest": "7.2.0",
     "miden-source-code-verification-test-utils": "workspace:*",
     "supertest": "7.2.2",
     "tsc-alias": "1.8.17",
-    "tsx": "4.22.4",
+    "tsx": "4.22.5",
     "typescript": "6.0.3",
     "vitest": "4.1.9"
   }

@@ -1,4 +1,4 @@
-CREATE TYPE "package_type" AS ENUM('account', 'note-script', 'transaction-script', 'authentication-component');--> statement-breakpoint
+CREATE TYPE "package_type" AS ENUM('account', 'note', 'tx-script', 'authentication-component');--> statement-breakpoint
 CREATE TABLE "packages" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
 	"name" varchar(255) DEFAULT '' NOT NULL,

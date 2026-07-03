@@ -18,11 +18,26 @@ describe("POST /compile", () => {
   });
 
   it("rejects requests missing Cargo.toml", async () => {
+    const files = await readProjectFiles(`${templateDir}/counter-account`);
     const res = await api
       .post("/compile")
-      .send({ files: { "src/lib.rs": "" } });
+      .send({ files: { "src/lib.rs": files["src/lib.rs"] } });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "missing Cargo.toml");
+  });
+
+  it("rejects requests missing miden-project.toml", async () => {
+    const files = await readProjectFiles(`${templateDir}/counter-account`);
+    const res = await api
+      .post("/compile")
+      .send({
+        files: {
+          "src/lib.rs": files["src/lib.rs"],
+          "Cargo.toml": files["Cargo.toml"],
+        },
+      });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error", "missing miden-project.toml");
   });
 
   it("doesn't compile a buggy counter-account", async () => {

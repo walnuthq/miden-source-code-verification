@@ -10,8 +10,8 @@ import {
 
 export const packageTypeEnum = pgEnum("package_type", [
   "account",
-  "note-script",
-  "transaction-script",
+  "note",
+  "tx-script",
   "authentication-component",
 ]);
 

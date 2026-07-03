@@ -27,7 +27,12 @@ app.use(express.json({ limit: "1mb" }));
 app.get("/", async (_req, res) => {
   res.json({
     timestamp: Date.now(),
-    env: { PORT, ALLOWED_ORIGINS, CARGO_TARGET_DIR, MIDEN_VERIFIER_CACHE_DIR },
+    env: {
+      PORT,
+      ALLOWED_ORIGINS,
+      CARGO_TARGET_DIR,
+      MIDEN_VERIFIER_CACHE_DIR,
+    },
     cargoMidenVersion: await cargoMidenVersion(),
   });
 });

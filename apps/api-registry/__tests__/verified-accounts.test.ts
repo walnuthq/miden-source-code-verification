@@ -16,6 +16,10 @@ const apiV1 = request(`${apiUrl}/v1`);
 
 const networkId = "mtst";
 
+const ACCOUNT_ID_1 = "0x3c4d04b827248f717ed34a650e3eb3";
+const ACCOUNT_ID_2 = "0x211b9541a73651f1421e033a73777e";
+const ACCOUNT_ID_3 = "0x0c6f310fab1221512b4c448138e6c1";
+
 describe("POST /:networkId/verified-accounts", () => {
   it("rejects requests with no account ID", async () => {
     const res = await apiV1.post(`/${networkId}/verified-accounts`).send({});
@@ -24,24 +28,36 @@ describe("POST /:networkId/verified-accounts", () => {
   });
 
   it("rejects requests with no files object", async () => {
-    const accountId = "0x2a4ffb87b51720105c3bf91e5e7bd8";
-
     const res = await apiV1
       .post(`/${networkId}/verified-accounts`)
-      .send({ accountId });
+      .send({ accountId: ACCOUNT_ID_1 });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "missing files");
   });
 
   it("rejects requests missing Cargo.toml", async () => {
-    const accountId = "0x2a4ffb87b51720105c3bf91e5e7bd8";
+    const files = await readProjectFiles(`${templateDir}/counter-account`);
 
     const res = await apiV1.post(`/${networkId}/verified-accounts`).send({
-      accountId,
-      files: { "src/lib.rs": "" },
+      accountId: ACCOUNT_ID_1,
+      files: { "src/lib.rs": files["src/lib.rs"] },
     });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "missing Cargo.toml");
+  });
+
+  it("rejects requests missing miden-project.toml", async () => {
+    const files = await readProjectFiles(`${templateDir}/counter-account`);
+
+    const res = await apiV1.post(`/${networkId}/verified-accounts`).send({
+      accountId: ACCOUNT_ID_1,
+      files: {
+        "src/lib.rs": files["src/lib.rs"],
+        "Cargo.toml": files["Cargo.toml"],
+      },
+    });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error", "missing miden-project.toml");
   });
 
   it("doesn't verify a buggy counter-account", async () => {
@@ -49,11 +65,9 @@ describe("POST /:networkId/verified-accounts", () => {
     expect(files["Cargo.toml"]).toBeDefined();
     files["src/lib.rs"] = files["src/lib.rs"].replace(", Word", "");
 
-    const accountId = "0x2a4ffb87b51720105c3bf91e5e7bd8";
-
     const res = await apiV1
       .post(`/${networkId}/verified-accounts`)
-      .send({ accountId, files });
+      .send({ accountId: ACCOUNT_ID_1, files });
 
     expect(res.status).toBe(500);
   });
@@ -62,11 +76,9 @@ describe("POST /:networkId/verified-accounts", () => {
     const files = await readProjectFiles(`${templateDir}/counter-account`);
     expect(files["Cargo.toml"]).toBeDefined();
 
-    const accountId = "0x2a4ffb87b51720105c3bf91e5e7bd8";
-
     const res = await apiV1
       .post(`/${networkId}/verified-accounts`)
-      .send({ accountId, files });
+      .send({ accountId: ACCOUNT_ID_1, files });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
@@ -76,7 +88,7 @@ describe("POST /:networkId/verified-accounts", () => {
     const files = await readProjectFiles(`${templateDir}/counter-account`);
     expect(files["Cargo.toml"]).toBeDefined();
 
-    const accountId = "0x60bab73dc6ddcb107185e960043ce0";
+    const accountId = ACCOUNT_ID_2;
 
     const res1 = await apiV1
       .post(`/${networkId}/verified-accounts`)
@@ -99,12 +111,9 @@ describe("POST /:networkId/verified-accounts", () => {
   it("doesn't verify a counter-account if sources don't match", async () => {
     const files = await readProjectFiles(`${templateDir}/counter-account`);
     expect(files["Cargo.toml"]).toBeDefined();
-    files["src/lib.rs"] = files["src/lib.rs"].replaceAll(
-      "CounterContract",
-      "CounterAccount",
-    );
+    files["src/lib.rs"] = files["src/lib.rs"].replaceAll("+", "-");
 
-    const accountId = "0x2a4ffb87b51720105c3bf91e5e7bd8";
+    const accountId = ACCOUNT_ID_1;
 
     const res = await apiV1
       .post(`/${networkId}/verified-accounts`)
@@ -129,7 +138,7 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
     const files = await readProjectFiles(`${templateDir}/counter-account`);
     expect(files["Cargo.toml"]).toBeDefined();
 
-    const accountId = "0x8c9bc53d0b5142101420a334f3852f";
+    const accountId = ACCOUNT_ID_3;
 
     const res1 = await apiV1
       .post(`/${networkId}/verified-accounts`)

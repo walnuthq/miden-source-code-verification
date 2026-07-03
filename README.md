@@ -26,6 +26,7 @@ This is a [pnpm](https://pnpm.io) workspace monorepo (`pnpm-workspace.yaml`). Ea
 | `apps/web-verifier` | Verifier UI | `5173` | Vite + React SPA (served by nginx in Docker) |
 | `apps/api-docs` | OpenAPI / Swagger UI docs | `8082` | Generated from `api-registry` annotations |
 | `apps/*-cloudflare` | Cloudflare Workers deploy wrappers | — | Opt-in; wrap the matching service |
+| `packages/utils` | Shared utilities (e.g. `Cargo.toml` parsing) | — | Used by the API services |
 | `packages/test-utils` | Shared test helpers | — | Used by the API test suites |
 
 Every package is named `miden-source-code-verification-<dir>` (e.g. `miden-source-code-verification-web-verifier`) — that's the value `pnpm --filter` expects.
