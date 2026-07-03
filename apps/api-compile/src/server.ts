@@ -4,7 +4,6 @@ import { cargoMidenVersion } from "@/lib/cargo-miden.js";
 import {
   ALLOWED_ORIGINS,
   CARGO_TARGET_DIR,
-  MIDENC_TARGET_DIR,
   MIDEN_VERIFIER_CACHE_DIR,
   PORT,
 } from "@/lib/constants.js";
@@ -32,7 +31,6 @@ app.get("/", async (_req, res) => {
       PORT,
       ALLOWED_ORIGINS,
       CARGO_TARGET_DIR,
-      MIDENC_TARGET_DIR,
       MIDEN_VERIFIER_CACHE_DIR,
     },
     cargoMidenVersion: await cargoMidenVersion(),

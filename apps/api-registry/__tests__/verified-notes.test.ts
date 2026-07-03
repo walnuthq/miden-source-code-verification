@@ -16,6 +16,13 @@ const apiV1 = request(`${apiUrl}/v1`);
 
 const networkId = "mtst";
 
+const NOTE_ID_1 =
+  "0x5c546cf624fa9a381d006f64194ad08bc9fcc30629184c64f5b0fe33bf1e2796";
+const NOTE_ID_2 =
+  "0x230560f38b6af790e5b790b438dc64d05b9b65dc762a25be4b61c4830d7dede9";
+const NOTE_ID_3 =
+  "0x1fdc8f1582f9f39dbf4a045c73fce3088332714357c00a7a68221541e86a0db7";
+
 describe("POST /:networkId/verified-notes", () => {
   it("rejects requests with no note ID", async () => {
     const res = await apiV1.post(`/${networkId}/verified-notes`).send({});
@@ -24,26 +31,38 @@ describe("POST /:networkId/verified-notes", () => {
   });
 
   it("rejects requests with no files object", async () => {
-    const noteId =
-      "0x44891875fb920d963352fcd6623e1f3c97dd1e4d8cdc084778eeb4bbdf72dbac";
-
     const res = await apiV1
       .post(`/${networkId}/verified-notes`)
-      .send({ noteId });
+      .send({ noteId: NOTE_ID_1 });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "missing files");
   });
 
   it("rejects requests missing Cargo.toml", async () => {
-    const noteId =
-      "0x44891875fb920d963352fcd6623e1f3c97dd1e4d8cdc084778eeb4bbdf72dbac";
-
+    const files = await readProjectFiles(templateDir);
     const res = await apiV1.post(`/${networkId}/verified-notes`).send({
-      noteId,
-      files: { "src/lib.rs": "" },
+      noteId: NOTE_ID_1,
+      files: {
+        "increment-note/src/lib.rs": files["increment-note/src/lib.rs"],
+      },
+      entrypoint: "increment-note",
     });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "missing Cargo.toml");
+  });
+
+  it("rejects requests missing miden-project.toml", async () => {
+    const files = await readProjectFiles(templateDir);
+    const res = await apiV1.post(`/${networkId}/verified-notes`).send({
+      noteId: NOTE_ID_1,
+      files: {
+        "increment-note/src/lib.rs": files["increment-note/src/lib.rs"],
+        "increment-note/Cargo.toml": files["increment-note/Cargo.toml"],
+      },
+      entrypoint: "increment-note",
+    });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error", "missing miden-project.toml");
   });
 
   it("doesn't verify a buggy increment-note", async () => {
@@ -53,17 +72,13 @@ describe("POST /:networkId/verified-notes", () => {
 
     files[`${entrypoint}/src/lib.rs`] = files[
       `${entrypoint}/src/lib.rs`
-    ].replace(
-      "use crate::bindings::miden::counter_account::counter_account;",
-      "",
-    );
+    ].replace("CounterContract", "CounterAccount");
 
-    const noteId =
-      "0x44891875fb920d963352fcd6623e1f3c97dd1e4d8cdc084778eeb4bbdf72dbac";
-
-    const res = await apiV1
-      .post(`/${networkId}/verified-notes`)
-      .send({ noteId, files, entrypoint });
+    const res = await apiV1.post(`/${networkId}/verified-notes`).send({
+      noteId: NOTE_ID_1,
+      files,
+      entrypoint,
+    });
 
     expect(res.status).toBe(500);
   });
@@ -73,12 +88,11 @@ describe("POST /:networkId/verified-notes", () => {
     const entrypoint = "increment-note";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
 
-    const noteId =
-      "0x44891875fb920d963352fcd6623e1f3c97dd1e4d8cdc084778eeb4bbdf72dbac";
-
-    const res = await apiV1
-      .post(`/${networkId}/verified-notes`)
-      .send({ noteId, files, entrypoint });
+    const res = await apiV1.post(`/${networkId}/verified-notes`).send({
+      noteId: NOTE_ID_1,
+      files,
+      entrypoint,
+    });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
@@ -89,8 +103,7 @@ describe("POST /:networkId/verified-notes", () => {
     const entrypoint = "increment-note";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
 
-    const noteId =
-      "0x760fe63e27c45bf4be6d129dc2742df0d4d1d87658a51388c1364419d65dcfdd";
+    const noteId = NOTE_ID_2;
 
     const res1 = await apiV1
       .post(`/${networkId}/verified-notes`)
@@ -115,12 +128,11 @@ describe("POST /:networkId/verified-notes", () => {
       `${entrypoint}/src/lib.rs`
     ].replace("Felt::from_u32", "felt!");
 
-    const noteId =
-      "0x44891875fb920d963352fcd6623e1f3c97dd1e4d8cdc084778eeb4bbdf72dbac";
-
-    const res = await apiV1
-      .post(`/${networkId}/verified-notes`)
-      .send({ noteId, files, entrypoint });
+    const res = await apiV1.post(`/${networkId}/verified-notes`).send({
+      noteId: NOTE_ID_1,
+      files,
+      entrypoint,
+    });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", false);
@@ -143,8 +155,7 @@ describe("GET /:networkId/verified-notes/:noteId", () => {
     const entrypoint = "increment-note";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
 
-    const noteId =
-      "0x80ffa5a91b21fd80ce8508257cac7c54390160478fc5e6f594d9eeda6e61f861";
+    const noteId = NOTE_ID_3;
 
     const res1 = await apiV1
       .post(`/${networkId}/verified-notes`)

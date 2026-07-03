@@ -1,4 +1,4 @@
-import { CARGO_TARGET_DIR, MIDENC_TARGET_DIR } from "@/lib/constants.js";
+import { CARGO_TARGET_DIR } from "@/lib/constants.js";
 import { execFile } from "@/lib/utils.js";
 
 export const cargoMidenVersion = async () => {
@@ -8,14 +8,24 @@ export const cargoMidenVersion = async () => {
   return `${major}.${minor}.${patch}`;
 };
 
-export const cargoMidenBuild = async (projectDir: string) => {
+export const cargoMidenBuild = async ({
+  projectDir,
+  midencTargetDir,
+}: {
+  projectDir: string;
+  midencTargetDir: string;
+}) => {
   try {
     const { stdout, stderr } = await execFile(
       "cargo",
       ["miden", "build", "--release"],
       {
         cwd: projectDir,
-        env: { ...process.env, CARGO_TARGET_DIR, MIDENC_TARGET_DIR },
+        env: {
+          ...process.env,
+          CARGO_TARGET_DIR,
+          MIDENC_TARGET_DIR: midencTargetDir,
+        },
       },
     );
     return { stdout, stderr };

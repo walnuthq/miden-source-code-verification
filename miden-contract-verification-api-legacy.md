@@ -13,7 +13,11 @@ All endpoints accept a JSON body request and return a JSON response.
 Custom types:
 
 ```tsx
-type PackageType = "account" | "note-script" | "transaction-script" | "authentication-component";
+type PackageType =
+  | "account"
+  | "note"
+  | "tx-script"
+  | "authentication-component";
 
 type PackageDependency = {
   id: string;
@@ -36,10 +40,10 @@ type Package = {
   exports: {
     Procedure: {
       path: string;
-   	  digest: string;
-	    signature: { abi: number; params: string[]; results: string[] };
-	    attributes: { attrs: string[] };
-    }
+      digest: string;
+      signature: { abi: number; params: string[]; results: string[] };
+      attributes: { attrs: string[] };
+    };
   }[];
   // list of dependencies this package depends on
   dependencies: PackageDependency[];
@@ -48,9 +52,9 @@ type Package = {
   // exports filtered by "Procedure" type
   procedureExports: {
     path: string;
-	  digest: string;
-		signature: { abi: number; params: string[]; results: string[] };
-   	attributes: { attrs: string[] };
+    digest: string;
+    signature: { abi: number; params: string[]; results: string[] };
+    attributes: { attrs: string[] };
   }[];
 };
 
@@ -228,7 +232,7 @@ Example response for `/verified-notes/mtst/0xcc3f25ad4e48480fff9d9f2215566f2868c
   "noteScript": {
     "id": "80ebd351-3c15-405d-94d0-3828fa908546",
     "name": "increment-note",
-    "type": "note-script",
+    "type": "note",
     "status": "compiled",
     "readOnly": true,
     "rust": "RUST_SOURCE_CODE",

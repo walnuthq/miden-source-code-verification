@@ -11,7 +11,7 @@ export const readProjectFiles = async (rootDir: string) => {
       if (!entry.isFile()) return;
       const full = path.join(entry.parentPath, entry.name);
       const rel = path.relative(rootDir, full);
-      if (rel.includes("target/") || rel === ".DS_Store") return;
+      if (rel.includes("target/") || rel.includes(".DS_Store")) return;
       return { path: rel, content: await readFile(full, "utf8") };
     }),
   );

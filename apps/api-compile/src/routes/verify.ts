@@ -31,6 +31,11 @@ router.post("/verify", async (req, res) => {
       res.status(400).json({ error: "missing Cargo.toml" });
       return;
     }
+    const midenProjectTomlPath = join(entrypoint, "miden-project.toml");
+    if (!files[midenProjectTomlPath]) {
+      res.status(400).json({ error: "missing miden-project.toml" });
+      return;
+    }
     if (!networkId) {
       res.status(400).json({ error: "missing networkId" });
       return;

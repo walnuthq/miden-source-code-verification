@@ -10,7 +10,7 @@ import {
 } from "@/db/verified-accounts.js";
 import { API_COMPILE_URL } from "@/lib/constants.js";
 import type { Manifest } from "@/lib/types.js";
-import { parseCargoToml } from "@/lib/utils.js";
+import { parseCargoToml } from "miden-source-code-verification-utils";
 
 export const verifyAccountComponent = async ({
   networkId,

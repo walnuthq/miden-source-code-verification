@@ -9,30 +9,32 @@ published as OpenAPI docs (`apps/api-docs`).
 
 ## What changed at a glance
 
-| | Legacy | New |
-|---|---|---|
-| Path prefix | none | `/v1` |
-| Account lookup keyed by | bech32 **address** (`mtst1ar2…`) | on-chain **account id** (`0xd429…`) |
-| Account resource name | `verified-account-components` | `verified-accounts` |
-| Response wrapper | `{ components }` / `{ noteScript }` | the record itself, unwrapped |
-| Not found | returns standard components / `null` | `404` with `{ "error": … }` |
-| Standard component / note auto-detection | yes | **no** — only previously verified records are returned |
-| Source code fields | separate `rust` + `masm` | single `files` map (path → contents) |
-| Exports / dependencies | `exports`, `procedureExports`, `dependencies` | nested under `manifest` |
-| Errors | plain text, always `500` | JSON `{ "error" }` with proper `400` / `404` / `500` |
-| Timestamps | epoch milliseconds (number) | ISO 8601 strings |
+|                                          | Legacy                                        | New                                                    |
+| ---------------------------------------- | --------------------------------------------- | ------------------------------------------------------ |
+| Path prefix                              | none                                          | `/v1`                                                  |
+| Account lookup keyed by                  | bech32 **address** (`mtst1ar2…`)              | on-chain **account id** (`0xd429…`)                    |
+| Account resource name                    | `verified-account-components`                 | `verified-accounts`                                    |
+| Response wrapper                         | `{ components }` / `{ noteScript }`           | the record itself, unwrapped                           |
+| Not found                                | returns standard components / `null`          | `404` with `{ "error": … }`                            |
+| Standard component / note auto-detection | yes                                           | **no** — only previously verified records are returned |
+| Source code fields                       | separate `rust` + `masm`                      | single `files` map (path → contents)                   |
+| Exports / dependencies                   | `exports`, `procedureExports`, `dependencies` | nested under `manifest`                                |
+| Errors                                   | plain text, always `500`                      | JSON `{ "error" }` with proper `400` / `404` / `500`   |
+| Timestamps                               | epoch milliseconds (number)                   | ISO 8601 strings                                       |
 
 The `network` segment (`mtst`, `mdev`) is unchanged.
 
 ## Verified account lookup
 
 **Legacy**
+
 ```
 GET /verified-account-components/{network}/{address}
 → { "components": Package[] }
 ```
 
 **New**
+
 ```
 GET /v1/{networkId}/verified-accounts/{accountId}
 → VerifiedAccount   (404 if not verified)
@@ -47,6 +49,7 @@ Two things to change:
    array. There is no automatic list of standard components.
 
 New response shape:
+
 ```jsonc
 {
   "id": "…",
@@ -58,21 +61,25 @@ New response shape:
     {
       "packageId": "…",
       "packageDigest": "0x7f70…",
-      "package": { /* Package, see below */ }
-    }
-  ]
+      "package": {
+        /* Package, see below */
+      },
+    },
+  ],
 }
 ```
 
 ## Verified note lookup
 
 **Legacy**
+
 ```
 GET /verified-notes/{network}/{id}
 → { "noteScript": Package | null }
 ```
 
 **New**
+
 ```
 GET /v1/{networkId}/verified-notes/{noteId}
 → VerifiedNote   (404 if not verified)
@@ -83,6 +90,7 @@ the `package` field. Well-known notes (p2id, swap, …) are **not** auto-detecte
 — only notes previously verified through the API are returned.
 
 New response shape:
+
 ```jsonc
 {
   "id": "…",
@@ -92,7 +100,9 @@ New response shape:
   "packageDigest": "0xb32e…",
   "createdAt": "2026-03-26T…Z",
   "updatedAt": "2026-03-26T…Z",
-  "package": { /* Package, see below */ }
+  "package": {
+    /* Package, see below */
+  },
 }
 ```
 
@@ -104,43 +114,43 @@ The package shape is shared by both endpoints and is slimmer than before:
 {
   "id": "…",
   "name": "bank-account",
-  "type": "account",          // account | note-script | transaction-script | authentication-component
+  "type": "account", // account | note | tx-script | authentication-component
   "digest": "0x7f70…",
   "masp": "MASP_BINARY_BASE64",
-  "files": {                  // replaces `rust` + `masm`
+  "files": {
+    // replaces `rust` + `masm`
     "Cargo.toml": "…",
-    "src/lib.rs": "RUST_SOURCE_CODE"
+    "src/lib.rs": "RUST_SOURCE_CODE",
   },
-  "manifest": {               // replaces `exports` / `procedureExports` / `dependencies`
+  "manifest": {
+    // replaces `exports` / `procedureExports` / `dependencies`
     "exports": [
       {
         "Procedure": {
           "path": "::\"miden:bank-account/bank-account@0.1.0\"::\"get-balance\"",
           "digest": "0x6370…",
           "signature": { "abi": 3, "params": ["Felt"], "results": ["Felt"] },
-          "attributes": { "attrs": [] }
-        }
-      }
+          "attributes": { "attrs": [] },
+        },
+      },
     ],
-    "dependencies": [
-      { "name": "counter-account", "digest": "0x731c…" }
-    ]
+    "dependencies": [{ "name": "counter-account", "digest": "0x731c…" }],
   },
   "createdAt": "2026-02-23T…Z",
-  "updatedAt": "2026-02-23T…Z"
+  "updatedAt": "2026-02-23T…Z",
 }
 ```
 
 Field mapping from the legacy `Package`:
 
-| Legacy | New |
-|---|---|
-| `rust`, `masm` | read from `files` (e.g. `files["src/lib.rs"]`) |
-| `exports`, `procedureExports` | `manifest.exports` |
-| `dependencies` | `manifest.dependencies` (now just `{ name, digest }`) |
-| `masp`, `digest`, `name`, `type` | unchanged |
-| `status`, `readOnly` | removed |
-| `createdAt`, `updatedAt` (ms number) | ISO 8601 string |
+| Legacy                               | New                                                   |
+| ------------------------------------ | ----------------------------------------------------- |
+| `rust`, `masm`                       | read from `files` (e.g. `files["src/lib.rs"]`)        |
+| `exports`, `procedureExports`        | `manifest.exports`                                    |
+| `dependencies`                       | `manifest.dependencies` (now just `{ name, digest }`) |
+| `masp`, `digest`, `name`, `type`     | unchanged                                             |
+| `status`, `readOnly`                 | removed                                               |
+| `createdAt`, `updatedAt` (ms number) | ISO 8601 string                                       |
 
 ## Error handling
 

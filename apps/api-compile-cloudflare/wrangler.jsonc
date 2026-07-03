@@ -15,7 +15,6 @@
     "PORT": "8080",
     "ALLOWED_ORIGINS": "*",
     "CARGO_TARGET_DIR": "/cache/target",
-    "MIDENC_TARGET_DIR": "/cache/target/miden",
     "MIDEN_VERIFIER_CACHE_DIR": "/cache",
   },
   "containers": [

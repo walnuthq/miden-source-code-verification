@@ -58,7 +58,12 @@ COPY . .
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --network-concurrency=2 --filter=miden-source-code-verification-api-compile...
 # Compile TypeScript -> dist/ (tsc + tsc-alias rewrites the @/* path aliases).
-RUN pnpm --filter=miden-source-code-verification-api-compile build
+# The trailing `...` also builds api-compile's workspace deps (e.g. the utils
+# package) first, so their JS exists in dist/. Production runs on plain `node`,
+# which cannot type-strip the raw .ts these packages ship for dev (that is the
+# ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING error); the built JS is what the
+# package's default export condition resolves to at runtime.
+RUN pnpm --filter=miden-source-code-verification-api-compile... build
 # Produce a self-contained, production-only bundle (no workspace symlinks).
 # --legacy is required since api-compile has no injected workspace deps (pnpm v10+).
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \

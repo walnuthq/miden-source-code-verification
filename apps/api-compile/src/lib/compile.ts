@@ -3,9 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import lodash from "lodash";
 import { cargoMidenBuild } from "@/lib/cargo-miden.js";
-import { MIDENC_TARGET_DIR } from "@/lib/constants.js";
+import { CARGO_TARGET_DIR } from "@/lib/constants.js";
 import { midenPackageMetadata } from "@/lib/miden-package-metadata.js";
 import type { Manifest } from "@/lib/types.js";
+import { parseCargoToml } from "miden-source-code-verification-utils";
 
 const { snakeCase } = lodash;
 
@@ -18,12 +19,12 @@ export const compile = async ({
 }) => {
   const tmpDir = await mkdtemp(join(tmpdir(), "miden-project-")); // Write project files
   const outputName = snakeCase(tmpDir.split("/").at(-1) ?? "");
+  const midencTargetDir = `${CARGO_TARGET_DIR}/${outputName}`;
   const cargoTomlPath = join(entrypoint, "Cargo.toml");
   const cargoToml = files[cargoTomlPath] ?? "";
-  files[cargoTomlPath] = cargoToml.replace(
-    "[lib]",
-    `[lib]\nname = "${outputName}"`,
-  );
+  const {
+    package: { name: packageName },
+  } = parseCargoToml(cargoToml);
   for (const [path, content] of Object.entries(files)) {
     const fullPath = join(tmpDir, path);
     const dir = fullPath.substring(0, fullPath.lastIndexOf("/"));
@@ -34,14 +35,17 @@ export const compile = async ({
     stdout = "",
     stderr = "",
     error: cargoMidenError,
-  } = await cargoMidenBuild(entrypoint ? `${tmpDir}/${entrypoint}` : tmpDir);
+  } = await cargoMidenBuild({
+    projectDir: entrypoint ? `${tmpDir}/${entrypoint}` : tmpDir,
+    midencTargetDir,
+  });
   if (cargoMidenError) {
     return {
       stdout,
       stderr: cargoMidenError,
     };
   }
-  const maspPath = `${MIDENC_TARGET_DIR}/release/${outputName}.masp`;
+  const maspPath = `${midencTargetDir}/release/${packageName}.masp`;
   const [
     maspBuffer,
     {

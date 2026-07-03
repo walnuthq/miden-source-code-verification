@@ -30,14 +30,14 @@ trait CounterContract {
 impl CounterContract for CounterContractStorage {
     fn get_count(&self) -> Felt {
         // Define a fixed key for the counter value within the map
-        let key = Word::new([felt!(0), felt!(0), felt!(0), felt!(1)]);
+        let key = Word::new([felt!(1), felt!(0), felt!(0), felt!(0)]);
         // Read the value associated with the key from the storage map
         self.count_map.get(key)
     }
 
     fn increment_count(&mut self) -> Felt {
         // Define the same fixed key
-        let key = Word::new([felt!(0), felt!(0), felt!(0), felt!(1)]);
+        let key = Word::new([felt!(1), felt!(0), felt!(0), felt!(0)]);
         // Read the current value
         let current_value: Felt = self.count_map.get(key);
         // Increment the value by one
