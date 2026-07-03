@@ -30,7 +30,12 @@ function isIncluded(rel: string): boolean {
   const name = parts[parts.length - 1];
   const parents = parts.slice(0, -1);
   if (parents.includes("src")) return true;
-  if (name === "Cargo.toml" || name === "rust-toolchain.toml") return true;
+  if (
+    name === "Cargo.toml" ||
+    name === "miden-project.toml" ||
+    name === "rust-toolchain.toml"
+  )
+    return true;
   if (name === "config.toml" && parents[parents.length - 1] === ".cargo") {
     return true;
   }
