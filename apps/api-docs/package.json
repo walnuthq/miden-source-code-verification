@@ -21,7 +21,7 @@
     "@types/swagger-jsdoc": "6.0.4",
     "@types/swagger-ui-dist": "3.30.6",
     "sirv-cli": "3.0.1",
-    "tsx": "4.22.5",
+    "tsx": "4.23.0",
     "typescript": "6.0.3"
   }
 }

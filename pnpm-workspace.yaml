@@ -20,3 +20,10 @@ allowBuilds:
   sharp: true
   workerd: true
   msw: false
+minimumReleaseAgeExclude:
+  - '@miden-sdk/miden-sdk@0.15.5'
+  - '@miden-sdk/node-darwin-arm64@0.15.5'
+  - '@miden-sdk/node-darwin-x64@0.15.5'
+  - '@miden-sdk/node-linux-x64-gnu@0.15.5'
+  - '@miden-sdk/react@0.15.5'
+  - '@miden-sdk/vite-plugin@0.15.5'

@@ -35,6 +35,7 @@ export const verifiedAccountTable = pgTable("verified_accounts", {
   id: uuid().primaryKey().defaultRandom(),
   networkId: text("network_id").notNull().default("mtst"),
   accountId: varchar("account_id", { length: 32 }).notNull(),
+  source: text().notNull().default("unknown"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -63,6 +64,7 @@ export const verifiedNoteTable = pgTable("verified_notes", {
   id: uuid().primaryKey().defaultRandom(),
   networkId: text("network_id").notNull().default("mtst"),
   noteId: varchar("note_id", { length: 66 }).notNull(),
+  source: text().notNull().default("unknown"),
   packageId: uuid("package_id")
     .notNull()
     .references(() => packagesTable.id, { onDelete: "cascade" }),

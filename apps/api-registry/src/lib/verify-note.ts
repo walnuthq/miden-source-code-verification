@@ -10,11 +10,13 @@ export const verifyNote = async ({
   noteId,
   files,
   entrypoint = ".",
+  source = "unknown",
 }: {
   networkId: string;
   noteId: string;
   files: Record<string, string>;
   entrypoint?: string;
+  source?: string;
 }) => {
   const cargoTomlPath = join(entrypoint, "Cargo.toml");
   const cargoToml = files[cargoTomlPath] ?? "";
@@ -58,6 +60,7 @@ export const verifyNote = async ({
     await insertVerifiedNote({
       networkId,
       noteId,
+      source,
       packageId,
       packageDigest: digest,
     });
