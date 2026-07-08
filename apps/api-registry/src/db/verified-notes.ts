@@ -16,11 +16,13 @@ export const getVerifiedNote = ({
 export const insertVerifiedNote = async ({
   networkId,
   noteId,
+  source,
   packageId,
   packageDigest,
 }: {
   networkId: string;
   noteId: string;
+  source: string;
   packageId: string;
   packageDigest: string;
 }) => {
@@ -29,6 +31,7 @@ export const insertVerifiedNote = async ({
     .values({
       networkId,
       noteId,
+      source,
       packageId,
       packageDigest,
     })

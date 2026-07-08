@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "a899f265-260e-4886-84bd-fa86ee2c01b1",
+  "id": "91f60b7c-dcbd-4e66-9940-ef7b0fe349d8",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -9,8 +9,8 @@
     {
       "values": [
         "account",
-        "note-script",
-        "transaction-script",
+        "note",
+        "tx-script",
         "authentication-component"
       ],
       "name": "package_type",
@@ -276,6 +276,19 @@
       "table": "verified_accounts"
     },
     {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'unknown'",
+      "generated": null,
+      "identity": null,
+      "name": "source",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "verified_accounts"
+    },
+    {
       "type": "timestamp",
       "typeSchema": null,
       "notNull": true,
@@ -336,6 +349,19 @@
       "generated": null,
       "identity": null,
       "name": "note_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "verified_notes"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'unknown'",
+      "generated": null,
+      "identity": null,
+      "name": "source",
       "entityType": "columns",
       "schema": "public",
       "table": "verified_notes"

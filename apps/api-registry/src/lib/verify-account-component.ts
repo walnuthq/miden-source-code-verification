@@ -17,11 +17,13 @@ export const verifyAccountComponent = async ({
   accountId,
   files,
   entrypoint = ".",
+  source = "unknown",
 }: {
   networkId: string;
   accountId: string;
   files: Record<string, string>;
   entrypoint?: string;
+  source?: string;
 }) => {
   const cargoTomlPath = join(entrypoint, "Cargo.toml");
   const cargoToml = files[cargoTomlPath] ?? "";
@@ -53,7 +55,7 @@ export const verifyAccountComponent = async ({
     const verifiedAccount = await getVerifiedAccount({ networkId, accountId });
     const verifiedAccountId = verifiedAccount
       ? verifiedAccount.id
-      : await insertVerifiedAccount({ networkId, accountId });
+      : await insertVerifiedAccount({ networkId, accountId, source });
     const verifiedAccountComponent = await getVerifiedAccountComponent({
       verifiedAccountId,
       packageDigest: digest,

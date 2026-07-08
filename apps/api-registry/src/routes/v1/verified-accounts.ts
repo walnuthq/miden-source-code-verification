@@ -9,6 +9,7 @@ type VerifyAccountRequestBody = {
   accountId?: string;
   files?: Record<string, string>;
   entrypoint?: string;
+  source?: string;
 };
 
 /**
@@ -52,6 +53,12 @@ type VerifyAccountRequestBody = {
  *                   Optional subdirectory containing the project to compile.
  *                   When set, `Cargo.toml` and `miden-project.toml` are read from
  *                   `<entrypoint>/`. Defaults to the project root (`.`).
+ *               source:
+ *                 type: string
+ *                 description: >
+ *                   Optional identifier of the client that originated the
+ *                   verification request (e.g. `miden-verify`, `web-verifier`).
+ *                   Recorded on the verified account. Defaults to `unknown`.
  *     responses:
  *       "200":
  *         description: Verification result.
@@ -89,6 +96,7 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
       accountId,
       files,
       entrypoint = ".",
+      source,
     } = req.body as VerifyAccountRequestBody;
     if (!accountId) {
       res.status(400).json({ error: "missing accountId" });
@@ -113,6 +121,7 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
       accountId,
       files,
       entrypoint,
+      source: typeof source === "string" ? source : "unknown",
     });
     res.json({ verified });
   } catch (error) {
@@ -150,6 +159,12 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
  *           application/json:
  *             schema:
  *               type: object
+ *               properties:
+ *                 source:
+ *                   type: string
+ *                   description: >
+ *                     Identifier of the client that originated the verification
+ *                     request. Defaults to `unknown`.
  *       "404":
  *         description: No verified account found for the given parameters.
  *         content:

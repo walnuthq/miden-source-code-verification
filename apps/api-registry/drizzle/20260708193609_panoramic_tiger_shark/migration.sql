@@ -24,6 +24,7 @@ CREATE TABLE "verified_accounts" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
 	"network_id" text DEFAULT 'mtst' NOT NULL,
 	"account_id" varchar(32) NOT NULL,
+	"source" text DEFAULT 'unknown' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
@@ -32,6 +33,7 @@ CREATE TABLE "verified_notes" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
 	"network_id" text DEFAULT 'mtst' NOT NULL,
 	"note_id" varchar(66) NOT NULL,
+	"source" text DEFAULT 'unknown' NOT NULL,
 	"package_id" uuid NOT NULL,
 	"packageDigest" varchar(66) DEFAULT '0x0000000000000000000000000000000000000000000000000000000000000000' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,

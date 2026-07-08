@@ -151,7 +151,12 @@ export function VerifyForm({ ready }: { ready: boolean }) {
       const response = await fetch(`${verifierUrl}/v1/${network}/${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [idField]: idValue, files, entrypoint }),
+        body: JSON.stringify({
+          [idField]: idValue,
+          files,
+          entrypoint,
+          source: "miden-source-code-verification-web-verifier",
+        }),
       });
       const data = await response.json();
       if (!response.ok) {
