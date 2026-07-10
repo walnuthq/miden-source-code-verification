@@ -1,37 +1,28 @@
 import db from "@/db/index.js";
-import { verifiedAccountTable } from "@/db/schema.js";
+import { verifiedAccountCodeTable } from "@/db/schema.js";
 
-export const getVerifiedAccount = ({
-  networkId,
-  accountId,
-}: {
-  networkId: string;
-  accountId: string;
-}) =>
-  db.query.verifiedAccountTable.findFirst({
-    where: { networkId, accountId },
+export const getVerifiedAccountByCode = ({ code }: { code: string }) =>
+  db.query.verifiedAccountCodeTable.findFirst({
+    where: { code },
     with: { verifiedAccountComponents: { with: { package: true } } },
   });
 
-export const insertVerifiedAccount = async ({
-  networkId,
-  accountId,
+export const insertVerifiedAccountCode = async ({
+  code,
   source,
 }: {
-  networkId: string;
-  accountId: string;
+  code: string;
   source: string;
 }) => {
-  const [insertedVerifiedAccount] = await db
-    .insert(verifiedAccountTable)
+  const [insertedVerifiedAccountCode] = await db
+    .insert(verifiedAccountCodeTable)
     .values({
-      networkId,
-      accountId,
+      code,
       source,
     })
-    .returning({ id: verifiedAccountTable.id });
-  if (!insertedVerifiedAccount) {
-    throw new Error("insert verified account failed");
+    .returning({ id: verifiedAccountCodeTable.id });
+  if (!insertedVerifiedAccountCode) {
+    throw new Error("insert verified account code failed");
   }
-  return insertedVerifiedAccount.id;
+  return insertedVerifiedAccountCode.id;
 };

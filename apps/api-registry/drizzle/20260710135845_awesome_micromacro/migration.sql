@@ -11,6 +11,14 @@ CREATE TABLE "packages" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "verified_accounts_code" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"code" varchar(66) DEFAULT '0x0000000000000000000000000000000000000000000000000000000000000000' NOT NULL,
+	"source" text DEFAULT 'unknown' NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "verified_account_components" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
 	"verified_account_id" uuid NOT NULL,
@@ -20,19 +28,9 @@ CREATE TABLE "verified_account_components" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "verified_accounts" (
+CREATE TABLE "verified_notes_script" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-	"network_id" text DEFAULT 'mtst' NOT NULL,
-	"account_id" varchar(32) NOT NULL,
-	"source" text DEFAULT 'unknown' NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "verified_notes" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-	"network_id" text DEFAULT 'mtst' NOT NULL,
-	"note_id" varchar(66) NOT NULL,
+	"script" varchar(66) DEFAULT '0x0000000000000000000000000000000000000000000000000000000000000000' NOT NULL,
 	"source" text DEFAULT 'unknown' NOT NULL,
 	"package_id" uuid NOT NULL,
 	"packageDigest" varchar(66) DEFAULT '0x0000000000000000000000000000000000000000000000000000000000000000' NOT NULL,
@@ -40,6 +38,6 @@ CREATE TABLE "verified_notes" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "verified_account_components" ADD CONSTRAINT "verified_account_components_p04OCKr65MKG_fkey" FOREIGN KEY ("verified_account_id") REFERENCES "verified_accounts"("id") ON DELETE CASCADE;--> statement-breakpoint
+ALTER TABLE "verified_account_components" ADD CONSTRAINT "verified_account_components_XtBtCOvEjIMc_fkey" FOREIGN KEY ("verified_account_id") REFERENCES "verified_accounts_code"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "verified_account_components" ADD CONSTRAINT "verified_account_components_package_id_packages_id_fkey" FOREIGN KEY ("package_id") REFERENCES "packages"("id") ON DELETE CASCADE;--> statement-breakpoint
-ALTER TABLE "verified_notes" ADD CONSTRAINT "verified_notes_package_id_packages_id_fkey" FOREIGN KEY ("package_id") REFERENCES "packages"("id") ON DELETE CASCADE;
+ALTER TABLE "verified_notes_script" ADD CONSTRAINT "verified_notes_script_package_id_packages_id_fkey" FOREIGN KEY ("package_id") REFERENCES "packages"("id") ON DELETE CASCADE;

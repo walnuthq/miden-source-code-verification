@@ -1,43 +1,34 @@
 import db from "@/db/index.js";
-import { verifiedNoteTable } from "@/db/schema.js";
+import { verifiedNoteScriptTable } from "@/db/schema.js";
 
-export const getVerifiedNote = ({
-  networkId,
-  noteId,
-}: {
-  networkId: string;
-  noteId: string;
-}) =>
-  db.query.verifiedNoteTable.findFirst({
-    where: { networkId, noteId },
+export const getVerifiedNoteByScript = ({ script }: { script: string }) =>
+  db.query.verifiedNoteScriptTable.findFirst({
+    where: { script },
     with: { package: true },
   });
 
-export const insertVerifiedNote = async ({
-  networkId,
-  noteId,
+export const insertVerifiedNoteScript = async ({
+  script,
   source,
   packageId,
   packageDigest,
 }: {
-  networkId: string;
-  noteId: string;
+  script: string;
   source: string;
   packageId: string;
   packageDigest: string;
 }) => {
-  const [insertedVerifiedNote] = await db
-    .insert(verifiedNoteTable)
+  const [insertedVerifiedNoteScript] = await db
+    .insert(verifiedNoteScriptTable)
     .values({
-      networkId,
-      noteId,
+      script,
       source,
       packageId,
       packageDigest,
     })
-    .returning({ id: verifiedNoteTable.id });
-  if (!insertedVerifiedNote) {
-    throw new Error("insert verified note failed");
+    .returning({ id: verifiedNoteScriptTable.id });
+  if (!insertedVerifiedNoteScript) {
+    throw new Error("insert verified note script failed");
   }
-  return insertedVerifiedNote.id;
+  return insertedVerifiedNoteScript.id;
 };

@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { Router } from "express";
-import { getVerifiedAccount } from "@/db/verified-accounts.js";
+import { getVerifiedAccountByCode } from "@/db/verified-accounts.js";
+import { importResource } from "@/lib/import-resource.js";
 import { verifyAccountComponent } from "@/lib/verify-account-component.js";
 
 const router: Router = Router();
@@ -154,12 +155,23 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
  *         description: On-chain account identifier.
  *     responses:
  *       "200":
- *         description: The verified account record.
+ *         description: >
+ *           The verified account record whose code matches the on-chain account
+ *           at `accountId`. The match is by account code, so the record may have
+ *           originated from a different account sharing the same code. The
+ *           queried `accountId` and `networkId` are echoed back.
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
+ *                 accountId:
+ *                   type: string
+ *                 networkId:
+ *                   type: string
+ *                 code:
+ *                   type: string
+ *                   description: The account code root the record is keyed on.
  *                 source:
  *                   type: string
  *                   description: >
@@ -187,15 +199,21 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
 router.get("/:networkId/verified-accounts/:accountId", async (req, res) => {
   try {
     const { networkId, accountId } = req.params;
-    const verifiedAccount = await getVerifiedAccount({
-      networkId,
-      accountId,
-    });
+    let code: string;
+    try {
+      ({ code } = await importResource({ networkId, resourceId: accountId }));
+    } catch {
+      // The account could not be fetched on-chain (unknown/invalid id), so it
+      // cannot be matched against the registry.
+      res.status(404).json({ error: "verified account not found" });
+      return;
+    }
+    const verifiedAccount = await getVerifiedAccountByCode({ code });
     if (!verifiedAccount) {
       res.status(404).json({ error: "verified account not found" });
       return;
     }
-    res.json(verifiedAccount);
+    res.json({ ...verifiedAccount, accountId, networkId });
   } catch (error) {
     console.error(error);
     const message =

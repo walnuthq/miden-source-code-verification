@@ -16,6 +16,9 @@ const apiV1 = request(`${apiUrl}/v1`);
 
 const networkId = "mtst";
 
+// All three are increment-note instances that share the same note script, so
+// they resolve to the same `script` in the registry. This is what lets a
+// verification of one satisfy a lookup of another.
 const NOTE_ID_1 =
   "0x5101df16c6b3d79a0e680e4a08c813cbc634e59c51bae4e83b8a8bd69f614160";
 const NOTE_ID_2 =
@@ -98,23 +101,23 @@ describe("POST /:networkId/verified-notes", () => {
     expect(res.body).toHaveProperty("verified", true);
   });
 
-  it("doesn't verify an already verified increment-note", async () => {
+  it("doesn't verify an increment-note whose script is already in the registry", async () => {
     const files = await readProjectFiles(templateDir);
     const entrypoint = "increment-note";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
 
-    const noteId = NOTE_ID_2;
-
+    // First note registers the script.
     const res1 = await apiV1
       .post(`/${networkId}/verified-notes`)
-      .send({ noteId, files, entrypoint });
+      .send({ noteId: NOTE_ID_1, files, entrypoint });
 
     expect(res1.status).toBe(200);
     expect(res1.body).toHaveProperty("verified", true);
 
+    // A different note sharing the same script is already covered.
     const res2 = await apiV1
       .post(`/${networkId}/verified-notes`)
-      .send({ noteId, files, entrypoint });
+      .send({ noteId: NOTE_ID_2, files, entrypoint });
 
     expect(res2.status).toBe(500);
     expect(res2.body).toHaveProperty("error", "note already verified");
@@ -140,12 +143,9 @@ describe("POST /:networkId/verified-notes", () => {
 });
 
 describe("GET /:networkId/verified-notes/:noteId", () => {
-  it("returns 404 for a non-existent verified note", async () => {
-    const noteId =
-      "0x0000000000000000000000000000000000000000000000000000000000000000";
-
+  it("returns 404 for a note absent from the registry", async () => {
     const res = await apiV1
-      .get(`/${networkId}/verified-notes/${noteId}`)
+      .get(`/${networkId}/verified-notes/${NOTE_ID_1}`)
       .send();
     expect(res.status).toBe(404);
   });
@@ -155,21 +155,44 @@ describe("GET /:networkId/verified-notes/:noteId", () => {
     const entrypoint = "increment-note";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
 
-    const noteId = NOTE_ID_3;
-
     const res1 = await apiV1
       .post(`/${networkId}/verified-notes`)
-      .send({ noteId, files, entrypoint });
+      .send({ noteId: NOTE_ID_3, files, entrypoint });
 
     expect(res1.status).toBe(200);
     expect(res1.body).toHaveProperty("verified", true);
 
     const res2 = await apiV1
-      .get(`/${networkId}/verified-notes/${noteId}`)
+      .get(`/${networkId}/verified-notes/${NOTE_ID_3}`)
       .send();
 
     expect(res2.status).toBe(200);
-    expect(res2.body).toHaveProperty("noteId", noteId);
+    expect(res2.body).toHaveProperty("noteId", NOTE_ID_3);
+    expect(res2.body).toHaveProperty("networkId", networkId);
+    expect(res2.body).toHaveProperty("script");
+    expect(res2.body).toHaveProperty("package");
+  });
+
+  it("returns a match for a different note sharing the same script", async () => {
+    const files = await readProjectFiles(templateDir);
+    const entrypoint = "increment-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    // Verify one note...
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-notes`)
+      .send({ noteId: NOTE_ID_1, files, entrypoint });
+
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty("verified", true);
+
+    // ...then look up a *different*, never-verified note with the same script.
+    const res2 = await apiV1
+      .get(`/${networkId}/verified-notes/${NOTE_ID_2}`)
+      .send();
+
+    expect(res2.status).toBe(200);
+    expect(res2.body).toHaveProperty("noteId", NOTE_ID_2);
     expect(res2.body).toHaveProperty("networkId", networkId);
     expect(res2.body).toHaveProperty("package");
   });

@@ -34,6 +34,6 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await client.query(
-    "TRUNCATE TABLE packages, verified_accounts, verified_account_components, verified_notes RESTART IDENTITY CASCADE",
+    "TRUNCATE TABLE packages, verified_accounts_code, verified_account_components, verified_notes_script RESTART IDENTITY CASCADE",
   );
 });
