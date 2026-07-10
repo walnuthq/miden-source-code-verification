@@ -35,7 +35,7 @@ app.post("/compile", (c) => {
   return container.fetch(c.req.raw);
 });
 
-app.get("/import", (c) => {
+app.get("/:networkId/import/:resourceId", (c) => {
   const container = getContainer(c.env.COMPILER);
   return container.fetch(c.req.raw);
 });
