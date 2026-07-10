@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { insertPackage } from "@/db/packages.js";
+import { insertPackage, getPackage } from "@/db/packages.js";
 import { getVerifiedNote, insertVerifiedNote } from "@/db/verified-notes.js";
 import { API_COMPILE_URL } from "@/lib/constants.js";
 import type { Manifest } from "@/lib/types.js";
@@ -49,14 +49,17 @@ export const verifyNote = async ({
     if (verifiedNote) {
       throw new Error("note already verified");
     }
-    const packageId = await insertPackage({
-      name,
-      type: "note",
-      files,
-      masp,
-      digest,
-      manifest,
-    });
+    const dbPackage = await getPackage(digest);
+    const packageId = dbPackage
+      ? dbPackage.id
+      : await insertPackage({
+          name,
+          type: "account",
+          files,
+          masp,
+          digest,
+          manifest,
+        });
     await insertVerifiedNote({
       networkId,
       noteId,

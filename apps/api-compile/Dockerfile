@@ -24,11 +24,11 @@ ENV RUSTUP_HOME=/usr/local/rustup \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
   | sh -s -- -y --no-modify-path --profile minimal --default-toolchain nightly-2026-04-30
 
-# Build cargo-miden + miden-package-metadata + miden-verifier (cargo cache via BuildKit, never persisted in layer)
+# Build cargo-miden + miden-package-metadata + miden-verifier + miden-import (cargo cache via BuildKit, never persisted in layer)
 FROM rust AS rust-builder
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
-    cargo install cargo-miden --locked
+    cargo install cargo-miden --version 0.9.2
 
 WORKDIR /home/node/crates
 COPY apps/api-compile/crates .
@@ -43,7 +43,12 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     cargo install --path . --locked
 
-RUN strip /usr/local/cargo/bin/cargo-miden /usr/local/cargo/bin/miden-package-metadata /usr/local/cargo/bin/miden-verifier
+WORKDIR /home/node/crates/miden-import
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    cargo install --path . --locked
+
+RUN strip /usr/local/cargo/bin/cargo-miden /usr/local/cargo/bin/miden-package-metadata /usr/local/cargo/bin/miden-verifier /usr/local/cargo/bin/miden-import
 
 # Build the API (TypeScript -> JS) from the pnpm workspace — runs in parallel with rust-builder
 FROM base AS api-builder

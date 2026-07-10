@@ -10,6 +10,10 @@ export const writeResourceFile = async (resource: string) => {
   return resourcePath;
 };
 
+type MidenVerifierOutput =
+  | { type: "account"; code: string; components: string[] }
+  | { type: "note"; code: string; script: string };
+
 export const verify = async ({
   networkId,
   resourceId,
@@ -32,5 +36,13 @@ export const verify = async ({
   if (error) {
     throw new Error(error);
   }
-  return stdout?.includes(`Custom(${digest})`);
+  if (!stdout) {
+    return false;
+  }
+  const output = JSON.parse(stdout) as MidenVerifierOutput;
+  const target = `Custom(${digest})`;
+  if (output.type === "account") {
+    return output.components.includes(target);
+  }
+  return output.script === target;
 };
