@@ -35,7 +35,7 @@ app.post("/compile", (c) => {
   return container.fetch(c.req.raw);
 });
 
-app.post("/import", (c) => {
+app.get("/import", (c) => {
   const container = getContainer(c.env.COMPILER);
   return container.fetch(c.req.raw);
 });
