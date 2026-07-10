@@ -25,12 +25,12 @@ services:
       context: .
       dockerfile: apps/api-compile/Dockerfile
     # Self-contained dev config (no .env file needed). CARGO_TARGET_DIR /
-    # MIDEN_VERIFIER_CACHE_DIR must match the warm cache paths baked into the image.
+    # MIDEN_CLIENT_CACHE_DIR must match the warm cache paths baked into the image.
     environment:
       - PORT=8080
       - ALLOWED_ORIGINS=*
       - CARGO_TARGET_DIR=/cache/target
-      - MIDEN_VERIFIER_CACHE_DIR=/cache
+      - MIDEN_CLIENT_CACHE_DIR=/cache
     image: miden-source-code-verification-api-compile
     container_name: miden-source-code-verification-api-compile
     ports:

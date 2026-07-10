@@ -17,11 +17,11 @@ const apiV1 = request(`${apiUrl}/v1`);
 const networkId = "mtst";
 
 const NOTE_ID_1 =
-  "0x5c546cf624fa9a381d006f64194ad08bc9fcc30629184c64f5b0fe33bf1e2796";
+  "0x5101df16c6b3d79a0e680e4a08c813cbc634e59c51bae4e83b8a8bd69f614160";
 const NOTE_ID_2 =
-  "0x230560f38b6af790e5b790b438dc64d05b9b65dc762a25be4b61c4830d7dede9";
+  "0x59a97ea12e7111c10838a23760fe96d7abeb67685f0b9a79acdfc65302d6c3e7";
 const NOTE_ID_3 =
-  "0x1fdc8f1582f9f39dbf4a045c73fce3088332714357c00a7a68221541e86a0db7";
+  "0x7656b5ef18b07af1c75d6af983d7aac35c3c5800fdecd95974893b9b9645f302";
 
 describe("POST /:networkId/verified-notes", () => {
   it("rejects requests with no note ID", async () => {

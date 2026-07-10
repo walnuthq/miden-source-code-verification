@@ -16,9 +16,9 @@ const apiV1 = request(`${apiUrl}/v1`);
 
 const networkId = "mtst";
 
-const ACCOUNT_ID_1 = "0x3c4d04b827248f717ed34a650e3eb3";
-const ACCOUNT_ID_2 = "0x211b9541a73651f1421e033a73777e";
-const ACCOUNT_ID_3 = "0x0c6f310fab1221512b4c448138e6c1";
+const ACCOUNT_ID_1 = "0xa070576e2ee8d311021079d99e1374";
+const ACCOUNT_ID_2 = "0xbe777957464638d1632b09779e8cdf";
+const ACCOUNT_ID_3 = "0xe506fd9d2e9d757130743112e78e36";
 
 describe("POST /:networkId/verified-accounts", () => {
   it("rejects requests with no account ID", async () => {

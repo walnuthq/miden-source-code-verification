@@ -11,9 +11,9 @@ const templateDir = path.resolve(__dirname, "../project-template");
 
 const api = request(process.env.API_URL ?? "http://localhost:8080");
 
-const ACCOUNT_ID = "0x3c4d04b827248f717ed34a650e3eb3";
+const ACCOUNT_ID = "0xa070576e2ee8d311021079d99e1374";
 const NOTE_ID =
-  "0x5c546cf624fa9a381d006f64194ad08bc9fcc30629184c64f5b0fe33bf1e2796";
+  "0x5101df16c6b3d79a0e680e4a08c813cbc634e59c51bae4e83b8a8bd69f614160";
 
 describe("POST /verify", () => {
   it("rejects requests with no files object", async () => {
@@ -77,7 +77,7 @@ describe("POST /verify", () => {
     expect(files["Cargo.toml"]).toBeDefined();
 
     const resourceId = ACCOUNT_ID;
-    const resource = accounts[resourceId];
+    const { resource } = accounts[resourceId];
 
     const res = await api
       .post("/verify")
@@ -122,7 +122,7 @@ describe("POST /verify", () => {
     files["src/lib.rs"] = files["src/lib.rs"].replaceAll("+", "-");
 
     const resourceId = ACCOUNT_ID;
-    const resource = accounts[resourceId];
+    const { resource } = accounts[resourceId];
 
     const res = await api
       .post("/verify")
@@ -138,7 +138,7 @@ describe("POST /verify", () => {
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
 
     const resourceId = NOTE_ID;
-    const resource = notes[resourceId];
+    const { resource } = notes[resourceId];
 
     const res = await api
       .post("/verify")
@@ -188,7 +188,7 @@ describe("POST /verify", () => {
     ].replace("Felt::from_u32", "felt!");
 
     const resourceId = NOTE_ID;
-    const resource = notes[resourceId];
+    const { resource } = notes[resourceId];
 
     const res = await api
       .post("/verify")

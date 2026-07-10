@@ -2,6 +2,7 @@ import { execFile } from "@/lib/utils.js";
 
 export const midenPackageMetadata = async (maspPath: string) => {
   try {
+    console.info(`miden-package-metadata ${maspPath}`);
     const { stdout, stderr } = await execFile("miden-package-metadata", [
       maspPath,
     ]);

@@ -24,6 +24,7 @@ use miden_client_sqlite_store::ClientBuilderSqliteExt;
 //     BurnNote, MintNote, P2idNote, P2ideNote, PswapNote, StandardNote, SwapNote,
 // };
 use miden_standards::note::StandardNote;
+use serde_json::{Value, json};
 use std::fs;
 use std::sync::Arc;
 
@@ -78,41 +79,38 @@ fn parse_resource_id(resource_id: &str) -> Result<Resource> {
     )
 }
 
-fn verify_account_component(account: Account, package: Package) -> Result<()> {
+fn verify_account_component(account: Account, package: Package) -> Result<Value> {
     let account_interface = AccountInterface::from_account(&account);
+    let mut components = Vec::new();
     for component in account_interface.components() {
         match component {
-            AccountComponentInterface::BasicWallet => println!("BasicWallet"),
+            AccountComponentInterface::BasicWallet => components.push("BasicWallet".to_string()),
             AccountComponentInterface::FungibleFaucet => {
-                println!("FungibleFaucet")
+                components.push("FungibleFaucet".to_string())
             }
-            AccountComponentInterface::Authority => {
-                println!("Authority")
-            }
-            AccountComponentInterface::Ownable2Step => {
-                println!("Ownable2Step")
-            }
+            AccountComponentInterface::Authority => components.push("Authority".to_string()),
+            AccountComponentInterface::Ownable2Step => components.push("Ownable2Step".to_string()),
             AccountComponentInterface::RoleBasedAccessControl => {
-                println!("RoleBasedAccessControl")
+                components.push("RoleBasedAccessControl".to_string())
             }
             AccountComponentInterface::AuthSingleSig => {
-                println!("AuthSingleSig")
+                components.push("AuthSingleSig".to_string())
             }
             AccountComponentInterface::AuthSingleSigAcl => {
-                println!("AuthSingleSigAcl")
+                components.push("AuthSingleSigAcl".to_string())
             }
             AccountComponentInterface::AuthMultisig => {
-                println!("AuthMultisig")
+                components.push("AuthMultisig".to_string())
             }
             AccountComponentInterface::AuthMultisigSmart => {
-                println!("AuthMultisigSmart")
+                components.push("AuthMultisigSmart".to_string())
             }
             AccountComponentInterface::AuthGuardedMultisig => {
-                println!("AuthGuardedMultisig")
+                components.push("AuthGuardedMultisig".to_string())
             }
-            AccountComponentInterface::AuthNoAuth => println!("AuthNoAuth"),
+            AccountComponentInterface::AuthNoAuth => components.push("AuthNoAuth".to_string()),
             AccountComponentInterface::AuthNetworkAccount => {
-                println!("AuthNetworkAccount")
+                components.push("AuthNetworkAccount".to_string())
             }
             AccountComponentInterface::Custom(_) => {
                 if package.manifest.num_exports() == 0 {
@@ -128,18 +126,19 @@ fn verify_account_component(account: Account, package: Package) -> Result<()> {
                 let verified =
                     procedures.all(|procedure| account.code().has_procedure(procedure.digest));
                 if verified {
-                    println!("Custom({})", package.digest());
+                    components.push(format!("Custom({})", package.digest()));
                 }
             }
         }
     }
 
-    Ok(())
+    let code = account.code().commitment().to_hex();
+    Ok(json!({ "type": "account", "code": code, "components": components }))
 }
 
-fn verify_note_script(note_script: &NoteScript, package: Package) -> Result<()> {
-    if let Some(standard_note) = StandardNote::from_script(note_script) {
-        println!("{}", standard_note.name());
+fn verify_note_script(note_script: &NoteScript, package: Package) -> Result<Value> {
+    let script = if let Some(standard_note) = StandardNote::from_script(note_script) {
+        standard_note.name().to_string()
     } else {
         let mut procedures_digests = package
             .manifest
@@ -149,10 +148,13 @@ fn verify_note_script(note_script: &NoteScript, package: Package) -> Result<()> 
                 _ => None,
             });
         if procedures_digests.any(|digest| digest == note_script.root().into()) {
-            println!("Custom({})", package.digest());
+            format!("Custom({})", package.digest())
+        } else {
+            String::new()
         }
-    }
-    Ok(())
+    };
+    let code = note_script.root().to_hex();
+    Ok(json!({ "type": "note", "code": code, "script": script }))
 }
 
 #[tokio::main]
@@ -227,7 +229,7 @@ async fn main() -> Result<()> {
     let package_bytes = fs::read(&args.masp_path)?;
     let package = Package::read_from_bytes(&package_bytes)?;
 
-    match parse_resource_id(&args.resource_id)? {
+    let output = match parse_resource_id(&args.resource_id)? {
         Resource::Account {
             network_id: network_id_opt,
             account_id,
@@ -254,7 +256,7 @@ async fn main() -> Result<()> {
                 })?
             };
 
-            verify_account_component(account, package)
+            verify_account_component(account, package)?
         }
         Resource::Note(note_id) => {
             let note_script = if let Some(resource_path) = args.resource_path {
@@ -268,7 +270,10 @@ async fn main() -> Result<()> {
                 note_record.details().script().clone()
             };
 
-            verify_note_script(&note_script, package)
+            verify_note_script(&note_script, package)?
         }
-    }
+    };
+
+    println!("{}", output);
+    Ok(())
 }

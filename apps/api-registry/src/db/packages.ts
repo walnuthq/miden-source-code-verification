@@ -13,3 +13,8 @@ export const insertPackage = async (newPackage: NewPackage) => {
   }
   return insertedPackage.id;
 };
+
+export const getPackage = (digest: string) =>
+  db.query.packagesTable.findFirst({
+    where: { digest },
+  });

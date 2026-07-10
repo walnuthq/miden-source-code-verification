@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { insertPackage } from "@/db/packages.js";
+import { insertPackage, getPackage } from "@/db/packages.js";
 import {
   getVerifiedAccountComponent,
   insertVerifiedAccountComponent,
@@ -63,14 +63,17 @@ export const verifyAccountComponent = async ({
     if (verifiedAccountComponent) {
       throw new Error("account component already verified");
     }
-    const packageId = await insertPackage({
-      name,
-      type: "account",
-      files,
-      masp,
-      digest,
-      manifest,
-    });
+    const dbPackage = await getPackage(digest);
+    const packageId = dbPackage
+      ? dbPackage.id
+      : await insertPackage({
+          name,
+          type: "account",
+          files,
+          masp,
+          digest,
+          manifest,
+        });
     await insertVerifiedAccountComponent({
       verifiedAccountId,
       packageId,

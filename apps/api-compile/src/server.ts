@@ -4,10 +4,11 @@ import { cargoMidenVersion } from "@/lib/cargo-miden.js";
 import {
   ALLOWED_ORIGINS,
   CARGO_TARGET_DIR,
-  MIDEN_VERIFIER_CACHE_DIR,
+  MIDEN_CLIENT_CACHE_DIR,
   PORT,
 } from "@/lib/constants.js";
 import compileRouter from "@/routes/compile.js";
+import importRouter from "@/routes/import.js";
 import verifyRouter from "@/routes/verify.js";
 
 const app = express();
@@ -31,7 +32,7 @@ app.get("/", async (_req, res) => {
       PORT,
       ALLOWED_ORIGINS,
       CARGO_TARGET_DIR,
-      MIDEN_VERIFIER_CACHE_DIR,
+      MIDEN_CLIENT_CACHE_DIR,
     },
     cargoMidenVersion: await cargoMidenVersion(),
   });
@@ -39,6 +40,7 @@ app.get("/", async (_req, res) => {
 
 app.use(compileRouter);
 app.use(verifyRouter);
+app.use(importRouter);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
