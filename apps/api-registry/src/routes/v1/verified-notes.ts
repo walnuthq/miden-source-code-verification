@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { Router } from "express";
-import { getVerifiedNote } from "@/db/verified-notes.js";
+import { getVerifiedNoteByScript } from "@/db/verified-notes.js";
+import { importResource } from "@/lib/import-resource.js";
 import { verifyNote } from "@/lib/verify-note.js";
 
 const router: Router = Router();
@@ -154,12 +155,23 @@ router.post("/:networkId/verified-notes", async (req, res) => {
  *         description: On-chain note identifier.
  *     responses:
  *       "200":
- *         description: The verified note record.
+ *         description: >
+ *           The verified note record whose script matches the on-chain note at
+ *           `noteId`. The match is by note script, so the record may have
+ *           originated from a different note sharing the same script. The
+ *           queried `noteId` and `networkId` are echoed back.
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
+ *                 noteId:
+ *                   type: string
+ *                 networkId:
+ *                   type: string
+ *                 script:
+ *                   type: string
+ *                   description: The note script root the record is keyed on.
  *                 source:
  *                   type: string
  *                   description: >
@@ -187,15 +199,24 @@ router.post("/:networkId/verified-notes", async (req, res) => {
 router.get("/:networkId/verified-notes/:noteId", async (req, res) => {
   try {
     const { networkId, noteId } = req.params;
-    const verifiedNote = await getVerifiedNote({
-      networkId,
-      noteId,
-    });
+    let script: string;
+    try {
+      ({ code: script } = await importResource({
+        networkId,
+        resourceId: noteId,
+      }));
+    } catch {
+      // The note could not be fetched on-chain (unknown/invalid id), so it
+      // cannot be matched against the registry.
+      res.status(404).json({ error: "verified note not found" });
+      return;
+    }
+    const verifiedNote = await getVerifiedNoteByScript({ script });
     if (!verifiedNote) {
       res.status(404).json({ error: "verified note not found" });
       return;
     }
-    res.json(verifiedNote);
+    res.json({ ...verifiedNote, noteId, networkId });
   } catch (error) {
     console.error(error);
     const message =

@@ -31,10 +31,13 @@ export const packagesTable = pgTable("packages", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-export const verifiedAccountTable = pgTable("verified_accounts", {
+export const verifiedAccountCodeTable = pgTable("verified_accounts_code", {
   id: uuid().primaryKey().defaultRandom(),
-  networkId: text("network_id").notNull().default("mtst"),
-  accountId: varchar("account_id", { length: 32 }).notNull(),
+  code: varchar({ length: 66 })
+    .notNull()
+    .default(
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+    ),
   source: text().notNull().default("unknown"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -46,7 +49,7 @@ export const verifiedAccountComponentTable = pgTable(
     id: uuid().primaryKey().defaultRandom(),
     verifiedAccountId: uuid("verified_account_id")
       .notNull()
-      .references(() => verifiedAccountTable.id, { onDelete: "cascade" }),
+      .references(() => verifiedAccountCodeTable.id, { onDelete: "cascade" }),
     packageId: uuid("package_id")
       .notNull()
       .references(() => packagesTable.id, { onDelete: "cascade" }),
@@ -60,10 +63,13 @@ export const verifiedAccountComponentTable = pgTable(
   },
 );
 
-export const verifiedNoteTable = pgTable("verified_notes", {
+export const verifiedNoteScriptTable = pgTable("verified_notes_script", {
   id: uuid().primaryKey().defaultRandom(),
-  networkId: text("network_id").notNull().default("mtst"),
-  noteId: varchar("note_id", { length: 66 }).notNull(),
+  script: varchar({ length: 66 })
+    .notNull()
+    .default(
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+    ),
   source: text().notNull().default("unknown"),
   packageId: uuid("package_id")
     .notNull()

@@ -5,10 +5,11 @@ import {
   insertVerifiedAccountComponent,
 } from "@/db/verified-account-components.js";
 import {
-  getVerifiedAccount,
-  insertVerifiedAccount,
+  getVerifiedAccountByCode,
+  insertVerifiedAccountCode,
 } from "@/db/verified-accounts.js";
 import { API_COMPILE_URL } from "@/lib/constants.js";
+import { importResource } from "@/lib/import-resource.js";
 import type { Manifest } from "@/lib/types.js";
 import { parseCargoToml } from "miden-source-code-verification-utils";
 
@@ -52,10 +53,14 @@ export const verifyAccountComponent = async ({
     manifest: Manifest;
   };
   if (verified) {
-    const verifiedAccount = await getVerifiedAccount({ networkId, accountId });
+    const { code } = await importResource({
+      networkId,
+      resourceId: accountId,
+    });
+    const verifiedAccount = await getVerifiedAccountByCode({ code });
     const verifiedAccountId = verifiedAccount
       ? verifiedAccount.id
-      : await insertVerifiedAccount({ networkId, accountId, source });
+      : await insertVerifiedAccountCode({ code, source });
     const verifiedAccountComponent = await getVerifiedAccountComponent({
       verifiedAccountId,
       packageDigest: digest,

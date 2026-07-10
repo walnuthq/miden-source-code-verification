@@ -15,6 +15,8 @@ A small set of services that can be deployed independently or together:
 
 The registry never compiles or verifies on its own; it always delegates to the Compilation API and persists the result. This keeps the heavy Rust toolchain isolated from the database tier.
 
+Verified results are keyed by the resource's on-chain **code** — an account's code root or a note's script root — rather than by a specific account/note ID. So once any resource with a given code has been verified, every other account or note sharing that same code resolves as verified too, without needing to re-submit its source.
+
 ## Repository layout
 
 This is a [pnpm](https://pnpm.io) workspace monorepo (`pnpm-workspace.yaml`). Each service is a package under `apps/`:

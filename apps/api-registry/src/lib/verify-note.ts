@@ -1,7 +1,11 @@
 import { join } from "node:path";
 import { insertPackage, getPackage } from "@/db/packages.js";
-import { getVerifiedNote, insertVerifiedNote } from "@/db/verified-notes.js";
+import {
+  getVerifiedNoteByScript,
+  insertVerifiedNoteScript,
+} from "@/db/verified-notes.js";
 import { API_COMPILE_URL } from "@/lib/constants.js";
+import { importResource } from "@/lib/import-resource.js";
 import type { Manifest } from "@/lib/types.js";
 import { parseCargoToml } from "miden-source-code-verification-utils";
 
@@ -45,7 +49,11 @@ export const verifyNote = async ({
     manifest: Manifest;
   };
   if (verified) {
-    const verifiedNote = await getVerifiedNote({ networkId, noteId });
+    const { code: script } = await importResource({
+      networkId,
+      resourceId: noteId,
+    });
+    const verifiedNote = await getVerifiedNoteByScript({ script });
     if (verifiedNote) {
       throw new Error("note already verified");
     }
@@ -60,9 +68,8 @@ export const verifyNote = async ({
           digest,
           manifest,
         });
-    await insertVerifiedNote({
-      networkId,
-      noteId,
+    await insertVerifiedNoteScript({
+      script,
       source,
       packageId,
       packageDigest: digest,

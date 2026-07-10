@@ -7,21 +7,21 @@ export const relations = defineRelations(schema, (r) => ({
       from: r.packagesTable.id,
       to: r.verifiedAccountComponentTable.packageId,
     }),
-    verifiedNote: r.many.verifiedNoteTable({
+    verifiedNote: r.many.verifiedNoteScriptTable({
       from: r.packagesTable.id,
-      to: r.verifiedNoteTable.packageId,
+      to: r.verifiedNoteScriptTable.packageId,
     }),
   },
-  verifiedAccountTable: {
+  verifiedAccountCodeTable: {
     verifiedAccountComponents: r.many.verifiedAccountComponentTable({
-      from: r.verifiedAccountTable.id,
+      from: r.verifiedAccountCodeTable.id,
       to: r.verifiedAccountComponentTable.verifiedAccountId,
     }),
   },
   verifiedAccountComponentTable: {
-    verifiedAccount: r.one.verifiedAccountTable({
+    verifiedAccount: r.one.verifiedAccountCodeTable({
       from: r.verifiedAccountComponentTable.verifiedAccountId,
-      to: r.verifiedAccountTable.id,
+      to: r.verifiedAccountCodeTable.id,
       optional: false,
     }),
     package: r.one.packagesTable({
@@ -30,9 +30,9 @@ export const relations = defineRelations(schema, (r) => ({
       optional: false,
     }),
   },
-  verifiedNoteTable: {
+  verifiedNoteScriptTable: {
     package: r.one.packagesTable({
-      from: r.verifiedNoteTable.packageId,
+      from: r.verifiedNoteScriptTable.packageId,
       to: r.packagesTable.id,
       optional: false,
     }),
