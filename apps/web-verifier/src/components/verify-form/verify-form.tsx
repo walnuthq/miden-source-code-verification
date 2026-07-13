@@ -99,8 +99,13 @@ type VerifyResult =
   | { status: "success" | "warning"; kind: "account" | "note" }
   | { status: "error"; message: string };
 
+// Identifies the client that originated a verification request. Overridable via
+// the `source` query param; falls back to this when unset.
+const DEFAULT_SOURCE = "miden-source-code-verification-web-verifier";
+
 export function VerifyForm({ ready }: { ready: boolean }) {
-  // Read `resource` / `network` query params once on mount to seed the form.
+  // Read `resource` / `network` / `source` query params once on mount to seed
+  // the form.
   const [params] = useState(() => new URLSearchParams(window.location.search));
   // The verification server endpoint, configurable via the Settings dialog.
   const [verifierUrl, setVerifierUrl] = useState(API_REGISTRY_URL);
@@ -111,6 +116,8 @@ export function VerifyForm({ ready }: { ready: boolean }) {
     const value = params.get("network");
     return value && networkValues.has(value) ? value : "mtst";
   });
+  // Optional override for the request `source`; defaults to DEFAULT_SOURCE.
+  const [source] = useState(() => params.get("source") || DEFAULT_SOURCE);
   // Filtered project sources and the entrypoints found within them, kept for
   // the verification step.
   const [files, setFiles] = useState<Record<string, string>>({});
@@ -155,7 +162,7 @@ export function VerifyForm({ ready }: { ready: boolean }) {
           [idField]: idValue,
           files,
           entrypoint,
-          source: "miden-source-code-verification-web-verifier",
+          source,
         }),
       });
       const data = await response.json();
