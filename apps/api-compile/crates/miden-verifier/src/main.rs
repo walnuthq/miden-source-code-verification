@@ -140,17 +140,26 @@ fn verify_note_script(note_script: &NoteScript, package: Package) -> Result<Valu
     let script = if let Some(standard_note) = StandardNote::from_script(note_script) {
         standard_note.name().to_string()
     } else {
-        let mut procedures_digests = package
+        // The note script's entrypoint is the procedure exported with the
+        // ComponentModel calling convention (`CallConv::ComponentModel`, abi == 3).
+        let entrypoint = package
             .manifest
             .exports()
             .filter_map(|export| match export {
-                PackageExport::Procedure(procedure) => Some(procedure.digest),
+                PackageExport::Procedure(procedure) => Some(procedure),
                 _ => None,
+            })
+            .find(|procedure| {
+                procedure
+                    .signature
+                    .as_ref()
+                    .is_some_and(|signature| signature.abi as u8 == 3)
             });
-        if procedures_digests.any(|digest| digest == note_script.root().into()) {
-            format!("Custom({})", package.digest())
-        } else {
-            String::new()
+        match entrypoint {
+            Some(procedure) if procedure.digest == note_script.root().into() => {
+                format!("Custom({})", package.digest())
+            }
+            _ => String::new(),
         }
     };
     let code = note_script.root().to_hex();

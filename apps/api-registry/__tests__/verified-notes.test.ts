@@ -25,6 +25,8 @@ const NOTE_ID_2 =
   "0x59a97ea12e7111c10838a23760fe96d7abeb67685f0b9a79acdfc65302d6c3e7";
 const NOTE_ID_3 =
   "0x7656b5ef18b07af1c75d6af983d7aac35c3c5800fdecd95974893b9b9645f302";
+const NOTE_SCRIPT =
+  "0x8050a19937200574e48db986a50fb207ce31e7b55563383e2194ccd696ddd95c";
 
 describe("POST /:networkId/verified-notes", () => {
   it("rejects requests with no note ID", async () => {
@@ -169,8 +171,9 @@ describe("GET /:networkId/verified-notes/:noteId", () => {
     expect(res2.status).toBe(200);
     expect(res2.body).toHaveProperty("noteId", NOTE_ID_3);
     expect(res2.body).toHaveProperty("networkId", networkId);
-    expect(res2.body).toHaveProperty("script");
-    expect(res2.body).toHaveProperty("package");
+    expect(res2.body).toHaveProperty("script", NOTE_SCRIPT);
+    expect(res2.body).toHaveProperty("package.name", entrypoint);
+    expect(res2.body).toHaveProperty("package.type", "note");
   });
 
   it("returns a match for a different note sharing the same script", async () => {
@@ -194,6 +197,7 @@ describe("GET /:networkId/verified-notes/:noteId", () => {
     expect(res2.status).toBe(200);
     expect(res2.body).toHaveProperty("noteId", NOTE_ID_2);
     expect(res2.body).toHaveProperty("networkId", networkId);
+    expect(res2.body).toHaveProperty("script", NOTE_SCRIPT);
     expect(res2.body).toHaveProperty("package");
   });
 });

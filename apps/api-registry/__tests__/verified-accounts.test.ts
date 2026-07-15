@@ -22,6 +22,8 @@ const networkId = "mtst";
 const ACCOUNT_ID_1 = "0xa070576e2ee8d311021079d99e1374";
 const ACCOUNT_ID_2 = "0xbe777957464638d1632b09779e8cdf";
 const ACCOUNT_ID_3 = "0xe506fd9d2e9d757130743112e78e36";
+const ACCOUNT_CODE =
+  "0x57310acef2b607bca21235c9b5c22b1c3c812fa2ca8e1b82f269cd95d8b47db7";
 
 describe("POST /:networkId/verified-accounts", () => {
   it("rejects requests with no account ID", async () => {
@@ -151,9 +153,17 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
     expect(res2.status).toBe(200);
     expect(res2.body).toHaveProperty("accountId", ACCOUNT_ID_3);
     expect(res2.body).toHaveProperty("networkId", networkId);
-    expect(res2.body).toHaveProperty("code");
+    expect(res2.body).toHaveProperty("code", ACCOUNT_CODE);
     expect(res2.body).toHaveProperty("verifiedAccountComponents");
     expect(res2.body.verifiedAccountComponents).toHaveLength(1);
+    expect(res2.body.verifiedAccountComponents[0]).toHaveProperty(
+      "package.name",
+      "counter-account",
+    );
+    expect(res2.body.verifiedAccountComponents[0]).toHaveProperty(
+      "package.type",
+      "account-component",
+    );
   });
 
   it("returns a match for a different account sharing the same code", async () => {

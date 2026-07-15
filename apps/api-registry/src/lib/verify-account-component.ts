@@ -73,7 +73,7 @@ export const verifyAccountComponent = async ({
       ? dbPackage.id
       : await insertPackage({
           name,
-          type: "account",
+          type: "account-component",
           files,
           masp,
           digest,

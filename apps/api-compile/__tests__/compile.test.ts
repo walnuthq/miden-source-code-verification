@@ -28,14 +28,12 @@ describe("POST /compile", () => {
 
   it("rejects requests missing miden-project.toml", async () => {
     const files = await readProjectFiles(`${templateDir}/counter-account`);
-    const res = await api
-      .post("/compile")
-      .send({
-        files: {
-          "src/lib.rs": files["src/lib.rs"],
-          "Cargo.toml": files["Cargo.toml"],
-        },
-      });
+    const res = await api.post("/compile").send({
+      files: {
+        "src/lib.rs": files["src/lib.rs"],
+        "Cargo.toml": files["Cargo.toml"],
+      },
+    });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "missing miden-project.toml");
   });
@@ -72,6 +70,21 @@ describe("POST /compile", () => {
   it("compiles an increment-note", async () => {
     const files = await readProjectFiles(templateDir);
     const entrypoint = "increment-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const res = await api.post("/compile").send({ files, entrypoint });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("stdout");
+    expect(res.body).toHaveProperty("stderr");
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("manifest");
+  });
+
+  it("compiles an increment-script", async () => {
+    const files = await readProjectFiles(templateDir);
+    const entrypoint = "increment-script";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
 
     const res = await api.post("/compile").send({ files, entrypoint });
