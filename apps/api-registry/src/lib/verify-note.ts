@@ -1,5 +1,6 @@
 import { join } from "node:path";
-import { insertPackage, getPackage } from "@/db/packages.js";
+import { parseCargoToml } from "miden-source-code-verification-utils";
+import { getPackage, insertPackage } from "@/db/packages.js";
 import {
   getVerifiedNoteByScript,
   insertVerifiedNoteScript,
@@ -7,7 +8,6 @@ import {
 import { API_COMPILE_URL } from "@/lib/constants.js";
 import { importResource } from "@/lib/import-resource.js";
 import type { Manifest } from "@/lib/types.js";
-import { parseCargoToml } from "miden-source-code-verification-utils";
 
 export const verifyNote = async ({
   networkId,

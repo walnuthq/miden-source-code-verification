@@ -157,26 +157,45 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
  *       "200":
  *         description: >
  *           The verified account record whose code matches the on-chain account
- *           at `accountId`. The match is by account code, so the record may have
- *           originated from a different account sharing the same code. The
+ *           at `accountId`, including every verified account component and its
+ *           compiled package. The match is by account code, so the record may
+ *           have originated from a different account sharing the same code. The
  *           queried `accountId` and `networkId` are echoed back.
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 accountId:
+ *                 id:
  *                   type: string
- *                 networkId:
- *                   type: string
+ *                   format: uuid
  *                 code:
  *                   type: string
- *                   description: The account code root the record is keyed on.
+ *                   description: The account code root the record is keyed on (32-byte hex).
  *                 source:
  *                   type: string
  *                   description: >
  *                     Identifier of the client that originated the verification
  *                     request. Defaults to `unknown`.
+ *                 createdAt:
+ *                   type: string
+ *                   format: date-time
+ *                 updatedAt:
+ *                   type: string
+ *                   format: date-time
+ *                 verifiedAccountComponents:
+ *                   type: array
+ *                   description: >
+ *                     The verified account components whose packages together
+ *                     make up the account's code.
+ *                   items:
+ *                     $ref: '#/components/schemas/VerifiedAccountComponent'
+ *                 accountId:
+ *                   type: string
+ *                   description: The queried on-chain account identifier, echoed back.
+ *                 networkId:
+ *                   type: string
+ *                   description: The queried network identifier, echoed back.
  *       "404":
  *         description: No verified account found for the given parameters.
  *         content:

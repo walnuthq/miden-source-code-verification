@@ -1,4 +1,4 @@
-import { packageTypeEnum } from "@/db/schema.js";
+import type { packageTypeEnum } from "@/db/schema.js";
 
 type PackageType = (typeof packageTypeEnum.enumValues)[number];
 

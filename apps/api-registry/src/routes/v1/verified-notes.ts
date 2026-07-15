@@ -157,26 +157,47 @@ router.post("/:networkId/verified-notes", async (req, res) => {
  *       "200":
  *         description: >
  *           The verified note record whose script matches the on-chain note at
- *           `noteId`. The match is by note script, so the record may have
- *           originated from a different note sharing the same script. The
- *           queried `noteId` and `networkId` are echoed back.
+ *           `noteId`, including the compiled package it was verified against. The
+ *           match is by note script, so the record may have originated from a
+ *           different note sharing the same script. The queried `noteId` and
+ *           `networkId` are echoed back.
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 noteId:
+ *                 id:
  *                   type: string
- *                 networkId:
- *                   type: string
+ *                   format: uuid
  *                 script:
  *                   type: string
- *                   description: The note script root the record is keyed on.
+ *                   description: The note script root the record is keyed on (32-byte hex).
  *                 source:
  *                   type: string
  *                   description: >
  *                     Identifier of the client that originated the verification
  *                     request. Defaults to `unknown`.
+ *                 packageId:
+ *                   type: string
+ *                   format: uuid
+ *                   description: Identifier of the package the note was verified against.
+ *                 packageDigest:
+ *                   type: string
+ *                   description: Digest of that package (32-byte hex).
+ *                 createdAt:
+ *                   type: string
+ *                   format: date-time
+ *                 updatedAt:
+ *                   type: string
+ *                   format: date-time
+ *                 package:
+ *                   $ref: '#/components/schemas/Package'
+ *                 noteId:
+ *                   type: string
+ *                   description: The queried on-chain note identifier, echoed back.
+ *                 networkId:
+ *                   type: string
+ *                   description: The queried network identifier, echoed back.
  *       "404":
  *         description: No verified note found for the given parameters.
  *         content:
