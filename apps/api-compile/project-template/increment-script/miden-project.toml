@@ -1,0 +1,15 @@
+[package]
+name = "increment-script"
+version = "0.1.0"
+
+[lib]
+kind = "tx-script"
+namespace = "miden:increment-script/miden-increment-script@0.1.0"
+
+[dependencies]
+miden-core = "*"
+miden-protocol = "*"
+counter-account = { path = "../counter-account" }
+
+[package.metadata.miden.dependencies]
+counter-account = { wit = "../counter-account/target/generated-wit/" }

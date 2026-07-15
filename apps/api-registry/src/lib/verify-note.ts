@@ -62,7 +62,7 @@ export const verifyNote = async ({
       ? dbPackage.id
       : await insertPackage({
           name,
-          type: "account",
+          type: "note",
           files,
           masp,
           digest,

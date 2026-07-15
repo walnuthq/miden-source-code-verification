@@ -114,7 +114,7 @@ The package shape is shared by both endpoints and is slimmer than before:
 {
   "id": "…",
   "name": "bank-account",
-  "type": "account", // account | note | tx-script | authentication-component
+  "type": "account-component", // library | account-component | note | tx-script | authentication-component
   "digest": "0x7f70…",
   "masp": "MASP_BINARY_BASE64",
   "files": {
