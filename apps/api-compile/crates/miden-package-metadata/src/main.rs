@@ -39,7 +39,7 @@ fn main() -> Result<()> {
     })?;
 
     let metadata = PackageMetadata {
-        digest: package.mast.digest().to_hex(),
+        digest: package.digest().to_hex(),
         manifest: ManifestMetadata {
             exports: package.manifest.exports().collect(),
             dependencies: package.manifest.dependencies().collect(),
