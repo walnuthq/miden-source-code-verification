@@ -6,7 +6,9 @@ import { describe, expect, it } from "vitest";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const templateDir = path.resolve(__dirname, "../project-template");
+const examplesDir = path.resolve(__dirname, "../examples");
+const counterContractDir = `${examplesDir}/counter-contract`;
+const basicWalletDir = `${examplesDir}/basic-wallet`;
 
 const api = request(process.env.API_URL ?? "http://localhost:8080");
 
@@ -18,7 +20,9 @@ describe("POST /compile", () => {
   });
 
   it("rejects requests missing Cargo.toml", async () => {
-    const files = await readProjectFiles(`${templateDir}/counter-account`);
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-account`,
+    );
     const res = await api
       .post("/compile")
       .send({ files: { "src/lib.rs": files["src/lib.rs"] } });
@@ -27,7 +31,9 @@ describe("POST /compile", () => {
   });
 
   it("rejects requests missing miden-project.toml", async () => {
-    const files = await readProjectFiles(`${templateDir}/counter-account`);
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-account`,
+    );
     const res = await api.post("/compile").send({
       files: {
         "src/lib.rs": files["src/lib.rs"],
@@ -39,7 +45,9 @@ describe("POST /compile", () => {
   });
 
   it("doesn't compile a buggy counter-account", async () => {
-    const files = await readProjectFiles(`${templateDir}/counter-account`);
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-account`,
+    );
     expect(files["Cargo.toml"]).toBeDefined();
     files["src/lib.rs"] = files["src/lib.rs"].replace(", Word", "");
 
@@ -54,7 +62,9 @@ describe("POST /compile", () => {
   });
 
   it("compiles a counter-account", async () => {
-    const files = await readProjectFiles(`${templateDir}/counter-account`);
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-account`,
+    );
     expect(files["Cargo.toml"]).toBeDefined();
 
     const res = await api.post("/compile").send({ files });
@@ -68,7 +78,7 @@ describe("POST /compile", () => {
   });
 
   it("compiles an increment-note", async () => {
-    const files = await readProjectFiles(templateDir);
+    const files = await readProjectFiles(counterContractDir);
     const entrypoint = "increment-note";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
 
@@ -83,7 +93,7 @@ describe("POST /compile", () => {
   });
 
   it("compiles an increment-script", async () => {
-    const files = await readProjectFiles(templateDir);
+    const files = await readProjectFiles(counterContractDir);
     const entrypoint = "increment-script";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
 

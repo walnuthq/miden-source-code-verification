@@ -6,10 +6,9 @@ import { describe, expect, it } from "vitest";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const templateDir = path.resolve(
-  __dirname,
-  "../../api-compile/project-template",
-);
+const examplesDir = path.resolve(__dirname, "../../api-compile/examples");
+const counterContractDir = `${examplesDir}/counter-contract`;
+const basicWalletDir = `${examplesDir}/basic-wallet`;
 
 const apiUrl = process.env.API_URL ?? "http://localhost:8081";
 const apiV1 = request(`${apiUrl}/v1`);
@@ -41,7 +40,9 @@ describe("POST /:networkId/verified-accounts", () => {
   });
 
   it("rejects requests missing Cargo.toml", async () => {
-    const files = await readProjectFiles(`${templateDir}/counter-account`);
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-account`,
+    );
 
     const res = await apiV1.post(`/${networkId}/verified-accounts`).send({
       accountId: ACCOUNT_ID_1,
@@ -52,7 +53,9 @@ describe("POST /:networkId/verified-accounts", () => {
   });
 
   it("rejects requests missing miden-project.toml", async () => {
-    const files = await readProjectFiles(`${templateDir}/counter-account`);
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-account`,
+    );
 
     const res = await apiV1.post(`/${networkId}/verified-accounts`).send({
       accountId: ACCOUNT_ID_1,
@@ -66,7 +69,9 @@ describe("POST /:networkId/verified-accounts", () => {
   });
 
   it("doesn't verify a buggy counter-account", async () => {
-    const files = await readProjectFiles(`${templateDir}/counter-account`);
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-account`,
+    );
     expect(files["Cargo.toml"]).toBeDefined();
     files["src/lib.rs"] = files["src/lib.rs"].replace(", Word", "");
 
@@ -78,7 +83,9 @@ describe("POST /:networkId/verified-accounts", () => {
   });
 
   it("verifies a counter-account", async () => {
-    const files = await readProjectFiles(`${templateDir}/counter-account`);
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-account`,
+    );
     expect(files["Cargo.toml"]).toBeDefined();
 
     const res = await apiV1
@@ -90,7 +97,9 @@ describe("POST /:networkId/verified-accounts", () => {
   });
 
   it("doesn't verify a counter-account whose code is already in the registry", async () => {
-    const files = await readProjectFiles(`${templateDir}/counter-account`);
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-account`,
+    );
     expect(files["Cargo.toml"]).toBeDefined();
 
     // First account registers the code + component.
@@ -114,7 +123,9 @@ describe("POST /:networkId/verified-accounts", () => {
   });
 
   it("doesn't verify a counter-account if sources don't match", async () => {
-    const files = await readProjectFiles(`${templateDir}/counter-account`);
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-account`,
+    );
     expect(files["Cargo.toml"]).toBeDefined();
     files["src/lib.rs"] = files["src/lib.rs"].replaceAll("+", "-");
 
@@ -136,7 +147,9 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
   });
 
   it("returns a previously verified account", async () => {
-    const files = await readProjectFiles(`${templateDir}/counter-account`);
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-account`,
+    );
     expect(files["Cargo.toml"]).toBeDefined();
 
     const res1 = await apiV1
@@ -167,7 +180,9 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
   });
 
   it("returns a match for a different account sharing the same code", async () => {
-    const files = await readProjectFiles(`${templateDir}/counter-account`);
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-account`,
+    );
     expect(files["Cargo.toml"]).toBeDefined();
 
     // Verify one account...
