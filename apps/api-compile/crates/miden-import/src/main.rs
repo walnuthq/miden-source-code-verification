@@ -81,7 +81,6 @@ async fn main() -> Result<()> {
         .rpc(rpc_client)
         .sqlite_store(store_path)
         .authenticator(keystore.clone())
-        .in_debug_mode(true.into())
         .build()
         .await?;
 

@@ -85,8 +85,12 @@ fn verify_account_component(account: Account, package: Package) -> Result<Value>
     for component in account_interface.components() {
         match component {
             AccountComponentInterface::BasicWallet => components.push("BasicWallet".to_string()),
+            AccountComponentInterface::NoteCreator => components.push("NoteCreator".to_string()),
             AccountComponentInterface::FungibleFaucet => {
                 components.push("FungibleFaucet".to_string())
+            }
+            AccountComponentInterface::CodeInspection => {
+                components.push("CodeInspection".to_string())
             }
             AccountComponentInterface::Authority => components.push("Authority".to_string()),
             AccountComponentInterface::Ownable2Step => components.push("Ownable2Step".to_string()),
@@ -231,7 +235,6 @@ async fn main() -> Result<()> {
         .rpc(rpc_client)
         .sqlite_store(store_path)
         .authenticator(keystore.clone())
-        .in_debug_mode(true.into())
         .build()
         .await?;
 
