@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { Router } from "express";
 import { getVerifiedAccountByCode } from "@/db/verified-accounts.js";
 import { importResource } from "@/lib/import-resource.js";
+import { parseRoot } from "@/lib/roots.js";
 import { verifyAccountComponent } from "@/lib/verify-account-component.js";
 
 const router: Router = Router();
@@ -135,11 +136,126 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
 
 /**
  * @openapi
+ * /v1/verified-accounts/{code}:
+ *   get:
+ *     tags: [verified-accounts]
+ *     summary: Get a verified account by code
+ *     description: >
+ *       Returns the verified account record keyed on the given account code
+ *       root. Records are stored per code — not per account and not per network
+ *       — so this is the registry's canonical account lookup: it needs no
+ *       `networkId` and, unlike
+ *       `/v1/{networkId}/verified-accounts/{accountId}`, never fetches the
+ *       account on-chain. Prefer it whenever the caller already knows the code.
+ *     parameters:
+ *       - in: path
+ *         name: code
+ *         required: true
+ *         schema:
+ *           type: string
+ *           pattern: '^0x[0-9a-fA-F]{64}$'
+ *         description: >
+ *           Account code root — `0x` followed by 64 hex characters (32 bytes),
+ *           matched case-insensitively. Note this is the account's *code*, not
+ *           its (shorter) on-chain id.
+ *     responses:
+ *       "200":
+ *         description: >
+ *           The verified account record for `code`, including every verified
+ *           account component and its compiled package. Nothing is echoed back:
+ *           no account or network took part in the lookup.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   format: uuid
+ *                 code:
+ *                   type: string
+ *                   description: The account code root the record is keyed on (32-byte hex).
+ *                 source:
+ *                   type: string
+ *                   description: >
+ *                     Identifier of the client that originated the verification
+ *                     request. Defaults to `unknown`.
+ *                 createdAt:
+ *                   type: string
+ *                   format: date-time
+ *                 updatedAt:
+ *                   type: string
+ *                   format: date-time
+ *                 verifiedAccountComponents:
+ *                   type: array
+ *                   description: >
+ *                     The verified account components whose packages together
+ *                     make up the account's code.
+ *                   items:
+ *                     $ref: '#/components/schemas/VerifiedAccountComponent'
+ *       "400":
+ *         description: Invalid `code` (not a 32-byte hex root).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *       "404":
+ *         description: No verified account found for the given code.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *       "500":
+ *         description: Retrieval failed.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ */
+router.get("/verified-accounts/:code", async (req, res) => {
+  try {
+    const code = parseRoot(req.params.code);
+    if (!code) {
+      res.status(400).json({ error: "invalid code" });
+      return;
+    }
+    const verifiedAccount = await getVerifiedAccountByCode({ code });
+    if (!verifiedAccount) {
+      res.status(404).json({ error: "verified account not found" });
+      return;
+    }
+    res.json(verifiedAccount);
+  } catch (error) {
+    console.error(error);
+    const message =
+      error instanceof Error
+        ? error.message
+        : "verified account retrieval failed";
+    res.status(500).json({ error: message });
+  }
+});
+
+/**
+ * @openapi
  * /v1/{networkId}/verified-accounts/{accountId}:
  *   get:
  *     tags: [verified-accounts]
- *     summary: Get a verified account
- *     description: Returns the verified account record for the given network and account id.
+ *     summary: Get a verified account by on-chain id
+ *     description: >
+ *       Resolves the account's code root on the given network, then returns the
+ *       record keyed on it — the same one `/v1/verified-accounts/{code}`
+ *       serves, plus the queried ids echoed back. Resolving costs a call to the
+ *       internal compilation API, so callers that already know the code should
+ *       use the code-keyed endpoint instead.
  *     parameters:
  *       - in: path
  *         name: networkId

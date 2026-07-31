@@ -4,9 +4,9 @@ import { readProjectFiles } from "miden-source-code-verification-test-utils";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import {
-  COUNTER_CONTRACT_ID_1,
-  BASIC_WALLET_ID_1,
   accounts,
+  BASIC_WALLET_ID_1,
+  COUNTER_CONTRACT_ID_1,
   COUNTER_NOTE_ID_1,
   notes,
 } from "./data";

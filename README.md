@@ -17,6 +17,8 @@ The registry never compiles or verifies on its own; it always delegates to the C
 
 Verified results are keyed by the resource's on-chain **code** — an account's code root or a note's script root — rather than by a specific account/note ID. So once any resource with a given code has been verified, every other account or note sharing that same code resolves as verified too, without needing to re-submit its source.
 
+That code is the registry's real key, so it's addressable directly: `GET /v1/verified-accounts/{code}` and `GET /v1/verified-notes/{script}` return a record with no network involved and no on-chain lookup. The id-keyed reads (`GET /v1/{networkId}/verified-accounts/{accountId}`, `GET /v1/{networkId}/verified-notes/{noteId}`) are convenience resolvers on top: they ask the Compilation API for the resource's code first, then serve the same record with the queried ids echoed back. Callers that already know the code should use the code-keyed endpoints — one less API call per read.
+
 ## Repository layout
 
 This is a [pnpm](https://pnpm.io) workspace monorepo (`pnpm-workspace.yaml`). Each service is a package under `apps/`:
