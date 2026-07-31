@@ -4,16 +4,16 @@ import { readProjectFiles } from "miden-source-code-verification-test-utils";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import {
+  accounts,
+  BASIC_WALLET_ID_1,
   COUNTER_CONTRACT_ID_1,
   COUNTER_CONTRACT_ID_2,
-  accounts,
 } from "../../api-compile/__tests__/data";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const examplesDir = path.resolve(__dirname, "../../api-compile/examples");
 const counterContractDir = `${examplesDir}/counter-contract`;
-const basicWalletDir = `${examplesDir}/basic-wallet`;
 
 const apiUrl = process.env.API_URL ?? "http://localhost:8081";
 const apiV1 = request(`${apiUrl}/v1`);
@@ -24,6 +24,10 @@ const networkId = "mtst";
 // so they resolve to the same `code` in the registry. This is what lets a
 // verification of one satisfy a lookup of another.
 const ACCOUNT_CODE = accounts[COUNTER_CONTRACT_ID_1].code;
+
+// A real account code that is never verified in these tests, used to check that
+// a code-keyed lookup which matches nothing yields a 404.
+const UNVERIFIED_ACCOUNT_CODE = accounts[BASIC_WALLET_ID_1].code;
 
 describe("POST /:networkId/verified-accounts", () => {
   it("rejects requests with no account ID", async () => {
@@ -208,13 +212,11 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
   it("returns a match with 2 different verified account components", async () => {
     const files = await readProjectFiles(counterContractDir);
 
-    const res1 = await apiV1
-      .post(`/${networkId}/verified-accounts`)
-      .send({
-        files,
-        entrypoint: "counter-contract",
-        accountId: COUNTER_CONTRACT_ID_1,
-      });
+    const res1 = await apiV1.post(`/${networkId}/verified-accounts`).send({
+      files,
+      entrypoint: "counter-contract",
+      accountId: COUNTER_CONTRACT_ID_1,
+    });
 
     expect(res1.status).toBe(200);
     expect(res1.body).toHaveProperty("verified", true);
@@ -236,5 +238,89 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
     expect(res3.body).toHaveProperty("accountId", COUNTER_CONTRACT_ID_1);
     expect(res3.body).toHaveProperty("networkId", networkId);
     expect(res3.body.verifiedAccountComponents).toHaveLength(2);
+  });
+});
+
+describe("GET /verified-accounts/:code", () => {
+  it("returns a previously verified account, without an on-chain lookup", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+    expect(files["Cargo.toml"]).toBeDefined();
+
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-accounts`)
+      .send({ files, accountId: COUNTER_CONTRACT_ID_1 });
+
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty("verified", true);
+
+    const res2 = await apiV1.get(`/verified-accounts/${ACCOUNT_CODE}`).send();
+
+    expect(res2.status).toBe(200);
+    expect(res2.body).toHaveProperty("code", ACCOUNT_CODE);
+    expect(res2.body.verifiedAccountComponents).toHaveLength(1);
+    expect(res2.body.verifiedAccountComponents[0]).toHaveProperty(
+      "package.name",
+      "counter-contract",
+    );
+    // No account or network took part in the lookup, so there is nothing to
+    // echo back — unlike the id-keyed endpoint.
+    expect(res2.body).not.toHaveProperty("accountId");
+    expect(res2.body).not.toHaveProperty("networkId");
+  });
+
+  it("matches a code case-insensitively", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+    expect(files["Cargo.toml"]).toBeDefined();
+
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-accounts`)
+      .send({ files, accountId: COUNTER_CONTRACT_ID_1 });
+
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty("verified", true);
+
+    const res2 = await apiV1
+      .get(`/verified-accounts/0x${ACCOUNT_CODE.slice(2).toUpperCase()}`)
+      .send();
+
+    expect(res2.status).toBe(200);
+    expect(res2.body).toHaveProperty("code", ACCOUNT_CODE);
+  });
+
+  it("returns 404 for a code absent from the registry", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+    expect(files["Cargo.toml"]).toBeDefined();
+
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-accounts`)
+      .send({ files, accountId: COUNTER_CONTRACT_ID_1 });
+
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty("verified", true);
+
+    // A real account code, but not the one just verified.
+    const res2 = await apiV1
+      .get(`/verified-accounts/${UNVERIFIED_ACCOUNT_CODE}`)
+      .send();
+
+    expect(res2.status).toBe(404);
+    expect(res2.body).toHaveProperty("error", "verified account not found");
+  });
+
+  it("rejects an account id in place of a code", async () => {
+    // Account ids are shorter than the 32-byte code root, so the likeliest
+    // mistake gets a clear 400 rather than a puzzling 404.
+    const res = await apiV1
+      .get(`/verified-accounts/${COUNTER_CONTRACT_ID_1}`)
+      .send();
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error", "invalid code");
   });
 });

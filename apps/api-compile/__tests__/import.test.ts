@@ -1,8 +1,8 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import {
-  COUNTER_CONTRACT_ID_1,
   accounts,
+  COUNTER_CONTRACT_ID_1,
   COUNTER_NOTE_ID_1,
   notes,
 } from "./data";

@@ -13,7 +13,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const examplesDir = path.resolve(__dirname, "../../api-compile/examples");
 const counterContractDir = `${examplesDir}/counter-contract`;
-const basicWalletDir = `${examplesDir}/basic-wallet`;
 
 const apiUrl = process.env.API_URL ?? "http://localhost:8081";
 const apiV1 = request(`${apiUrl}/v1`);
@@ -24,6 +23,11 @@ const networkId = "mtst";
 // they resolve to the same `script` in the registry. This is what lets a
 // verification of one satisfy a lookup of another.
 const NOTE_SCRIPT = notes[COUNTER_NOTE_ID_1].code;
+
+// A well-formed script root that is never verified in these tests, used to
+// check that a script-keyed lookup which matches nothing yields a 404.
+const UNVERIFIED_NOTE_SCRIPT =
+  "0x1111111111111111111111111111111111111111111111111111111111111111";
 
 describe("POST /:networkId/verified-notes", () => {
   it("rejects requests with no note ID", async () => {
@@ -196,5 +200,80 @@ describe("GET /:networkId/verified-notes/:noteId", () => {
     expect(res2.body).toHaveProperty("networkId", networkId);
     expect(res2.body).toHaveProperty("script", NOTE_SCRIPT);
     expect(res2.body).toHaveProperty("package");
+  });
+});
+
+describe("GET /verified-notes/:script", () => {
+  it("returns a previously verified note, without an on-chain lookup", async () => {
+    const files = await readProjectFiles(counterContractDir);
+    const entrypoint = "counter-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-notes`)
+      .send({ noteId: COUNTER_NOTE_ID_1, files, entrypoint });
+
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty("verified", true);
+
+    const res2 = await apiV1.get(`/verified-notes/${NOTE_SCRIPT}`).send();
+
+    expect(res2.status).toBe(200);
+    expect(res2.body).toHaveProperty("script", NOTE_SCRIPT);
+    expect(res2.body).toHaveProperty("package.name", entrypoint);
+    expect(res2.body).toHaveProperty("package.type", "note");
+    // No note or network took part in the lookup, so there is nothing to echo
+    // back — unlike the id-keyed endpoint.
+    expect(res2.body).not.toHaveProperty("noteId");
+    expect(res2.body).not.toHaveProperty("networkId");
+  });
+
+  it("matches a script case-insensitively", async () => {
+    const files = await readProjectFiles(counterContractDir);
+    const entrypoint = "counter-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-notes`)
+      .send({ noteId: COUNTER_NOTE_ID_1, files, entrypoint });
+
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty("verified", true);
+
+    const res2 = await apiV1
+      .get(`/verified-notes/0x${NOTE_SCRIPT.slice(2).toUpperCase()}`)
+      .send();
+
+    expect(res2.status).toBe(200);
+    expect(res2.body).toHaveProperty("script", NOTE_SCRIPT);
+  });
+
+  it("returns 404 for a script absent from the registry", async () => {
+    const files = await readProjectFiles(counterContractDir);
+    const entrypoint = "counter-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-notes`)
+      .send({ noteId: COUNTER_NOTE_ID_1, files, entrypoint });
+
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty("verified", true);
+
+    // Well-formed, but not the script just verified. Note ids are the same
+    // width as script roots, so a note id passed here lands on this path too.
+    const res2 = await apiV1
+      .get(`/verified-notes/${UNVERIFIED_NOTE_SCRIPT}`)
+      .send();
+
+    expect(res2.status).toBe(404);
+    expect(res2.body).toHaveProperty("error", "verified note not found");
+  });
+
+  it("rejects a script that isn't a 32-byte hex root", async () => {
+    const res = await apiV1.get("/verified-notes/0xdeadbeef").send();
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error", "invalid script");
   });
 });
