@@ -86,10 +86,16 @@ COPY --from=rust-builder /usr/local/rustup /usr/local/rustup
 COPY --from=rust-builder /usr/local/cargo /usr/local/cargo
 
 # Copy project template
-WORKDIR /cache/project-template
-COPY apps/api-compile/project-template .
-# Warm cargo-miden
-WORKDIR /cache/project-template/counter-account
+WORKDIR /cache/examples
+COPY apps/api-compile/examples .
+# Warm cargo-miden with counter-contract
+WORKDIR /cache/examples/counter-contract/auth-component-no-auth
+RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release
+WORKDIR /cache/examples/counter-contract/counter-contract
+RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release
+WORKDIR /cache/examples/counter-contract/counter-note
+RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release
+WORKDIR /cache/examples/counter-contract/counter-script
 RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release
 
 # App: only the built output + production dependencies from the deploy bundle

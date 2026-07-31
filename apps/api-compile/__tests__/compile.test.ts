@@ -21,7 +21,7 @@ describe("POST /compile", () => {
 
   it("rejects requests missing Cargo.toml", async () => {
     const files = await readProjectFiles(
-      `${counterContractDir}/counter-account`,
+      `${counterContractDir}/counter-contract`,
     );
     const res = await api
       .post("/compile")
@@ -32,7 +32,7 @@ describe("POST /compile", () => {
 
   it("rejects requests missing miden-project.toml", async () => {
     const files = await readProjectFiles(
-      `${counterContractDir}/counter-account`,
+      `${counterContractDir}/counter-contract`,
     );
     const res = await api.post("/compile").send({
       files: {
@@ -44,9 +44,9 @@ describe("POST /compile", () => {
     expect(res.body).toHaveProperty("error", "missing miden-project.toml");
   });
 
-  it("doesn't compile a buggy counter-account", async () => {
+  it("doesn't compile a buggy counter-contract", async () => {
     const files = await readProjectFiles(
-      `${counterContractDir}/counter-account`,
+      `${counterContractDir}/counter-contract`,
     );
     expect(files["Cargo.toml"]).toBeDefined();
     files["src/lib.rs"] = files["src/lib.rs"].replace(", Word", "");
@@ -61,9 +61,9 @@ describe("POST /compile", () => {
     expect(res.body).not.toHaveProperty("manifest");
   });
 
-  it("compiles a counter-account", async () => {
+  it("compiles a counter-contract", async () => {
     const files = await readProjectFiles(
-      `${counterContractDir}/counter-account`,
+      `${counterContractDir}/counter-contract`,
     );
     expect(files["Cargo.toml"]).toBeDefined();
 
@@ -77,9 +77,9 @@ describe("POST /compile", () => {
     expect(res.body).toHaveProperty("manifest");
   });
 
-  it("compiles an increment-note", async () => {
+  it("compiles a counter-note", async () => {
     const files = await readProjectFiles(counterContractDir);
-    const entrypoint = "increment-note";
+    const entrypoint = "counter-note";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
 
     const res = await api.post("/compile").send({ files, entrypoint });
@@ -92,9 +92,70 @@ describe("POST /compile", () => {
     expect(res.body).toHaveProperty("manifest");
   });
 
-  it("compiles an increment-script", async () => {
+  it("compiles a counter-script", async () => {
     const files = await readProjectFiles(counterContractDir);
-    const entrypoint = "increment-script";
+    const entrypoint = "counter-script";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const res = await api.post("/compile").send({ files, entrypoint });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("stdout");
+    expect(res.body).toHaveProperty("stderr");
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("manifest");
+  });
+
+  it("compiles an auth-component-no-auth", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/auth-component-no-auth`,
+    );
+    expect(files["Cargo.toml"]).toBeDefined();
+
+    const res = await api.post("/compile").send({ files });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("stdout");
+    expect(res.body).toHaveProperty("stderr");
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("manifest");
+  });
+
+  it("compiles an auth-component-rpo-falcon512", async () => {
+    const files = await readProjectFiles(
+      `${basicWalletDir}/auth-component-rpo-falcon512`,
+    );
+    expect(files["Cargo.toml"]).toBeDefined();
+
+    const res = await api.post("/compile").send({ files });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("stdout");
+    expect(res.body).toHaveProperty("stderr");
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("manifest");
+  });
+
+  it("compiles a basic-wallet", async () => {
+    const files = await readProjectFiles(`${basicWalletDir}/basic-wallet`);
+    expect(files["Cargo.toml"]).toBeDefined();
+
+    const res = await api.post("/compile").send({ files });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("stdout");
+    expect(res.body).toHaveProperty("stderr");
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("manifest");
+  });
+
+  it("compiles a basic-wallet-tx-script", async () => {
+    const files = await readProjectFiles(basicWalletDir);
+    const entrypoint = "basic-wallet-tx-script";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
 
     const res = await api.post("/compile").send({ files, entrypoint });
