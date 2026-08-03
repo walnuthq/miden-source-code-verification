@@ -1,23 +1,22 @@
 import { FolderUp } from "lucide-react";
-import { useRef } from "react";
-
-import { Button } from "@/components/ui/button";
 import {
+  Button,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Field, FieldLabel } from "@/components/ui/field";
-import {
+  Field,
+  FieldLabel,
   Select,
   SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "miden-source-code-verification-ui";
+import { useRef } from "react";
+
 import {
   collectProjectFiles,
   type ProjectFiles,

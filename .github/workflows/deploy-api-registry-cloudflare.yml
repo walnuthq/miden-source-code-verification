@@ -8,6 +8,7 @@ on:
     paths:
       - "apps/api-registry/**"
       - "apps/api-registry-cloudflare/**"
+      - "packages/utils/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - ".github/workflows/deploy-api-registry-cloudflare.yml"

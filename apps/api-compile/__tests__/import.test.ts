@@ -1,11 +1,11 @@
-import request from "supertest";
-import { describe, expect, it } from "vitest";
 import {
   accounts,
   COUNTER_CONTRACT_ID_1,
   COUNTER_NOTE_ID_1,
   notes,
-} from "./data";
+} from "miden-source-code-verification-test-utils";
+import request from "supertest";
+import { describe, expect, it } from "vitest";
 
 const api = request(process.env.API_URL ?? "http://localhost:8080");
 

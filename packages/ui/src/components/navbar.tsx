@@ -1,19 +1,23 @@
-import midenLogo from "@/assets/miden.png";
-import { GithubIcon } from "@/components/icons/github-icon";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import midenLogo from "@ui/assets/miden.png";
+import { GithubIcon } from "@ui/components/icons/github-icon";
+import { ThemeToggle } from "@ui/components/theme-toggle";
+import { buttonVariants } from "@ui/components/ui/button";
+import { cn } from "@ui/lib/utils";
 
 const GITHUB_URL = "https://github.com/walnuthq/miden-source-code-verification";
 
-export function Navbar() {
+export function Navbar({
+  title,
+  homeHref = "/",
+}: {
+  title: string;
+  homeHref?: string;
+}) {
   return (
     <header className="flex items-center justify-between border-b px-4 py-3 sm:px-6">
-      <a href="/" className="flex items-center gap-2.5">
+      <a href={homeHref} className="flex items-center gap-2.5">
         <img src={midenLogo} alt="" className="size-8" />
-        <span className="text-sm font-semibold tracking-tight">
-          Miden Source Code Verification Web Verifier
-        </span>
+        <span className="text-sm font-semibold tracking-tight">{title}</span>
       </a>
       <div className="flex items-center gap-1">
         <a

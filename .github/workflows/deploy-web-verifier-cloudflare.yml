@@ -8,6 +8,7 @@ on:
     paths:
       - "apps/web-verifier/**"
       - "apps/web-verifier-cloudflare/**"
+      - "packages/ui/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - ".github/workflows/deploy-web-verifier-cloudflare.yml"

@@ -47,9 +47,16 @@ The build emits, into `dist/`:
 ## Deployment
 
 Pushes to `main` that touch `apps/api-docs/**` or `apps/api-registry/src/**`
-trigger the `Deploy api-docs` GitHub Actions workflow
-(`.github/workflows/deploy-api-docs.yml`), which builds `dist/` and publishes it
-to GitHub Pages. Enable Pages for the repo with **Source: GitHub Actions**.
+trigger the `Deploy Pages` GitHub Actions workflow
+(`.github/workflows/deploy-pages.yml`). Enable Pages for the repo with
+**Source: GitHub Actions**.
+
+That workflow publishes the whole Pages site, not just these docs: this app's
+`dist/` goes to the site root and `apps/status-page` goes under `/status/`, both
+in a single artifact. A repository has exactly one Pages deployment and each
+deploy replaces the entire site, so the two cannot ship from separate workflows.
+It also runs hourly to refresh the status page, which redeploys these docs
+unchanged as a side effect.
 
 ## Configuration
 

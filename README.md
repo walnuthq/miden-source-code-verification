@@ -29,7 +29,9 @@ This is a [pnpm](https://pnpm.io) workspace monorepo (`pnpm-workspace.yaml`). Ea
 | `apps/api-registry` | Registry API | `8081` | Express + Drizzle/Postgres |
 | `apps/web-verifier` | Verifier UI | `5173` | Vite + React SPA (served by nginx in Docker) |
 | `apps/api-docs` | OpenAPI / Swagger UI docs | `8082` | Generated from `api-registry` annotations |
+| `apps/status-page` | Public service status page | `4173` | Vite + React SPA; probed at build time |
 | `apps/*-cloudflare` | Cloudflare Workers deploy wrappers | — | Opt-in; wrap the matching service |
+| `packages/ui` | Shared design system (shadcn `base-lyra`) | — | Used by `web-verifier` and `status-page` |
 | `packages/utils` | Shared utilities (e.g. `Cargo.toml` parsing) | — | Used by the API services |
 | `packages/test-utils` | Shared test helpers | — | Used by the API test suites |
 
@@ -130,6 +132,16 @@ The docs are generated from the `api-registry` route annotations by the `api-doc
 ```bash
 pnpm --filter miden-source-code-verification-api-docs dev   # serves the docs at http://localhost:8082
 ```
+
+## Status page
+
+Liveness and the `/` payloads of the three deployed services are published at:
+
+**https://walnuthq.github.io/miden-source-code-verification/status/**
+
+Checks run hourly from GitHub Actions and the page is a snapshot of the last run
+— see `apps/status-page`. Both it and the API docs are published to GitHub Pages
+by the single `Deploy Pages` workflow.
 
 ## Deployment
 

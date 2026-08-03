@@ -1,15 +1,15 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readProjectFiles } from "miden-source-code-verification-test-utils";
-import request from "supertest";
-import { describe, expect, it } from "vitest";
 import {
   accounts,
   BASIC_WALLET_ID_1,
   COUNTER_CONTRACT_ID_1,
   COUNTER_NOTE_ID_1,
   notes,
-} from "./data";
+  readProjectFiles,
+} from "miden-source-code-verification-test-utils";
+import request from "supertest";
+import { describe, expect, it } from "vitest";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
