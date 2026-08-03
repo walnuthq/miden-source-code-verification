@@ -1,9 +1,8 @@
-import { MidenProvider } from "@miden-sdk/react";
+import { ThemeProvider } from "miden-source-code-verification-ui";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import "./index.css";
-import { ThemeProvider } from "miden-source-code-verification-ui";
 import App from "./App.tsx";
 
 const rootElement = document.getElementById("root");
@@ -14,12 +13,7 @@ if (!rootElement) {
 createRoot(rootElement).render(
   <StrictMode>
     <ThemeProvider>
-      <MidenProvider
-        config={{ rpcUrl: "testnet", prover: "testnet" }}
-        loadingComponent={<App />}
-      >
-        <App ready />
-      </MidenProvider>
+      <App />
     </ThemeProvider>
   </StrictMode>,
 );

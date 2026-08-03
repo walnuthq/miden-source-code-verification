@@ -14,6 +14,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // packages/ui ships raw .tsx that imports itself via `@ui`. Vite has to
+      // resolve those to the package source, not to this app's `@` -> ./src.
+      "@ui": path.resolve(__dirname, "../../packages/ui/src"),
     },
   },
 });

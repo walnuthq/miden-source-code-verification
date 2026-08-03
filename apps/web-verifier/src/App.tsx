@@ -1,4 +1,5 @@
-import { Navbar } from "@/components/navbar";
+import { Navbar } from "miden-source-code-verification-ui";
+
 import { VerifyForm } from "@/components/verify-form/verify-form";
 
 // `ready` is false while the Miden SDK WASM is still initializing (when App is
@@ -8,7 +9,7 @@ import { VerifyForm } from "@/components/verify-form/verify-form";
 export function App({ ready = false }: { ready?: boolean }) {
   return (
     <div className="min-h-svh bg-muted/20">
-      <Navbar />
+      <Navbar title="Miden Source Code Verification Web Verifier" />
       <VerifyForm ready={ready} />
     </div>
   );

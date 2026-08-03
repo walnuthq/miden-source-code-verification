@@ -1,19 +1,18 @@
 {
-  "name": "miden-source-code-verification-web-verifier",
-  "version": "0.0.1",
+  "name": "miden-source-code-verification-status-page",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "typecheck": "tsc --noEmit",
+    "probe": "tsx scripts/probe.ts",
+    "build": "pnpm probe && pnpm typecheck && vite build",
+    "dev": "pnpm probe && vite",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit",
     "lint": "biome check .",
-    "format": "biome check --write .",
-    "preview": "vite preview"
+    "format": "biome check --write ."
   },
   "dependencies": {
-    "@miden-sdk/react": "0.15.8",
-    "@miden-sdk/miden-sdk": "0.15.8",
     "@tailwindcss/vite": "4.3.3",
     "lucide-react": "1.28.0",
     "miden-source-code-verification-ui": "workspace:*",
@@ -22,11 +21,12 @@
     "tailwindcss": "4.3.3"
   },
   "devDependencies": {
-    "@miden-sdk/vite-plugin": "0.15.8",
     "@types/node": "24.13.2",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "@vitejs/plugin-react": "6.0.5",
+    "dotenv": "17.4.2",
+    "tsx": "4.23.2",
     "typescript": "7.0.2",
     "vite": "8.2.0"
   }

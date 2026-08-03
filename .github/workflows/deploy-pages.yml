@@ -1,4 +1,9 @@
-name: Deploy api-docs
+name: Deploy Pages
+
+# Owns the whole GitHub Pages site: api-docs at the root, status-page under
+# /status/. A repository has exactly one Pages deployment and `deploy-pages`
+# replaces the entire site on every run, so this must stay the only workflow that
+# publishes Pages — a second one would delete the first one's files each time.
 
 on:
   push:
@@ -7,7 +12,15 @@ on:
     paths:
       - "apps/api-docs/**"
       - "apps/api-registry/src/**"
-      - ".github/workflows/deploy-api-docs.yml"
+      - "apps/status-page/**"
+      - "packages/ui/**"
+      - ".github/workflows/deploy-pages.yml"
+  # Refreshes the status snapshot. Hourly is deliberate: api-compile's `/` proxies
+  # into a Cloudflare Container configured with `sleepAfter: "5m"`, so probing more
+  # often than that would keep the container awake around the clock and bill for
+  # it. Read apps/status-page/README.md before shortening this.
+  schedule:
+    - cron: "0 * * * *"
   workflow_dispatch:
 
 # Allow the workflow to publish to GitHub Pages.
@@ -48,10 +61,26 @@ jobs:
           # Set a repository variable to point at your deployed api-registry.
           API_REGISTRY_URL: ${{ vars.API_REGISTRY_URL }}
 
+      - name: Build status page
+        working-directory: apps/status-page
+        # Probes each service from the runner, then builds. A service being down
+        # produces a red card, not a failed build.
+        run: pnpm build
+        env:
+          API_COMPILE_URL: ${{ vars.API_COMPILE_URL }}
+          API_REGISTRY_URL: ${{ vars.API_REGISTRY_URL }}
+          WEB_VERIFIER_URL: ${{ vars.WEB_VERIFIER_URL }}
+
+      - name: Assemble site
+        run: |
+          mkdir -p _site/status
+          cp -r apps/api-docs/dist/. _site/
+          cp -r apps/status-page/dist/. _site/status/
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: apps/api-docs/dist
+          path: _site
 
   deploy:
     needs: build
