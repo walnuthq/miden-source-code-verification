@@ -11,9 +11,16 @@ on:
       - main
     paths:
       - "apps/api-docs/**"
+      # api-docs generates its OpenAPI spec from these route annotations.
       - "apps/api-registry/src/**"
       - "apps/status-page/**"
       - "packages/ui/**"
+      # The status-page probe asserts against these fixtures and submits these
+      # sources to /compile and /verify, so a change to either alters what the
+      # page reports. The hourly cron would pick it up eventually; this makes the
+      # refresh immediate.
+      - "packages/test-utils/**"
+      - "apps/api-compile/examples/**"
       - ".github/workflows/deploy-pages.yml"
   # Refreshes the status snapshot. Hourly is deliberate: api-compile's `/` proxies
   # into a Cloudflare Container configured with `sleepAfter: "5m"`, so probing more

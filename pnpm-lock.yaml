@@ -227,6 +227,9 @@ importers:
       dotenv:
         specifier: 17.4.2
         version: 17.4.2
+      miden-source-code-verification-test-utils:
+        specifier: workspace:*
+        version: link:../../packages/test-utils
       tsx:
         specifier: 4.23.2
         version: 4.23.2
