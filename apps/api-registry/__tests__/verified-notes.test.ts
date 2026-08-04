@@ -1,13 +1,13 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readProjectFiles } from "miden-source-code-verification-test-utils";
-import request from "supertest";
-import { describe, expect, it } from "vitest";
 import {
   COUNTER_NOTE_ID_1,
   COUNTER_NOTE_ID_2,
   notes,
-} from "../../api-compile/__tests__/data";
+  readProjectFiles,
+} from "miden-source-code-verification-test-utils";
+import request from "supertest";
+import { describe, expect, it } from "vitest";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,6 +18,11 @@ const apiUrl = process.env.API_URL ?? "http://localhost:8081";
 const apiV1 = request(`${apiUrl}/v1`);
 
 const networkId = "mtst";
+
+// A second network, used to check that records don't leak across networks. Only
+// ever passed to the script-keyed route, which is a pure database read — so no
+// note has to exist on it.
+const otherNetworkId = "mdev";
 
 // All three are counter-note instances that share the same note script, so
 // they resolve to the same `script` in the registry. This is what lets a
@@ -203,7 +208,7 @@ describe("GET /:networkId/verified-notes/:noteId", () => {
   });
 });
 
-describe("GET /verified-notes/:script", () => {
+describe("GET /:networkId/verified-notes/script/:script", () => {
   it("returns a previously verified note, without an on-chain lookup", async () => {
     const files = await readProjectFiles(counterContractDir);
     const entrypoint = "counter-note";
@@ -216,16 +221,41 @@ describe("GET /verified-notes/:script", () => {
     expect(res1.status).toBe(200);
     expect(res1.body).toHaveProperty("verified", true);
 
-    const res2 = await apiV1.get(`/verified-notes/${NOTE_SCRIPT}`).send();
+    const res2 = await apiV1
+      .get(`/${networkId}/verified-notes/script/${NOTE_SCRIPT}`)
+      .send();
 
     expect(res2.status).toBe(200);
     expect(res2.body).toHaveProperty("script", NOTE_SCRIPT);
     expect(res2.body).toHaveProperty("package.name", entrypoint);
     expect(res2.body).toHaveProperty("package.type", "note");
-    // No note or network took part in the lookup, so there is nothing to echo
-    // back — unlike the id-keyed endpoint.
+    // The record is keyed on the network it was verified against, so the
+    // network comes back on it — but no note took part in the lookup, so there
+    // is no id to echo, unlike the id-keyed endpoint.
+    expect(res2.body).toHaveProperty("networkId", networkId);
     expect(res2.body).not.toHaveProperty("noteId");
-    expect(res2.body).not.toHaveProperty("networkId");
+  });
+
+  it("doesn't return a note verified on another network", async () => {
+    const files = await readProjectFiles(counterContractDir);
+    const entrypoint = "counter-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-notes`)
+      .send({ noteId: COUNTER_NOTE_ID_1, files, entrypoint });
+
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty("verified", true);
+
+    // The same script root, but a network it was never verified on. Script
+    // roots are network-specific, so this must not resolve to the record above.
+    const res2 = await apiV1
+      .get(`/${otherNetworkId}/verified-notes/script/${NOTE_SCRIPT}`)
+      .send();
+
+    expect(res2.status).toBe(404);
+    expect(res2.body).toHaveProperty("error", "verified note not found");
   });
 
   it("matches a script case-insensitively", async () => {
@@ -241,7 +271,9 @@ describe("GET /verified-notes/:script", () => {
     expect(res1.body).toHaveProperty("verified", true);
 
     const res2 = await apiV1
-      .get(`/verified-notes/0x${NOTE_SCRIPT.slice(2).toUpperCase()}`)
+      .get(
+        `/${networkId}/verified-notes/script/0x${NOTE_SCRIPT.slice(2).toUpperCase()}`,
+      )
       .send();
 
     expect(res2.status).toBe(200);
@@ -263,7 +295,7 @@ describe("GET /verified-notes/:script", () => {
     // Well-formed, but not the script just verified. Note ids are the same
     // width as script roots, so a note id passed here lands on this path too.
     const res2 = await apiV1
-      .get(`/verified-notes/${UNVERIFIED_NOTE_SCRIPT}`)
+      .get(`/${networkId}/verified-notes/script/${UNVERIFIED_NOTE_SCRIPT}`)
       .send();
 
     expect(res2.status).toBe(404);
@@ -271,7 +303,9 @@ describe("GET /verified-notes/:script", () => {
   });
 
   it("rejects a script that isn't a 32-byte hex root", async () => {
-    const res = await apiV1.get("/verified-notes/0xdeadbeef").send();
+    const res = await apiV1
+      .get(`/${networkId}/verified-notes/script/0xdeadbeef`)
+      .send();
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "invalid script");

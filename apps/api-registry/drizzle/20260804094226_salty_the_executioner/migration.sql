@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "verified_accounts_code_network_id_code_idx" ON "verified_accounts_code" ("network_id","code");--> statement-breakpoint
+CREATE UNIQUE INDEX "verified_notes_script_network_id_script_idx" ON "verified_notes_script" ("network_id","script");

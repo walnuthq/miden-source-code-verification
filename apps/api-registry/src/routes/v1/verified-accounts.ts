@@ -136,18 +136,24 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
 
 /**
  * @openapi
- * /v1/verified-accounts/{code}:
+ * /v1/{networkId}/verified-accounts/code/{code}:
  *   get:
  *     tags: [verified-accounts]
  *     summary: Get a verified account by code
  *     description: >
- *       Returns the verified account record keyed on the given account code
- *       root. Records are stored per code — not per account and not per network
- *       — so this is the registry's canonical account lookup: it needs no
- *       `networkId` and, unlike
- *       `/v1/{networkId}/verified-accounts/{accountId}`, never fetches the
- *       account on-chain. Prefer it whenever the caller already knows the code.
+ *       Returns the verified account record keyed on the given network and
+ *       account code root. Records are stored per `(networkId, code)` pair —
+ *       not per account — so this is the registry's canonical account lookup:
+ *       unlike `/v1/{networkId}/verified-accounts/{accountId}` it is a pure
+ *       database read and never fetches the account on-chain. Prefer it
+ *       whenever the caller already knows the code.
  *     parameters:
+ *       - in: path
+ *         name: networkId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Network identifier (e.g. `mtst`, `mdev`).
  *       - in: path
  *         name: code
  *         required: true
@@ -161,9 +167,10 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
  *     responses:
  *       "200":
  *         description: >
- *           The verified account record for `code`, including every verified
- *           account component and its compiled package. Nothing is echoed back:
- *           no account or network took part in the lookup.
+ *           The verified account record for `networkId` and `code`, including
+ *           every verified account component and its compiled package. No
+ *           account took part in the lookup, so there is no `accountId` to echo
+ *           back.
  *         content:
  *           application/json:
  *             schema:
@@ -172,6 +179,9 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
  *                 id:
  *                   type: string
  *                   format: uuid
+ *                 networkId:
+ *                   type: string
+ *                   description: The network the record is keyed on.
  *                 code:
  *                   type: string
  *                   description: The account code root the record is keyed on (32-byte hex).
@@ -203,7 +213,7 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
  *                 error:
  *                   type: string
  *       "404":
- *         description: No verified account found for the given code.
+ *         description: No verified account found for the given network and code.
  *         content:
  *           application/json:
  *             schema:
@@ -221,14 +231,15 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
  *                 error:
  *                   type: string
  */
-router.get("/verified-accounts/:code", async (req, res) => {
+router.get("/:networkId/verified-accounts/code/:code", async (req, res) => {
   try {
+    const { networkId } = req.params;
     const code = parseRoot(req.params.code);
     if (!code) {
       res.status(400).json({ error: "invalid code" });
       return;
     }
-    const verifiedAccount = await getVerifiedAccountByCode({ code });
+    const verifiedAccount = await getVerifiedAccountByCode({ networkId, code });
     if (!verifiedAccount) {
       res.status(404).json({ error: "verified account not found" });
       return;
@@ -252,10 +263,11 @@ router.get("/verified-accounts/:code", async (req, res) => {
  *     summary: Get a verified account by on-chain id
  *     description: >
  *       Resolves the account's code root on the given network, then returns the
- *       record keyed on it — the same one `/v1/verified-accounts/{code}`
- *       serves, plus the queried ids echoed back. Resolving costs a call to the
- *       internal compilation API, so callers that already know the code should
- *       use the code-keyed endpoint instead.
+ *       record keyed on it — the same one
+ *       `/v1/{networkId}/verified-accounts/code/{code}` serves, plus the
+ *       queried `accountId` echoed back. Resolving costs a call to the internal
+ *       compilation API, so callers that already know the code should use the
+ *       code-keyed endpoint instead.
  *     parameters:
  *       - in: path
  *         name: networkId
@@ -273,10 +285,11 @@ router.get("/verified-accounts/:code", async (req, res) => {
  *       "200":
  *         description: >
  *           The verified account record whose code matches the on-chain account
- *           at `accountId`, including every verified account component and its
- *           compiled package. The match is by account code, so the record may
- *           have originated from a different account sharing the same code. The
- *           queried `accountId` and `networkId` are echoed back.
+ *           at `accountId` on `networkId`, including every verified account
+ *           component and its compiled package. The match is by account code,
+ *           so the record may have originated from a different account on the
+ *           same network sharing the same code. The queried `accountId` is
+ *           echoed back.
  *         content:
  *           application/json:
  *             schema:
@@ -285,6 +298,9 @@ router.get("/verified-accounts/:code", async (req, res) => {
  *                 id:
  *                   type: string
  *                   format: uuid
+ *                 networkId:
+ *                   type: string
+ *                   description: The network the record is keyed on.
  *                 code:
  *                   type: string
  *                   description: The account code root the record is keyed on (32-byte hex).
@@ -309,9 +325,6 @@ router.get("/verified-accounts/:code", async (req, res) => {
  *                 accountId:
  *                   type: string
  *                   description: The queried on-chain account identifier, echoed back.
- *                 networkId:
- *                   type: string
- *                   description: The queried network identifier, echoed back.
  *       "404":
  *         description: No verified account found for the given parameters.
  *         content:
@@ -343,12 +356,14 @@ router.get("/:networkId/verified-accounts/:accountId", async (req, res) => {
       res.status(404).json({ error: "verified account not found" });
       return;
     }
-    const verifiedAccount = await getVerifiedAccountByCode({ code });
+    const verifiedAccount = await getVerifiedAccountByCode({ networkId, code });
     if (!verifiedAccount) {
       res.status(404).json({ error: "verified account not found" });
       return;
     }
-    res.json({ ...verifiedAccount, accountId, networkId });
+    // `networkId` already comes back on the record, so only `accountId` needs
+    // echoing — the caller can't otherwise tell which account was resolved.
+    res.json({ ...verifiedAccount, accountId });
   } catch (error) {
     console.error(error);
     const message =

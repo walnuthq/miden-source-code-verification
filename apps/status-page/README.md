@@ -26,15 +26,16 @@ no CORS headers — client-side checks would simply be blocked.
 | api-compile | `POST /verify` | `verified === true` | verified, digest, exports |
 | api-compile | `GET /:networkId/import/:resourceId` | `type` is an account and `code` matches the fixture | type, code, ✓ matches |
 | api-registry | `GET /` | 200 + JSON | the payload in full |
-| api-registry | `GET /v1/verified-accounts/:code` | the code root comes back unchanged, ≥1 component | code, components, package, source |
-| api-registry | `GET /v1/:networkId/verified-accounts/:accountId` | above, plus the echoed id and network | the same, plus accountId and networkId |
-| api-registry | `GET /v1/verified-notes/:script` | the script root comes back unchanged, package is a note | script, package, source files, source |
-| api-registry | `GET /v1/:networkId/verified-notes/:noteId` | above, plus the echoed id and network | the same, plus noteId and networkId |
+| api-registry | `GET /v1/:networkId/verified-accounts/code/:code` | the code root and network come back unchanged, ≥1 component | networkId, code, components, package, source |
+| api-registry | `GET /v1/:networkId/verified-accounts/:accountId` | above, plus the echoed id | the same, plus accountId |
+| api-registry | `GET /v1/:networkId/verified-notes/script/:script` | the script root and network come back unchanged, package is a note | networkId, script, package, source files, source |
+| api-registry | `GET /v1/:networkId/verified-notes/:noteId` | above, plus the echoed id | the same, plus noteId |
 | web-verifier | `GET /` | 200 | — (serves HTML; reachability only) |
 
 `api-registry`'s `GET /` only echoes env vars and never opens a database
 connection, so the four record lookups are what actually prove the registry can
-serve. The by-root pair is a pure Postgres read; **the by-id pair additionally
+serve. All four are network-scoped, since records are keyed on the network plus
+the root. The by-root pair is a pure Postgres read; **the by-id pair additionally
 calls api-compile** to resolve the on-chain root before the lookup (see
 `apps/api-registry/src/lib/import-resource.ts`), so an api-compile outage will
 degrade the api-registry card too. Note also that those routes answer 404 both

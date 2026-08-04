@@ -1,14 +1,14 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readProjectFiles } from "miden-source-code-verification-test-utils";
-import request from "supertest";
-import { describe, expect, it } from "vitest";
 import {
   accounts,
   BASIC_WALLET_ID_1,
   COUNTER_CONTRACT_ID_1,
   COUNTER_CONTRACT_ID_2,
-} from "../../api-compile/__tests__/data";
+  readProjectFiles,
+} from "miden-source-code-verification-test-utils";
+import request from "supertest";
+import { describe, expect, it } from "vitest";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,6 +19,11 @@ const apiUrl = process.env.API_URL ?? "http://localhost:8081";
 const apiV1 = request(`${apiUrl}/v1`);
 
 const networkId = "mtst";
+
+// A second network, used to check that records don't leak across networks. Only
+// ever passed to the code-keyed route, which is a pure database read — so no
+// account has to exist on it.
+const otherNetworkId = "mdev";
 
 // All three are counter-contract deployments that share the same account code,
 // so they resolve to the same `code` in the registry. This is what lets a
@@ -241,7 +246,7 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
   });
 });
 
-describe("GET /verified-accounts/:code", () => {
+describe("GET /:networkId/verified-accounts/code/:code", () => {
   it("returns a previously verified account, without an on-chain lookup", async () => {
     const files = await readProjectFiles(
       `${counterContractDir}/counter-contract`,
@@ -255,19 +260,45 @@ describe("GET /verified-accounts/:code", () => {
     expect(res1.status).toBe(200);
     expect(res1.body).toHaveProperty("verified", true);
 
-    const res2 = await apiV1.get(`/verified-accounts/${ACCOUNT_CODE}`).send();
+    const res2 = await apiV1
+      .get(`/${networkId}/verified-accounts/code/${ACCOUNT_CODE}`)
+      .send();
 
     expect(res2.status).toBe(200);
     expect(res2.body).toHaveProperty("code", ACCOUNT_CODE);
+    // The record is keyed on the network it was verified against, so the
+    // network comes back on it — but no account took part in the lookup, so
+    // there is no id to echo, unlike the id-keyed endpoint.
+    expect(res2.body).toHaveProperty("networkId", networkId);
+    expect(res2.body).not.toHaveProperty("accountId");
     expect(res2.body.verifiedAccountComponents).toHaveLength(1);
     expect(res2.body.verifiedAccountComponents[0]).toHaveProperty(
       "package.name",
       "counter-contract",
     );
-    // No account or network took part in the lookup, so there is nothing to
-    // echo back — unlike the id-keyed endpoint.
-    expect(res2.body).not.toHaveProperty("accountId");
-    expect(res2.body).not.toHaveProperty("networkId");
+  });
+
+  it("doesn't return an account verified on another network", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+    expect(files["Cargo.toml"]).toBeDefined();
+
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-accounts`)
+      .send({ files, accountId: COUNTER_CONTRACT_ID_1 });
+
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty("verified", true);
+
+    // The same code root, but a network it was never verified on. Code roots
+    // are network-specific, so this must not resolve to the record above.
+    const res2 = await apiV1
+      .get(`/${otherNetworkId}/verified-accounts/code/${ACCOUNT_CODE}`)
+      .send();
+
+    expect(res2.status).toBe(404);
+    expect(res2.body).toHaveProperty("error", "verified account not found");
   });
 
   it("matches a code case-insensitively", async () => {
@@ -284,7 +315,9 @@ describe("GET /verified-accounts/:code", () => {
     expect(res1.body).toHaveProperty("verified", true);
 
     const res2 = await apiV1
-      .get(`/verified-accounts/0x${ACCOUNT_CODE.slice(2).toUpperCase()}`)
+      .get(
+        `/${networkId}/verified-accounts/code/0x${ACCOUNT_CODE.slice(2).toUpperCase()}`,
+      )
       .send();
 
     expect(res2.status).toBe(200);
@@ -306,7 +339,7 @@ describe("GET /verified-accounts/:code", () => {
 
     // A real account code, but not the one just verified.
     const res2 = await apiV1
-      .get(`/verified-accounts/${UNVERIFIED_ACCOUNT_CODE}`)
+      .get(`/${networkId}/verified-accounts/code/${UNVERIFIED_ACCOUNT_CODE}`)
       .send();
 
     expect(res2.status).toBe(404);
@@ -317,7 +350,7 @@ describe("GET /verified-accounts/:code", () => {
     // Account ids are shorter than the 32-byte code root, so the likeliest
     // mistake gets a clear 400 rather than a puzzling 404.
     const res = await apiV1
-      .get(`/verified-accounts/${COUNTER_CONTRACT_ID_1}`)
+      .get(`/${networkId}/verified-accounts/code/${COUNTER_CONTRACT_ID_1}`)
       .send();
 
     expect(res.status).toBe(400);
