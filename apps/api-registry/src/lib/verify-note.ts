@@ -53,7 +53,7 @@ export const verifyNote = async ({
       networkId,
       resourceId: noteId,
     });
-    const verifiedNote = await getVerifiedNoteByScript({ script });
+    const verifiedNote = await getVerifiedNoteByScript({ networkId, script });
     if (verifiedNote) {
       throw new Error("note already verified");
     }
@@ -69,6 +69,7 @@ export const verifyNote = async ({
           manifest,
         });
     await insertVerifiedNoteScript({
+      networkId,
       script,
       source,
       packageId,

@@ -120,8 +120,9 @@ const rootCheck: EndpointCheck = {
 };
 
 const NETWORK_ID = "mtst";
-// The roots the registry keys its records on: an account's code root and a
-// note's script root. Both come from the shared fixtures.
+// The roots the registry keys its records on, alongside the network: an
+// account's code root and a note's script root. Both come from the shared
+// fixtures.
 const ACCOUNT_CODE = accounts[COUNTER_CONTRACT_ID_1]?.code ?? "";
 const NOTE_SCRIPT = notes[COUNTER_NOTE_ID_1]?.code ?? "";
 
@@ -131,21 +132,22 @@ const NOTE_SCRIPT = notes[COUNTER_NOTE_ID_1]?.code ?? "";
 
 /**
  * Both verified-account routes return the same record; the by-id one resolves
- * the code root on-chain first and echoes back what it resolved from. Asserting
- * the root comes back unchanged is what proves the registry returned the record
- * we asked for rather than merely returning something.
+ * the code root on-chain first and echoes back the account it resolved from.
+ * Asserting the root and network come back unchanged is what proves the
+ * registry returned the record we asked for rather than merely returning
+ * something.
  */
 const verifiedAccountCheck = ({ byId }: { byId: boolean }): EndpointCheck => {
   const path = byId
     ? `/v1/${NETWORK_ID}/verified-accounts/${COUNTER_CONTRACT_ID_1}`
-    : `/v1/verified-accounts/${ACCOUNT_CODE}`;
+    : `/v1/${NETWORK_ID}/verified-accounts/code/${ACCOUNT_CODE}`;
   return {
     id: byId ? "verified-account-by-id" : "verified-account-by-code",
     // Roots are 66 chars and would be truncated away in the card, so the label
     // shortens them while `path` keeps the value the request actually uses.
     label: byId
       ? `GET ${path}`
-      : `GET /v1/verified-accounts/${truncateHex(ACCOUNT_CODE)}`,
+      : `GET /v1/${NETWORK_ID}/verified-accounts/code/${truncateHex(ACCOUNT_CODE)}`,
     method: "GET",
     path,
     summarize: (payload) => {
@@ -155,12 +157,8 @@ const verifiedAccountCheck = ({ byId }: { byId: boolean }): EndpointCheck => {
         : [];
       const pkg = asRecord(asRecord(components[0]).package);
       return {
-        ...(byId
-          ? {
-              accountId: String(body.accountId ?? "—"),
-              networkId: String(body.networkId ?? "—"),
-            }
-          : {}),
+        ...(byId ? { accountId: String(body.accountId ?? "—") } : {}),
+        networkId: String(body.networkId ?? "—"),
         code: truncateHex(body.code),
         components: components.length,
         package: String(pkg.name ?? "—"),
@@ -174,44 +172,42 @@ const verifiedAccountCheck = ({ byId }: { byId: boolean }): EndpointCheck => {
       if (body.code !== ACCOUNT_CODE) {
         return "returned a record for a different code root";
       }
+      if (body.networkId !== NETWORK_ID) {
+        return "returned a record for a different network";
+      }
       const components = Array.isArray(body.verifiedAccountComponents)
         ? body.verifiedAccountComponents
         : [];
       if (components.length === 0) return "record has no verified components";
-      if (byId) {
-        if (body.accountId !== COUNTER_CONTRACT_ID_1) {
-          return "echoed a different accountId";
-        }
-        if (body.networkId !== NETWORK_ID)
-          return "echoed a different networkId";
+      if (byId && body.accountId !== COUNTER_CONTRACT_ID_1) {
+        return "echoed a different accountId";
       }
       return null;
     },
   };
 };
 
-/** The note equivalent — keyed on the script root, with the package inline. */
+/**
+ * The note equivalent — keyed on the network and script root, with the package
+ * inline.
+ */
 const verifiedNoteCheck = ({ byId }: { byId: boolean }): EndpointCheck => {
   const path = byId
     ? `/v1/${NETWORK_ID}/verified-notes/${COUNTER_NOTE_ID_1}`
-    : `/v1/verified-notes/${NOTE_SCRIPT}`;
+    : `/v1/${NETWORK_ID}/verified-notes/script/${NOTE_SCRIPT}`;
   return {
     id: byId ? "verified-note-by-id" : "verified-note-by-script",
     label: byId
       ? `GET /v1/${NETWORK_ID}/verified-notes/${truncateHex(COUNTER_NOTE_ID_1)}`
-      : `GET /v1/verified-notes/${truncateHex(NOTE_SCRIPT)}`,
+      : `GET /v1/${NETWORK_ID}/verified-notes/script/${truncateHex(NOTE_SCRIPT)}`,
     method: "GET",
     path,
     summarize: (payload) => {
       const body = asRecord(payload);
       const pkg = asRecord(body.package);
       return {
-        ...(byId
-          ? {
-              noteId: truncateHex(body.noteId),
-              networkId: String(body.networkId ?? "—"),
-            }
-          : {}),
+        ...(byId ? { noteId: truncateHex(body.noteId) } : {}),
+        networkId: String(body.networkId ?? "—"),
         script: truncateHex(body.script),
         package: String(pkg.name ?? "—"),
         type: String(pkg.type ?? "—"),
@@ -224,14 +220,14 @@ const verifiedNoteCheck = ({ byId }: { byId: boolean }): EndpointCheck => {
       if (body.script !== NOTE_SCRIPT) {
         return "returned a record for a different script root";
       }
+      if (body.networkId !== NETWORK_ID) {
+        return "returned a record for a different network";
+      }
       if (asRecord(body.package).type !== "note") {
         return "record's package is not a note";
       }
-      if (byId) {
-        if (body.noteId !== COUNTER_NOTE_ID_1)
-          return "echoed a different noteId";
-        if (body.networkId !== NETWORK_ID)
-          return "echoed a different networkId";
+      if (byId && body.noteId !== COUNTER_NOTE_ID_1) {
+        return "echoed a different noteId";
       }
       return null;
     },
@@ -345,9 +341,9 @@ const apiRegistry: ServiceDefinition = {
     "Registry of verified accounts, notes and their source packages.",
   url: API_REGISTRY_URL,
   // `GET /` only echoes env vars and never touches Postgres, so these four
-  // record lookups are what actually prove the registry can serve. The
-  // by-root pair is a pure database read; the by-id pair additionally calls
-  // api-compile to resolve the on-chain root first (see
+  // record lookups are what actually prove the registry can serve. All four are
+  // network-scoped; the by-root pair is a pure database read, the by-id pair
+  // additionally calls api-compile to resolve the on-chain root first (see
   // api-registry/src/lib/import-resource.ts), so an api-compile outage
   // degrades this service too.
   endpoints: [

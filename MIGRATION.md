@@ -108,27 +108,34 @@ New response shape:
 
 ## Looking up by code directly
 
-The registry stores records per **code** — an account's code root or a note's
-script root — not per account/note id, and not per network. The two lookups
-above are convenience resolvers: they call the internal compilation API to
-resolve `{accountId}` / `{noteId}` to that code first, then return the record.
+The registry stores records per network and **code** — an account's code root or
+a note's script root — not per account/note id. The two lookups above are
+convenience resolvers: they call the internal compilation API to resolve
+`{accountId}` / `{noteId}` to that code first, then return the record.
 
 If you already have the code, address it directly and skip that round-trip:
 
 ```
-GET /v1/verified-accounts/{code}     → VerifiedAccount  (404 if not verified)
-GET /v1/verified-notes/{script}      → VerifiedNote     (404 if not verified)
+GET /v1/{networkId}/verified-accounts/code/{code}      → VerifiedAccount  (404 if not verified)
+GET /v1/{networkId}/verified-notes/script/{script}     → VerifiedNote     (404 if not verified)
 ```
 
 Differences from the id-keyed lookups:
 
-- **No `networkId`** — a code root identifies the same record on every network.
-- The response is the record itself, **without** the `accountId` / `noteId` /
-  `networkId` echo fields: nothing was supplied to echo.
+- No call to the compilation API — this is a single database query, and it works
+  even when that service is down.
+- The response is the record itself, **without** the `accountId` / `noteId` echo
+  field: no id was supplied to echo. `networkId` is still present, since the
+  record is keyed on it.
 - The code is `0x` followed by 64 hex characters (32 bytes), matched
   case-insensitively. Anything else returns `400` — which is what you get if you
   pass an account **id** here, since ids are shorter. (Note ids happen to be the
   same width as script roots, so those return `404` instead.)
+
+A code root only means something within the network it was read from, so
+`networkId` is required here just as it is on the id-keyed lookups. Asking for a
+root on a network it was never verified against returns `404`, never another
+network's record.
 
 The legacy API had no equivalent — it only looked resources up by address/id —
 but this is the cheapest read available: one database query, no compilation-API

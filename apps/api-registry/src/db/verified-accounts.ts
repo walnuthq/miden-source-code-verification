@@ -1,22 +1,31 @@
 import db from "@/db/index.js";
 import { verifiedAccountCodeTable } from "@/db/schema.js";
 
-export const getVerifiedAccountByCode = ({ code }: { code: string }) =>
+export const getVerifiedAccountByCode = ({
+  networkId,
+  code,
+}: {
+  networkId: string;
+  code: string;
+}) =>
   db.query.verifiedAccountCodeTable.findFirst({
-    where: { code },
+    where: { networkId, code },
     with: { verifiedAccountComponents: { with: { package: true } } },
   });
 
 export const insertVerifiedAccountCode = async ({
+  networkId,
   code,
   source,
 }: {
+  networkId: string;
   code: string;
   source: string;
 }) => {
   const [insertedVerifiedAccountCode] = await db
     .insert(verifiedAccountCodeTable)
     .values({
+      networkId,
       code,
       source,
     })
