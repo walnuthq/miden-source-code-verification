@@ -2,11 +2,11 @@ import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import lodash from "lodash";
+import { parseCargoToml } from "miden-source-code-verification-utils";
 import { cargoMidenBuild } from "@/lib/cargo-miden.js";
 import { CARGO_TARGET_DIR } from "@/lib/constants.js";
 import { midenPackageMetadata } from "@/lib/miden-package-metadata.js";
 import type { Manifest } from "@/lib/types.js";
-import { parseCargoToml } from "miden-source-code-verification-utils";
 
 const { snakeCase } = lodash;
 

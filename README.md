@@ -15,7 +15,9 @@ A small set of services that can be deployed independently or together:
 
 The registry never compiles or verifies on its own; it always delegates to the Compilation API and persists the result. This keeps the heavy Rust toolchain isolated from the database tier.
 
-Verified results are keyed by the resource's on-chain **code** — an account's code root or a note's script root — rather than by a specific account/note ID. So once any resource with a given code has been verified, every other account or note sharing that same code resolves as verified too, without needing to re-submit its source.
+Verified results are keyed by the network plus the resource's on-chain **code** — an account's code root or a note's script root — rather than by a specific account/note ID. So once any resource with a given code has been verified on a network, every other account or note on that network sharing that same code resolves as verified too, without needing to re-submit its source. A code root is only meaningful within the network it was read from, so records never cross networks: the same code verified on `mtst` and on `mdev` is two records.
+
+That `(networkId, code)` pair is the registry's real key, so it's addressable directly: `GET /v1/{networkId}/verified-accounts/code/{code}` and `GET /v1/{networkId}/verified-notes/script/{script}` return a record with a single database query and no on-chain lookup. The id-keyed reads (`GET /v1/{networkId}/verified-accounts/{accountId}`, `GET /v1/{networkId}/verified-notes/{noteId}`) are convenience resolvers on top: they ask the Compilation API for the resource's code first, then serve the same record with the queried id echoed back. Callers that already know the code should use the code-keyed endpoints — one less API call per read.
 
 ## Repository layout
 
@@ -27,7 +29,9 @@ This is a [pnpm](https://pnpm.io) workspace monorepo (`pnpm-workspace.yaml`). Ea
 | `apps/api-registry` | Registry API | `8081` | Express + Drizzle/Postgres |
 | `apps/web-verifier` | Verifier UI | `5173` | Vite + React SPA (served by nginx in Docker) |
 | `apps/api-docs` | OpenAPI / Swagger UI docs | `8082` | Generated from `api-registry` annotations |
+| `apps/status-page` | Public service status page | `4173` | Vite + React SPA; probed at build time |
 | `apps/*-cloudflare` | Cloudflare Workers deploy wrappers | — | Opt-in; wrap the matching service |
+| `packages/ui` | Shared design system (shadcn `base-lyra`) | — | Used by `web-verifier` and `status-page` |
 | `packages/utils` | Shared utilities (e.g. `Cargo.toml` parsing) | — | Used by the API services |
 | `packages/test-utils` | Shared test helpers | — | Used by the API test suites |
 
@@ -128,6 +132,16 @@ The docs are generated from the `api-registry` route annotations by the `api-doc
 ```bash
 pnpm --filter miden-source-code-verification-api-docs dev   # serves the docs at http://localhost:8082
 ```
+
+## Status page
+
+Liveness and the `/` payloads of the three deployed services are published at:
+
+**https://walnuthq.github.io/miden-source-code-verification/status/**
+
+Checks run every 30 minutes from GitHub Actions and the page is a snapshot of the
+last run — see `apps/status-page`. Both it and the API docs are published to
+GitHub Pages by the single `Deploy Pages` workflow.
 
 ## Deployment
 

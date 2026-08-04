@@ -1,32 +1,38 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readProjectFiles } from "miden-source-code-verification-test-utils";
+import {
+  COUNTER_NOTE_ID_1,
+  COUNTER_NOTE_ID_2,
+  notes,
+  readProjectFiles,
+} from "miden-source-code-verification-test-utils";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const templateDir = path.resolve(
-  __dirname,
-  "../../api-compile/project-template",
-);
+const examplesDir = path.resolve(__dirname, "../../api-compile/examples");
+const counterContractDir = `${examplesDir}/counter-contract`;
 
 const apiUrl = process.env.API_URL ?? "http://localhost:8081";
 const apiV1 = request(`${apiUrl}/v1`);
 
 const networkId = "mtst";
 
-// All three are increment-note instances that share the same note script, so
+// A second network, used to check that records don't leak across networks. Only
+// ever passed to the script-keyed route, which is a pure database read — so no
+// note has to exist on it.
+const otherNetworkId = "mdev";
+
+// All three are counter-note instances that share the same note script, so
 // they resolve to the same `script` in the registry. This is what lets a
 // verification of one satisfy a lookup of another.
-const NOTE_ID_1 =
-  "0x5101df16c6b3d79a0e680e4a08c813cbc634e59c51bae4e83b8a8bd69f614160";
-const NOTE_ID_2 =
-  "0x59a97ea12e7111c10838a23760fe96d7abeb67685f0b9a79acdfc65302d6c3e7";
-const NOTE_ID_3 =
-  "0x7656b5ef18b07af1c75d6af983d7aac35c3c5800fdecd95974893b9b9645f302";
-const NOTE_SCRIPT =
-  "0x8050a19937200574e48db986a50fb207ce31e7b55563383e2194ccd696ddd95c";
+const NOTE_SCRIPT = notes[COUNTER_NOTE_ID_1].code;
+
+// A well-formed script root that is never verified in these tests, used to
+// check that a script-keyed lookup which matches nothing yields a 404.
+const UNVERIFIED_NOTE_SCRIPT =
+  "0x1111111111111111111111111111111111111111111111111111111111111111";
 
 describe("POST /:networkId/verified-notes", () => {
   it("rejects requests with no note ID", async () => {
@@ -38,41 +44,41 @@ describe("POST /:networkId/verified-notes", () => {
   it("rejects requests with no files object", async () => {
     const res = await apiV1
       .post(`/${networkId}/verified-notes`)
-      .send({ noteId: NOTE_ID_1 });
+      .send({ noteId: COUNTER_NOTE_ID_1 });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "missing files");
   });
 
   it("rejects requests missing Cargo.toml", async () => {
-    const files = await readProjectFiles(templateDir);
+    const files = await readProjectFiles(counterContractDir);
     const res = await apiV1.post(`/${networkId}/verified-notes`).send({
-      noteId: NOTE_ID_1,
+      noteId: COUNTER_NOTE_ID_1,
       files: {
-        "increment-note/src/lib.rs": files["increment-note/src/lib.rs"],
+        "counter-note/src/lib.rs": files["counter-note/src/lib.rs"],
       },
-      entrypoint: "increment-note",
+      entrypoint: "counter-note",
     });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "missing Cargo.toml");
   });
 
   it("rejects requests missing miden-project.toml", async () => {
-    const files = await readProjectFiles(templateDir);
+    const files = await readProjectFiles(counterContractDir);
     const res = await apiV1.post(`/${networkId}/verified-notes`).send({
-      noteId: NOTE_ID_1,
+      noteId: COUNTER_NOTE_ID_1,
       files: {
-        "increment-note/src/lib.rs": files["increment-note/src/lib.rs"],
-        "increment-note/Cargo.toml": files["increment-note/Cargo.toml"],
+        "counter-note/src/lib.rs": files["counter-note/src/lib.rs"],
+        "counter-note/Cargo.toml": files["counter-note/Cargo.toml"],
       },
-      entrypoint: "increment-note",
+      entrypoint: "counter-note",
     });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "missing miden-project.toml");
   });
 
-  it("doesn't verify a buggy increment-note", async () => {
-    const files = await readProjectFiles(templateDir);
-    const entrypoint = "increment-note";
+  it("doesn't verify a buggy counter-note", async () => {
+    const files = await readProjectFiles(counterContractDir);
+    const entrypoint = "counter-note";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
 
     files[`${entrypoint}/src/lib.rs`] = files[
@@ -80,7 +86,7 @@ describe("POST /:networkId/verified-notes", () => {
     ].replace("CounterContract", "CounterAccount");
 
     const res = await apiV1.post(`/${networkId}/verified-notes`).send({
-      noteId: NOTE_ID_1,
+      noteId: COUNTER_NOTE_ID_1,
       files,
       entrypoint,
     });
@@ -88,13 +94,13 @@ describe("POST /:networkId/verified-notes", () => {
     expect(res.status).toBe(500);
   });
 
-  it("verifies an increment-note", async () => {
-    const files = await readProjectFiles(templateDir);
-    const entrypoint = "increment-note";
+  it("verifies a counter-note", async () => {
+    const files = await readProjectFiles(counterContractDir);
+    const entrypoint = "counter-note";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
 
     const res = await apiV1.post(`/${networkId}/verified-notes`).send({
-      noteId: NOTE_ID_1,
+      noteId: COUNTER_NOTE_ID_1,
       files,
       entrypoint,
     });
@@ -103,15 +109,15 @@ describe("POST /:networkId/verified-notes", () => {
     expect(res.body).toHaveProperty("verified", true);
   });
 
-  it("doesn't verify an increment-note whose script is already in the registry", async () => {
-    const files = await readProjectFiles(templateDir);
-    const entrypoint = "increment-note";
+  it("doesn't verify a counter-note whose script is already in the registry", async () => {
+    const files = await readProjectFiles(counterContractDir);
+    const entrypoint = "counter-note";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
 
     // First note registers the script.
     const res1 = await apiV1
       .post(`/${networkId}/verified-notes`)
-      .send({ noteId: NOTE_ID_1, files, entrypoint });
+      .send({ noteId: COUNTER_NOTE_ID_1, files, entrypoint });
 
     expect(res1.status).toBe(200);
     expect(res1.body).toHaveProperty("verified", true);
@@ -119,22 +125,22 @@ describe("POST /:networkId/verified-notes", () => {
     // A different note sharing the same script is already covered.
     const res2 = await apiV1
       .post(`/${networkId}/verified-notes`)
-      .send({ noteId: NOTE_ID_2, files, entrypoint });
+      .send({ noteId: COUNTER_NOTE_ID_2, files, entrypoint });
 
     expect(res2.status).toBe(500);
     expect(res2.body).toHaveProperty("error", "note already verified");
   });
 
-  it("doesn't verify an increment-note if sources don't match", async () => {
-    const files = await readProjectFiles(templateDir);
-    const entrypoint = "increment-note";
+  it("doesn't verify a counter-note if sources don't match", async () => {
+    const files = await readProjectFiles(counterContractDir);
+    const entrypoint = "counter-note";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
     files[`${entrypoint}/src/lib.rs`] = files[
       `${entrypoint}/src/lib.rs`
     ].replace("Felt::from_u32", "felt!");
 
     const res = await apiV1.post(`/${networkId}/verified-notes`).send({
-      noteId: NOTE_ID_1,
+      noteId: COUNTER_NOTE_ID_1,
       files,
       entrypoint,
     });
@@ -147,29 +153,29 @@ describe("POST /:networkId/verified-notes", () => {
 describe("GET /:networkId/verified-notes/:noteId", () => {
   it("returns 404 for a note absent from the registry", async () => {
     const res = await apiV1
-      .get(`/${networkId}/verified-notes/${NOTE_ID_1}`)
+      .get(`/${networkId}/verified-notes/${COUNTER_NOTE_ID_1}`)
       .send();
     expect(res.status).toBe(404);
   });
 
   it("returns a previously verified note", async () => {
-    const files = await readProjectFiles(templateDir);
-    const entrypoint = "increment-note";
+    const files = await readProjectFiles(counterContractDir);
+    const entrypoint = "counter-note";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
 
     const res1 = await apiV1
       .post(`/${networkId}/verified-notes`)
-      .send({ noteId: NOTE_ID_3, files, entrypoint });
+      .send({ noteId: COUNTER_NOTE_ID_1, files, entrypoint });
 
     expect(res1.status).toBe(200);
     expect(res1.body).toHaveProperty("verified", true);
 
     const res2 = await apiV1
-      .get(`/${networkId}/verified-notes/${NOTE_ID_3}`)
+      .get(`/${networkId}/verified-notes/${COUNTER_NOTE_ID_1}`)
       .send();
 
     expect(res2.status).toBe(200);
-    expect(res2.body).toHaveProperty("noteId", NOTE_ID_3);
+    expect(res2.body).toHaveProperty("noteId", COUNTER_NOTE_ID_1);
     expect(res2.body).toHaveProperty("networkId", networkId);
     expect(res2.body).toHaveProperty("script", NOTE_SCRIPT);
     expect(res2.body).toHaveProperty("package.name", entrypoint);
@@ -177,27 +183,131 @@ describe("GET /:networkId/verified-notes/:noteId", () => {
   });
 
   it("returns a match for a different note sharing the same script", async () => {
-    const files = await readProjectFiles(templateDir);
-    const entrypoint = "increment-note";
+    const files = await readProjectFiles(counterContractDir);
+    const entrypoint = "counter-note";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
 
     // Verify one note...
     const res1 = await apiV1
       .post(`/${networkId}/verified-notes`)
-      .send({ noteId: NOTE_ID_1, files, entrypoint });
+      .send({ noteId: COUNTER_NOTE_ID_1, files, entrypoint });
 
     expect(res1.status).toBe(200);
     expect(res1.body).toHaveProperty("verified", true);
 
     // ...then look up a *different*, never-verified note with the same script.
     const res2 = await apiV1
-      .get(`/${networkId}/verified-notes/${NOTE_ID_2}`)
+      .get(`/${networkId}/verified-notes/${COUNTER_NOTE_ID_2}`)
       .send();
 
     expect(res2.status).toBe(200);
-    expect(res2.body).toHaveProperty("noteId", NOTE_ID_2);
+    expect(res2.body).toHaveProperty("noteId", COUNTER_NOTE_ID_2);
     expect(res2.body).toHaveProperty("networkId", networkId);
     expect(res2.body).toHaveProperty("script", NOTE_SCRIPT);
     expect(res2.body).toHaveProperty("package");
+  });
+});
+
+describe("GET /:networkId/verified-notes/script/:script", () => {
+  it("returns a previously verified note, without an on-chain lookup", async () => {
+    const files = await readProjectFiles(counterContractDir);
+    const entrypoint = "counter-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-notes`)
+      .send({ noteId: COUNTER_NOTE_ID_1, files, entrypoint });
+
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty("verified", true);
+
+    const res2 = await apiV1
+      .get(`/${networkId}/verified-notes/script/${NOTE_SCRIPT}`)
+      .send();
+
+    expect(res2.status).toBe(200);
+    expect(res2.body).toHaveProperty("script", NOTE_SCRIPT);
+    expect(res2.body).toHaveProperty("package.name", entrypoint);
+    expect(res2.body).toHaveProperty("package.type", "note");
+    // The record is keyed on the network it was verified against, so the
+    // network comes back on it — but no note took part in the lookup, so there
+    // is no id to echo, unlike the id-keyed endpoint.
+    expect(res2.body).toHaveProperty("networkId", networkId);
+    expect(res2.body).not.toHaveProperty("noteId");
+  });
+
+  it("doesn't return a note verified on another network", async () => {
+    const files = await readProjectFiles(counterContractDir);
+    const entrypoint = "counter-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-notes`)
+      .send({ noteId: COUNTER_NOTE_ID_1, files, entrypoint });
+
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty("verified", true);
+
+    // The same script root, but a network it was never verified on. Script
+    // roots are network-specific, so this must not resolve to the record above.
+    const res2 = await apiV1
+      .get(`/${otherNetworkId}/verified-notes/script/${NOTE_SCRIPT}`)
+      .send();
+
+    expect(res2.status).toBe(404);
+    expect(res2.body).toHaveProperty("error", "verified note not found");
+  });
+
+  it("matches a script case-insensitively", async () => {
+    const files = await readProjectFiles(counterContractDir);
+    const entrypoint = "counter-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-notes`)
+      .send({ noteId: COUNTER_NOTE_ID_1, files, entrypoint });
+
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty("verified", true);
+
+    const res2 = await apiV1
+      .get(
+        `/${networkId}/verified-notes/script/0x${NOTE_SCRIPT.slice(2).toUpperCase()}`,
+      )
+      .send();
+
+    expect(res2.status).toBe(200);
+    expect(res2.body).toHaveProperty("script", NOTE_SCRIPT);
+  });
+
+  it("returns 404 for a script absent from the registry", async () => {
+    const files = await readProjectFiles(counterContractDir);
+    const entrypoint = "counter-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-notes`)
+      .send({ noteId: COUNTER_NOTE_ID_1, files, entrypoint });
+
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty("verified", true);
+
+    // Well-formed, but not the script just verified. Note ids are the same
+    // width as script roots, so a note id passed here lands on this path too.
+    const res2 = await apiV1
+      .get(`/${networkId}/verified-notes/script/${UNVERIFIED_NOTE_SCRIPT}`)
+      .send();
+
+    expect(res2.status).toBe(404);
+    expect(res2.body).toHaveProperty("error", "verified note not found");
+  });
+
+  it("rejects a script that isn't a 32-byte hex root", async () => {
+    const res = await apiV1
+      .get(`/${networkId}/verified-notes/script/0xdeadbeef`)
+      .send();
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error", "invalid script");
   });
 });

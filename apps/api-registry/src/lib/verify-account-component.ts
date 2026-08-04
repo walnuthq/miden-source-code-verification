@@ -57,10 +57,10 @@ export const verifyAccountComponent = async ({
       networkId,
       resourceId: accountId,
     });
-    const verifiedAccount = await getVerifiedAccountByCode({ code });
+    const verifiedAccount = await getVerifiedAccountByCode({ networkId, code });
     const verifiedAccountId = verifiedAccount
       ? verifiedAccount.id
-      : await insertVerifiedAccountCode({ code, source });
+      : await insertVerifiedAccountCode({ networkId, code, source });
     const verifiedAccountComponent = await getVerifiedAccountComponent({
       verifiedAccountId,
       packageDigest: digest,

@@ -1,0 +1,103 @@
+name: Deploy Pages
+
+# Owns the whole GitHub Pages site: api-docs at the root, status-page under
+# /status/. A repository has exactly one Pages deployment and `deploy-pages`
+# replaces the entire site on every run, so this must stay the only workflow that
+# publishes Pages — a second one would delete the first one's files each time.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/api-docs/**"
+      # api-docs generates its OpenAPI spec from these route annotations.
+      - "apps/api-registry/src/**"
+      - "apps/status-page/**"
+      - "packages/ui/**"
+      # The status-page probe asserts against these fixtures and submits these
+      # sources to /compile and /verify, so a change to either alters what the
+      # page reports. The cron would pick it up eventually; this makes the
+      # refresh immediate.
+      - "packages/test-utils/**"
+      - "apps/api-compile/examples/**"
+      - ".github/workflows/deploy-pages.yml"
+  # Refreshes the status snapshot on the hour and the half hour. The floor is
+  # api-compile's `/`, which proxies into a Cloudflare Container configured with
+  # `sleepAfter: "5m"`: probing more often than that would keep the container
+  # awake around the clock and bill for it. 30m stays well clear of that, so the
+  # container still sleeps between probes. Read apps/status-page/README.md before
+  # shortening this further.
+  schedule:
+    - cron: "0,30 * * * *"
+  workflow_dispatch:
+
+# Allow the workflow to publish to GitHub Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one Pages deployment at a time; let a newer run supersede an in-flight one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build static docs
+        working-directory: apps/api-docs
+        run: pnpm build
+        env:
+          # Server URL shown in the Swagger UI "servers" dropdown.
+          # Set a repository variable to point at your deployed api-registry.
+          API_REGISTRY_URL: ${{ vars.API_REGISTRY_URL }}
+
+      - name: Build status page
+        working-directory: apps/status-page
+        # Probes each service from the runner, then builds. A service being down
+        # produces a red card, not a failed build.
+        run: pnpm build
+        env:
+          API_COMPILE_URL: ${{ vars.API_COMPILE_URL }}
+          API_REGISTRY_URL: ${{ vars.API_REGISTRY_URL }}
+          WEB_VERIFIER_URL: ${{ vars.WEB_VERIFIER_URL }}
+
+      - name: Assemble site
+        run: |
+          mkdir -p _site/status
+          cp -r apps/api-docs/dist/. _site/
+          cp -r apps/status-page/dist/. _site/status/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

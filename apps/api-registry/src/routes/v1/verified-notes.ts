@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { Router } from "express";
 import { getVerifiedNoteByScript } from "@/db/verified-notes.js";
 import { importResource } from "@/lib/import-resource.js";
+import { parseRoot } from "@/lib/roots.js";
 import { verifyNote } from "@/lib/verify-note.js";
 
 const router: Router = Router();
@@ -135,11 +136,137 @@ router.post("/:networkId/verified-notes", async (req, res) => {
 
 /**
  * @openapi
+ * /v1/{networkId}/verified-notes/script/{script}:
+ *   get:
+ *     tags: [verified-notes]
+ *     summary: Get a verified note by script
+ *     description: >
+ *       Returns the verified note record keyed on the given network and note
+ *       script root. Records are stored per `(networkId, script)` pair — not
+ *       per note — so this is the registry's canonical note lookup: unlike
+ *       `/v1/{networkId}/verified-notes/{noteId}` it is a pure database read
+ *       and never fetches the note on-chain. Prefer it whenever the caller
+ *       already knows the script.
+ *     parameters:
+ *       - in: path
+ *         name: networkId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Network identifier (e.g. `mtst`, `mdev`).
+ *       - in: path
+ *         name: script
+ *         required: true
+ *         schema:
+ *           type: string
+ *           pattern: '^0x[0-9a-fA-F]{64}$'
+ *         description: >
+ *           Note script root — `0x` followed by 64 hex characters (32 bytes),
+ *           matched case-insensitively. Note ids share that width, so passing
+ *           one here returns `404`, not `400`.
+ *     responses:
+ *       "200":
+ *         description: >
+ *           The verified note record for `networkId` and `script`, including
+ *           the compiled package it was verified against. No note took part in
+ *           the lookup, so there is no `noteId` to echo back.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   format: uuid
+ *                 networkId:
+ *                   type: string
+ *                   description: The network the record is keyed on.
+ *                 script:
+ *                   type: string
+ *                   description: The note script root the record is keyed on (32-byte hex).
+ *                 source:
+ *                   type: string
+ *                   description: >
+ *                     Identifier of the client that originated the verification
+ *                     request. Defaults to `unknown`.
+ *                 packageId:
+ *                   type: string
+ *                   format: uuid
+ *                   description: Identifier of the package the note was verified against.
+ *                 packageDigest:
+ *                   type: string
+ *                   description: Digest of that package (32-byte hex).
+ *                 createdAt:
+ *                   type: string
+ *                   format: date-time
+ *                 updatedAt:
+ *                   type: string
+ *                   format: date-time
+ *                 package:
+ *                   $ref: '#/components/schemas/Package'
+ *       "400":
+ *         description: Invalid `script` (not a 32-byte hex root).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *       "404":
+ *         description: No verified note found for the given network and script.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *       "500":
+ *         description: Retrieval failed.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ */
+router.get("/:networkId/verified-notes/script/:script", async (req, res) => {
+  try {
+    const { networkId } = req.params;
+    const script = parseRoot(req.params.script);
+    if (!script) {
+      res.status(400).json({ error: "invalid script" });
+      return;
+    }
+    const verifiedNote = await getVerifiedNoteByScript({ networkId, script });
+    if (!verifiedNote) {
+      res.status(404).json({ error: "verified note not found" });
+      return;
+    }
+    res.json(verifiedNote);
+  } catch (error) {
+    console.error(error);
+    const message =
+      error instanceof Error ? error.message : "verified note retrieval failed";
+    res.status(500).json({ error: message });
+  }
+});
+
+/**
+ * @openapi
  * /v1/{networkId}/verified-notes/{noteId}:
  *   get:
  *     tags: [verified-notes]
- *     summary: Get a verified note
- *     description: Returns the verified note record for the given network and note id.
+ *     summary: Get a verified note by on-chain id
+ *     description: >
+ *       Resolves the note's script root on the given network, then returns the
+ *       record keyed on it — the same one
+ *       `/v1/{networkId}/verified-notes/script/{script}` serves, plus the
+ *       queried `noteId` echoed back. Resolving costs a call to the internal
+ *       compilation API, so callers that already know the script should use the
+ *       script-keyed endpoint instead.
  *     parameters:
  *       - in: path
  *         name: networkId
@@ -157,10 +284,10 @@ router.post("/:networkId/verified-notes", async (req, res) => {
  *       "200":
  *         description: >
  *           The verified note record whose script matches the on-chain note at
- *           `noteId`, including the compiled package it was verified against. The
- *           match is by note script, so the record may have originated from a
- *           different note sharing the same script. The queried `noteId` and
- *           `networkId` are echoed back.
+ *           `noteId` on `networkId`, including the compiled package it was
+ *           verified against. The match is by note script, so the record may
+ *           have originated from a different note on the same network sharing
+ *           the same script. The queried `noteId` is echoed back.
  *         content:
  *           application/json:
  *             schema:
@@ -169,6 +296,9 @@ router.post("/:networkId/verified-notes", async (req, res) => {
  *                 id:
  *                   type: string
  *                   format: uuid
+ *                 networkId:
+ *                   type: string
+ *                   description: The network the record is keyed on.
  *                 script:
  *                   type: string
  *                   description: The note script root the record is keyed on (32-byte hex).
@@ -195,9 +325,6 @@ router.post("/:networkId/verified-notes", async (req, res) => {
  *                 noteId:
  *                   type: string
  *                   description: The queried on-chain note identifier, echoed back.
- *                 networkId:
- *                   type: string
- *                   description: The queried network identifier, echoed back.
  *       "404":
  *         description: No verified note found for the given parameters.
  *         content:
@@ -232,12 +359,14 @@ router.get("/:networkId/verified-notes/:noteId", async (req, res) => {
       res.status(404).json({ error: "verified note not found" });
       return;
     }
-    const verifiedNote = await getVerifiedNoteByScript({ script });
+    const verifiedNote = await getVerifiedNoteByScript({ networkId, script });
     if (!verifiedNote) {
       res.status(404).json({ error: "verified note not found" });
       return;
     }
-    res.json({ ...verifiedNote, noteId, networkId });
+    // `networkId` already comes back on the record, so only `noteId` needs
+    // echoing — the caller can't otherwise tell which note was resolved.
+    res.json({ ...verifiedNote, noteId });
   } catch (error) {
     console.error(error);
     const message =

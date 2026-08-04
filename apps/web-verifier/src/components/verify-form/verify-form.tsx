@@ -1,25 +1,28 @@
 import { Address } from "@miden-sdk/miden-sdk";
 import { CircleAlert, CircleCheck, Loader2, TriangleAlert } from "lucide-react";
-import { type SyntheticEvent, useState } from "react";
-
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
   Field,
   FieldDescription,
   FieldGroup,
   FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import {
+  Input,
   Select,
   SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "miden-source-code-verification-ui";
+import { type SyntheticEvent, useState } from "react";
+
 import { ImportSources } from "@/components/verify-form/import-sources";
 import { SettingsDialog } from "@/components/verify-form/settings-dialog";
 import type { ProjectFiles } from "@/lib/collect-project-files";

@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+    "types": ["vite/client"],
+    "skipLibCheck": true,
+
+    /* Bundler mode — consumers are Vite apps that compile this raw .tsx. */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+
+    /* Package-internal alias. Deliberately not `@/*` — that belongs to each
+       consuming app's own src, and the two would collide once Vite resolves
+       this package's source. Consumers mirror this in their vite.config.ts. */
+    "paths": {
+      "@ui/*": ["./src/*"]
+    }
+  },
+  "include": ["src"]
+}

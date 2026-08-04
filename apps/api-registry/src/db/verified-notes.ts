@@ -1,18 +1,26 @@
 import db from "@/db/index.js";
 import { verifiedNoteScriptTable } from "@/db/schema.js";
 
-export const getVerifiedNoteByScript = ({ script }: { script: string }) =>
+export const getVerifiedNoteByScript = ({
+  networkId,
+  script,
+}: {
+  networkId: string;
+  script: string;
+}) =>
   db.query.verifiedNoteScriptTable.findFirst({
-    where: { script },
+    where: { networkId, script },
     with: { package: true },
   });
 
 export const insertVerifiedNoteScript = async ({
+  networkId,
   script,
   source,
   packageId,
   packageDigest,
 }: {
+  networkId: string;
   script: string;
   source: string;
   packageId: string;
@@ -21,6 +29,7 @@ export const insertVerifiedNoteScript = async ({
   const [insertedVerifiedNoteScript] = await db
     .insert(verifiedNoteScriptTable)
     .values({
+      networkId,
       script,
       source,
       packageId,
