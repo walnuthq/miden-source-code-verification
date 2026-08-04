@@ -98,8 +98,9 @@ single Pages artifact — docs at the site root, this page under `/status/`. Tha
 workflow is the only one allowed to deploy Pages: a repository has exactly one
 Pages deployment, and a second workflow would overwrite the first on every run.
 
-It runs hourly on a cron. Do not shorten that interval without reading the note
-in the workflow about `api-compile`'s container sleep.
+It runs every 30 minutes on a cron, on the hour and the half hour. Do not shorten
+that interval without reading the note in the workflow about `api-compile`'s
+container sleep.
 
 ## UI
 

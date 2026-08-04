@@ -139,9 +139,9 @@ Liveness and the `/` payloads of the three deployed services are published at:
 
 **https://walnuthq.github.io/miden-source-code-verification/status/**
 
-Checks run hourly from GitHub Actions and the page is a snapshot of the last run
-— see `apps/status-page`. Both it and the API docs are published to GitHub Pages
-by the single `Deploy Pages` workflow.
+Checks run every 30 minutes from GitHub Actions and the page is a snapshot of the
+last run — see `apps/status-page`. Both it and the API docs are published to
+GitHub Pages by the single `Deploy Pages` workflow.
 
 ## Deployment
 

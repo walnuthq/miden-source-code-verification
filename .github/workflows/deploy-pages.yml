@@ -17,17 +17,19 @@ on:
       - "packages/ui/**"
       # The status-page probe asserts against these fixtures and submits these
       # sources to /compile and /verify, so a change to either alters what the
-      # page reports. The hourly cron would pick it up eventually; this makes the
+      # page reports. The cron would pick it up eventually; this makes the
       # refresh immediate.
       - "packages/test-utils/**"
       - "apps/api-compile/examples/**"
       - ".github/workflows/deploy-pages.yml"
-  # Refreshes the status snapshot. Hourly is deliberate: api-compile's `/` proxies
-  # into a Cloudflare Container configured with `sleepAfter: "5m"`, so probing more
-  # often than that would keep the container awake around the clock and bill for
-  # it. Read apps/status-page/README.md before shortening this.
+  # Refreshes the status snapshot on the hour and the half hour. The floor is
+  # api-compile's `/`, which proxies into a Cloudflare Container configured with
+  # `sleepAfter: "5m"`: probing more often than that would keep the container
+  # awake around the clock and bill for it. 30m stays well clear of that, so the
+  # container still sleeps between probes. Read apps/status-page/README.md before
+  # shortening this further.
   schedule:
-    - cron: "0 * * * *"
+    - cron: "0,30 * * * *"
   workflow_dispatch:
 
 # Allow the workflow to publish to GitHub Pages.

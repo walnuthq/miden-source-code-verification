@@ -85,9 +85,9 @@ export function App() {
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              Checks run hourly from GitHub Actions, using the same fixtures as
-              the test suite. This page is a snapshot from the last run, not a
-              live probe.
+              Checks run every 30 minutes from GitHub Actions, using the same
+              fixtures as the test suite. This page is a snapshot from the last
+              run, not a live probe.
             </p>
           </>
         )}
