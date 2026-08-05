@@ -1,0 +1,17 @@
+[package]
+name = "generate-fixtures"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4.6", features = ["derive"] }
+# `next` of the Rust SDK, pinned to an exact revision. The published
+# 0.16.0-alpha.1 is what the sibling crates use; this crate tracks `next` because
+# it is the only client with the unreleased sync fixes. Swap both back to
+# `version = "0.16.0-alpha.1"` to line up with `miden-import`/`miden-verifier`.
+miden-client = { git = "https://github.com/0xMiden/rust-sdk", rev = "84ab560e3cb146382263bb7b3eaf16eaafeb5602", features = ["tonic", "testing"] }
+miden-client-sqlite-store = { git = "https://github.com/0xMiden/rust-sdk", rev = "84ab560e3cb146382263bb7b3eaf16eaafeb5602", package = "miden-client-sqlite-store" }
+tokio = { version = "1.53", features = ["rt-multi-thread", "net", "macros", "fs", "time"] }
+rand = { version = "0.10" }
+tempfile = "3"
