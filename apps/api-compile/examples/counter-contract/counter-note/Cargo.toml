@@ -1,3 +1,5 @@
+cargo-features = ["trim-paths"]
+
 [package]
 name = "counter-note"
 version = "0.1.0"
@@ -7,4 +9,13 @@ edition = "2024"
 crate-type = ["cdylib"]
 
 [dependencies]
-miden = "0.13"
+# The `miden` SDK release that pairs with this toolchain is not on crates.io yet,
+# so it is pinned to an exact compiler revision. A branch would compile too, but
+# verification needs the same sources to always produce the same digest.
+miden = { git = "https://github.com/0xMiden/compiler", rev = "6711d1bb56c5cc64d3ac5b51eb128b117474f533" }
+
+[profile.release]
+trim-paths = ["diagnostics", "object"]
+
+[profile.dev]
+trim-paths = ["diagnostics", "object"]

@@ -11,11 +11,13 @@
 
 use miden::*;
 
-/// Native account of the note: exposes the `counter-contract` component methods gathered from the `counter-contract` package.
+/// Native account of the script: exposes the `counter-contract` component methods gathered from
+/// the `counter-contract` package. The struct cannot be named `CounterContract`, because the
+/// account reference generates a trait of that name.
 #[account(counter_contract::CounterContract)]
-pub struct CounterContract;
+pub struct Counter;
 
 #[tx_script]
-fn run(_arg: Word, account: &mut CounterContract) {
+fn run(_arg: Word, account: &mut Counter) {
     account.increment_count();
 }
