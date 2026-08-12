@@ -31,19 +31,19 @@
     "drizzle-orm": "1.0.0-rc.4",
     "express": "5.2.1",
     "miden-source-code-verification-utils": "workspace:*",
-    "pg": "8.22.0"
+    "pg": "8.23.0"
   },
   "devDependencies": {
     "@types/cors": "2.8.19",
     "@types/express": "5.0.6",
     "@types/node": "24.13.3",
-    "@types/pg": "^8.20.3",
+    "@types/pg": "^8.20.4",
     "@types/supertest": "7.2.1",
     "drizzle-kit": "1.0.0-rc.4",
     "miden-source-code-verification-test-utils": "workspace:*",
     "supertest": "7.2.2",
     "tsc-alias": "1.9.1",
-    "tsx": "4.23.5",
+    "tsx": "4.23.12",
     "typescript": "7.0.2",
     "vitest": "4.1.10"
   }
