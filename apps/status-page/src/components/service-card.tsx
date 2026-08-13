@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "miden-source-code-verification-ui";
 
+import { formatTimestamp } from "@/lib/format";
 import type {
   CheckHealth,
   EndpointStatus,
@@ -139,6 +140,14 @@ export function ServiceCard({ service }: { service: ServiceStatus }) {
             {service.url}
           </a>
         </p>
+        {service.health !== "healthy" && (
+          // `since` is carried across probes by scripts/probe.ts, so this is the
+          // start of the outage rather than the time of the last check.
+          <p className="text-xs text-muted-foreground">
+            {service.health === "unhealthy" ? "Down" : "Degraded"} since{" "}
+            {formatTimestamp(service.since)}
+          </p>
+        )}
         {service.endpoints.map((endpoint) => (
           <EndpointRow key={endpoint.id} endpoint={endpoint} />
         ))}
