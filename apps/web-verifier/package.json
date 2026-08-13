@@ -12,22 +12,22 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@miden-sdk/react": "0.15.8",
-    "@miden-sdk/miden-sdk": "0.15.8",
+    "@miden-sdk/react": "0.15.9",
+    "@miden-sdk/miden-sdk": "0.15.9",
     "@tailwindcss/vite": "4.3.3",
-    "lucide-react": "1.28.0",
+    "lucide-react": "1.31.0",
     "miden-source-code-verification-ui": "workspace:*",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "tailwindcss": "4.3.3"
   },
   "devDependencies": {
-    "@miden-sdk/vite-plugin": "0.15.8",
-    "@types/node": "24.13.2",
+    "@miden-sdk/vite-plugin": "0.15.9",
+    "@types/node": "24.13.3",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "@vitejs/plugin-react": "6.0.5",
     "typescript": "7.0.2",
-    "vite": "8.2.0"
+    "vite": "8.2.1"
   }
 }

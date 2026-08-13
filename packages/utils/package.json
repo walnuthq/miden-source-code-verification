@@ -19,10 +19,10 @@
     "format": "biome check --write ."
   },
   "dependencies": {
-    "smol-toml": "1.7.1"
+    "smol-toml": "1.8.0"
   },
   "devDependencies": {
-    "@types/node": "24.13.2",
+    "@types/node": "24.13.3",
     "typescript": "7.0.2"
   }
 }
