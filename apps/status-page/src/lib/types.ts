@@ -33,11 +33,25 @@ export type ServiceStatus = {
   description: string;
   url: string;
   health: ServiceHealth;
+  /**
+   * Health at the previous probe, or null when no previous snapshot could be
+   * read. Carried forward so scripts/notify.ts can tell a state change from a
+   * continuing outage without any state of its own.
+   */
+  previousHealth: ServiceHealth | null;
+  /** ISO 8601 — when the service entered its current health. */
+  since: string;
   endpoints: EndpointStatus[];
 };
 
 export type StatusSnapshot = {
   /** ISO 8601, when the probe ran. */
   checkedAt: string;
+  /**
+   * `checkedAt` of the snapshot this run carried state forward from, or null
+   * when there was none. Together with each service's `since` it is what lets
+   * the reminder cadence be derived rather than stored.
+   */
+  previousCheckedAt: string | null;
   services: ServiceStatus[];
 };

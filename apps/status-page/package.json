@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "probe": "tsx scripts/probe.ts",
+    "notify": "tsx scripts/notify.ts",
     "build": "pnpm probe && pnpm typecheck && vite build",
     "dev": "pnpm probe && vite",
     "preview": "vite preview",

@@ -9,7 +9,6 @@ import {
   notes,
   readProjectFiles,
 } from "miden-source-code-verification-test-utils";
-
 import type {
   CheckSummary,
   EndpointStatus,
@@ -17,6 +16,7 @@ import type {
   ServiceStatus,
   StatusSnapshot,
 } from "../src/lib/types.js";
+import { statusPageUrl } from "./status-page-url.js";
 
 // Build-time probe. Runs on the CI runner (see .github/workflows/deploy-pages.yml)
 // rather than in the browser, because api-registry's CORS allowlist has no
@@ -30,15 +30,19 @@ import type {
 // Fixtures come from the same package the api-compile test suite uses, so the
 // two never drift — nothing about the dataset is duplicated here.
 
-const API_COMPILE_URL = process.env.API_COMPILE_URL ?? "http://localhost:8080";
+// `||`, not `??`: GitHub Actions sets an undefined repository variable to an
+// empty string, and an empty URL would fail every check with "Invalid URL"
+// rather than falling back to the documented default.
+const API_COMPILE_URL = process.env.API_COMPILE_URL || "http://localhost:8080";
 const API_REGISTRY_URL =
-  process.env.API_REGISTRY_URL ?? "http://localhost:8081";
+  process.env.API_REGISTRY_URL || "http://localhost:8081";
 const WEB_VERIFIER_URL =
-  process.env.WEB_VERIFIER_URL ?? "http://localhost:5173";
+  process.env.WEB_VERIFIER_URL || "http://localhost:5173";
 
 // A plain reachability check. api-compile's `/` proxies into a Cloudflare
 // Container that may be asleep, and a cold start costs several seconds.
 const DEFAULT_TIMEOUT_MS = 15_000;
+const PREVIOUS_SNAPSHOT_TIMEOUT_MS = 10_000;
 // The compile endpoints do real work (cargo-miden build) and may additionally
 // pay a container cold start, so they get a much longer leash.
 const COMPILE_TIMEOUT_MS = 120_000;
@@ -459,9 +463,12 @@ const rollUp = (endpoints: EndpointStatus[]): ServiceHealth => {
   return healthy === 0 ? "unhealthy" : "degraded";
 };
 
+/** Everything a probe can know on its own — the history is added afterwards. */
+type ProbedService = Omit<ServiceStatus, "previousHealth" | "since">;
+
 const probeService = async (
   service: ServiceDefinition,
-): Promise<ServiceStatus> => {
+): Promise<ProbedService> => {
   // Sequential within a service: `GET /` runs first and wakes api-compile's
   // container, so the compile checks behind it don't each pay a cold start.
   const endpoints: EndpointStatus[] = [];
@@ -472,13 +479,83 @@ const probeService = async (
   return { ...rest, health: rollUp(endpoints), endpoints };
 };
 
+/**
+ * Best effort by design: a 404 on the very first deploy, a network blip or a
+ * malformed body all mean "no previous state", never a failed build. The worst
+ * consequence is a repeated notification, never a missed one.
+ */
+const fetchPreviousSnapshot = async (): Promise<StatusSnapshot | null> => {
+  const base = statusPageUrl();
+  if (!base) {
+    console.log(
+      "no STATUS_PAGE_URL and no GITHUB_REPOSITORY — starting without previous state",
+    );
+    return null;
+  }
+  // Pages serves status.json with `cache-control: max-age=600`. That is well
+  // inside the 30-minute cron, but the query param removes all doubt.
+  const url = new URL("status.json", base);
+  url.searchParams.set("t", Date.now().toString());
+  try {
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(PREVIOUS_SNAPSHOT_TIMEOUT_MS),
+      headers: { accept: "application/json", "cache-control": "no-cache" },
+    });
+    if (!response.ok) {
+      console.log(
+        `no previous snapshot: HTTP ${response.status} from ${url.origin}${url.pathname}`,
+      );
+      return null;
+    }
+    const snapshot = (await response.json()) as StatusSnapshot;
+    if (!Array.isArray(snapshot.services)) {
+      console.log("previous snapshot has no services array — ignoring it");
+      return null;
+    }
+    console.log(`previous snapshot: ${snapshot.checkedAt}`);
+    return snapshot;
+  } catch (error) {
+    console.log(
+      `no previous snapshot: ${
+        error instanceof Error ? error.message : "unknown error"
+      }`,
+    );
+    return null;
+  }
+};
+
 // Every check is individually caught above and this script always exits 0. A
 // service being down must still produce a status page — that is precisely when
 // someone is looking at it.
-const snapshot: StatusSnapshot = {
-  checkedAt: new Date().toISOString(),
+const [previous, probed] = await Promise.all([
+  fetchPreviousSnapshot(),
   // Services in parallel; their own checks run sequentially.
-  services: await Promise.all(services.map(probeService)),
+  Promise.all(services.map(probeService)),
+]);
+
+const checkedAt = new Date().toISOString();
+
+/**
+ * Carries the outage clock forward: `since` only moves when the health changes,
+ * so it marks the start of the current state rather than the time of this run.
+ */
+const withHistory = (service: ProbedService): ServiceStatus => {
+  const before = previous?.services.find(({ id }) => id === service.id);
+  // `before` is parsed from a published file that may predate these fields —
+  // the first run after this ships reads a snapshot with no `since` at all — so
+  // it is treated as untrusted rather than as a ServiceStatus.
+  const unchanged = before !== undefined && before.health === service.health;
+  return {
+    ...service,
+    previousHealth: before?.health ?? null,
+    since: unchanged && before.since ? before.since : checkedAt,
+  };
+};
+
+const snapshot: StatusSnapshot = {
+  checkedAt,
+  previousCheckedAt: previous?.checkedAt ?? null,
+  services: probed.map(withHistory),
 };
 
 const outDir = path.resolve(import.meta.dirname, "..", "public");
