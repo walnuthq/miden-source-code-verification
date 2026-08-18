@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import {
   accounts,
   BASIC_WALLET_ID_1,
+  COUNT_READER_ID,
   COUNTER_CONTRACT_ID_1,
   COUNTER_NOTE_ID_1,
   notes,
@@ -239,6 +240,29 @@ describe("POST /verify", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", false);
+  });
+
+  it("verifies a local count-reader", async () => {
+    const files = await readProjectFiles(counterContractDir);
+    const entrypoint = "count-reader";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const resourceId = COUNT_READER_ID;
+    const { resource } = accounts[resourceId];
+
+    const res = await api.post("/verify").send({
+      files,
+      entrypoint,
+      networkId: "mtst",
+      resourceId: COUNT_READER_ID,
+      resource,
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("verified", true);
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("manifest");
   });
 
   it("verifies a local auth-component-rpo-falcon512", async () => {

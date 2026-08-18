@@ -1,0 +1,18 @@
+[package]
+name = "count-reader"
+version = "0.1.0"
+
+[lib]
+kind = "account-component"
+namespace = "miden:count-reader/count-reader@0.1.0"
+
+[dependencies]
+miden-core = "*"
+miden-protocol = "*"
+counter-contract = { path = "../counter-contract" }
+
+[package.metadata.miden]
+supported-types = ["RegularAccountImmutableCode"]
+
+[package.metadata.miden.dependencies]
+counter-contract = { wit = "../counter-contract/target/generated-wit/" }
