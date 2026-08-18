@@ -93,6 +93,8 @@ WORKDIR /cache/examples/counter-contract/auth-component-no-auth
 RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release
 WORKDIR /cache/examples/counter-contract/counter-contract
 RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release
+WORKDIR /cache/examples/counter-contract/count-reader
+RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release
 WORKDIR /cache/examples/counter-contract/counter-note
 RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release
 WORKDIR /cache/examples/counter-contract/counter-script
