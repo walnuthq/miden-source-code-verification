@@ -2,13 +2,13 @@ use anyhow::{Result, anyhow, bail};
 use base64::prelude::*;
 use clap::Parser;
 use miden_client::{
-    account::{Account, AccountId, AccountInterfaceExt},
+    account::{Account, AccountComponentInterfaceExt, AccountId},
     address::{Address, AddressId, NetworkId},
     builder::ClientBuilder,
     keystore::FilesystemKeyStore,
     note::{Note, NoteFile, NoteId, NoteScript},
     rpc::{Endpoint, GrpcClient},
-    transaction::{AccountComponentInterface, AccountInterface},
+    transaction::AccountComponentInterface,
     utils::Deserializable,
     vm::{Package, PackageExport},
 };
@@ -80,9 +80,17 @@ fn parse_resource_id(resource_id: &str) -> Result<Resource> {
 }
 
 fn verify_account_component(account: Account, package: Package) -> Result<Value> {
-    let account_interface = AccountInterface::from_account(&account);
+    // `AccountInterface::from_account` would be the obvious call here, but it
+    // asserts that exactly one of the account's components is a *standard* auth
+    // component and panics when that does not hold. Every account this API
+    // exists to verify authenticates with a Rust-compiled component (see
+    // `examples/counter-contract/auth-component-no-auth`), which classifies as
+    // `Custom` rather than one of the `Auth*` variants, so the assertion never
+    // holds. Classifying the procedures directly yields the same component list
+    // without going through that constructor.
+    let interface = AccountComponentInterface::from_procedures(account.code().procedures());
     let mut components = Vec::new();
-    for component in account_interface.components() {
+    for component in &interface {
         match component {
             AccountComponentInterface::BasicWallet => components.push("BasicWallet".to_string()),
             AccountComponentInterface::NoteCreator => components.push("NoteCreator".to_string()),
@@ -117,15 +125,35 @@ fn verify_account_component(account: Account, package: Package) -> Result<Value>
                 if package.manifest.num_exports() == 0 {
                     bail!("Package has no exports");
                 }
-                let mut procedures = package
+                // Only the procedures exported with the ComponentModel calling
+                // convention (`CallConv::ComponentModel`, abi == 3) are installed
+                // as account procedures — the same rule `verify_note_script`
+                // applies to pick out a note's entrypoint. Everything else a
+                // package exports is internal to the toolchain: the Wasm-ABI
+                // adapter generated around each procedure, `cabi_realloc`, and
+                // `init`. Matching against those too could never verify, because
+                // none of them is part of the account's code.
+                let procedures: Vec<_> = package
                     .manifest
                     .exports()
                     .filter_map(|export| match export {
                         PackageExport::Procedure(procedure) => Some(procedure),
                         _ => None,
-                    });
-                let verified =
-                    procedures.all(|procedure| account.code().has_procedure(procedure.digest));
+                    })
+                    .filter(|procedure| {
+                        procedure
+                            .signature
+                            .as_ref()
+                            .is_some_and(|signature| signature.abi as u8 == 3)
+                    })
+                    .collect();
+                // `all` holds vacuously on an empty iterator, so a package that
+                // exports no account procedures at all — a transaction script, say
+                // — would otherwise report as verified against any account.
+                let verified = !procedures.is_empty()
+                    && procedures
+                        .iter()
+                        .all(|procedure| account.code().has_procedure(procedure.digest));
                 if verified {
                     components.push(format!("Custom({})", package.digest()));
                 }

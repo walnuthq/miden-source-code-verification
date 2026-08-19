@@ -9,9 +9,13 @@ import { describe, expect, it } from "vitest";
 
 const api = request(process.env.API_URL ?? "http://localhost:8080");
 
+const networkId = process.env.NETWORK_ID ?? "mtst";
+
+const otherNetworkId = "mlcl";
+
 describe("GET /:networkId/import/:resourceId", () => {
   it("imports an on-chain account", async () => {
-    const res = await api.get(`/mtst/import/${COUNTER_CONTRACT_ID_1}`);
+    const res = await api.get(`/${networkId}/import/${COUNTER_CONTRACT_ID_1}`);
 
     const { code } = accounts[COUNTER_CONTRACT_ID_1];
 
@@ -21,7 +25,7 @@ describe("GET /:networkId/import/:resourceId", () => {
   });
 
   it("imports an on-chain note", async () => {
-    const res = await api.get(`/mtst/import/${COUNTER_NOTE_ID_1}`);
+    const res = await api.get(`/${networkId}/import/${COUNTER_NOTE_ID_1}`);
 
     const { code } = notes[COUNTER_NOTE_ID_1];
 
@@ -31,14 +35,16 @@ describe("GET /:networkId/import/:resourceId", () => {
   });
 
   it("returns 404 for an account not found on the given network", async () => {
-    const res = await api.get(`/mdev/import/${COUNTER_CONTRACT_ID_1}`);
+    const res = await api.get(
+      `/${otherNetworkId}/import/${COUNTER_CONTRACT_ID_1}`,
+    );
 
     expect(res.status).toBe(404);
     expect(res.body).toHaveProperty("error");
   });
 
   it("returns 404 for a note not found on the given network", async () => {
-    const res = await api.get(`/mdev/import/${COUNTER_NOTE_ID_1}`);
+    const res = await api.get(`/${otherNetworkId}/import/${COUNTER_NOTE_ID_1}`);
 
     expect(res.status).toBe(404);
     expect(res.body).toHaveProperty("error");

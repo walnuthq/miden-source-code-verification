@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0"
+base64 = "0.23"
 clap = { version = "4.6", features = ["derive"] }
 miden-client = { version = "0.16.0-rc.1", features = ["tonic", "testing"] }
 miden-client-sqlite-store = { version = "0.16.0-rc.1", package = "miden-client-sqlite-store" }
