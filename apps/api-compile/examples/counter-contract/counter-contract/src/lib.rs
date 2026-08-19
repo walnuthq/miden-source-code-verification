@@ -7,7 +7,7 @@
 //
 // extern crate alloc;
 
-use miden::{Felt, StorageMap, Word, component, component_storage, felt};
+use miden::{component, component_storage, felt, Felt, StorageMap, Word};
 
 /// Storage layout for the counter example.
 #[component_storage]

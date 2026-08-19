@@ -77,6 +77,21 @@ describe("POST /compile", () => {
     expect(res.body).toHaveProperty("manifest");
   });
 
+  it("compiles a count-reader", async () => {
+    const files = await readProjectFiles(counterContractDir);
+    const entrypoint = "count-reader";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const res = await api.post("/compile").send({ files, entrypoint });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("stdout");
+    expect(res.body).toHaveProperty("stderr");
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("manifest");
+  });
+
   it("compiles a counter-note", async () => {
     const files = await readProjectFiles(counterContractDir);
     const entrypoint = "counter-note";

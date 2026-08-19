@@ -4,8 +4,8 @@
 extern crate alloc;
 
 use miden::{
-    StorageValue, Word, component, component_storage, felt, hash_words, intrinsics::advice::adv_insert,
-    tx,
+    component, component_storage, felt, hash_words, intrinsics::advice::adv_insert, tx,
+    StorageValue, Word,
 };
 
 /// Authentication component storage/layout.
@@ -42,7 +42,12 @@ impl AuthComponent for AuthComponentStorage {
 
         let salt = Word::from([felt!(0), felt!(0), ref_block_num.into(), final_nonce.into()]);
 
-        let tx_summary = [acct_delta_commit, input_notes_commit, output_notes_commit, salt];
+        let tx_summary = [
+            acct_delta_commit,
+            input_notes_commit,
+            output_notes_commit,
+            salt,
+        ];
         let msg: Word = hash_words(&tx_summary).into();
         // Insert tx summary into advice map under key `msg`
         adv_insert(msg, &tx_summary);

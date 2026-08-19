@@ -1,7 +1,7 @@
 //! Generates the on-chain fixtures consumed by `packages/test-utils`.
 //!
 //! Deploys a counter-contract account to the network and calls `increment_count`
-//! on it, then prints the resulting `fixtures.ts` body. The transaction is what
+//! on it, then prints the resulting `fixtures.ts` export. The transaction is what
 //! actually commits the freshly built account on-chain, so a single run covers
 //! both halves of what used to be a manual process.
 //!
@@ -19,18 +19,24 @@ use std::time::Duration;
 use anyhow::{Context, Result, anyhow, bail};
 use clap::Parser;
 use miden_client::account::component::InitStorageData;
-use miden_client::account::{Account, AccountBuilder, AccountComponent, AccountType};
+use miden_client::account::{Account, AccountBuilder, AccountComponent, AccountId, AccountType};
 use miden_client::address::NetworkId;
 use miden_client::builder::ClientBuilder;
 use miden_client::keystore::FilesystemKeyStore;
 use miden_client::rpc::{Endpoint, GrpcClient};
 use miden_client::store::TransactionFilter;
-use miden_client::transaction::{TransactionRequestBuilder, TransactionScript, TransactionStatus};
+use miden_client::transaction::{
+    TransactionId, TransactionRequestBuilder, TransactionScript, TransactionStatus,
+};
 use miden_client::utils::Deserializable;
-use miden_client::vm::{Package, PackageExport};
+use miden_client::vm::Package;
 use miden_client::{Client, ClientRng};
 use miden_client_sqlite_store::ClientBuilderSqliteExt;
 use rand::TryRng;
+
+/// Directory under `examples/` holding every project this tool builds. Note that
+/// it shares its name with the account-component project it contains.
+const EXAMPLES_SUBDIR: &str = "counter-contract";
 
 /// Example projects built for the deployment, in dependency order:
 /// `counter-script` reads `../counter-contract/target/generated-wit/`, so the
@@ -39,15 +45,23 @@ const AUTH_COMPONENT: &str = "auth-component-no-auth";
 const ACCOUNT_COMPONENT: &str = "counter-contract";
 const TX_SCRIPT: &str = "counter-script";
 
+/// Network id of a locally running node. `miden-client` reaches it through
+/// [`Endpoint::localhost`], but [`NetworkId`] has no variant for it — it parses
+/// as a custom network.
+const LOCALHOST_NETWORK_ID: &str = "mlcl";
+
 /// How long to wait for the deploying transaction to be committed on-chain.
 const COMMIT_TIMEOUT: Duration = Duration::from_secs(120);
 const COMMIT_POLL_INTERVAL: Duration = Duration::from_secs(3);
 
 const RPC_TIMEOUT_MS: u64 = 10_000;
 
+// --- CLI ---
+
 #[derive(Parser, Debug)]
 #[command(version, about)]
 struct Args {
+    /// Network to deploy to: `mdev`, `mtst` or `mlcl`.
     #[arg(long, default_value = "mdev")]
     network_id: String,
 
@@ -65,11 +79,15 @@ fn default_examples_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples")
 }
 
-fn endpoint(network_id: &NetworkId) -> Endpoint {
-    match network_id.as_str() {
-        "mdev" => Endpoint::devnet(),
-        "mlcl" => Endpoint::localhost(),
-        _ => Endpoint::testnet(),
+/// Resolves the node to talk to. Mainnet and unknown networks are rejected
+/// rather than quietly redirected: the accounts deployed here are throwaway
+/// fixtures that belong on a test network only.
+fn endpoint(network_id: &NetworkId) -> Result<Endpoint> {
+    match network_id {
+        NetworkId::Devnet => Ok(Endpoint::devnet()),
+        NetworkId::Testnet => Ok(Endpoint::testnet()),
+        _ if network_id.as_str() == LOCALHOST_NETWORK_ID => Ok(Endpoint::localhost()),
+        other => bail!("unsupported network `{other}`; expected `mdev`, `mtst` or `mlcl`"),
     }
 }
 
@@ -83,7 +101,7 @@ fn endpoint(network_id: &NetworkId) -> Endpoint {
 /// own `target/`, which is where `counter-script` expects to find the
 /// `generated-wit/` directory produced by `counter-contract`.
 fn build_package(examples_dir: &Path, project: &str, midenc_target_dir: &Path) -> Result<Package> {
-    let project_dir = examples_dir.join("counter-contract").join(project);
+    let project_dir = examples_dir.join(EXAMPLES_SUBDIR).join(project);
     let target_dir = midenc_target_dir.join(project);
 
     eprintln!("Building {project}…");
@@ -110,6 +128,25 @@ fn build_package(examples_dir: &Path, project: &str, midenc_target_dir: &Path) -
 
 // --- Deploying ---
 
+/// Builds a client backed by a throwaway store and keystore under `workdir`, so
+/// every run deploys a genuinely new account and no state can leak in from a
+/// previous one.
+async fn connect(network_id: &NetworkId, workdir: &Path) -> Result<Client<FilesystemKeyStore>> {
+    let rpc_client = Arc::new(GrpcClient::new(&endpoint(network_id)?, RPC_TIMEOUT_MS));
+    let keystore = Arc::new(
+        FilesystemKeyStore::new(workdir.join("keystore"))
+            .context("failed to create the keystore")?,
+    );
+
+    ClientBuilder::new()
+        .rpc(rpc_client)
+        .sqlite_store(workdir.join("store.sqlite3"))
+        .authenticator(keystore)
+        .build()
+        .await
+        .context("failed to build the Miden client")
+}
+
 fn build_account(
     rng: &mut ClientRng,
     account_package: &Package,
@@ -133,54 +170,52 @@ fn build_account(
         // read back from the node by the verification API.
         .account_type(AccountType::Public)
         .with_component(account_component)
-        .with_auth_component(auth_component)
+        // There is no dedicated setter for the auth component: the builder picks
+        // out the one component exporting an `@auth_script` procedure and moves
+        // it to index 0 itself, so the insertion order here does not matter.
+        .with_component(auth_component)
         .build()
         .context("failed to build the account")
 }
 
-/// Builds the `increment_count` transaction script from the compiled
-/// `counter-script` package.
-///
-/// A `kind = "tx-script"` project compiles to a `TargetType::TransactionScript`
-/// package, so `TransactionScript::from_package` — which requires an executable —
-/// does not apply. `from_library` is the right entrypoint, but it relies on the
-/// `@transaction_script` attribute that the compiler does not emit yet, so fall
-/// back to locating the `run`/`main` export by name.
-fn build_tx_script(package: &Package) -> Result<TransactionScript> {
-    if let Ok(script) = TransactionScript::from_library(package) {
-        return Ok(script);
-    }
+/// Creates the account locally and then commits it on-chain by running
+/// `increment_count` against it, returning its id once the transaction lands.
+async fn deploy_account(
+    client: &mut Client<FilesystemKeyStore>,
+    account_package: &Package,
+    auth_package: &Package,
+    tx_script_package: &Package,
+) -> Result<AccountId> {
+    let account = build_account(client.rng(), account_package, auth_package)?;
+    let account_id = account.id();
+    client
+        .add_account(&account, false)
+        .await
+        .context("failed to add the account to the client")?;
+    eprintln!("Created account {}", account_id.to_hex());
 
-    let mut first_procedure = None;
-    let mut selected_procedure = None;
-    let mut num_procedures = 0usize;
-    for export in package.manifest.exports() {
-        let PackageExport::Procedure(procedure) = export else {
-            continue;
-        };
-        num_procedures += 1;
-        first_procedure.get_or_insert(procedure);
-        if matches!(export.name(), "run" | "main") {
-            selected_procedure = Some(procedure);
-        }
-    }
+    // `counter-script` is a `kind = "tx-script"` project, so it compiles to a
+    // library rather than an executable. `from_package` handles both: for a
+    // library it looks for the single export carrying the `@transaction_script`
+    // attribute, which is what `#[tx_script] fn run` lowers to.
+    let tx_script = TransactionScript::from_package(tx_script_package)
+        .map_err(|err| anyhow!("failed to build the transaction script: {err}"))?;
 
-    let procedure = selected_procedure
-        .or_else(|| (num_procedures == 1).then(|| first_procedure.unwrap()))
-        .context("transaction-script package should export exactly one entry procedure")?;
+    // The account authenticates itself with no-auth, so it can run its own
+    // deploying transaction — no separate funded wallet is involved.
+    let request = TransactionRequestBuilder::new()
+        .custom_script(tx_script)
+        .build()
+        .context("failed to build the transaction request")?;
+    let tx_id = client
+        .submit_new_transaction(account_id, request)
+        .await
+        .context("failed to submit the increment_count transaction")?;
+    eprintln!("Submitted increment_count transaction {}", tx_id.to_hex());
 
-    let entrypoint = match procedure.node {
-        Some(node) => node,
-        None => package
-            .mast_forest()
-            .find_procedure_root(procedure.digest)
-            .context("transaction-script entrypoint has no MAST node")?,
-    };
+    wait_for_commitment(client, tx_id).await?;
 
-    Ok(TransactionScript::from_parts(
-        package.mast_forest().clone(),
-        entrypoint,
-    ))
+    Ok(account_id)
 }
 
 /// Polls until the deploying transaction is committed. Returning earlier would
@@ -188,7 +223,7 @@ fn build_tx_script(package: &Package) -> Result<TransactionScript> {
 /// what the fixtures must not contain.
 async fn wait_for_commitment(
     client: &mut Client<FilesystemKeyStore>,
-    tx_id: miden_client::transaction::TransactionId,
+    tx_id: TransactionId,
 ) -> Result<()> {
     let deadline = std::time::Instant::now() + COMMIT_TIMEOUT;
 
@@ -228,65 +263,18 @@ async fn wait_for_commitment(
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    let args = Args::parse();
-    let network_id = NetworkId::new(&args.network_id)?;
-    let examples_dir = args.examples_dir.unwrap_or_else(default_examples_dir);
+// --- Emitting the fixtures ---
 
-    // A throwaway store and keystore, so every run deploys a genuinely new
-    // account and no state can leak in from a previous one.
-    let workdir = tempfile::tempdir().context("failed to create a temporary working directory")?;
-    let midenc_target_dir = workdir.path().join("midenc");
-
-    let auth_package = build_package(&examples_dir, AUTH_COMPONENT, &midenc_target_dir)?;
-    let account_package = build_package(&examples_dir, ACCOUNT_COMPONENT, &midenc_target_dir)?;
-    let tx_script_package = build_package(&examples_dir, TX_SCRIPT, &midenc_target_dir)?;
-
-    let rpc_client = Arc::new(GrpcClient::new(&endpoint(&network_id), RPC_TIMEOUT_MS));
-    let keystore = Arc::new(FilesystemKeyStore::new(workdir.path().join("keystore"))?);
-    let mut client = ClientBuilder::new()
-        .rpc(rpc_client)
-        .sqlite_store(workdir.path().join("store.sqlite3"))
-        .authenticator(keystore)
-        .build()
-        .await
-        .context("failed to build the Miden client")?;
-
-    let summary = client.sync_state().await.context("failed to sync state")?;
-    eprintln!(
-        "Connected to {}. Latest block: {}",
-        network_id.as_str(),
-        summary.block_num
-    );
-
-    let account = build_account(client.rng(), &account_package, &auth_package)?;
-    let account_id = account.id();
-    client
-        .add_account(&account, false)
-        .await
-        .context("failed to add the account to the client")?;
-    eprintln!("Created account {}", account_id.to_hex());
-
-    // The account authenticates itself with no-auth, so it can run its own
-    // deploying transaction — no separate funded wallet is involved.
-    let request = TransactionRequestBuilder::new()
-        .custom_script(build_tx_script(&tx_script_package)?)
-        .build()
-        .context("failed to build the transaction request")?;
-    let tx_id = client
-        .submit_new_transaction(account_id, request)
-        .await
-        .context("failed to submit the increment_count transaction")?;
-    eprintln!("Submitted increment_count transaction {}", tx_id.to_hex());
-
-    wait_for_commitment(&mut client, tx_id).await?;
-
+/// Writes the `fixtures.ts` export for the deployed account. Only the id is
+/// generated here; the account and note blobs alongside it in
+/// `packages/test-utils/src/fixtures.ts` are captured separately.
+fn emit_fixtures(account_id: AccountId, out: Option<PathBuf>) -> Result<()> {
     let fixtures = format!(
         "export const COUNTER_CONTRACT_ID_1 = \"{}\";\n",
         account_id.to_hex()
     );
-    match args.out {
+
+    match out {
         Some(path) => {
             std::fs::write(&path, &fixtures)
                 .with_context(|| format!("failed to write {}", path.display()))?;
@@ -296,4 +284,38 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let args = Args::parse();
+    let network_id = NetworkId::new(&args.network_id)
+        .with_context(|| format!("`{}` is not a valid network id", args.network_id))?;
+    let examples_dir = args.examples_dir.unwrap_or_else(default_examples_dir);
+
+    // Everything transient — the midenc build artifacts, the store and the
+    // keystore — lives under one temporary directory that goes away on exit.
+    let workdir = tempfile::tempdir().context("failed to create a temporary working directory")?;
+    let midenc_target_dir = workdir.path().join("midenc");
+
+    let auth_package = build_package(&examples_dir, AUTH_COMPONENT, &midenc_target_dir)?;
+    let account_package = build_package(&examples_dir, ACCOUNT_COMPONENT, &midenc_target_dir)?;
+    let tx_script_package = build_package(&examples_dir, TX_SCRIPT, &midenc_target_dir)?;
+
+    let mut client = connect(&network_id, workdir.path()).await?;
+    let summary = client.sync_state().await.context("failed to sync state")?;
+    eprintln!(
+        "Connected to {network_id}. Latest block: {}",
+        summary.block_num
+    );
+
+    let account_id = deploy_account(
+        &mut client,
+        &account_package,
+        &auth_package,
+        &tx_script_package,
+    )
+    .await?;
+
+    emit_fixtures(account_id, args.out)
 }

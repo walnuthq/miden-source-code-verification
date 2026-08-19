@@ -1,7 +1,7 @@
 cargo-features = ["trim-paths"]
 
 [package]
-name = "auth-component-rpo-falcon512"
+name = "count-reader"
 version = "0.1.0"
 edition = "2024"
 

@@ -16,7 +16,7 @@ use miden_client_sqlite_store::ClientBuilderSqliteExt;
 // use miden_standards::account::access::{Authority, Ownable2Step, RoleBasedAccessControl};
 // use miden_standards::account::auth::{
 //     AuthGuardedMultisig, AuthMultisig, AuthMultisigSmart, AuthNetworkAccount, AuthSingleSig,
-//     AuthSingleSigAcl, NoAuth,
+//     NoAuth,
 // };
 // use miden_standards::account::faucets::FungibleFaucet;
 // use miden_standards::account::wallets::BasicWallet;
@@ -99,9 +99,6 @@ fn verify_account_component(account: Account, package: Package) -> Result<Value>
             }
             AccountComponentInterface::AuthSingleSig => {
                 components.push("AuthSingleSig".to_string())
-            }
-            AccountComponentInterface::AuthSingleSigAcl => {
-                components.push("AuthSingleSigAcl".to_string())
             }
             AccountComponentInterface::AuthMultisig => {
                 components.push("AuthMultisig".to_string())
@@ -190,7 +187,6 @@ async fn main() -> Result<()> {
         ("Ownable2Step", Ownable2Step::code()),
         ("RoleBasedAccessControl", RoleBasedAccessControl::code()),
         ("AuthSingleSig", AuthSingleSig::code()),
-        ("AuthSingleSigAcl", AuthSingleSigAcl::code()),
         ("AuthMultisig", AuthMultisig::code()),
         ("AuthMultisigSmart", AuthMultisigSmart::code()),
         ("AuthGuardedMultisig", AuthGuardedMultisig::code()),
