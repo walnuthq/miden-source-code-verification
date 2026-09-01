@@ -15,8 +15,7 @@ use miden_client::{
 use miden_client_sqlite_store::ClientBuilderSqliteExt;
 // use miden_standards::account::access::{Authority, Ownable2Step, RoleBasedAccessControl};
 // use miden_standards::account::auth::{
-//     AuthGuardedMultisig, AuthMultisig, AuthMultisigSmart, AuthNetworkAccount, AuthSingleSig,
-//     NoAuth,
+//     AuthGuardedMultisig, AuthMultisig, AuthMultisigSmart, AuthNetworkAccount, AuthSingleSig, NoAuth,
 // };
 // use miden_standards::account::faucets::FungibleFaucet;
 // use miden_standards::account::wallets::BasicWallet;
@@ -108,9 +107,7 @@ fn verify_account_component(account: Account, package: Package) -> Result<Value>
             AccountComponentInterface::AuthSingleSig => {
                 components.push("AuthSingleSig".to_string())
             }
-            AccountComponentInterface::AuthMultisig => {
-                components.push("AuthMultisig".to_string())
-            }
+            AccountComponentInterface::AuthMultisig => components.push("AuthMultisig".to_string()),
             AccountComponentInterface::AuthMultisigSmart => {
                 components.push("AuthMultisigSmart".to_string())
             }
@@ -197,8 +194,7 @@ fn verify_note_script(note_script: &NoteScript, package: Package) -> Result<Valu
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    /*
-    println!("standard notes script roots");
+    /*println!("standard notes script roots");
     println!();
     println!("P2ID: {}", P2idNote::script_root());
     println!("P2IDE: {}", P2ideNote::script_root());
@@ -223,7 +219,7 @@ async fn main() -> Result<()> {
     ];
     for (name, code) in components {
         println!();
-        println!("{} {}", name, code.as_library().digest().to_hex());
+        println!("{} {}", name, code.as_package().digest().to_hex());
         for export in code.exports() {
             println!(
                 "{} {}",
@@ -234,9 +230,7 @@ async fn main() -> Result<()> {
                     .to_hex()
             );
         }
-    }
-    Ok(())
-    */
+    }*/
     let args = Args::parse();
     let args_network_id = NetworkId::new(&args.network_id)?;
     // Initialize client

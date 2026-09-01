@@ -15,9 +15,9 @@ use miden::*;
 /// the `counter-contract` package. The struct cannot be named `CounterContract`, because the
 /// account reference generates a trait of that name.
 #[account(counter_contract::CounterContract)]
-pub struct Counter;
+pub struct CounterAccount;
 
 #[tx_script]
-fn run(_arg: Word, account: &mut Counter) {
+fn run(_arg: Word, account: &mut CounterAccount) {
     account.increment_count();
 }

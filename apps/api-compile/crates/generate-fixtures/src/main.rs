@@ -91,12 +91,10 @@ fn endpoint(network_id: &NetworkId) -> Result<Endpoint> {
 
 /// Builds a client backed by a throwaway store and keystore under `workdir`, so
 /// every run deploys genuinely new resources and no state can leak in from a
-/// previous one. The keystore is handed back as well: the note factory has to
-/// deposit its signing key in it.
-async fn connect(
-    network_id: &NetworkId,
-    workdir: &Path,
-) -> Result<(Client<FilesystemKeyStore>, Arc<FilesystemKeyStore>)> {
+/// previous one. Nothing is ever signed here — every account deployed by this
+/// tool authenticates without a signature — but the client still wants an
+/// authenticator, so the keystore is built and handed to it all the same.
+async fn connect(network_id: &NetworkId, workdir: &Path) -> Result<Client<FilesystemKeyStore>> {
     let rpc_client = Arc::new(GrpcClient::new(&endpoint(network_id)?, RPC_TIMEOUT_MS));
     let keystore = Arc::new(
         FilesystemKeyStore::new(workdir.join("keystore"))
@@ -106,12 +104,12 @@ async fn connect(
     let client = ClientBuilder::new()
         .rpc(rpc_client)
         .sqlite_store(workdir.join("store.sqlite3"))
-        .authenticator(keystore.clone())
+        .authenticator(keystore)
         .build()
         .await
         .context("failed to build the Miden client")?;
 
-    Ok((client, keystore))
+    Ok(client)
 }
 
 /// Builds the two accounts the tests never look up on-chain.
@@ -178,7 +176,7 @@ async fn main() -> Result<()> {
 
     let packages = Packages::build(&examples_dir, &midenc_target_dir)?;
 
-    let (mut client, keystore) = connect(&network_id, workdir.path()).await?;
+    let mut client = connect(&network_id, workdir.path()).await?;
     let summary = client.sync_state().await.context("failed to sync state")?;
     eprintln!(
         "Connected to {network_id}. Latest block: {}",
@@ -194,8 +192,7 @@ async fn main() -> Result<()> {
     ];
 
     let counter_notes =
-        note::emit_counter_notes(&mut client, &keystore, &packages, counter_contracts[0].id())
-            .await?;
+        note::emit_counter_notes(&mut client, &packages, counter_contracts[0].id()).await?;
 
     let (count_reader, basic_wallet) = build_local_accounts(&mut client, &packages)?;
 

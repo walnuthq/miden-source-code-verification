@@ -1,13 +1,12 @@
 //! Creating the counter-note fixtures on-chain.
 
 use anyhow::{Context, Result, anyhow};
-use miden_client::account::component::BasicWallet;
+use miden_client::account::component::{AccountComponentMetadata, BasicWallet};
 use miden_client::account::{
-    AccountBuilder, AccountBuilderSchemaCommitmentExt, AccountId, AccountType,
+    AccountBuilder, AccountBuilderSchemaCommitmentExt, AccountComponent, AccountId, AccountType,
 };
-use miden_client::auth::{Approver, AuthSchemeId, AuthSecretKey, AuthSingleSig};
 use miden_client::crypto::FeltRng;
-use miden_client::keystore::{FilesystemKeyStore, Keystore};
+use miden_client::keystore::FilesystemKeyStore;
 use miden_client::note::{
     Note, NoteAssets, NoteRecipient, NoteScript, NoteStorage, NoteTag, NoteType,
     PartialNoteMetadata,
@@ -19,6 +18,25 @@ use rand::TryRng;
 use crate::account::wait_for_commitment;
 use crate::build::Packages;
 
+/// Name of the auth component the note factory is built with, see
+/// [`build_note_factory`].
+const FACTORY_AUTH_NAME: &str = "walnut::fixtures::note_factory_auth";
+
+/// The note factory's authentication procedure: bump the nonce, pay no fee.
+///
+/// It is the same procedure `miden-standards` ships as its `incr_nonce` testing
+/// component, minus the test-only packaging — see [`build_note_factory`] for why
+/// none of the auth components meant for production can be used here.
+const FACTORY_AUTH_CODE: &str = "
+    use miden::protocol::native_account
+
+    @auth_script
+    pub proc auth_incr_nonce
+        dropw
+        exec.native_account::incr_nonce drop
+    end
+";
+
 /// Emits both counter-note fixtures in a single transaction and returns them
 /// once it is committed.
 ///
@@ -27,11 +45,10 @@ use crate::build::Packages;
 /// never be consumed would be a misleading fixture.
 pub async fn emit_counter_notes(
     client: &mut Client<FilesystemKeyStore>,
-    keystore: &FilesystemKeyStore,
     packages: &Packages,
     target: AccountId,
 ) -> Result<[Note; 2]> {
-    let factory = build_note_factory(client, keystore).await?;
+    let factory = build_note_factory(client).await?;
 
     let script = NoteScript::from_package(&packages.counter_note)
         .map_err(|err| anyhow!("failed to build the counter-note script: {err}"))?;
@@ -66,28 +83,46 @@ pub async fn emit_counter_notes(
 
 /// Builds and registers the throwaway account that emits the notes.
 ///
-/// Unlike every other account here this one is assembled from the components
-/// `miden-standards` ships rather than from `examples/`, because
-/// `own_output_notes` hands script building to the client and the send-notes
-/// script is only derivable for an account exposing the *standard*
-/// `BasicWallet` procedure roots. `examples/basic-wallet` compiles to different
-/// roots, so it reads as a custom component and no such script exists for it.
+/// Unlike every other account here this one is not assembled from `examples/`,
+/// because both halves of it have to satisfy constraints the examples do not.
 ///
-/// The auth component is `AuthSingleSig` rather than `NoAuth` for a related
-/// reason: no-auth only bumps the nonce when the account commitment moves, and
-/// emitting asset-less notes touches neither vault nor storage. A no-auth
-/// factory would sit at nonce 0, never commit, and take its output notes down
-/// with it. Single-sig increments unconditionally, so deploying the factory and
-/// emitting the notes happen in the same transaction.
-async fn build_note_factory(
-    client: &mut Client<FilesystemKeyStore>,
-    keystore: &FilesystemKeyStore,
-) -> Result<AccountId> {
-    let key = AuthSecretKey::new_falcon512_poseidon2_with_rng(client.rng());
-    let approver = Approver::new(
-        key.public_key().to_commitment(),
-        AuthSchemeId::Falcon512Poseidon2,
-    );
+/// The wallet half is the `BasicWallet` component `miden-standards` ships rather
+/// than `examples/basic-wallet`, because `own_output_notes` hands script building
+/// to the client and the send-notes script is only derivable for an account
+/// exposing the *standard* wallet procedure roots. `examples/basic-wallet`
+/// compiles to different roots, so it reads as a custom component and no such
+/// script exists for it.
+///
+/// The auth half is compiled here rather than taken from either source, because
+/// nothing on offer fits a brand-new account holding no assets:
+///
+/// - Every auth component `miden-standards` ships (`NoAuth`, `AuthSingleSig`, …)
+///   pays the transaction fee out of the account's vault. The fee is
+///   `verification_base_fee * ceil(log2(cycles))`, and devnet prices the base fee
+///   at 10000, so it is never zero and an empty vault can never cover it. That is
+///   what this factory used to fail on: `AuthSingleSig` aborts with "paying a
+///   non-zero fee requires conversion info committed via the auth args" before it
+///   even gets as far as the vault.
+/// - `examples/counter-contract/auth-component-no-auth` pays no fee, which is
+///   exactly why the counter contracts can deploy themselves, but it only bumps
+///   the nonce when the account commitment moves. Emitting asset-less notes
+///   touches neither vault nor storage, so a factory using it would sit at nonce
+///   0 — which the kernel rejects outright for an account-creating transaction.
+///
+/// So the factory authenticates with an unconditional nonce bump and no fee at
+/// all, which leaves deploying it and emitting the notes as one transaction.
+async fn build_note_factory(client: &mut Client<FilesystemKeyStore>) -> Result<AccountId> {
+    let auth_code = client
+        .code_builder()
+        .compile_component_code(FACTORY_AUTH_NAME, FACTORY_AUTH_CODE)
+        .map_err(|err| anyhow!("failed to compile the note factory's auth component: {err}"))?;
+    let auth_component = AccountComponent::new(
+        auth_code,
+        vec![],
+        AccountComponentMetadata::new(FACTORY_AUTH_NAME)
+            .with_description("Increments the nonce and pays no transaction fee"),
+    )
+    .map_err(|err| anyhow!("failed to build the note factory's auth component: {err}"))?;
 
     let mut init_seed = [0_u8; 32];
     client
@@ -98,14 +133,10 @@ async fn build_note_factory(
     let account = AccountBuilder::new(init_seed)
         .account_type(AccountType::Public)
         .with_component(BasicWallet)
-        .with_component(AuthSingleSig::new(approver))
+        .with_component(auth_component)
         .build_with_schema_commitment()
         .context("failed to build the note factory account")?;
 
-    keystore
-        .add_key(&key, account.id())
-        .await
-        .context("failed to store the note factory's signing key")?;
     client
         .add_account(&account, false)
         .await
