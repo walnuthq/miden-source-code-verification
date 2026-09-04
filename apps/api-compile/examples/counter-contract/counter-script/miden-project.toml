@@ -4,7 +4,6 @@ version = "0.1.0"
 
 [lib]
 kind = "tx-script"
-# The toolchain requires every `tx-script` project to declare this namespace.
 namespace = "miden:base/transaction-script@1.0.0"
 path = "src/lib.rs"
 
@@ -12,6 +11,3 @@ path = "src/lib.rs"
 miden-core = "*"
 miden-protocol = "*"
 counter-contract = { path = "../counter-contract" }
-
-[package.metadata.miden.dependencies]
-counter-contract = { wit = "../counter-contract/target/generated-wit/" }

@@ -22,13 +22,13 @@ ENV RUSTUP_HOME=/usr/local/rustup \
     PATH=/usr/local/cargo/bin:$PATH
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-  | sh -s -- -y --no-modify-path --profile minimal --default-toolchain nightly-2026-04-30
+  | sh -s -- -y --no-modify-path --profile minimal --default-toolchain nightly-2026-09-01
 
 # Build cargo-miden + miden-package-metadata + miden-verifier + miden-import (cargo cache via BuildKit, never persisted in layer)
 FROM rust AS rust-builder
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
-    cargo install cargo-miden --version 0.10.0-rc.1
+    cargo install cargo-miden --version 0.10.0
 
 WORKDIR /home/node/crates
 COPY apps/api-compile/crates .

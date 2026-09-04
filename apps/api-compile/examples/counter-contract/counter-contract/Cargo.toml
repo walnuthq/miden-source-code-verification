@@ -7,12 +7,13 @@ version = "0.1.0"
 edition = "2024"
 
 [lib]
-# Build this crate as a self-contained, C-style dynamic library
-# This is required to emit the proper Wasm module type
 crate-type = ["cdylib"]
 
 [dependencies]
-miden = "0.14.0-rc.1"
+miden = "0.14"
+
+[build-dependencies]
+miden-sdk-build-script-support = "0.14"
 
 [profile.release]
 trim-paths = ["diagnostics", "object"]

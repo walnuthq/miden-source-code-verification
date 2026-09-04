@@ -67,12 +67,18 @@ fn build_package(
 }
 
 /// Every example package the fixtures are built from.
+///
+/// `examples/counter-contract/counter-script` is absent: it used to drive the
+/// counter contracts' deploying transaction, but on a fee-charging chain the
+/// transaction script slot is taken by the fee note (see
+/// `account::deploy_counter_contract`), and the increment moved to the
+/// counter-note. The example is still shipped and still part of the payload the
+/// verification tests send.
 pub struct Packages {
     pub auth_no_auth: Package,
     pub counter_contract: Package,
     pub count_reader: Package,
     pub counter_note: Package,
-    pub counter_script: Package,
     pub basic_wallet: Package,
     pub auth_rpo_falcon512: Package,
 }
@@ -82,15 +88,14 @@ impl Packages {
     pub fn build(examples_dir: &Path, midenc_target_dir: &Path) -> Result<Self> {
         let build = |group, project| build_package(examples_dir, group, project, midenc_target_dir);
 
-        // `counter-contract` comes first within its group: `count-reader`,
-        // `counter-note` and `counter-script` each declare a WIT dependency on
+        // `counter-contract` comes first within its group: `count-reader` and
+        // `counter-note` each declare a WIT dependency on
         // `../counter-contract/target/generated-wit/`, which only exists once
         // the account component itself has been compiled.
         let auth_no_auth = build("counter-contract", "auth-component-no-auth")?;
         let counter_contract = build("counter-contract", "counter-contract")?;
         let count_reader = build("counter-contract", "count-reader")?;
         let counter_note = build("counter-contract", "counter-note")?;
-        let counter_script = build("counter-contract", "counter-script")?;
 
         let basic_wallet = build("basic-wallet", "basic-wallet")?;
         let auth_rpo_falcon512 = build("basic-wallet", "auth-component-rpo-falcon512")?;
@@ -100,7 +105,6 @@ impl Packages {
             counter_contract,
             count_reader,
             counter_note,
-            counter_script,
             basic_wallet,
             auth_rpo_falcon512,
         })

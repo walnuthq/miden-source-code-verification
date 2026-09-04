@@ -10,18 +10,18 @@ use miden_client::account::component::{
     AccountComponentMetadata, InitStorageData, SchemaType, WordValue,
 };
 use miden_client::account::{
-    Account, AccountBuilder, AccountBuilderSchemaCommitmentExt, AccountComponent, AccountType,
+    Account, AccountBuilder, AccountBuilderSchemaCommitmentExt, AccountComponent, AccountId,
+    AccountType,
 };
 use miden_client::keystore::FilesystemKeyStore;
+use miden_client::note::Note;
 use miden_client::store::TransactionFilter;
-use miden_client::transaction::{
-    TransactionId, TransactionRequestBuilder, TransactionScript, TransactionStatus,
-};
+use miden_client::transaction::{TransactionId, TransactionRequestBuilder, TransactionStatus};
 use miden_client::vm::Package;
 use miden_client::{Client, ClientRng, Word};
 use rand::TryRng;
 
-use crate::build::Packages;
+use crate::fee::FeeContext;
 
 /// How long to wait for a deploying transaction to be committed on-chain.
 const COMMIT_TIMEOUT: Duration = Duration::from_secs(120);
@@ -71,10 +71,16 @@ fn account_component(package: &Package, public_key: Option<Word>) -> Result<Acco
 /// standard ones `miden-standards` ships. That is what makes the api-compile
 /// verification tests meaningful: they verify those very sources against these
 /// accounts.
+///
+/// `standard_components` are added on top. Only the accounts that transact need
+/// any — see [`deploy_counter_contract`] — and the verifier is unbothered by
+/// them: it checks that every procedure a package exports is present in the
+/// account's code, not that the account holds nothing else.
 pub fn assemble(
     rng: &mut ClientRng,
     packages: &[&Package],
     public_key: Option<Word>,
+    standard_components: Vec<AccountComponent>,
 ) -> Result<Account> {
     let mut init_seed = [0_u8; 32];
     rng.try_fill_bytes(&mut init_seed)
@@ -91,6 +97,9 @@ pub fn assemble(
     for package in packages {
         builder = builder.with_component(account_component(package, public_key)?);
     }
+    for component in standard_components {
+        builder = builder.with_component(component);
+    }
 
     // `build_with_schema_commitment` rather than plain `build`: it is what the
     // miden CLI does by default, and the storage slot it adds is what lets
@@ -102,40 +111,41 @@ pub fn assemble(
 
 // --- Deploying ---
 
-/// Creates a counter-contract account locally and then commits it on-chain by
-/// running `increment_count` against it, returning the account the node ends up
-/// holding.
+/// Commits an assembled counter-contract account on-chain and returns the account
+/// the node ends up holding.
+///
+/// `increment` is the counter-note the account consumes, whose script runs
+/// `increment_count`. The increment does not ride on a transaction script,
+/// because on a fee-charging chain the transaction script slot is taken: the
+/// account's auth component is `examples/counter-contract/auth-component-no-auth`,
+/// which cannot create a fee note (midenc links neither `miden::standards::fee`
+/// nor a Rust binding for the kernel's fee procedures), so the only thing left
+/// that can is the send-notes script the client derives from `own_output_notes` —
+/// and `TransactionRequestBuilder` rejects that together with a custom script.
+/// A note script runs independently of the transaction script, so putting the
+/// increment in a note leaves the script free to carry the fee.
+///
+/// `funding` and `fees` are `None` on a chain that charges no fee, where the
+/// storage change from `increment_count` is by itself enough to move the account
+/// commitment — which is the only thing that makes no-auth bump the nonce, and a
+/// transaction leaving the state untouched would leave the account at nonce 0,
+/// that is, undeployed.
 pub async fn deploy_counter_contract(
     client: &mut Client<FilesystemKeyStore>,
-    packages: &Packages,
+    account_id: AccountId,
+    increment: Note,
+    funding: Option<Note>,
+    fees: Option<&FeeContext>,
 ) -> Result<Account> {
-    let account = assemble(
-        client.rng(),
-        &[&packages.counter_contract, &packages.auth_no_auth],
-        None,
-    )?;
-    let account_id = account.id();
-    client
-        .add_account(&account, false)
-        .await
-        .context("failed to add the account to the client")?;
-    eprintln!("Created counter-contract account {}", account_id.to_hex());
+    let fee_note = fees
+        .map(|fees| fees.fee_note(account_id, client.rng()))
+        .transpose()?;
 
-    // `counter-script` is a `kind = "tx-script"` project, so it compiles to a
-    // library rather than an executable. `from_package` handles both: for a
-    // library it looks for the single export carrying the `@transaction_script`
-    // attribute, which is what `#[tx_script] fn run` lowers to.
-    let tx_script = TransactionScript::from_package(&packages.counter_script)
-        .map_err(|err| anyhow!("failed to build the transaction script: {err}"))?;
-
-    // The account authenticates itself with no-auth, so it can run its own
-    // deploying transaction — no separate funded wallet is involved. It is
-    // `increment_count` writing to the storage map that moves the account
-    // commitment, which is the only thing that makes no-auth bump the nonce: a
-    // transaction leaving the state untouched would leave the account at nonce
-    // 0, that is, undeployed.
     let request = TransactionRequestBuilder::new()
-        .custom_script(tx_script)
+        // The funding note is consumed first so its assets are in the vault by
+        // the time the fee note is funded out of it.
+        .input_notes(funding.into_iter().chain([increment]).map(|note| (note, None)))
+        .own_output_notes(fee_note)
         .build()
         .context("failed to build the transaction request")?;
     let tx_id = client

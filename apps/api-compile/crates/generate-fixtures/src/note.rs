@@ -1,9 +1,9 @@
 //! Creating the counter-note fixtures on-chain.
 
 use anyhow::{Context, Result, anyhow};
-use miden_client::account::component::{AccountComponentMetadata, BasicWallet};
+use miden_client::account::component::{BasicWallet, NoAuth};
 use miden_client::account::{
-    AccountBuilder, AccountBuilderSchemaCommitmentExt, AccountComponent, AccountId, AccountType,
+    AccountBuilder, AccountBuilderSchemaCommitmentExt, AccountId, AccountType,
 };
 use miden_client::crypto::FeltRng;
 use miden_client::keystore::FilesystemKeyStore;
@@ -18,56 +18,62 @@ use rand::TryRng;
 use crate::account::wait_for_commitment;
 use crate::build::Packages;
 
-/// Name of the auth component the note factory is built with, see
-/// [`build_note_factory`].
-const FACTORY_AUTH_NAME: &str = "walnut::fixtures::note_factory_auth";
+/// Every counter-note this tool emits.
+pub struct Notes {
+    /// The two the tests look up by id. Nothing consumes them: the registry needs
+    /// two distinct note ids resolving to one script root, and a spent note would
+    /// be a poor fixture for that.
+    pub fixtures: [Note; 2],
+    /// One per counter contract, consumed by it in its own transaction. This is
+    /// what runs `increment_count` — see [`crate::account::deploy_counter_contract`]
+    /// for why the counter-note carries the increment rather than
+    /// `examples/counter-contract/counter-script`.
+    pub increments: [Note; 2],
+}
 
-/// The note factory's authentication procedure: bump the nonce, pay no fee.
+/// Emits every counter-note in a single transaction and returns them once it is
+/// committed.
 ///
-/// It is the same procedure `miden-standards` ships as its `incr_nonce` testing
-/// component, minus the test-only packaging — see [`build_note_factory`] for why
-/// none of the auth components meant for production can be used here.
-const FACTORY_AUTH_CODE: &str = "
-    use miden::protocol::native_account
-
-    @auth_script
-    pub proc auth_incr_nonce
-        dropw
-        exec.native_account::incr_nonce drop
-    end
-";
-
-/// Emits both counter-note fixtures in a single transaction and returns them
-/// once it is committed.
+/// `counter_contracts` are the accounts the notes are tagged for. They only have
+/// to be assembled, not yet deployed: a note is tagged with an account id, and
+/// the id is fixed the moment the account is built.
 ///
-/// `target` is the counter-contract account the notes are tagged for. Nothing
-/// consumes them — the tests only ever fetch them by id — but a note that could
-/// never be consumed would be a misleading fixture.
-pub async fn emit_counter_notes(
+/// `funding` is the note the factory pays its own transaction fee out of, or
+/// `None` on a chain that charges none.
+pub async fn emit_notes(
     client: &mut Client<FilesystemKeyStore>,
     packages: &Packages,
-    target: AccountId,
-) -> Result<[Note; 2]> {
-    let factory = build_note_factory(client).await?;
-
+    factory: AccountId,
+    counter_contracts: [AccountId; 2],
+    funding: Option<Note>,
+) -> Result<Notes> {
     let script = NoteScript::from_package(&packages.counter_note)
         .map_err(|err| anyhow!("failed to build the counter-note script: {err}"))?;
 
     // Same script, same (empty) storage and assets — only the serial number
     // differs. That is exactly what the registry tests need: two distinct note
     // ids resolving to one script root.
-    let notes = [
-        build_note(client.rng(), &script, factory, target)?,
-        build_note(client.rng(), &script, factory, target)?,
+    let fixtures = [
+        build_note(client.rng(), &script, factory, counter_contracts[0])?,
+        build_note(client.rng(), &script, factory, counter_contracts[0])?,
     ];
-    for note in &notes {
+    for note in &fixtures {
         eprintln!("Created counter-note {}", note.id().to_hex());
+    }
+
+    let increments = [
+        build_note(client.rng(), &script, factory, counter_contracts[0])?,
+        build_note(client.rng(), &script, factory, counter_contracts[1])?,
+    ];
+    for note in &increments {
+        eprintln!("Created increment note {}", note.id().to_hex());
     }
 
     // No custom script: `own_output_notes` leaves the transaction script to the
     // client, which derives a `send_notes` script from the factory's interface.
     let request = TransactionRequestBuilder::new()
-        .own_output_notes(notes.clone())
+        .input_notes(funding.map(|note| (note, None)))
+        .own_output_notes(fixtures.iter().chain(increments.iter()).cloned())
         .build()
         .context("failed to build the note-creating transaction request")?;
     let tx_id = client
@@ -78,52 +84,36 @@ pub async fn emit_counter_notes(
 
     wait_for_commitment(client, tx_id).await?;
 
-    Ok(notes)
+    Ok(Notes {
+        fixtures,
+        increments,
+    })
 }
 
 /// Builds and registers the throwaway account that emits the notes.
 ///
-/// Unlike every other account here this one is not assembled from `examples/`,
-/// because both halves of it have to satisfy constraints the examples do not.
+/// Unlike every other account here this one is assembled from the components
+/// `miden-standards` ships rather than from `examples/`, and both halves have to
+/// be:
 ///
-/// The wallet half is the `BasicWallet` component `miden-standards` ships rather
-/// than `examples/basic-wallet`, because `own_output_notes` hands script building
-/// to the client and the send-notes script is only derivable for an account
-/// exposing the *standard* wallet procedure roots. `examples/basic-wallet`
-/// compiles to different roots, so it reads as a custom component and no such
-/// script exists for it.
+/// - `own_output_notes` hands script building to the client, and the send-notes
+///   script is only derivable for an account exposing the *standard* wallet
+///   procedure roots. `examples/basic-wallet` compiles to different roots, so it
+///   reads as a custom component and no such script exists for it.
+/// - `NoAuth` pays the transaction fee out of the account's vault, which is the
+///   whole reason the factory can transact on a fee-charging chain at all: no
+///   component compiled by midenc can create a fee note, since midenc links
+///   neither `miden::standards::fee` nor a Rust binding for the kernel's fee
+///   procedures. It also bumps the nonce for an account at nonce 0 even when
+///   nothing else moved, which matters because emitting asset-less notes touches
+///   neither vault nor storage — and an account left at nonce 0 is one the kernel
+///   rejects outright for an account-creating transaction.
 ///
-/// The auth half is compiled here rather than taken from either source, because
-/// nothing on offer fits a brand-new account holding no assets:
-///
-/// - Every auth component `miden-standards` ships (`NoAuth`, `AuthSingleSig`, …)
-///   pays the transaction fee out of the account's vault. The fee is
-///   `verification_base_fee * ceil(log2(cycles))`, and devnet prices the base fee
-///   at 10000, so it is never zero and an empty vault can never cover it. That is
-///   what this factory used to fail on: `AuthSingleSig` aborts with "paying a
-///   non-zero fee requires conversion info committed via the auth args" before it
-///   even gets as far as the vault.
-/// - `examples/counter-contract/auth-component-no-auth` pays no fee, which is
-///   exactly why the counter contracts can deploy themselves, but it only bumps
-///   the nonce when the account commitment moves. Emitting asset-less notes
-///   touches neither vault nor storage, so a factory using it would sit at nonce
-///   0 — which the kernel rejects outright for an account-creating transaction.
-///
-/// So the factory authenticates with an unconditional nonce bump and no fee at
-/// all, which leaves deploying it and emitting the notes as one transaction.
-async fn build_note_factory(client: &mut Client<FilesystemKeyStore>) -> Result<AccountId> {
-    let auth_code = client
-        .code_builder()
-        .compile_component_code(FACTORY_AUTH_NAME, FACTORY_AUTH_CODE)
-        .map_err(|err| anyhow!("failed to compile the note factory's auth component: {err}"))?;
-    let auth_component = AccountComponent::new(
-        auth_code,
-        vec![],
-        AccountComponentMetadata::new(FACTORY_AUTH_NAME)
-            .with_description("Increments the nonce and pays no transaction fee"),
-    )
-    .map_err(|err| anyhow!("failed to build the note factory's auth component: {err}"))?;
-
+/// So deploying the factory and emitting the notes stay one transaction, with the
+/// funding note it consumes covering the fee. It is built ahead of that
+/// transaction rather than inside it because the funder has to know where to send
+/// that note.
+pub async fn create_factory(client: &mut Client<FilesystemKeyStore>) -> Result<AccountId> {
     let mut init_seed = [0_u8; 32];
     client
         .rng()
@@ -133,7 +123,7 @@ async fn build_note_factory(client: &mut Client<FilesystemKeyStore>) -> Result<A
     let account = AccountBuilder::new(init_seed)
         .account_type(AccountType::Public)
         .with_component(BasicWallet)
-        .with_component(auth_component)
+        .with_component(NoAuth)
         .build_with_schema_commitment()
         .context("failed to build the note factory account")?;
 

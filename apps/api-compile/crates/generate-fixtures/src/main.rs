@@ -15,20 +15,28 @@
 //! The accounts are assembled from the compiled example crates rather than from
 //! the standard components `miden-standards` ships. That is what makes the
 //! api-compile verification tests meaningful: they verify those very sources
-//! against these accounts. The lone exception is the throwaway account that
-//! emits the notes — see `note::build_note_factory`.
+//! against these accounts. The lone exception is the throwaway accounts that
+//! emit the notes and pay for everything — see `note::create_factory` and
+//! `fee::fund`.
+//!
+//! On a chain that charges a transaction fee every account that transacts also
+//! carries the standard `BasicWallet`, and is funded from the public faucet
+//! before it does. `fee` explains why that is unavoidable.
 
 mod account;
 mod build;
+mod fee;
 mod fixtures;
 mod note;
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;
-use miden_client::account::Account;
+use miden_client::account::component::BasicWallet;
+use miden_client::account::{Account, AccountComponent};
 use miden_client::address::NetworkId;
 use miden_client::auth::AuthSecretKey;
 use miden_client::builder::ClientBuilder;
@@ -38,6 +46,7 @@ use miden_client::{Client, Word};
 use miden_client_sqlite_store::ClientBuilderSqliteExt;
 
 use crate::build::Packages;
+use crate::fee::FeeContext;
 use crate::fixtures::Fixtures;
 
 /// Network id of a locally running node. `miden-client` reaches it through
@@ -46,6 +55,9 @@ use crate::fixtures::Fixtures;
 const LOCALHOST_NETWORK_ID: &str = "mlcl";
 
 const RPC_TIMEOUT_MS: u64 = 10_000;
+
+const DEVNET_FAUCET_URL: &str = "https://faucet-api.devnet.miden.io";
+const TESTNET_FAUCET_URL: &str = "https://faucet-api.testnet.miden.io";
 
 // --- CLI ---
 
@@ -68,6 +80,12 @@ struct Args {
     #[arg(long)]
     artifacts_dir: Option<PathBuf>,
 
+    /// Faucet to draw the native fee asset from. Only used on a chain that
+    /// charges a transaction fee; defaults to the public faucet of the network
+    /// being deployed to.
+    #[arg(long)]
+    faucet_url: Option<String>,
+
     /// Write the generated fixtures here instead of stdout.
     #[arg(long)]
     out: Option<PathBuf>,
@@ -86,6 +104,19 @@ fn endpoint(network_id: &NetworkId) -> Result<Endpoint> {
         NetworkId::Testnet => Ok(Endpoint::testnet()),
         _ if network_id.as_str() == LOCALHOST_NETWORK_ID => Ok(Endpoint::localhost()),
         other => bail!("unsupported network `{other}`; expected `mtst`, `mdev` or `mlcl`"),
+    }
+}
+
+/// Resolves the faucet to draw the fee asset from. A local node has no public
+/// faucet, so a fee-charging one has to be told where to look.
+fn faucet_url(network_id: &NetworkId) -> Result<String> {
+    match network_id {
+        NetworkId::Devnet => Ok(DEVNET_FAUCET_URL.to_string()),
+        NetworkId::Testnet => Ok(TESTNET_FAUCET_URL.to_string()),
+        other => bail!(
+            "`{other}` charges a transaction fee and has no public faucet to draw it from; pass \
+             --faucet-url"
+        ),
     }
 }
 
@@ -112,12 +143,27 @@ async fn connect(network_id: &NetworkId, workdir: &Path) -> Result<Client<Filesy
     Ok(client)
 }
 
+/// The standard components an account has to carry to transact on this chain.
+///
+/// On a fee-charging chain that is `BasicWallet`, twice over: consuming the P2ID
+/// note that funds the account calls its `receive_asset`, and the send-notes
+/// script the client derives for the fee note calls its `move_asset_to_note`.
+/// On a fee-free chain nothing is added, and the fixtures stay exactly what they
+/// were before fees existed.
+fn transacting_components(fees: Option<&FeeContext>) -> Vec<AccountComponent> {
+    match fees {
+        Some(_) => vec![BasicWallet.into()],
+        None => vec![],
+    }
+}
+
 /// Builds the two accounts the tests never look up on-chain.
 ///
 /// `count-reader` authenticates with no-auth like the counter contract does;
 /// `basic-wallet` pairs with the RPO-Falcon512 component, whose public-key slot
 /// is filled from a freshly drawn key. Neither is added to the client: nothing
-/// is ever signed or submitted for them.
+/// is ever signed or submitted for them, so neither needs to be able to pay a
+/// fee either.
 fn build_local_accounts(
     client: &mut Client<FilesystemKeyStore>,
     packages: &Packages,
@@ -126,6 +172,7 @@ fn build_local_accounts(
         client.rng(),
         &[&packages.count_reader, &packages.auth_no_auth],
         None,
+        vec![],
     )?;
     eprintln!("Built count-reader account {}", count_reader.id().to_hex());
 
@@ -138,10 +185,47 @@ fn build_local_accounts(
         client.rng(),
         &[&packages.basic_wallet, &packages.auth_rpo_falcon512],
         Some(public_key),
+        vec![],
     )?;
     eprintln!("Built basic-wallet account {}", basic_wallet.id().to_hex());
 
     Ok((count_reader, basic_wallet))
+}
+
+/// Assembles the two counter-contract accounts and registers them with the
+/// client, without submitting anything.
+///
+/// They exist before any transaction does because the notes that deploy them are
+/// tagged for them, and the note factory has to emit those notes first.
+///
+/// Both are assembled from the same components with the same (empty) initial
+/// storage, so they share a code commitment — which is what lets api-registry
+/// answer a lookup of one with a verification of the other.
+async fn assemble_counter_contracts(
+    client: &mut Client<FilesystemKeyStore>,
+    packages: &Packages,
+    fees: Option<&FeeContext>,
+) -> Result<[Account; 2]> {
+    let mut accounts = Vec::with_capacity(2);
+
+    for _ in 0..2 {
+        let account = account::assemble(
+            client.rng(),
+            &[&packages.counter_contract, &packages.auth_no_auth],
+            None,
+            transacting_components(fees),
+        )?;
+        client
+            .add_account(&account, false)
+            .await
+            .context("failed to add the account to the client")?;
+        eprintln!("Created counter-contract account {}", account.id().to_hex());
+        accounts.push(account);
+    }
+
+    Ok(accounts
+        .try_into()
+        .unwrap_or_else(|_| unreachable!("the loop pushes exactly two accounts")))
 }
 
 fn write_fixtures(fixtures: &Fixtures, out: Option<PathBuf>) -> Result<()> {
@@ -183,16 +267,66 @@ async fn main() -> Result<()> {
         summary.block_num
     );
 
-    // Both counter contracts are assembled from the same components with the same
-    // (empty) initial storage, so they share a code commitment — which is what
-    // lets api-registry answer a lookup of one with a verification of the other.
-    let counter_contracts = [
-        account::deploy_counter_contract(&mut client, &packages).await?,
-        account::deploy_counter_contract(&mut client, &packages).await?,
-    ];
+    let fees = FeeContext::detect(&client).await?;
+    match &fees {
+        Some(fees) => eprintln!(
+            "Chain charges fees; every transaction pays {}",
+            fees.fee_note_amount()
+        ),
+        None => eprintln!("Chain charges no fees; nothing needs funding"),
+    }
 
-    let counter_notes =
-        note::emit_counter_notes(&mut client, &packages, counter_contracts[0].id()).await?;
+    let counter_contracts = assemble_counter_contracts(&mut client, &packages, fees.as_ref()).await?;
+    let counter_ids = [counter_contracts[0].id(), counter_contracts[1].id()];
+    let factory = note::create_factory(&mut client).await?;
+
+    // Everything that transacts is paid up front, in one go, so the faucet is
+    // asked for tokens once per run.
+    let mut funding = match &fees {
+        Some(fees) => {
+            let url = match args.faucet_url {
+                Some(url) => url,
+                None => faucet_url(&network_id)?,
+            };
+            fee::fund(
+                &mut client,
+                fees,
+                &network_id,
+                &url,
+                &[counter_ids[0], counter_ids[1], factory],
+            )
+            .await?
+        }
+        None => BTreeMap::new(),
+    };
+
+    let notes = note::emit_notes(
+        &mut client,
+        &packages,
+        factory,
+        counter_ids,
+        funding.remove(&factory),
+    )
+    .await?;
+
+    // Deploying reads each account back, so the fixture carries the state the
+    // node actually serves rather than the one assembled above.
+    let mut deployed = Vec::with_capacity(2);
+    for (account_id, increment) in counter_ids.into_iter().zip(notes.increments) {
+        deployed.push(
+            account::deploy_counter_contract(
+                &mut client,
+                account_id,
+                increment,
+                funding.remove(&account_id),
+                fees.as_ref(),
+            )
+            .await?,
+        );
+    }
+    let counter_contracts = deployed
+        .try_into()
+        .unwrap_or_else(|_| unreachable!("the loop pushes exactly two accounts"));
 
     let (count_reader, basic_wallet) = build_local_accounts(&mut client, &packages)?;
 
@@ -202,7 +336,7 @@ async fn main() -> Result<()> {
             counter_contracts,
             count_reader,
             basic_wallet,
-            counter_notes,
+            counter_notes: notes.fixtures,
         },
         args.out,
     )

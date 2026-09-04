@@ -129,13 +129,11 @@ describe("POST /verify", () => {
     );
     expect(files["Cargo.toml"]).toBeDefined();
 
-    const res = await api
-      .post("/verify")
-      .send({
-        files,
-        networkId: otherNetworkId,
-        resourceId: COUNTER_CONTRACT_ID_1,
-      });
+    const res = await api.post("/verify").send({
+      files,
+      networkId: otherNetworkId,
+      resourceId: COUNTER_CONTRACT_ID_1,
+    });
 
     expect(res.status).toBe(500);
   });

@@ -7,9 +7,9 @@ edition = "2024"
 anyhow = "1.0.104"
 base64 = "0.23.1"
 clap = { version = "4.6.6", features = ["derive"] }
-miden-client = { version = "0.16.0-rc.3", features = ["tonic", "testing"] }
-miden-client-sqlite-store = { version = "0.16.0-rc.3", package = "miden-client-sqlite-store" }
-miden-standards = { version = "0.16.0-rc.6" }
-serde_json = { version = "1.0.51", features = ["preserve_order"] }
+miden-client = { version = "0.16.0-rc.5", features = ["tonic", "testing"] }
+miden-client-sqlite-store = { version = "0.16.0-rc.5", package = "miden-client-sqlite-store" }
+miden-standards = { version = "0.16.0-rc.9" }
+serde_json = { version = "1.0.151", features = ["preserve_order"] }
 tokio = { version = "1.53.1", features = ["rt-multi-thread", "net", "macros", "fs"] }
 rand = { version = "0.10.2" }
