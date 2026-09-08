@@ -8,8 +8,8 @@ anyhow = "1.0.104"
 base64 = "0.23.1"
 clap = { version = "4.6.6", features = ["derive"] }
 hex = "0.4.3"
-miden-client = { version = "0.16.0-rc.5", features = ["tonic", "testing"] }
-miden-client-sqlite-store = { version = "0.16.0-rc.5", package = "miden-client-sqlite-store" }
+miden-client = { version = "0.16.0", features = ["tonic", "testing"] }
+miden-client-sqlite-store = { version = "0.16.0", package = "miden-client-sqlite-store" }
 # Only the faucet's two `GET` endpoints are called, so the TLS stack is rustls
 # and everything else is off. `miden-faucet-lib` would hand over the request
 # types, but it pins its own `miden-client` and would duplicate it in the lock.
