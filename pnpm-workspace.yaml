@@ -20,13 +20,3 @@ allowBuilds:
   sharp: true
   workerd: true
   msw: false
-minimumReleaseAgeExclude:
-  - '@rolldown/binding-android-arm64@1.2.2'
-  - '@rolldown/binding-darwin-x64@1.2.5'
-  - '@rolldown/binding-linux-arm64-gnu@1.2.5'
-  - '@miden-sdk/miden-sdk@0.16.0'
-  - '@miden-sdk/node-darwin-arm64@0.16.0'
-  - '@miden-sdk/node-darwin-x64@0.16.0'
-  - '@miden-sdk/node-linux-x64-gnu@0.16.0'
-  - '@miden-sdk/react@0.16.0'
-  - '@miden-sdk/vite-plugin@0.16.0'

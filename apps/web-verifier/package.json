@@ -15,7 +15,7 @@
     "@miden-sdk/react": "0.16.0",
     "@miden-sdk/miden-sdk": "0.16.0",
     "@tailwindcss/vite": "4.3.3",
-    "lucide-react": "1.42.0",
+    "lucide-react": "1.43.0",
     "miden-source-code-verification-ui": "workspace:*",
     "react": "19.2.8",
     "react-dom": "19.2.8",

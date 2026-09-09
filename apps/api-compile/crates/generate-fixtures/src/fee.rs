@@ -30,6 +30,7 @@ use miden_client::asset::FungibleAsset;
 use miden_client::block::BlockNumber;
 use miden_client::keystore::FilesystemKeyStore;
 use miden_client::note::{Note, NoteId, NoteType, P2idNote, TxFeeNote};
+use miden_client::notes::NoteFile;
 use miden_client::transaction::TransactionRequestBuilder;
 use miden_client::{Client, ClientRng};
 use rand::TryRng;
@@ -38,8 +39,16 @@ use sha2::{Digest, Sha256};
 use crate::account::wait_for_commitment;
 
 /// How long to wait for the faucet's mint to show up in the client's store.
-const MINT_TIMEOUT: Duration = Duration::from_secs(180);
-const MINT_POLL_INTERVAL: Duration = Duration::from_secs(3);
+///
+/// The faucet does not mint the P2ID note itself. Its own transaction only
+/// creates a MINT note addressed to its network account, and the P2ID note the
+/// caller is handed is minted later by a *network transaction* the node builds
+/// out of that MINT note — see [`mint`]. So this waits on two chain hops, one of
+/// which is not the faucet's to make, and the timeout is generous accordingly.
+const MINT_TIMEOUT: Duration = Duration::from_secs(600);
+const MINT_POLL_INTERVAL: Duration = Duration::from_secs(5);
+/// How often the wait reports that it is still waiting.
+const MINT_REPORT_INTERVAL: Duration = Duration::from_secs(30);
 
 const FAUCET_TIMEOUT: Duration = Duration::from_secs(60);
 
@@ -210,6 +219,14 @@ async fn build_funder(client: &mut Client<FilesystemKeyStore>) -> Result<Account
 
 /// Asks the public faucet to mint `amount` of the native fee asset to `target`,
 /// and returns the note it created once the client can see it.
+///
+/// The faucet answers as soon as it has submitted its own transaction, and that
+/// transaction does not create the note this returns. Since `miden-faucet` moved
+/// to a network account, the faucet only creates a MINT note addressed to that
+/// account; the P2ID note whose id it hands back is minted afterwards by a
+/// network transaction the node builds out of the MINT note. Waiting for it
+/// therefore waits on the node's network-transaction builder as much as on the
+/// faucet — see [`wait_for_note`].
 async fn mint(
     client: &mut Client<FilesystemKeyStore>,
     network_id: &NetworkId,
@@ -255,15 +272,16 @@ async fn mint(
     )
     .await?;
     eprintln!(
-        "  faucet minted {amount} to {} in note {}",
+        "  faucet minted {amount} to {} in note {} (faucet transaction {})",
         target.to_hex(),
-        minted.note_id
+        minted.note_id,
+        minted.tx_id
     );
 
     let note_id = NoteId::try_from_hex(&minted.note_id)
         .map_err(|err| anyhow!("the faucet returned an unreadable note id: {err}"))?;
 
-    wait_for_note(client, note_id).await
+    wait_for_note(client, note_id, &minted.tx_id).await
 }
 
 /// Solves the faucet's proof-of-work challenge.
@@ -288,28 +306,77 @@ fn solve(challenge: &[u8], target: u64) -> u64 {
     unreachable!("the nonce range is exhausted only after 2^64 hashes")
 }
 
-/// Polls until the minted note is in the client's store. The client registered a
-/// note tag for the funder when the account was added, so a sync is all it takes.
-async fn wait_for_note(client: &mut Client<FilesystemKeyStore>, note_id: NoteId) -> Result<Note> {
-    let deadline = Instant::now() + MINT_TIMEOUT;
+/// Polls until the minted note is in the client's store.
+///
+/// Two things can put it there. The tag-based sync picks it up on its own — the
+/// client registered a note tag for the funder when the account was added — and
+/// an import by id asks the node for the note directly. The import is what keeps
+/// a stall legible: it separates a note the network has not minted yet, which is
+/// what the progress line reports, from one that is on-chain but has not reached
+/// the store, and it recovers from the latter rather than waiting it out.
+async fn wait_for_note(
+    client: &mut Client<FilesystemKeyStore>,
+    note_id: NoteId,
+    faucet_tx_id: &str,
+) -> Result<Note> {
+    let started = Instant::now();
+    let deadline = started + MINT_TIMEOUT;
+    // The wait is long enough to look like a hang, so it reports why it is
+    // waiting — once when it first has something to say, and sparingly after
+    // that.
+    let mut last_report: Option<Instant> = None;
 
     loop {
-        client.sync_state().await.context("failed to sync state")?;
+        let summary = client.sync_state().await.context("failed to sync state")?;
 
-        if let Some(record) = client
+        let mut record = client
             .get_input_note(note_id)
             .await
-            .context("failed to read back the minted note")?
-        {
+            .context("failed to read back the minted note")?;
+
+        if record.is_none() {
+            match client.import_notes(&[NoteFile::NoteId(note_id)]).await {
+                Ok(_) => {
+                    // The note's block can be ahead of the sync above, so sync
+                    // once more: the transaction that consumes the note needs
+                    // that block's header in the store.
+                    client.sync_state().await.context("failed to sync state")?;
+                    record = client
+                        .get_input_note(note_id)
+                        .await
+                        .context("failed to read back the imported note")?;
+                }
+                Err(err) => {
+                    if last_report.is_none_or(|at| at.elapsed() >= MINT_REPORT_INTERVAL) {
+                        eprintln!(
+                            "    waiting for the network to mint it ({}s, chain tip {}): {err}",
+                            started.elapsed().as_secs(),
+                            summary.block_num
+                        );
+                        last_report = Some(Instant::now());
+                    }
+                },
+            }
+        }
+
+        if let Some(record) = record {
+            eprintln!("    note reached the client after {}s", started.elapsed().as_secs());
             return TryInto::<Note>::try_into(record)
                 .map_err(|err| anyhow!("the minted note record carries no metadata: {err}"));
         }
 
         if Instant::now() >= deadline {
             bail!(
-                "the faucet's note {} never reached the client after {}s",
+                "the faucet's note {} never reached the client after {}s.\n\nThe faucet's own \
+                 transaction ({faucet_tx_id}) only creates a MINT note addressed to the faucet's \
+                 network account; the note above is minted from it by a network transaction the \
+                 node builds. A note that never appears is therefore usually the node's \
+                 network-transaction builder standing still rather than a slow faucet — the \
+                 network's status page (e.g. https://status.testnet.miden.io) shows it: a chain \
+                 whose explorer reports zero nullifiers has consumed no note at all, MINT notes \
+                 included.",
                 note_id.to_hex(),
-                MINT_TIMEOUT.as_secs()
+                MINT_TIMEOUT.as_secs(),
             );
         }
         tokio::time::sleep(MINT_POLL_INTERVAL).await;
@@ -325,6 +392,7 @@ struct Challenge {
 #[derive(serde::Deserialize)]
 struct Minted {
     note_id: String,
+    tx_id: String,
 }
 
 /// Calls one of the faucet's `GET` endpoints, reporting the body on failure —
