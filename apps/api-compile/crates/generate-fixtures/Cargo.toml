@@ -1,0 +1,22 @@
+[package]
+name = "generate-fixtures"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.104"
+base64 = "0.23.1"
+clap = { version = "4.6.6", features = ["derive"] }
+hex = "0.4.3"
+miden-client = { version = "0.16.0", features = ["tonic", "testing"] }
+miden-client-sqlite-store = { version = "0.16.0", package = "miden-client-sqlite-store" }
+# Only the faucet's two `GET` endpoints are called, so the TLS stack is rustls
+# and everything else is off. `miden-faucet-lib` would hand over the request
+# types, but it pins its own `miden-client` and would duplicate it in the lock.
+reqwest = { version = "0.13.4", default-features = false, features = ["json", "query", "rustls"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+sha2 = "0.11.0"
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "net", "macros", "fs", "time"] }
+rand = { version = "0.10.2" }
+tempfile = "3.27.0"

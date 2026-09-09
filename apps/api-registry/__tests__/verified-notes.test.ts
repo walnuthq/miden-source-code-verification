@@ -17,12 +17,12 @@ const counterContractDir = `${examplesDir}/counter-contract`;
 const apiUrl = process.env.API_URL ?? "http://localhost:8081";
 const apiV1 = request(`${apiUrl}/v1`);
 
-const networkId = "mtst";
+const networkId = process.env.NETWORK_ID ?? "mtst";
 
 // A second network, used to check that records don't leak across networks. Only
 // ever passed to the script-keyed route, which is a pure database read — so no
 // note has to exist on it.
-const otherNetworkId = "mdev";
+const otherNetworkId = "mlcl";
 
 // All three are counter-note instances that share the same note script, so
 // they resolve to the same `script` in the registry. This is what lets a
@@ -83,7 +83,7 @@ describe("POST /:networkId/verified-notes", () => {
 
     files[`${entrypoint}/src/lib.rs`] = files[
       `${entrypoint}/src/lib.rs`
-    ].replace("CounterContract", "CounterAccount");
+    ].replace("CounterAccount", "Counter");
 
     const res = await apiV1.post(`/${networkId}/verified-notes`).send({
       noteId: COUNTER_NOTE_ID_1,
@@ -137,7 +137,7 @@ describe("POST /:networkId/verified-notes", () => {
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
     files[`${entrypoint}/src/lib.rs`] = files[
       `${entrypoint}/src/lib.rs`
-    ].replace("Felt::from_u32", "felt!");
+    ].replace("felt!", "Felt::from_u32");
 
     const res = await apiV1.post(`/${networkId}/verified-notes`).send({
       noteId: COUNTER_NOTE_ID_1,

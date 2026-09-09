@@ -12,6 +12,7 @@
     }
   },
   "scripts": {
+    "generate-fixtures": "cargo run --release --manifest-path ../../apps/api-compile/crates/generate-fixtures/Cargo.toml -- --out src/fixtures.ts",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome check --write ."

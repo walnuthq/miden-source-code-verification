@@ -5,11 +5,9 @@ version = "0.1.0"
 [lib]
 kind = "tx-script"
 namespace = "miden:base/transaction-script@1.0.0"
+path = "src/lib.rs"
 
 [dependencies]
 miden-core = "*"
 miden-protocol = "*"
 basic-wallet = { path = "../basic-wallet" }
-
-[package.metadata.miden.dependencies]
-basic-wallet = { wit = "../basic-wallet/target/generated-wit/" }

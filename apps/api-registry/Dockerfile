@@ -26,9 +26,12 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 # package's default export condition resolves to at runtime.
 RUN pnpm --filter=miden-source-code-verification-api-registry... build
 # Produce a self-contained, production-only bundle (no workspace symlinks).
-# --legacy is required since api-registry has no injected workspace deps (pnpm v10+).
+# No --legacy: pnpm 12's legacy deploy stages paths through /repo/node_modules,
+# and renaming a directory that lives in a lower image layer fails on overlayfs
+# with EXDEV ("Invalid cross-device link"). The modern deploy reads the shared
+# workspace lockfile and writes only to /prod, so it is unaffected.
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm deploy --legacy --filter=miden-source-code-verification-api-registry --prod /prod/api-registry
+    pnpm deploy --filter=miden-source-code-verification-api-registry --prod /prod/api-registry
 
 # --- Migrate stage: reuses the build stage (drizzle-kit + the committed
 #     drizzle/ migrations) to apply versioned migrations. One-shot compose service. ---

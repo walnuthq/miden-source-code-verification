@@ -22,13 +22,13 @@ ENV RUSTUP_HOME=/usr/local/rustup \
     PATH=/usr/local/cargo/bin:$PATH
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-  | sh -s -- -y --no-modify-path --profile minimal --default-toolchain nightly-2026-04-30
+  | sh -s -- -y --no-modify-path --profile minimal --default-toolchain nightly-2026-09-01
 
 # Build cargo-miden + miden-package-metadata + miden-verifier + miden-import (cargo cache via BuildKit, never persisted in layer)
 FROM rust AS rust-builder
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
-    cargo install cargo-miden --version 0.9.2
+    cargo install cargo-miden --version 0.10.0
 
 WORKDIR /home/node/crates
 COPY apps/api-compile/crates .
@@ -59,7 +59,7 @@ COPY . .
 # build only: on a thin pipe, many parallel multi-MB binary downloads (workerd,
 # biome, miden-sdk) starve each other into the fetch timeout; serializing lets
 # each use the full bandwidth. The generous fetch timeout/retries live in
-# pnpm-workspace.yaml (pnpm 11 only honors these there, not in .npmrc).
+# pnpm-workspace.yaml (pnpm 11+ only honors these there, not in .npmrc).
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --network-concurrency=2 --filter=miden-source-code-verification-api-compile...
 # Compile TypeScript -> dist/ (tsc + tsc-alias rewrites the @/* path aliases).
@@ -70,9 +70,12 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 # package's default export condition resolves to at runtime.
 RUN pnpm --filter=miden-source-code-verification-api-compile... build
 # Produce a self-contained, production-only bundle (no workspace symlinks).
-# --legacy is required since api-compile has no injected workspace deps (pnpm v10+).
+# No --legacy: pnpm 12's legacy deploy stages paths through /repo/node_modules,
+# and renaming a directory that lives in a lower image layer fails on overlayfs
+# with EXDEV ("Invalid cross-device link"). The modern deploy reads the shared
+# workspace lockfile and writes only to /prod, so it is unaffected.
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm deploy --legacy --filter=miden-source-code-verification-api-compile --prod /prod/api-compile
+    pnpm deploy --filter=miden-source-code-verification-api-compile --prod /prod/api-compile
 
 # Final runtime image — slim, no build tools
 FROM base AS runtime

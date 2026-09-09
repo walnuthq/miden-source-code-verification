@@ -10,7 +10,7 @@
 use miden::{account, component, component_storage, AccountId, Felt, StorageValue};
 
 #[account(counter_contract::CounterContract)]
-pub struct CounterContract;
+pub struct CounterAccount;
 
 #[component_storage]
 struct CountReaderStorage {
@@ -20,13 +20,14 @@ struct CountReaderStorage {
 
 #[component]
 trait CountReader {
+    #[account_procedure]
     fn copy_count(&mut self, counter_account_id: AccountId);
 }
 
 #[component]
 impl CountReader for CountReaderStorage {
     fn copy_count(&mut self, counter_account_id: AccountId) {
-        let counter_account = CounterContract::new(counter_account_id);
+        let counter_account = CounterAccount::new(counter_account_id);
         self.count.set(counter_account.get_count());
     }
 }

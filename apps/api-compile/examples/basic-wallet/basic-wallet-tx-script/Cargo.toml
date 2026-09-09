@@ -1,3 +1,5 @@
+cargo-features = ["trim-paths"]
+
 [package]
 name = "basic-wallet-tx-script"
 version = "0.1.0"
@@ -7,4 +9,13 @@ edition = "2024"
 crate-type = ["cdylib"]
 
 [dependencies]
-miden = "0.13"
+miden = "0.14"
+
+[build-dependencies]
+miden-sdk-build-script-support = "0.14"
+
+[profile.release]
+trim-paths = ["diagnostics", "object"]
+
+[profile.dev]
+trim-paths = ["diagnostics", "object"]

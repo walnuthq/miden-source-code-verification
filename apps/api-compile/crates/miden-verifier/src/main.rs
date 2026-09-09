@@ -2,21 +2,20 @@ use anyhow::{Result, anyhow, bail};
 use base64::prelude::*;
 use clap::Parser;
 use miden_client::{
-    account::{Account, AccountId, AccountInterfaceExt},
+    account::{Account, AccountComponentInterfaceExt, AccountId},
     address::{Address, AddressId, NetworkId},
     builder::ClientBuilder,
     keystore::FilesystemKeyStore,
     note::{Note, NoteFile, NoteId, NoteScript},
     rpc::{Endpoint, GrpcClient},
-    transaction::{AccountComponentInterface, AccountInterface},
+    transaction::AccountComponentInterface,
     utils::Deserializable,
     vm::{Package, PackageExport},
 };
 use miden_client_sqlite_store::ClientBuilderSqliteExt;
 // use miden_standards::account::access::{Authority, Ownable2Step, RoleBasedAccessControl};
 // use miden_standards::account::auth::{
-//     AuthGuardedMultisig, AuthMultisig, AuthMultisigSmart, AuthNetworkAccount, AuthSingleSig,
-//     AuthSingleSigAcl, NoAuth,
+//     AuthGuardedMultisig, AuthMultisig, AuthMultisigSmart, AuthNetworkAccount, AuthSingleSig, NoAuth,
 // };
 // use miden_standards::account::faucets::FungibleFaucet;
 // use miden_standards::account::wallets::BasicWallet;
@@ -80,13 +79,25 @@ fn parse_resource_id(resource_id: &str) -> Result<Resource> {
 }
 
 fn verify_account_component(account: Account, package: Package) -> Result<Value> {
-    let account_interface = AccountInterface::from_account(&account);
+    // `AccountInterface::from_account` would be the obvious call here, but it
+    // asserts that exactly one of the account's components is a *standard* auth
+    // component and panics when that does not hold. Every account this API
+    // exists to verify authenticates with a Rust-compiled component (see
+    // `examples/counter-contract/auth-component-no-auth`), which classifies as
+    // `Custom` rather than one of the `Auth*` variants, so the assertion never
+    // holds. Classifying the procedures directly yields the same component list
+    // without going through that constructor.
+    let interface = AccountComponentInterface::from_procedures(account.code().procedures());
     let mut components = Vec::new();
-    for component in account_interface.components() {
+    for component in &interface {
         match component {
             AccountComponentInterface::BasicWallet => components.push("BasicWallet".to_string()),
+            AccountComponentInterface::NoteCreator => components.push("NoteCreator".to_string()),
             AccountComponentInterface::FungibleFaucet => {
                 components.push("FungibleFaucet".to_string())
+            }
+            AccountComponentInterface::CodeInspection => {
+                components.push("CodeInspection".to_string())
             }
             AccountComponentInterface::Authority => components.push("Authority".to_string()),
             AccountComponentInterface::Ownable2Step => components.push("Ownable2Step".to_string()),
@@ -96,12 +107,7 @@ fn verify_account_component(account: Account, package: Package) -> Result<Value>
             AccountComponentInterface::AuthSingleSig => {
                 components.push("AuthSingleSig".to_string())
             }
-            AccountComponentInterface::AuthSingleSigAcl => {
-                components.push("AuthSingleSigAcl".to_string())
-            }
-            AccountComponentInterface::AuthMultisig => {
-                components.push("AuthMultisig".to_string())
-            }
+            AccountComponentInterface::AuthMultisig => components.push("AuthMultisig".to_string()),
             AccountComponentInterface::AuthMultisigSmart => {
                 components.push("AuthMultisigSmart".to_string())
             }
@@ -116,15 +122,35 @@ fn verify_account_component(account: Account, package: Package) -> Result<Value>
                 if package.manifest.num_exports() == 0 {
                     bail!("Package has no exports");
                 }
-                let mut procedures = package
+                // Only the procedures exported with the ComponentModel calling
+                // convention (`CallConv::ComponentModel`, abi == 3) are installed
+                // as account procedures — the same rule `verify_note_script`
+                // applies to pick out a note's entrypoint. Everything else a
+                // package exports is internal to the toolchain: the Wasm-ABI
+                // adapter generated around each procedure, `cabi_realloc`, and
+                // `init`. Matching against those too could never verify, because
+                // none of them is part of the account's code.
+                let procedures: Vec<_> = package
                     .manifest
                     .exports()
                     .filter_map(|export| match export {
                         PackageExport::Procedure(procedure) => Some(procedure),
                         _ => None,
-                    });
-                let verified =
-                    procedures.all(|procedure| account.code().has_procedure(procedure.digest));
+                    })
+                    .filter(|procedure| {
+                        procedure
+                            .signature
+                            .as_ref()
+                            .is_some_and(|signature| signature.abi as u8 == 3)
+                    })
+                    .collect();
+                // `all` holds vacuously on an empty iterator, so a package that
+                // exports no account procedures at all — a transaction script, say
+                // — would otherwise report as verified against any account.
+                let verified = !procedures.is_empty()
+                    && procedures
+                        .iter()
+                        .all(|procedure| account.code().has_procedure(procedure.digest));
                 if verified {
                     components.push(format!("Custom({})", package.digest()));
                 }
@@ -168,8 +194,7 @@ fn verify_note_script(note_script: &NoteScript, package: Package) -> Result<Valu
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    /*
-    println!("standard notes script roots");
+    /*println!("standard notes script roots");
     println!();
     println!("P2ID: {}", P2idNote::script_root());
     println!("P2IDE: {}", P2ideNote::script_root());
@@ -186,7 +211,6 @@ async fn main() -> Result<()> {
         ("Ownable2Step", Ownable2Step::code()),
         ("RoleBasedAccessControl", RoleBasedAccessControl::code()),
         ("AuthSingleSig", AuthSingleSig::code()),
-        ("AuthSingleSigAcl", AuthSingleSigAcl::code()),
         ("AuthMultisig", AuthMultisig::code()),
         ("AuthMultisigSmart", AuthMultisigSmart::code()),
         ("AuthGuardedMultisig", AuthGuardedMultisig::code()),
@@ -195,7 +219,7 @@ async fn main() -> Result<()> {
     ];
     for (name, code) in components {
         println!();
-        println!("{} {}", name, code.as_library().digest().to_hex());
+        println!("{} {}", name, code.as_package().digest().to_hex());
         for export in code.exports() {
             println!(
                 "{} {}",
@@ -206,9 +230,7 @@ async fn main() -> Result<()> {
                     .to_hex()
             );
         }
-    }
-    Ok(())
-    */
+    }*/
     let args = Args::parse();
     let args_network_id = NetworkId::new(&args.network_id)?;
     // Initialize client
@@ -231,7 +253,6 @@ async fn main() -> Result<()> {
         .rpc(rpc_client)
         .sqlite_store(store_path)
         .authenticator(keystore.clone())
-        .in_debug_mode(true.into())
         .build()
         .await?;
 

@@ -20,6 +20,10 @@ const basicWalletDir = `${examplesDir}/basic-wallet`;
 
 const api = request(process.env.API_URL ?? "http://localhost:8080");
 
+const networkId = process.env.NETWORK_ID ?? "mtst";
+
+const otherNetworkId = "mlcl";
+
 describe("POST /verify", () => {
   it("rejects requests with no files object", async () => {
     const res = await api.post("/verify").send({});
@@ -76,10 +80,7 @@ describe("POST /verify", () => {
     );
     expect(files["Cargo.toml"]).toBeDefined();
 
-    const res = await api.post("/verify").send({
-      files,
-      networkId: "mtst",
-    });
+    const res = await api.post("/verify").send({ files, networkId });
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "missing resourceId");
@@ -96,7 +97,7 @@ describe("POST /verify", () => {
 
     const res = await api
       .post("/verify")
-      .send({ files, networkId: "mtst", resourceId, resource });
+      .send({ files, networkId, resourceId, resource });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
@@ -113,7 +114,7 @@ describe("POST /verify", () => {
 
     const res = await api
       .post("/verify")
-      .send({ files, networkId: "mtst", resourceId: COUNTER_CONTRACT_ID_1 });
+      .send({ files, networkId, resourceId: COUNTER_CONTRACT_ID_1 });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
@@ -128,9 +129,11 @@ describe("POST /verify", () => {
     );
     expect(files["Cargo.toml"]).toBeDefined();
 
-    const res = await api
-      .post("/verify")
-      .send({ files, networkId: "mdev", resourceId: COUNTER_CONTRACT_ID_1 });
+    const res = await api.post("/verify").send({
+      files,
+      networkId: otherNetworkId,
+      resourceId: COUNTER_CONTRACT_ID_1,
+    });
 
     expect(res.status).toBe(500);
   });
@@ -147,7 +150,7 @@ describe("POST /verify", () => {
 
     const res = await api
       .post("/verify")
-      .send({ files, networkId: "mtst", resourceId, resource });
+      .send({ files, networkId, resourceId, resource });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", false);
@@ -161,7 +164,7 @@ describe("POST /verify", () => {
 
     const res = await api
       .post("/verify")
-      .send({ files, networkId: "mtst", resourceId: COUNTER_CONTRACT_ID_1 });
+      .send({ files, networkId, resourceId: COUNTER_CONTRACT_ID_1 });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
@@ -180,7 +183,7 @@ describe("POST /verify", () => {
 
     const res = await api
       .post("/verify")
-      .send({ files, entrypoint, networkId: "mtst", resourceId, resource });
+      .send({ files, entrypoint, networkId, resourceId, resource });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
@@ -197,7 +200,7 @@ describe("POST /verify", () => {
     const res = await api.post("/verify").send({
       files,
       entrypoint,
-      networkId: "mtst",
+      networkId,
       resourceId: COUNTER_NOTE_ID_1,
     });
 
@@ -216,7 +219,7 @@ describe("POST /verify", () => {
     const res = await api.post("/verify").send({
       files,
       entrypoint,
-      networkId: "mdev",
+      networkId: otherNetworkId,
       resourceId: COUNTER_NOTE_ID_1,
     });
 
@@ -229,14 +232,14 @@ describe("POST /verify", () => {
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
     files[`${entrypoint}/src/lib.rs`] = files[
       `${entrypoint}/src/lib.rs`
-    ].replace("Felt::from_u32", "felt!");
+    ].replace("felt!", "Felt::from_u32");
 
     const resourceId = COUNTER_NOTE_ID_1;
     const { resource } = notes[resourceId];
 
     const res = await api
       .post("/verify")
-      .send({ files, entrypoint, networkId: "mtst", resourceId, resource });
+      .send({ files, entrypoint, networkId, resourceId, resource });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", false);
@@ -253,7 +256,7 @@ describe("POST /verify", () => {
     const res = await api.post("/verify").send({
       files,
       entrypoint,
-      networkId: "mtst",
+      networkId,
       resourceId: COUNT_READER_ID,
       resource,
     });
@@ -276,7 +279,7 @@ describe("POST /verify", () => {
 
     const res = await api.post("/verify").send({
       files,
-      networkId: "mtst",
+      networkId,
       resourceId: BASIC_WALLET_ID_1,
       resource,
     });
@@ -297,7 +300,7 @@ describe("POST /verify", () => {
 
     const res = await api.post("/verify").send({
       files,
-      networkId: "mtst",
+      networkId,
       resourceId: BASIC_WALLET_ID_1,
       resource,
     });

@@ -18,12 +18,12 @@ const counterContractDir = `${examplesDir}/counter-contract`;
 const apiUrl = process.env.API_URL ?? "http://localhost:8081";
 const apiV1 = request(`${apiUrl}/v1`);
 
-const networkId = "mtst";
+const networkId = process.env.NETWORK_ID ?? "mtst";
 
 // A second network, used to check that records don't leak across networks. Only
 // ever passed to the code-keyed route, which is a pure database read — so no
 // account has to exist on it.
-const otherNetworkId = "mdev";
+const otherNetworkId = "mlcl";
 
 // All three are counter-contract deployments that share the same account code,
 // so they resolve to the same `code` in the registry. This is what lets a
