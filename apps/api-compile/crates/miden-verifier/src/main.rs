@@ -20,7 +20,7 @@ use miden_client_sqlite_store::ClientBuilderSqliteExt;
 // use miden_standards::account::faucets::FungibleFaucet;
 // use miden_standards::account::wallets::BasicWallet;
 // use miden_standards::note::{
-//     BurnNote, MintNote, P2idNote, P2ideNote, PswapNote, StandardNote, SwapNote,
+//     BurnNote, MintNote, P2idNote, P2ideNote, PswapNote, StandardNote, SwapNote, TxFeeNote,
 // };
 use miden_standards::note::StandardNote;
 use serde_json::{Value, json};
@@ -202,6 +202,7 @@ async fn main() -> Result<()> {
     println!("PSWAP: {}", PswapNote::script_root());
     println!("MINT: {}", MintNote::script_root());
     println!("BURN: {}", BurnNote::script_root());
+    println!("TX_FEE: {}", TxFeeNote::script_root());
     println!();
     println!("standard account components");
     let components = vec![

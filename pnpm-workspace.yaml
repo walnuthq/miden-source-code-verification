@@ -20,3 +20,5 @@ allowBuilds:
   sharp: true
   workerd: true
   msw: false
+minimumReleaseAgeExclude:
+  - '@rolldown/binding-openharmony-arm64@1.2.8'
