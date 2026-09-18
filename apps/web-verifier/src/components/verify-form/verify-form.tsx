@@ -1,5 +1,11 @@
 import { Address } from "@miden-sdk/miden-sdk";
-import { CircleAlert, CircleCheck, Loader2, TriangleAlert } from "lucide-react";
+import {
+  CircleAlert,
+  CircleCheck,
+  Info,
+  Loader2,
+  TriangleAlert,
+} from "lucide-react";
 import {
   Alert,
   AlertDescription,
@@ -144,15 +150,16 @@ export function VerifyForm({ ready }: { ready: boolean }) {
   const isFormValid =
     isValidResourceId(resourceId, ready) && Object.keys(files).length > 0;
 
+  // A 64-hex-digit ID is a note; anything else is treated as an account.
+  const isNote = NOTE_ID_REGEX.test(resourceId.trim());
+  const kind = isNote ? "note" : "account";
+
   const onSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!isFormValid || verifying || !network) return;
 
-    // A 64-hex-digit ID is a note; anything else valid is an account.
-    const isNote = NOTE_ID_REGEX.test(resourceId.trim());
     const endpoint = isNote ? "verified-notes" : "verified-accounts";
     const idField = isNote ? "noteId" : "accountId";
-    const kind = isNote ? "note" : "account";
 
     setVerifying(true);
     setResult(null);
@@ -269,6 +276,17 @@ export function VerifyForm({ ready }: { ready: boolean }) {
                 "Verify Resource"
               )}
             </Button>
+
+            <Alert className="border-blue-600/50 text-blue-700 dark:border-blue-500/50 dark:text-blue-400">
+              <Info />
+              <AlertTitle>Upload source code to verify this {kind}</AlertTitle>
+              <AlertDescription className="text-blue-700/90 dark:text-blue-400/90">
+                Select the folder of the Rust project to verify. If the project
+                has local dependencies, select the parent directory containing
+                both the project and its dependencies, then choose the project
+                as the entrypoint.
+              </AlertDescription>
+            </Alert>
 
             {result?.status === "success" && (
               <Alert className="border-green-600/50 text-green-700 dark:border-green-500/50 dark:text-green-400">
