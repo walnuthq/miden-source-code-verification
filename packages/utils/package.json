@@ -10,19 +10,32 @@
       "types": "./src/index.ts",
       "development": "./src/index.ts",
       "default": "./dist/index.js"
+    },
+    "./networks": {
+      "types": "./src/networks.ts",
+      "development": "./src/networks.ts",
+      "default": "./dist/networks.js"
+    },
+    "./resource-id": {
+      "types": "./src/resource-id.ts",
+      "development": "./src/resource-id.ts",
+      "default": "./dist/resource-id.js"
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "lint": "biome check .",
     "format": "biome check --write ."
   },
   "dependencies": {
+    "@scure/base": "2.4.0",
     "smol-toml": "1.8.0"
   },
   "devDependencies": {
     "@types/node": "24.13.4",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
   }
 }

@@ -1,0 +1,27 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "miden-source-code-verification-web-viewer",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-01",
+  // Populates `process.env` from `vars`, which is where web-viewer reads its
+  // config (as on Node).
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+  },
+  "vars": {
+    // A plain same-zone fetch reaches the registry only because it runs on a
+    // Custom Domain; a Worker on a route would need a service binding instead.
+    // Override locally in `.dev.vars` (e.g. http://localhost:8081).
+    "API_REGISTRY_URL": "https://miden-source-code-verification-api-registry.walnut.dev",
+  },
+  // Client build of web-viewer (`react-router build` -> build/client, run by
+  // the cf:dev / cf:deploy scripts). Requests matching a file there are served
+  // straight from the assets; everything else falls through to the Worker,
+  // which server-renders the page. The scripts also copy in this package's
+  // `_headers` (asset caching).
+  "assets": {
+    "directory": "../web-viewer/build/client",
+    "binding": "ASSETS",
+  },
+}

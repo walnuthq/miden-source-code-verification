@@ -73,6 +73,15 @@ Then re-export it from `src/index.ts`. Generated files land under
 `src/components/ui/`, which Biome deliberately ignores (`"!**/components/ui"` in
 the root `biome.json`) — don't reformat them.
 
+## Stylesheet dependencies are devDependencies
+
+`shadcn`, `tw-animate-css` and `@fontsource-variable/geist` are only imported
+by `src/styles.css`, which each app's Tailwind build compiles. Nothing imports
+them at runtime, so they are `devDependencies`: that keeps them out of
+`pnpm deploy --prod` output, notably `web-viewer`'s Node image, where the
+`shadcn` CLI's dependency tree alone was ~70 MB. Workspace builds still install
+them.
+
 ## Tailwind content scanning
 
 `src/styles.css` carries an explicit `@source "./";`. Tailwind v4 auto-detects

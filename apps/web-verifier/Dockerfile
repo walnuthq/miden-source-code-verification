@@ -23,12 +23,14 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 # Overridable at build (--build-arg) or at runtime via the app's Settings dialog.
 ARG VITE_API_REGISTRY_URL=http://localhost:8081
 ENV VITE_API_REGISTRY_URL=${VITE_API_REGISTRY_URL}
-# tsc -b + vite build -> apps/web-verifier/dist (static assets + WASM).
-RUN pnpm --filter=miden-source-code-verification-web-verifier build
+# tsc -b + vite build -> apps/web-verifier/dist (static assets). The trailing
+# `...` builds web-verifier's workspace deps first (the utils package), whose
+# dist/ is what the Vite build bundles.
+RUN pnpm --filter=miden-source-code-verification-web-verifier... build
 
-# --- Runtime stage: nginx serving the static build with COOP/COEP + SPA fallback ---
+# --- Runtime stage: nginx serving the static build ---
 FROM nginx:alpine AS runtime
-# Custom server config: cross-origin-isolation headers + client-side-routing fallback.
+# Custom server config: asset caching headers.
 COPY apps/web-verifier/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /repo/apps/web-verifier/dist /usr/share/nginx/html
 EXPOSE 80

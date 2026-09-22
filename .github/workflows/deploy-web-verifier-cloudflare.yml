@@ -9,6 +9,7 @@ on:
       - "apps/web-verifier/**"
       - "apps/web-verifier-cloudflare/**"
       - "packages/ui/**"
+      - "packages/utils/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - ".github/workflows/deploy-web-verifier-cloudflare.yml"

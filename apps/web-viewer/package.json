@@ -1,0 +1,40 @@
+{
+  "name": "miden-source-code-verification-web-viewer",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./server": "./build/server/index.js"
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "dev": "react-router dev",
+    "build": "react-router typegen && tsc -b && react-router build",
+    "typecheck": "react-router typegen && tsc -b",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "start": "react-router-serve ./build/server/index.js"
+  },
+  "dependencies": {
+    "@react-router/serve": "8.4.0",
+    "isbot": "5.2.2",
+    "lucide-react": "1.47.0",
+    "miden-source-code-verification-ui": "workspace:*",
+    "miden-source-code-verification-utils": "workspace:*",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-router": "8.4.0"
+  },
+  "devDependencies": {
+    "@react-router/dev": "8.4.0",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "24.13.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "7.0.2",
+    "vite": "8.3.0"
+  }
+}

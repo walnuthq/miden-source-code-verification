@@ -1,0 +1,3 @@
+/* The shared design system owns the Tailwind entry, the theme tokens and the
+   base layer. See packages/ui/src/styles.css. */
+@import "miden-source-code-verification-ui/styles.css";

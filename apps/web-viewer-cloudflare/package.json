@@ -1,0 +1,23 @@
+{
+  "name": "miden-source-code-verification-web-viewer-cloudflare",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "cf:typegen": "wrangler types",
+    "cf:dev": "pnpm --filter miden-source-code-verification-web-viewer... build && cp _headers ../web-viewer/build/client/ && wrangler dev --port 5174",
+    "cf:deploy": "pnpm --filter miden-source-code-verification-web-viewer... build && cp _headers ../web-viewer/build/client/ && wrangler deploy"
+  },
+  "dependencies": {
+    "miden-source-code-verification-web-viewer": "workspace:*",
+    "react-router": "8.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.4",
+    "typescript": "7.0.2",
+    "wrangler": "4.136.0"
+  }
+}

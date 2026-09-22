@@ -12,7 +12,7 @@
     "format": "biome check --write ."
   },
   "dependencies": {
-    "dotenv": "17.4.2",
+    "dotenv": "18.0.1",
     "swagger-jsdoc": "6.3.0",
     "swagger-ui-dist": "5.33.0"
   },
@@ -21,7 +21,7 @@
     "@types/swagger-jsdoc": "6.0.4",
     "@types/swagger-ui-dist": "3.30.6",
     "sirv-cli": "3.0.1",
-    "tsx": "4.23.13",
+    "tsx": "4.23.15",
     "typescript": "7.0.2"
   }
 }

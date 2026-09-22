@@ -11,7 +11,7 @@ A small set of services that can be deployed independently or together:
 1. **Compilation & Verification API** (`apps/api-compile`) — stateless, compute-heavy, Rust-in-container. Compiles a Rust source package and checks it against an on-chain account/note.
 2. **Verified Accounts & Notes Registry API** (`apps/api-registry`) — stateful, Node.js + Postgres. Delegates compilation to (1) and persists verified results.
 3. **Accounts & Notes Verifier UI** (`apps/web-verifier`) — a static Vite/React webapp where a user submits a resource ID plus a source directory to verify; talks to (2).
-4. **Verified Accounts & Notes Registry UI** — static webapp for browsing verified results, talking to (2). _(planned)_
+4. **Verified Accounts & Notes Viewer UI** (`apps/web-viewer`) — a server-rendered React Router (Vite) webapp for browsing verified results, talking to (2). _(in progress)_
 
 The registry never compiles or verifies on its own; it always delegates to the Compilation API and persists the result. This keeps the heavy Rust toolchain isolated from the database tier.
 
@@ -28,11 +28,12 @@ This is a [pnpm](https://pnpm.io) workspace monorepo (`pnpm-workspace.yaml`). Ea
 | `apps/api-compile` | Compilation & Verification API | `8080` | Rust toolchain in a container |
 | `apps/api-registry` | Registry API | `8081` | Express + Drizzle/Postgres |
 | `apps/web-verifier` | Verifier UI | `5173` | Vite + React SPA (served by nginx in Docker) |
+| `apps/web-viewer` | Viewer UI | `5174` | React Router (Vite) with server rendering (`react-router-serve` in Docker) |
 | `apps/api-docs` | OpenAPI / Swagger UI docs | `8082` | Generated from `api-registry` annotations |
 | `apps/status-page` | Public service status page | `4173` | Vite + React SPA; probed at build time |
 | `apps/*-cloudflare` | Cloudflare Workers deploy wrappers | — | Opt-in; wrap the matching service |
-| `packages/ui` | Shared design system (shadcn `base-lyra`) | — | Used by `web-verifier` and `status-page` |
-| `packages/utils` | Shared utilities (e.g. `Cargo.toml` parsing) | — | Used by the API services |
+| `packages/ui` | Shared design system (shadcn `base-lyra`) | — | Used by `web-verifier`, `web-viewer` and `status-page` |
+| `packages/utils` | Shared utilities (`Cargo.toml` parsing, networks, Resource ID parsing) | — | Used by the API services, `web-verifier` and `web-viewer` |
 | `packages/test-utils` | Shared test helpers | — | Used by the API test suites |
 
 Every package is named `miden-source-code-verification-<dir>` (e.g. `miden-source-code-verification-web-verifier`) — that's the value `pnpm --filter` expects.
@@ -59,6 +60,7 @@ This builds and starts everything in the right order:
 3. **api-compile** (`http://localhost:8080`) — compilation & verification API.
 4. **api-registry** (`http://localhost:8081`) — the registry API, started only after the migration succeeds and `api-compile` is healthy.
 5. **web-verifier** (`http://localhost:5173`) — the verifier UI, started only after `api-registry` is healthy.
+6. **web-viewer** (`http://localhost:5174`) — the viewer UI for browsing verified accounts and notes, started only after `api-registry` is healthy.
 
 No `.env` files are required — the compose file ships sensible dev defaults.
 
@@ -95,6 +97,13 @@ pnpm install
 ```bash
 docker compose up -d api-registry   # also starts postgres, the migration job and api-compile
 pnpm --filter miden-source-code-verification-web-verifier dev   # http://localhost:5173
+```
+
+**Viewer UI (`web-viewer`).** The React Router dev server renders pages on the server with hot reload. Pages are rendered from the registry, which the server reads from `API_REGISTRY_URL` (default `http://localhost:8081`, the compose stack's registry):
+
+```bash
+docker compose up -d api-registry   # also starts postgres, the migration job and api-compile
+pnpm --filter miden-source-code-verification-web-viewer dev   # http://localhost:5174
 ```
 
 **Registry API (`api-registry`).** It needs Postgres + api-compile reachable, so start those first:
@@ -153,6 +162,7 @@ A [Cloudflare Workers](https://workers.cloudflare.com) deployment path is also p
 pnpm --filter miden-source-code-verification-api-compile-cloudflare cf:deploy
 pnpm --filter miden-source-code-verification-api-registry-cloudflare cf:deploy
 pnpm --filter miden-source-code-verification-web-verifier-cloudflare cf:deploy
+pnpm --filter miden-source-code-verification-web-viewer-cloudflare cf:deploy
 ```
 
 These wrap the vendor-neutral services; deleting them removes Cloudflare with no impact on the core apps. On push to `main`, a dedicated workflow per service deploys it automatically — and only when that service is affected:
@@ -160,6 +170,7 @@ These wrap the vendor-neutral services; deleting them removes Cloudflare with no
 - `.github/workflows/deploy-api-compile-cloudflare.yml`
 - `.github/workflows/deploy-api-registry-cloudflare.yml`
 - `.github/workflows/deploy-web-verifier-cloudflare.yml`
+- `.github/workflows/deploy-web-viewer-cloudflare.yml`
 
 Each runs only when its own `apps/<service>/**` or `apps/<service>-cloudflare/**` paths change (or a shared `pnpm-lock.yaml` / `pnpm-workspace.yaml`), so an unrelated change never redeploys every service. Each can also be triggered manually via `workflow_dispatch`, and all require the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets.
 

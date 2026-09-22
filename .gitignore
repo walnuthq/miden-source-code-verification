@@ -75,6 +75,7 @@ store.sqlite3
 
 # Cloudflare
 .wrangler
+.dev.vars*
 
 # Agents
 .agents

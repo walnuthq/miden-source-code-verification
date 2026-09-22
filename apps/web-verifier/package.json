@@ -6,23 +6,21 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -b",
     "lint": "biome check .",
     "format": "biome check --write .",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@miden-sdk/react": "0.16.0",
-    "@miden-sdk/miden-sdk": "0.16.1",
     "@tailwindcss/vite": "4.3.3",
     "lucide-react": "1.47.0",
     "miden-source-code-verification-ui": "workspace:*",
+    "miden-source-code-verification-utils": "workspace:*",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "tailwindcss": "4.3.3"
   },
   "devDependencies": {
-    "@miden-sdk/vite-plugin": "0.16.0",
     "@types/node": "24.13.4",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",

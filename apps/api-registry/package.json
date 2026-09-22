@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "cors": "2.8.6",
-    "dotenv": "17.4.2",
+    "dotenv": "18.0.1",
     "drizzle-orm": "1.0.0-rc.4",
     "express": "5.2.1",
     "miden-source-code-verification-utils": "workspace:*",
@@ -43,7 +43,7 @@
     "miden-source-code-verification-test-utils": "workspace:*",
     "supertest": "7.2.2",
     "tsc-alias": "1.9.5",
-    "tsx": "4.23.13",
+    "tsx": "4.23.15",
     "typescript": "7.0.2",
     "vite": "8.3.0",
     "vitest": "5.0.1"

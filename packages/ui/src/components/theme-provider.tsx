@@ -85,6 +85,13 @@ export function ThemeProvider({
   ...props
 }: ThemeProviderProps) {
   const [theme, setThemeState] = React.useState<Theme>(() => {
+    // No localStorage when server-rendering (web-viewer). Nothing rendered
+    // depends on the theme, so the client reading it on hydration can't cause a
+    // mismatch.
+    if (typeof window === "undefined") {
+      return defaultTheme;
+    }
+
     const storedTheme = localStorage.getItem(storageKey);
     if (isTheme(storedTheme)) {
       return storedTheme;
@@ -217,6 +224,33 @@ export function ThemeProvider({
       {children}
     </ThemeProviderContext.Provider>
   );
+}
+
+// Server-rendered pages paint before ThemeProvider's effect runs, so without
+// this dark-mode users see a light flash. Render it in <head>: it applies the
+// same stored-or-system theme class to <html> before first paint.
+export function ThemeScript({
+  defaultTheme = "system",
+  storageKey = "theme",
+}: {
+  defaultTheme?: Theme;
+  storageKey?: string;
+}) {
+  const script = `(() => {
+    try {
+      let theme = localStorage.getItem(${JSON.stringify(storageKey)});
+      if (!${JSON.stringify(THEME_VALUES)}.includes(theme)) {
+        theme = ${JSON.stringify(defaultTheme)};
+      }
+      if (theme === "system") {
+        theme = matchMedia(${JSON.stringify(COLOR_SCHEME_QUERY)}).matches ? "dark" : "light";
+      }
+      document.documentElement.classList.add(theme);
+    } catch {}
+  })();`;
+
+  // biome-ignore lint/security/noDangerouslySetInnerHtml: static script built from our own constants.
+  return <script dangerouslySetInnerHTML={{ __html: script }} />;
 }
 
 export const useTheme = () => {

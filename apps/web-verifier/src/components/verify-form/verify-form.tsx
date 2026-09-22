@@ -1,4 +1,3 @@
-import { Address } from "@miden-sdk/miden-sdk";
 import {
   CircleAlert,
   CircleCheck,
@@ -27,81 +26,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "miden-source-code-verification-ui";
+import {
+  DEFAULT_NETWORK,
+  getNetworkName,
+  networks,
+} from "miden-source-code-verification-utils/networks";
+import {
+  detectNetwork,
+  parseResourceId,
+  RESOURCE_ID_PATTERN,
+} from "miden-source-code-verification-utils/resource-id";
 import { type SyntheticEvent, useState } from "react";
 
 import { ImportSources } from "@/components/verify-form/import-sources";
 import { SettingsDialog } from "@/components/verify-form/settings-dialog";
 import type { ProjectFiles } from "@/lib/collect-project-files";
 import { API_REGISTRY_URL } from "@/lib/constants";
-
-const networks = [
-  { label: "Devnet", value: "mdev" },
-  { label: "Testnet", value: "mtst" },
-  // { label: "Mainnet", value: "mm" },
-];
-
-const networkValues = new Set(networks.map((network) => network.value));
-
-// A Resource ID is valid when it is one of:
-//  - an account ID in hex: "0x" followed by 30 hex digits
-//  - a note ID in hex: "0x" followed by 64 hex digits
-//  - a bech32 account address (validated via Address.fromBech32)
-const ACCOUNT_ID_REGEX = /^0x[0-9a-fA-F]{30}$/;
-const NOTE_ID_REGEX = /^0x[0-9a-fA-F]{64}$/;
-// HTML `pattern` shape check for native validation. The bech32 alternative only
-// matches the address *shape* (HRP "1" data charset); the authoritative
-// checksum check still happens in `isValidAddress`.
-const RESOURCE_ID_PATTERN =
-  "0x[0-9a-fA-F]{30}|0x[0-9a-fA-F]{64}|[a-z]+1[02-9ac-hj-np-z]{6,}";
-
-// Whether the value parses as a valid Miden Account address (bech32 + checksum).
-// `Address.fromBech32` lives in the Miden SDK WASM, so this can only run once the
-// SDK is ready — `ready` guards against calling into uninitialized WASM.
-function isValidAddress(value: string, ready: boolean): boolean {
-  if (!ready) return false;
-  const trimmed = value.trim();
-  if (!trimmed) return false;
-  try {
-    Address.fromBech32(trimmed).free();
-    return true;
-  } catch {
-    return false; // not an address (hex ID, note ID, partial input, …)
-  }
-}
-
-// Whether the value is a valid Resource ID (hex account/note ID or address).
-function isValidResourceId(value: string, ready: boolean): boolean {
-  const trimmed = value.trim();
-  return (
-    ACCOUNT_ID_REGEX.test(trimmed) ||
-    NOTE_ID_REGEX.test(trimmed) ||
-    isValidAddress(trimmed, ready)
-  );
-}
-
-// If the value is a valid Miden Account address, return the network prefix
-// encoded in it (e.g. "mtst" / "mdev"); otherwise null. The Address object does
-// not expose its network, but a bech32 string's HRP is everything before the
-// "1" separator (the bech32 data charset excludes "1", so there is exactly one).
-function detectNetwork(value: string, ready: boolean): string | null {
-  const trimmed = value.trim();
-  if (!isValidAddress(trimmed, ready)) return null;
-  const prefix = trimmed.slice(0, trimmed.lastIndexOf("1")).toLowerCase();
-  return networkValues.has(prefix) ? prefix : null;
-}
-
-// The API expects `accountId` in canonical hex form. A hex ID is sent as-is; a
-// bech32 address is decoded to its embedded account ID (may throw on bad input).
-function toHexAccountId(value: string): string {
-  const trimmed = value.trim();
-  if (ACCOUNT_ID_REGEX.test(trimmed)) return trimmed;
-  const address = Address.fromBech32(trimmed);
-  const accountId = address.accountId();
-  const hex = accountId.toString();
-  accountId.free();
-  address.free();
-  return hex;
-}
 
 // Outcome of a verification request, rendered as an Alert below the button.
 type VerifyResult =
@@ -112,7 +52,7 @@ type VerifyResult =
 // the `source` query param; falls back to this when unset.
 const DEFAULT_SOURCE = "miden-source-code-verification-web-verifier";
 
-export function VerifyForm({ ready }: { ready: boolean }) {
+export function VerifyForm() {
   // Read `resource` / `network` / `source` query params once on mount to seed
   // the form.
   const [params] = useState(() => new URLSearchParams(window.location.search));
@@ -123,7 +63,7 @@ export function VerifyForm({ ready }: { ready: boolean }) {
   );
   const [network, setNetwork] = useState<string | null>(() => {
     const value = params.get("network");
-    return value && networkValues.has(value) ? value : "mtst";
+    return value && getNetworkName(value) ? value : DEFAULT_NETWORK;
   });
   // Optional override for the request `source`; defaults to DEFAULT_SOURCE.
   const [source] = useState(() => params.get("source") || DEFAULT_SOURCE);
@@ -145,26 +85,29 @@ export function VerifyForm({ ready }: { ready: boolean }) {
     setEntrypoint(entrypoints.length > 0 ? entrypoints[0] : ".");
   };
 
-  // The form is valid when the Resource ID is well-formed and at least one
-  // source file was imported. Network and Entrypoint always have valid defaults.
-  const isFormValid =
-    isValidResourceId(resourceId, ready) && Object.keys(files).length > 0;
+  // Null while the Resource ID is malformed. The form is valid when it is
+  // well-formed and at least one source file was imported. Network and
+  // Entrypoint always have valid defaults.
+  const resource = parseResourceId(resourceId);
+  const isFormValid = resource !== null && Object.keys(files).length > 0;
 
   // A 64-hex-digit ID is a note; anything else is treated as an account.
-  const isNote = NOTE_ID_REGEX.test(resourceId.trim());
-  const kind = isNote ? "note" : "account";
+  const kind = resource?.kind ?? "account";
 
   const onSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!isFormValid || verifying || !network) return;
 
+    const isNote = resource.kind === "note";
     const endpoint = isNote ? "verified-notes" : "verified-accounts";
     const idField = isNote ? "noteId" : "accountId";
+    // The API expects `accountId` in canonical hex form, which is what
+    // `parseResourceId` resolves an address to.
+    const idValue = isNote ? resource.noteId : resource.accountId;
 
     setVerifying(true);
     setResult(null);
     try {
-      const idValue = isNote ? resourceId.trim() : toHexAccountId(resourceId);
       const response = await fetch(`${verifierUrl}/v1/${network}/${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -222,7 +165,7 @@ export function VerifyForm({ ready }: { ready: boolean }) {
                   onChange={(event) => {
                     const value = event.target.value;
                     setResourceId(value);
-                    const detected = detectNetwork(value, ready);
+                    const detected = detectNetwork(value);
                     if (detected) setNetwork(detected);
                   }}
                 />

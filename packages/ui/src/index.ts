@@ -3,7 +3,11 @@
 
 export { GithubIcon } from "@ui/components/icons/github-icon";
 export { Navbar } from "@ui/components/navbar";
-export { ThemeProvider, useTheme } from "@ui/components/theme-provider";
+export {
+  ThemeProvider,
+  ThemeScript,
+  useTheme,
+} from "@ui/components/theme-provider";
 export { ThemeToggle } from "@ui/components/theme-toggle";
 export {
   Alert,

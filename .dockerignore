@@ -10,6 +10,8 @@
 # Dependencies & build outputs — reinstalled / rebuilt inside the image
 **/node_modules
 **/dist
+**/build
+**/.react-router
 **/.wrangler
 **/target
 
