@@ -13,6 +13,6 @@
     "miden-source-code-verification-web-verifier": "workspace:*"
   },
   "devDependencies": {
-    "wrangler": "4.136.0"
+    "wrangler": "4.136.2"
   }
 }
