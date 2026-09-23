@@ -23,6 +23,9 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 # Overridable at build (--build-arg) or at runtime via the app's Settings dialog.
 ARG VITE_API_REGISTRY_URL=http://localhost:8081
 ENV VITE_API_REGISTRY_URL=${VITE_API_REGISTRY_URL}
+# Navbar link to the web-viewer, at its host-published port by default.
+ARG VITE_WEB_VIEWER_URL=http://localhost:5174
+ENV VITE_WEB_VIEWER_URL=${VITE_WEB_VIEWER_URL}
 # tsc -b + vite build -> apps/web-verifier/dist (static assets). The trailing
 # `...` builds web-verifier's workspace deps first (the utils package), whose
 # dist/ is what the Vite build bundles.

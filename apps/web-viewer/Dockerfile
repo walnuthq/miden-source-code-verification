@@ -18,6 +18,11 @@ COPY . .
 # Install only what web-viewer needs (and its workspace deps), with a cached store.
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter=miden-source-code-verification-web-viewer...
+# Build-time navbar link to the web-verifier, baked into the server and client
+# bundles (unlike API_REGISTRY_URL, which is read at runtime). Defaults to its
+# host-published port; override with --build-arg.
+ARG VITE_WEB_VERIFIER_URL=http://localhost:5173
+ENV VITE_WEB_VERIFIER_URL=${VITE_WEB_VERIFIER_URL}
 # react-router build -> apps/web-viewer/build/{client,server}. The trailing `...`
 # builds web-viewer's workspace deps first (the utils package), whose dist/ is
 # what the build bundles.
