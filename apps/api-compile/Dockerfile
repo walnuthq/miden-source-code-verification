@@ -28,7 +28,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
 FROM rust AS rust-builder
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
-    cargo install cargo-miden --version 0.10.1
+    cargo install cargo-miden --version 0.10.2
 
 WORKDIR /home/node/crates
 COPY apps/api-compile/crates .

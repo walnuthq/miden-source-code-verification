@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "cors": "2.8.6",
-    "dotenv": "18.0.1",
+    "dotenv": "18.0.2",
     "express": "5.2.1",
     "lodash": "4.18.1",
     "miden-source-code-verification-utils": "workspace:*"
@@ -23,10 +23,10 @@
     "@types/cors": "2.8.19",
     "@types/express": "5.0.6",
     "@types/lodash": "4.17.25",
-    "@types/node": "24.13.4",
+    "@types/node": "24.13.6",
     "@types/supertest": "7.2.1",
     "miden-source-code-verification-test-utils": "workspace:*",
-    "supertest": "7.2.2",
+    "supertest": "7.3.0",
     "tsc-alias": "1.9.5",
     "tsx": "4.23.15",
     "typescript": "7.0.2",

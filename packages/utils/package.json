@@ -34,7 +34,7 @@
     "smol-toml": "1.8.0"
   },
   "devDependencies": {
-    "@types/node": "24.13.4",
+    "@types/node": "24.13.6",
     "typescript": "7.0.2",
     "vitest": "5.0.1"
   }
