@@ -2,8 +2,11 @@ import { getNetworkName } from "miden-source-code-verification-utils/networks";
 import { data, isRouteErrorResponse } from "react-router";
 
 import { ErrorPage } from "@/components/error-page";
+import { NotVerified } from "@/components/not-verified";
 import { ResourceHeader } from "@/components/resource-header";
+import { PackageSection } from "@/components/source-code/package-section";
 import { getVerifiedAccount } from "@/lib/api-registry.server";
+import { loadPackageSources } from "@/lib/package-sources.server";
 import type { Route } from "./+types/verified-account";
 
 export async function loader({ params }: Route.LoaderArgs) {
@@ -18,9 +21,15 @@ export async function loader({ params }: Route.LoaderArgs) {
   if (!verifiedAccount) {
     throw data(null, { status: 404 });
   }
-  // Only what the page renders: the record carries every component's sources
-  // and compiled package, which would otherwise be serialized into the HTML.
-  return { accountId, networkName };
+  // Only what the page renders: each component's displayed sources, already
+  // highlighted. The raw record also carries every package's compiled `.masp`
+  // and all its files, which would otherwise be serialized into the HTML.
+  const packages = await Promise.all(
+    verifiedAccount.verifiedAccountComponents.map((component) =>
+      loadPackageSources(component.package),
+    ),
+  );
+  return { accountId, networkName, packages };
 }
 
 // From the URL rather than loaderData, so the 404 page keeps the same title.
@@ -40,10 +49,13 @@ export const meta: Route.MetaFunction = ({ params }) => {
 };
 
 export default function VerifiedAccount({ loaderData }: Route.ComponentProps) {
-  const { accountId, networkName } = loaderData;
+  const { accountId, networkName, packages } = loaderData;
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
       <ResourceHeader id={accountId} networkName={networkName} />
+      {packages.map((pkg) => (
+        <PackageSection key={pkg.name} pkg={pkg} />
+      ))}
     </main>
   );
 }
@@ -60,9 +72,7 @@ export function ErrorBoundary({ error, params }: Route.ErrorBoundaryProps) {
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
       <ResourceHeader id={accountId} networkName={networkName} />
-      <p className="py-12 text-center text-muted-foreground">
-        This account is not verified on Miden Source Code Verification.
-      </p>
+      <NotVerified kind="account" id={accountId} networkId={networkId} />
     </main>
   );
 }

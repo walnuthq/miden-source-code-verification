@@ -6,6 +6,7 @@ import {
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 
 import { ErrorPage } from "@/components/error-page";
+import { WEB_VERIFIER_URL } from "@/lib/constants";
 import type { Route } from "./+types/root";
 import "./index.css";
 
@@ -30,7 +31,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <body>
         <ThemeProvider>
           <div className="min-h-svh bg-muted/20">
-            <Navbar title="Miden Source Code Verification Web Viewer" />
+            <Navbar
+              title="Miden Source Code Verification Web Viewer"
+              link={{ label: "Verify", href: WEB_VERIFIER_URL }}
+            />
             {children}
           </div>
         </ThemeProvider>

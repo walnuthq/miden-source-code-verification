@@ -7,7 +7,7 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "cf:dev": "pnpm --filter miden-source-code-verification-web-verifier... build && cp _headers ../web-verifier/dist/ && wrangler dev --port 5173",
-    "cf:deploy": "VITE_API_REGISTRY_URL=https://miden-source-code-verification-api-registry.walnut.dev pnpm --filter miden-source-code-verification-web-verifier... build && cp _headers ../web-verifier/dist/ && wrangler deploy"
+    "cf:deploy": "VITE_API_REGISTRY_URL=https://miden-source-code-verification-api-registry.walnut.dev VITE_WEB_VIEWER_URL=https://miden-source-code-verification-web-viewer.walnut.dev pnpm --filter miden-source-code-verification-web-verifier... build && cp _headers ../web-verifier/dist/ && wrangler deploy"
   },
   "dependencies": {
     "miden-source-code-verification-web-verifier": "workspace:*"

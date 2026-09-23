@@ -1,8 +1,15 @@
 import { API_REGISTRY_URL } from "@/lib/constants.server";
 
-// The registry's verified account record (see the api-docs OpenAPI spec). It
-// also carries `verifiedAccountComponents`, each with its package's sources and
-// compiled `.masp` — typed here once a page reads them.
+// A compiled package in the registry, as far as the pages read it: its name and
+// the sources it was compiled from, keyed by project-relative path. It also
+// carries the compiled `.masp` (base64) and manifest, left untyped.
+export type SourcePackage = {
+  name: string;
+  files: Record<string, string>;
+};
+
+// The registry's verified account record (see the api-docs OpenAPI spec): one
+// component per verified package.
 export type VerifiedAccount = {
   id: string;
   networkId: string;
@@ -11,11 +18,11 @@ export type VerifiedAccount = {
   createdAt: string;
   updatedAt: string;
   accountId: string;
+  verifiedAccountComponents: { package: SourcePackage }[];
 };
 
-// The registry's verified note record (see the api-docs OpenAPI spec). It also
-// carries `package`, with the sources and compiled `.masp` the note was verified
-// against — typed here once a page reads it.
+// The registry's verified note record (see the api-docs OpenAPI spec), with the
+// package the note was verified against.
 export type VerifiedNote = {
   id: string;
   networkId: string;
@@ -26,6 +33,7 @@ export type VerifiedNote = {
   createdAt: string;
   updatedAt: string;
   noteId: string;
+  package: SourcePackage;
 };
 
 // `null` when the registry answers 404: it has no verified record for the

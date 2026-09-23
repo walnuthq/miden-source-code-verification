@@ -27,6 +27,11 @@ export {
   CardTitle,
 } from "@ui/components/ui/card";
 export {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@ui/components/ui/collapsible";
+export {
   Dialog,
   DialogClose,
   DialogContent,
@@ -38,6 +43,14 @@ export {
   DialogTitle,
   DialogTrigger,
 } from "@ui/components/ui/dialog";
+export {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@ui/components/ui/empty";
 export {
   Field,
   FieldContent,
