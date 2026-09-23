@@ -39,6 +39,14 @@ export {
   DialogTrigger,
 } from "@ui/components/ui/dialog";
 export {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@ui/components/ui/empty";
+export {
   Field,
   FieldContent,
   FieldDescription,

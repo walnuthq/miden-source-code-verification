@@ -2,6 +2,7 @@ import { getNetworkName } from "miden-source-code-verification-utils/networks";
 import { data, isRouteErrorResponse } from "react-router";
 
 import { ErrorPage } from "@/components/error-page";
+import { NotVerified } from "@/components/not-verified";
 import { ResourceHeader } from "@/components/resource-header";
 import { getVerifiedAccount } from "@/lib/api-registry.server";
 import type { Route } from "./+types/verified-account";
@@ -60,9 +61,7 @@ export function ErrorBoundary({ error, params }: Route.ErrorBoundaryProps) {
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
       <ResourceHeader id={accountId} networkName={networkName} />
-      <p className="py-12 text-center text-muted-foreground">
-        This account is not verified on Miden Source Code Verification.
-      </p>
+      <NotVerified kind="account" id={accountId} networkId={networkId} />
     </main>
   );
 }
