@@ -4,7 +4,9 @@ import { data, isRouteErrorResponse } from "react-router";
 import { ErrorPage } from "@/components/error-page";
 import { NotVerified } from "@/components/not-verified";
 import { ResourceHeader } from "@/components/resource-header";
+import { PackageSection } from "@/components/source-code/package-section";
 import { getVerifiedNote } from "@/lib/api-registry.server";
+import { loadPackageSources } from "@/lib/package-sources.server";
 import type { Route } from "./+types/verified-note";
 
 export async function loader({ params }: Route.LoaderArgs) {
@@ -19,9 +21,12 @@ export async function loader({ params }: Route.LoaderArgs) {
   if (!verifiedNote) {
     throw data(null, { status: 404 });
   }
-  // Only what the page renders: the record carries the package's sources and
-  // compiled `.masp`, which would otherwise be serialized into the HTML.
-  return { noteId, networkName };
+  // Only what the page renders: the package's displayed sources, already
+  // highlighted. The raw record also carries its compiled `.masp` and all its
+  // files, which would otherwise be serialized into the HTML. A list of one, so
+  // the page renders like an account's.
+  const packages = [await loadPackageSources(verifiedNote.package)];
+  return { noteId, networkName, packages };
 }
 
 // From the URL rather than loaderData, so the 404 page keeps the same title.
@@ -41,10 +46,13 @@ export const meta: Route.MetaFunction = ({ params }) => {
 };
 
 export default function VerifiedNote({ loaderData }: Route.ComponentProps) {
-  const { noteId, networkName } = loaderData;
+  const { noteId, networkName, packages } = loaderData;
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
       <ResourceHeader id={noteId} networkName={networkName} />
+      {packages.map((pkg) => (
+        <PackageSection key={pkg.name} pkg={pkg} />
+      ))}
     </main>
   );
 }

@@ -27,6 +27,11 @@ export {
   CardTitle,
 } from "@ui/components/ui/card";
 export {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@ui/components/ui/collapsible";
+export {
   Dialog,
   DialogClose,
   DialogContent,

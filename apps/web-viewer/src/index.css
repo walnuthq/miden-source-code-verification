@@ -1,3 +1,46 @@
 /* The shared design system owns the Tailwind entry, the theme tokens and the
    base layer. See packages/ui/src/styles.css. */
 @import "miden-source-code-verification-ui/styles.css";
+
+/* Syntax-highlighted source files: Shiki's output, rendered on the server (see
+   src/lib/package-sources.server.ts). As wide as the longest line, so the code
+   pane scrolls horizontally rather than wrapping. */
+.shiki {
+  width: max-content;
+  min-width: 100%;
+  padding-block: 0.75rem;
+}
+
+/* Every token carries both themes' colors as CSS variables; pick one by the
+   app's class-based dark mode. No background: the code pane's shows through. */
+.shiki,
+.shiki span {
+  color: var(--shiki-light);
+  font-style: var(--shiki-light-font-style);
+  font-weight: var(--shiki-light-font-weight);
+  text-decoration: var(--shiki-light-text-decoration);
+}
+
+.dark .shiki,
+.dark .shiki span {
+  color: var(--shiki-dark);
+  font-style: var(--shiki-dark-font-style);
+  font-weight: var(--shiki-dark-font-weight);
+  text-decoration: var(--shiki-dark-text-decoration);
+}
+
+/* Line numbers, left out of text selection. */
+.shiki code {
+  counter-reset: line;
+}
+
+.shiki .line::before {
+  counter-increment: line;
+  content: counter(line);
+  display: inline-block;
+  width: 2.5rem;
+  margin-right: 1.5rem;
+  text-align: right;
+  color: var(--muted-foreground);
+  user-select: none;
+}
