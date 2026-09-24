@@ -38,6 +38,7 @@ const API_REGISTRY_URL =
   process.env.API_REGISTRY_URL || "http://localhost:8081";
 const WEB_VERIFIER_URL =
   process.env.WEB_VERIFIER_URL || "http://localhost:5173";
+const WEB_VIEWER_URL = process.env.WEB_VIEWER_URL || "http://localhost:5174";
 
 // A plain reachability check. api-compile's `/` proxies into a Cloudflare
 // Container that may be asleep, and a cold start costs several seconds.
@@ -368,9 +369,23 @@ const webVerifier: ServiceDefinition = {
   endpoints: [{ ...rootCheck, showPayload: false }],
 };
 
+const webViewer: ServiceDefinition = {
+  id: "web-viewer",
+  name: "web-viewer",
+  description: "Browser app for browsing verified accounts and notes.",
+  url: WEB_VIEWER_URL,
+  // Server-renders HTML rather than JSON, so only reachability is checked.
+  endpoints: [{ ...rootCheck, showPayload: false }],
+};
+
 // Cards render in this order. api-compile goes last: it has by far the most
-// checks and the busiest card, so the two lighter services read first.
-const services: ServiceDefinition[] = [apiRegistry, webVerifier, apiCompile];
+// checks and the busiest card, so the lighter services read first.
+const services: ServiceDefinition[] = [
+  apiRegistry,
+  webVerifier,
+  webViewer,
+  apiCompile,
+];
 
 const probeEndpoint = async (
   serviceUrl: string,
