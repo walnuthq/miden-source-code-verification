@@ -7,15 +7,18 @@ import {
 } from "lucide-react";
 import {
   Alert,
+  AlertAction,
   AlertDescription,
   AlertTitle,
   Button,
+  buttonVariants,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   Input,
@@ -41,11 +44,13 @@ import { type SyntheticEvent, useState } from "react";
 import { ImportSources } from "@/components/verify-form/import-sources";
 import { SettingsDialog } from "@/components/verify-form/settings-dialog";
 import type { ProjectFiles } from "@/lib/collect-project-files";
-import { API_REGISTRY_URL } from "@/lib/constants";
+import { API_REGISTRY_URL, WEB_VIEWER_URL } from "@/lib/constants";
 
 // Outcome of a verification request, rendered as an Alert below the button.
+// `viewerUrl` is the resource's page on the web-viewer.
 type VerifyResult =
-  | { status: "success" | "warning"; kind: "account" | "note" }
+  | { status: "success"; kind: "account" | "note"; viewerUrl: string }
+  | { status: "warning"; kind: "account" | "note" }
   | { status: "error"; message: string };
 
 // Identifies the client that originated a verification request. Overridable via
@@ -60,6 +65,11 @@ export function VerifyForm() {
   const [verifierUrl, setVerifierUrl] = useState(API_REGISTRY_URL);
   const [resourceId, setResourceId] = useState(
     () => params.get("resource") ?? "",
+  );
+  // Whether to report a malformed Resource ID: once the field is left, or right
+  // away for one seeded from the URL, which the user never typed.
+  const [resourceTouched, setResourceTouched] = useState(() =>
+    params.has("resource"),
   );
   const [network, setNetwork] = useState<string | null>(() => {
     const value = params.get("network");
@@ -90,6 +100,8 @@ export function VerifyForm() {
   // Entrypoint always have valid defaults.
   const resource = parseResourceId(resourceId);
   const isFormValid = resource !== null && Object.keys(files).length > 0;
+  const isResourceInvalid =
+    resourceTouched && resourceId.trim() !== "" && resource === null;
 
   // A 64-hex-digit ID is a note; anything else is treated as an account.
   const kind = resource?.kind ?? "account";
@@ -122,7 +134,15 @@ export function VerifyForm() {
       if (!response.ok) {
         throw new Error(data?.error ?? `Request failed (${response.status})`);
       }
-      setResult({ status: data.verified ? "success" : "warning", kind });
+      setResult(
+        data.verified
+          ? {
+              status: "success",
+              kind,
+              viewerUrl: `${WEB_VIEWER_URL}/${network}/${endpoint}/${idValue}`,
+            }
+          : { status: "warning", kind },
+      );
     } catch (error) {
       setResult({
         status: "error",
@@ -141,7 +161,7 @@ export function VerifyForm() {
       <Card className="w-full max-w-2xl border-t-4 border-t-primary">
         <CardHeader>
           <CardTitle className="text-center text-xl">
-            Verify Contracts &amp; Notes
+            Verify Accounts &amp; Notes
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
@@ -154,7 +174,7 @@ export function VerifyForm() {
 
           <form className="flex flex-col gap-6" onSubmit={onSubmit}>
             <FieldGroup>
-              <Field>
+              <Field data-invalid={isResourceInvalid}>
                 <FieldLabel htmlFor="resource-id">Resource ID</FieldLabel>
                 <Input
                   id="resource-id"
@@ -162,6 +182,8 @@ export function VerifyForm() {
                   required
                   pattern={RESOURCE_ID_PATTERN}
                   value={resourceId}
+                  aria-invalid={isResourceInvalid}
+                  onBlur={() => setResourceTouched(true)}
                   onChange={(event) => {
                     const value = event.target.value;
                     setResourceId(value);
@@ -172,6 +194,11 @@ export function VerifyForm() {
                 <FieldDescription>
                   The account or note to verify.
                 </FieldDescription>
+                {isResourceInvalid && (
+                  <FieldError>
+                    Not a valid account ID, account address or note ID.
+                  </FieldError>
+                )}
               </Field>
 
               <Field>
@@ -220,17 +247,6 @@ export function VerifyForm() {
               )}
             </Button>
 
-            <Alert className="border-blue-600/50 text-blue-700 dark:border-blue-500/50 dark:text-blue-400">
-              <Info />
-              <AlertTitle>Upload source code to verify this {kind}</AlertTitle>
-              <AlertDescription className="text-blue-700/90 dark:text-blue-400/90">
-                Select the folder of the Rust project to verify. If the project
-                has local dependencies, select the parent directory containing
-                both the project and its dependencies, then choose the project
-                as the entrypoint.
-              </AlertDescription>
-            </Alert>
-
             {result?.status === "success" && (
               <Alert className="border-green-600/50 text-green-700 dark:border-green-500/50 dark:text-green-400">
                 <CircleCheck />
@@ -238,6 +254,17 @@ export function VerifyForm() {
                 <AlertDescription className="text-green-700/90 dark:text-green-400/90">
                   This {result.kind} was successfully verified.
                 </AlertDescription>
+                <AlertAction>
+                  <a
+                    href={result.viewerUrl}
+                    className={buttonVariants({
+                      size: "xs",
+                      variant: "outline",
+                    })}
+                  >
+                    View source
+                  </a>
+                </AlertAction>
               </Alert>
             )}
 
@@ -258,6 +285,17 @@ export function VerifyForm() {
                 <AlertDescription>{result.message}</AlertDescription>
               </Alert>
             )}
+
+            <Alert className="border-blue-600/50 text-blue-700 dark:border-blue-500/50 dark:text-blue-400">
+              <Info />
+              <AlertTitle>Upload source code to verify this {kind}</AlertTitle>
+              <AlertDescription className="text-blue-700/90 dark:text-blue-400/90">
+                Select the folder of the Rust project to verify. If the project
+                has local dependencies, select the parent directory containing
+                both the project and its dependencies, then choose the project
+                as the entrypoint.
+              </AlertDescription>
+            </Alert>
           </form>
         </CardContent>
       </Card>

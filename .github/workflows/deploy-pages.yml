@@ -79,6 +79,7 @@ jobs:
           API_COMPILE_URL: ${{ vars.API_COMPILE_URL }}
           API_REGISTRY_URL: ${{ vars.API_REGISTRY_URL }}
           WEB_VERIFIER_URL: ${{ vars.WEB_VERIFIER_URL }}
+          WEB_VIEWER_URL: ${{ vars.WEB_VIEWER_URL }}
           # The probe reads the previously published snapshot from here to work
           # out what changed since the last run. Derived from the repository when
           # unset, so a fork reads its own state.

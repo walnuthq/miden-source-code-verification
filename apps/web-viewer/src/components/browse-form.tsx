@@ -58,7 +58,7 @@ export function BrowseForm() {
       <Card className="w-full max-w-2xl border-t-4 border-t-primary">
         <CardHeader>
           <CardTitle className="text-center text-xl">
-            Browse Contracts &amp; Notes
+            Browse Accounts &amp; Notes
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">

@@ -1,7 +1,7 @@
 # status-page
 
-Public status page for the three deployed services — `api-compile`,
-`api-registry` and `web-verifier`. Published to GitHub Pages at
+Public status page for the four deployed services — `api-compile`,
+`api-registry`, `web-verifier` and `web-viewer`. Published to GitHub Pages at
 **https://walnuthq.github.io/miden-source-code-verification/status/**.
 
 ## How it works
@@ -31,6 +31,7 @@ no CORS headers — client-side checks would simply be blocked.
 | api-registry | `GET /v1/:networkId/verified-notes/script/:script` | the script root and network come back unchanged, package is a note | networkId, script, package, source files, source |
 | api-registry | `GET /v1/:networkId/verified-notes/:noteId` | above, plus the echoed id | the same, plus noteId |
 | web-verifier | `GET /` | 200 | — (serves HTML; reachability only) |
+| web-viewer | `GET /` | 200 | — (serves HTML; reachability only) |
 
 `api-registry`'s `GET /` only echoes env vars and never opens a database
 connection, so the four record lookups are what actually prove the registry can
@@ -69,12 +70,13 @@ read the same as the service being down.
 | `API_COMPILE_URL` | `http://localhost:8080` | probe |
 | `API_REGISTRY_URL` | `http://localhost:8081` | probe |
 | `WEB_VERIFIER_URL` | `http://localhost:5173` | probe |
+| `WEB_VIEWER_URL` | `http://localhost:5174` | probe |
 | `STATUS_PAGE_URL` | derived from the repo | probe (previous state), notify |
 | `SLACK_WEBHOOK_URL` | unset — notify is a no-op | notify |
 | `STATUS_PAGE_BASE` | `/miden-source-code-verification/status/` | Vite's `base` |
 
-The three service URLs come from repository **variables** of the same name in CI,
-and all three are required: an undefined variable reaches the build as an empty
+The four service URLs come from repository **variables** of the same name in CI,
+and all four are required: an undefined variable reaches the build as an empty
 string, the probe falls back to the localhost defaults above, and the published
 page is a wall of connection failures. `SLACK_WEBHOOK_URL` is a **secret**, not a
 variable. Locally, copy `.env.example` to `.env` (see `docker-compose.yml` to run
@@ -200,6 +202,7 @@ pnpm --filter miden-source-code-verification-status-page build
 API_COMPILE_URL=https://miden-source-code-verification-api-compile.walnut.dev \
 API_REGISTRY_URL=https://miden-source-code-verification-api-registry.walnut.dev \
 WEB_VERIFIER_URL=https://miden-source-code-verification-web-verifier.walnut.dev \
+WEB_VIEWER_URL=https://miden-source-code-verification-web-viewer.walnut.dev \
 STATUS_PAGE_BASE=/ \
   pnpm --filter miden-source-code-verification-status-page build
 

@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "cors": "2.8.6",
-    "dotenv": "18.0.2",
+    "dotenv": "18.0.3",
     "express": "5.2.1",
     "lodash": "4.18.1",
     "miden-source-code-verification-utils": "workspace:*"

@@ -8,7 +8,7 @@ export function App() {
     <div className="min-h-svh bg-muted/20">
       <Navbar
         title="Miden Source Code Verification Web Verifier"
-        link={{ label: "Browse", href: WEB_VIEWER_URL }}
+        link={{ label: "Browse Registry", href: WEB_VIEWER_URL }}
       />
       <VerifyForm />
     </div>

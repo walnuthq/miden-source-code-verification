@@ -33,7 +33,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="min-h-svh bg-muted/20">
             <Navbar
               title="Miden Source Code Verification Web Viewer"
-              link={{ label: "Verify", href: WEB_VERIFIER_URL }}
+              link={{ label: "Verify Resources", href: WEB_VERIFIER_URL }}
             />
             {children}
           </div>
