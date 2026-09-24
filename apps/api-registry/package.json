@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "cors": "2.8.6",
-    "dotenv": "18.0.2",
+    "dotenv": "18.0.3",
     "drizzle-orm": "1.0.0-rc.4",
     "express": "5.2.1",
     "miden-source-code-verification-utils": "workspace:*",
