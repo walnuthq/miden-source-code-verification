@@ -41,6 +41,7 @@ export function PackageSection({
           procedures={pkg.procedures}
           dependencies={pkg.dependencies}
           verifiedAt={pkg.verifiedAt}
+          source={pkg.source}
         />
         <Separator />
         <CardContent className="py-(--card-spacing)">

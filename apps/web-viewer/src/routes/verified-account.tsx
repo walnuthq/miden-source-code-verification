@@ -30,7 +30,7 @@ export async function loader({ params }: Route.LoaderArgs) {
   // serialized into the HTML.
   const packages = await Promise.all(
     verifiedAccount.verifiedAccountComponents.map((component) =>
-      loadPackageSources(component.package, component.createdAt),
+      loadPackageSources(component.package, component),
     ),
   );
   // Worked out here so the procedure lists and manifests stay on the server:

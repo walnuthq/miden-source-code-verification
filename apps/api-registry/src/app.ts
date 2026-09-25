@@ -11,8 +11,21 @@ import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
  *   schemas:
  *     PackageType:
  *       type: string
- *       description: The kind of package a verified resource was compiled to.
- *       enum: [library, account-component, authentication-component, note, tx-script]
+ *       description: >
+ *         The kind of a package (Miden `TargetType`, by its canonical name): the
+ *         kind a verified resource was compiled to, and the kind of each
+ *         dependency in a manifest. An authentication component is an
+ *         `account-component`.
+ *       enum: [library, executable, kernel, account-component, note, transaction-script]
+ *     ValueType:
+ *       description: >
+ *         A Miden type, serialized as the compiler emits it: a string for a
+ *         primitive (e.g. `Felt`, `I32`), or an object keyed on the compound
+ *         kind (e.g. `{ "Struct": { name, repr, size, fields } }`) whose fields
+ *         nest further types.
+ *       oneOf:
+ *         - type: string
+ *         - type: object
  *     ProcedureSignature:
  *       type: object
  *       nullable: true
@@ -26,14 +39,17 @@ import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
  *         params:
  *           type: array
  *           items:
- *             type: string
+ *             $ref: '#/components/schemas/ValueType'
  *         results:
  *           type: array
  *           items:
- *             type: string
+ *             $ref: '#/components/schemas/ValueType'
  *     ProcedureExport:
  *       type: object
- *       description: A procedure exported by the package manifest.
+ *       description: >
+ *         An item exported by the package manifest, keyed on its kind: one of
+ *         `Procedure`, `Constant` or `Type`. The packages verified so far only
+ *         export procedures.
  *       properties:
  *         Procedure:
  *           type: object
@@ -41,6 +57,16 @@ import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
  *             path:
  *               type: string
  *               description: Fully-qualified path of the exported procedure.
+ *             node:
+ *               type: integer
+ *               nullable: true
+ *               description: >
+ *                 Id of the procedure's root node in the package's MAST, which
+ *                 tells apart procedures that compile to the same digest.
+ *             source_node:
+ *               type: integer
+ *               nullable: true
+ *               description: Id of the procedure's node in the package's debug info.
  *             digest:
  *               type: string
  *               description: MAST root of the procedure (32-byte hex).
@@ -51,8 +77,18 @@ import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
  *               properties:
  *                 attrs:
  *                   type: array
+ *                   description: >
+ *                     The procedure's attributes, each keyed on its form:
+ *                     `{ "Marker": "account_procedure" }`, or a `List` or
+ *                     `KeyValue` for a parameterized one.
  *                   items:
- *                     type: string
+ *                     type: object
+ *         Constant:
+ *           type: object
+ *           description: An exported constant.
+ *         Type:
+ *           type: object
+ *           description: An exported type declaration.
  *     PackageDependency:
  *       type: object
  *       description: A package the manifest depends on.
@@ -129,6 +165,11 @@ import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
  *         packageDigest:
  *           type: string
  *           description: Digest of the component package (32-byte hex).
+ *         source:
+ *           type: string
+ *           description: >
+ *             Identifier of the client that verified this component (e.g.
+ *             `miden-verify`, `web-verifier`). Defaults to `unknown`.
  *         createdAt:
  *           type: string
  *           format: date-time

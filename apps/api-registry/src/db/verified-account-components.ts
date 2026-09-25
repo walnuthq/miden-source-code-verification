@@ -17,10 +17,12 @@ export const insertVerifiedAccountComponent = async ({
   verifiedAccountId,
   packageId,
   packageDigest,
+  source,
 }: {
   verifiedAccountId: string;
   packageId: string;
   packageDigest: string;
+  source: string;
 }) => {
   const [insertedVerifiedAccountComponent] = await db
     .insert(verifiedAccountComponentTable)
@@ -28,6 +30,7 @@ export const insertVerifiedAccountComponent = async ({
       verifiedAccountId,
       packageId,
       packageDigest,
+      source,
     })
     .returning({ id: verifiedAccountComponentTable.id });
   if (!insertedVerifiedAccountComponent) {

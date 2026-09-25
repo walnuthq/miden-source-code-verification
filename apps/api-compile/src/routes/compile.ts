@@ -26,7 +26,7 @@ router.post("/compile", async (req, res) => {
       res.status(400).json({ error: "missing miden-project.toml" });
       return;
     }
-    const { stdout, stderr, masp, digest, manifest } = await compile({
+    const { stdout, stderr, masp, digest, kind, manifest } = await compile({
       files,
       entrypoint,
     });
@@ -35,6 +35,7 @@ router.post("/compile", async (req, res) => {
       stderr,
       masp,
       digest,
+      kind,
       manifest,
     });
   } catch (error) {

@@ -11,6 +11,11 @@
       "development": "./src/index.ts",
       "default": "./dist/index.js"
     },
+    "./manifest": {
+      "types": "./src/manifest.ts",
+      "development": "./src/manifest.ts",
+      "default": "./dist/manifest.js"
+    },
     "./networks": {
       "types": "./src/networks.ts",
       "development": "./src/networks.ts",

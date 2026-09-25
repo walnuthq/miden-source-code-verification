@@ -253,15 +253,18 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
       files,
       entrypoint: "counter-contract",
       accountId: COUNTER_CONTRACT_ID_1,
+      source: "miden-verify",
     });
 
     expect(res1.status).toBe(200);
     expect(res1.body).toHaveProperty("verified", true);
 
+    // Verified from another client into the same account code.
     const res2 = await apiV1.post(`/${networkId}/verified-accounts`).send({
       files,
       entrypoint: "auth-component-no-auth",
       accountId: COUNTER_CONTRACT_ID_1,
+      source: "web-verifier",
     });
 
     expect(res2.status).toBe(200);
@@ -275,6 +278,21 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
     expect(res3.body).toHaveProperty("accountId", COUNTER_CONTRACT_ID_1);
     expect(res3.body).toHaveProperty("networkId", networkId);
     expect(res3.body.verifiedAccountComponents).toHaveLength(2);
+    // Each component keeps the source it was verified from.
+    expect(
+      Object.fromEntries(
+        res3.body.verifiedAccountComponents.map(
+          (component: { source: string; package: { name: string } }) => [
+            component.package.name,
+            component.source,
+          ],
+        ),
+      ),
+    ).toEqual({
+      "counter-contract": "miden-verify",
+      "auth-component-no-auth": "web-verifier",
+    });
+    expect(res3.body).not.toHaveProperty("source");
   });
 });
 

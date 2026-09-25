@@ -16,18 +16,15 @@ export const getVerifiedAccountByCode = ({
 export const insertVerifiedAccountCode = async ({
   networkId,
   code,
-  source,
 }: {
   networkId: string;
   code: string;
-  source: string;
 }) => {
   const [insertedVerifiedAccountCode] = await db
     .insert(verifiedAccountCodeTable)
     .values({
       networkId,
       code,
-      source,
     })
     .returning({ id: verifiedAccountCodeTable.id });
   if (!insertedVerifiedAccountCode) {

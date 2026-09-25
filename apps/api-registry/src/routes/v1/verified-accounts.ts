@@ -60,7 +60,8 @@ type VerifyAccountRequestBody = {
  *                 description: >
  *                   Optional identifier of the client that originated the
  *                   verification request (e.g. `miden-verify`, `web-verifier`).
- *                   Recorded on the verified account. Defaults to `unknown`.
+ *                   Recorded on the verified account component. Defaults to
+ *                   `unknown`.
  *     responses:
  *       "200":
  *         description: Verification result.
@@ -185,11 +186,6 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
  *                 code:
  *                   type: string
  *                   description: The account code root the record is keyed on (32-byte hex).
- *                 source:
- *                   type: string
- *                   description: >
- *                     Identifier of the client that originated the verification
- *                     request. Defaults to `unknown`.
  *                 createdAt:
  *                   type: string
  *                   format: date-time
@@ -304,11 +300,6 @@ router.get("/:networkId/verified-accounts/code/:code", async (req, res) => {
  *                 code:
  *                   type: string
  *                   description: The account code root the record is keyed on (32-byte hex).
- *                 source:
- *                   type: string
- *                   description: >
- *                     Identifier of the client that originated the verification
- *                     request. Defaults to `unknown`.
  *                 createdAt:
  *                   type: string
  *                   format: date-time

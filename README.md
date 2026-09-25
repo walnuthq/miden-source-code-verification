@@ -1,6 +1,6 @@
 # Miden Source Code Verification
 
-![The web-verifier UI — the "Verify Contracts & Notes" form for submitting a resource ID and source directory](assets/web-verifier.png)
+![The web-verifier UI — the "Verify Accounts & Notes" form for submitting a resource ID and source directory](assets/web-verifier.png)
 
 Miden Source Code Verification is a set of self-hostable services for verifying that on-chain Miden accounts and notes correspond to specific Rust source packages.
 
@@ -11,7 +11,7 @@ A small set of services that can be deployed independently or together:
 1. **Compilation & Verification API** (`apps/api-compile`) — stateless, compute-heavy, Rust-in-container. Compiles a Rust source package and checks it against an on-chain account/note.
 2. **Verified Accounts & Notes Registry API** (`apps/api-registry`) — stateful, Node.js + Postgres. Delegates compilation to (1) and persists verified results.
 3. **Accounts & Notes Verifier UI** (`apps/web-verifier`) — a static Vite/React webapp where a user submits a resource ID plus a source directory to verify; talks to (2).
-4. **Verified Accounts & Notes Viewer UI** (`apps/web-viewer`) — a server-rendered React Router (Vite) webapp for browsing verified results, talking to (2). _(in progress)_
+4. **Verified Accounts & Notes Viewer UI** (`apps/web-viewer`) — a server-rendered React Router (Vite) webapp for browsing verified results, talking to (2). Each verified account or note gets a page (`/{networkId}/verified-accounts/{accountId}`, `/{networkId}/verified-notes/{noteId}`) with its verification status and, for every verified package, its details (digest, procedures, dependencies, when and from which client it was verified) and a browsable, downloadable copy of its source code.
 
 The registry never compiles or verifies on its own; it always delegates to the Compilation API and persists the result. This keeps the heavy Rust toolchain isolated from the database tier.
 
@@ -33,7 +33,7 @@ This is a [pnpm](https://pnpm.io) workspace monorepo (`pnpm-workspace.yaml`). Ea
 | `apps/status-page` | Public service status page | `4173` | Vite + React SPA; probed at build time |
 | `apps/*-cloudflare` | Cloudflare Workers deploy wrappers | — | Opt-in; wrap the matching service |
 | `packages/ui` | Shared design system (shadcn `base-lyra`) | — | Used by `web-verifier`, `web-viewer` and `status-page` |
-| `packages/utils` | Shared utilities (`Cargo.toml` parsing, networks, Resource ID parsing) | — | Used by the API services, `web-verifier` and `web-viewer` |
+| `packages/utils` | Shared utilities (`Cargo.toml` parsing, networks, Resource ID parsing, compiled package manifest types) | — | Used by the API services, `web-verifier` and `web-viewer` |
 | `packages/test-utils` | Shared test helpers | — | Used by the API test suites |
 
 Every package is named `miden-source-code-verification-<dir>` (e.g. `miden-source-code-verification-web-verifier`) — that's the value `pnpm --filter` expects.
@@ -66,7 +66,7 @@ No `.env` files are required — the compose file ships sensible dev defaults.
 
 > **First build is slow.** `api-compile` bundles a full Rust toolchain and pre-builds the Miden tooling, so the initial build can take tens of minutes. Subsequent builds are cached and fast.
 
-Once it's up, **open http://localhost:5173** to use the verifier, and/or hit the APIs directly:
+Once it's up, **open http://localhost:5173** to use the verifier and **http://localhost:5174** to browse verified accounts and notes, and/or hit the APIs directly:
 
 ```bash
 curl http://localhost:8080/   # api-compile

@@ -44,7 +44,7 @@ router.post("/verify", async (req, res) => {
       res.status(400).json({ error: "missing resourceId" });
       return;
     }
-    const [{ stderr, maspPath, masp, digest, manifest }, resourcePath] =
+    const [{ stderr, maspPath, masp, digest, kind, manifest }, resourcePath] =
       await Promise.all([
         compile({
           files,
@@ -63,7 +63,7 @@ router.post("/verify", async (req, res) => {
       maspPath,
       digest,
     });
-    res.json({ verified, masp, digest, manifest });
+    res.json({ verified, masp, digest, kind, manifest });
   } catch (error) {
     console.error(error);
     const message =

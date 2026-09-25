@@ -3,10 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import lodash from "lodash";
 import { parseCargoToml } from "miden-source-code-verification-utils";
+import type {
+  Manifest,
+  TargetType,
+} from "miden-source-code-verification-utils/manifest";
 import { cargoMidenBuild } from "@/lib/cargo-miden.js";
 import { CARGO_TARGET_DIR } from "@/lib/constants.js";
 import { midenPackageMetadata } from "@/lib/miden-package-metadata.js";
-import type { Manifest } from "@/lib/types.js";
 
 const { snakeCase } = lodash;
 
@@ -56,8 +59,9 @@ export const compile = async ({
   if (midenPackageMetadataError) {
     throw new Error(midenPackageMetadataError);
   }
-  const { digest, manifest } = JSON.parse(midenPackageMetadataStdout) as {
+  const { digest, kind, manifest } = JSON.parse(midenPackageMetadataStdout) as {
     digest: string;
+    kind: TargetType;
     manifest: Manifest;
   };
   return {
@@ -66,6 +70,7 @@ export const compile = async ({
     maspPath,
     masp: maspBuffer.toString("base64"),
     digest,
+    kind,
     manifest,
   };
 };

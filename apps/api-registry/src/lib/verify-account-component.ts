@@ -1,5 +1,9 @@
 import { join } from "node:path";
 import { parseCargoToml } from "miden-source-code-verification-utils";
+import type {
+  Manifest,
+  TargetType,
+} from "miden-source-code-verification-utils/manifest";
 import { getPackage, insertPackage } from "@/db/packages.js";
 import {
   getVerifiedAccountComponent,
@@ -11,7 +15,6 @@ import {
 } from "@/db/verified-accounts.js";
 import { API_COMPILE_URL } from "@/lib/constants.js";
 import { importResource } from "@/lib/import-resource.js";
-import type { Manifest } from "@/lib/types.js";
 
 export const verifyAccountComponent = async ({
   networkId,
@@ -46,10 +49,12 @@ export const verifyAccountComponent = async ({
     const { error } = data as { error: string };
     throw new Error(error);
   }
-  const { verified, masp, digest, manifest } = data as {
+  const { verified, masp, digest, kind, manifest } = data as {
     verified: boolean;
     masp: string;
     digest: string;
+    // The compiled package's own kind, stored as the package's type.
+    kind: TargetType;
     manifest: Manifest;
   };
   if (verified) {
@@ -60,7 +65,7 @@ export const verifyAccountComponent = async ({
     const verifiedAccount = await getVerifiedAccountByCode({ networkId, code });
     const verifiedAccountId = verifiedAccount
       ? verifiedAccount.id
-      : await insertVerifiedAccountCode({ networkId, code, source });
+      : await insertVerifiedAccountCode({ networkId, code });
     const verifiedAccountComponent = await getVerifiedAccountComponent({
       verifiedAccountId,
       packageDigest: digest,
@@ -73,7 +78,7 @@ export const verifyAccountComponent = async ({
       ? dbPackage.id
       : await insertPackage({
           name,
-          type: "account-component",
+          type: kind,
           files,
           masp,
           digest,
@@ -83,6 +88,7 @@ export const verifyAccountComponent = async ({
       verifiedAccountId,
       packageId,
       packageDigest: digest,
+      source,
     });
   }
   return verified;

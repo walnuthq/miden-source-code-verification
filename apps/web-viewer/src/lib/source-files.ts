@@ -10,7 +10,8 @@ export type SourceFile = { path: string; html: string };
 // renders: the displayed files, sorted by path, and the one opened first.
 // `rawFiles` is every file the registry kept for the package, including those
 // the explorer hides, for the Download Sources archive. The name, digest,
-// procedures, dependencies and verification time head the package's card.
+// procedures, dependencies, verification time and source head the package's
+// card.
 export type PackageSources = {
   name: string;
   digest: string;
@@ -18,6 +19,8 @@ export type PackageSources = {
   dependencies: PackageDependency[];
   // When the package was verified against the resource, formatted in UTC.
   verifiedAt: string;
+  // The client the verification was submitted from (e.g. `miden-verify`).
+  source: string;
   files: SourceFile[];
   entryPath: string | null;
   rawFiles: Record<string, string>;

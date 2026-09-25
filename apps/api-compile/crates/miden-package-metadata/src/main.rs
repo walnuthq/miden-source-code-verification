@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use clap::Parser;
-use miden_mast_package::{Dependency, Package, PackageExport};
+use miden_mast_package::{Dependency, Package, PackageExport, TargetType};
 use miden_serde_utils::Deserializable;
 use serde::Serialize;
 use std::path::PathBuf;
@@ -16,6 +16,8 @@ struct Args {
 #[derive(Serialize)]
 struct PackageMetadata<'a> {
     digest: String,
+    /// Serialized by its canonical name, e.g. `account-component`.
+    kind: TargetType,
     manifest: ManifestMetadata<'a>,
 }
 
@@ -40,6 +42,7 @@ fn main() -> Result<()> {
 
     let metadata = PackageMetadata {
         digest: package.digest().to_hex(),
+        kind: package.kind,
         manifest: ManifestMetadata {
             exports: package.manifest.exports().collect(),
             dependencies: package.manifest.dependencies().collect(),
