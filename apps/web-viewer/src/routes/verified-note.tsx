@@ -21,12 +21,12 @@ export async function loader({ params }: Route.LoaderArgs) {
   if (!verifiedNote) {
     throw data(null, { status: 404 });
   }
-  // Only what the page renders: the package's displayed sources, already
-  // highlighted. The raw record also carries its compiled `.masp` and all its
-  // files, which would otherwise be serialized into the HTML. A list of one, so
-  // the page renders like an account's.
+  // Only what the page uses: the package's displayed sources, already
+  // highlighted, and its raw files for the download. The raw record also
+  // carries its compiled `.masp`, which would otherwise be serialized into the
+  // HTML. A list of one, so the page renders like an account's.
   const packages = [await loadPackageSources(verifiedNote.package)];
-  return { noteId, networkName, packages };
+  return { noteId, networkId, networkName, packages };
 }
 
 // From the URL rather than loaderData, so the 404 page keeps the same title.
@@ -46,12 +46,17 @@ export const meta: Route.MetaFunction = ({ params }) => {
 };
 
 export default function VerifiedNote({ loaderData }: Route.ComponentProps) {
-  const { noteId, networkName, packages } = loaderData;
+  const { noteId, networkId, networkName, packages } = loaderData;
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
       <ResourceHeader id={noteId} networkName={networkName} />
       {packages.map((pkg) => (
-        <PackageSection key={pkg.name} pkg={pkg} />
+        <PackageSection
+          key={pkg.name}
+          pkg={pkg}
+          networkId={networkId}
+          resourceId={noteId}
+        />
       ))}
     </main>
   );

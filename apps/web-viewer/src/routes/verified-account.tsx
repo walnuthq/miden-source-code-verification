@@ -21,15 +21,16 @@ export async function loader({ params }: Route.LoaderArgs) {
   if (!verifiedAccount) {
     throw data(null, { status: 404 });
   }
-  // Only what the page renders: each component's displayed sources, already
-  // highlighted. The raw record also carries every package's compiled `.masp`
-  // and all its files, which would otherwise be serialized into the HTML.
+  // Only what the page uses: each component's displayed sources, already
+  // highlighted, and its raw files for the download. The raw record also
+  // carries every package's compiled `.masp`, which would otherwise be
+  // serialized into the HTML.
   const packages = await Promise.all(
     verifiedAccount.verifiedAccountComponents.map((component) =>
       loadPackageSources(component.package),
     ),
   );
-  return { accountId, networkName, packages };
+  return { accountId, networkId, networkName, packages };
 }
 
 // From the URL rather than loaderData, so the 404 page keeps the same title.
@@ -49,12 +50,17 @@ export const meta: Route.MetaFunction = ({ params }) => {
 };
 
 export default function VerifiedAccount({ loaderData }: Route.ComponentProps) {
-  const { accountId, networkName, packages } = loaderData;
+  const { accountId, networkId, networkName, packages } = loaderData;
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
       <ResourceHeader id={accountId} networkName={networkName} />
       {packages.map((pkg) => (
-        <PackageSection key={pkg.name} pkg={pkg} />
+        <PackageSection
+          key={pkg.name}
+          pkg={pkg}
+          networkId={networkId}
+          resourceId={accountId}
+        />
       ))}
     </main>
   );

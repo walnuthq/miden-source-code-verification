@@ -6,11 +6,29 @@ export type SourceFile = { path: string; html: string };
 
 // What the loaders return per package, and what its Source Code section
 // renders: the displayed files, sorted by path, and the one opened first.
+// `rawFiles` is every file the registry kept for the package, including those
+// the explorer hides, for the Download Sources archive.
 export type PackageSources = {
   name: string;
   files: SourceFile[];
   entryPath: string | null;
+  rawFiles: Record<string, string>;
 };
+
+// The Download Sources archive's file name, e.g.
+// `mtst-0xad41ad8e-counter-contract.zip`: the network and an ID prefix keep the
+// same package downloaded from two resources apart.
+export function sourcesArchiveName({
+  networkId,
+  id,
+  packageName,
+}: {
+  networkId: string;
+  id: string;
+  packageName: string;
+}): string {
+  return `${networkId}-${id.slice(0, 10)}-${packageName}.zip`;
+}
 
 // A file (no `children`) or folder in the Source Code explorer.
 export type FileTreeNode = {

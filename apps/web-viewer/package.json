@@ -22,6 +22,7 @@
     "@react-router/serve": "8.4.0",
     "@shikijs/langs": "4.4.3",
     "@shikijs/themes": "4.4.3",
+    "fflate": "0.8.3",
     "isbot": "5.2.2",
     "lucide-react": "1.47.0",
     "miden-source-code-verification-ui": "workspace:*",
