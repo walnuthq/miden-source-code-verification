@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "4.3.3",
-    "lucide-react": "1.47.0",
+    "lucide-react": "1.48.0",
     "miden-source-code-verification-ui": "workspace:*",
     "miden-source-code-verification-utils": "workspace:*",
     "react": "19.3.0",
