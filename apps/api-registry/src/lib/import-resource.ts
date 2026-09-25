@@ -1,4 +1,16 @@
 import { API_COMPILE_URL } from "@/lib/constants.js";
+import type { StandardAccountComponent } from "@/lib/types.js";
+
+// An account also comes back with its standard components and every procedure
+// root in its code, which the id-keyed account lookup forwards as is.
+type ImportedResource =
+  | {
+      type: "account";
+      code: string;
+      standardAccountComponents: StandardAccountComponent[];
+      procedures: string[];
+    }
+  | { type: "note"; code: string };
 
 /**
  * Fetches the on-chain code of a resource (account code root or note script
@@ -20,5 +32,5 @@ export const importResource = async ({
     const { error } = data as { error: string };
     throw new Error(error);
   }
-  return data as { type: "account" | "note"; code: string };
+  return data as ImportedResource;
 };

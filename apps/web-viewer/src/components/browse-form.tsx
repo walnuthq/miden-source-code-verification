@@ -55,7 +55,7 @@ export function BrowseForm() {
 
   return (
     <main className="flex justify-center px-4 py-10">
-      <Card className="w-full max-w-2xl border-t-4 border-t-primary">
+      <Card className="w-full max-w-2xl">
         <CardHeader>
           <CardTitle className="text-center text-xl">
             Browse Accounts &amp; Notes

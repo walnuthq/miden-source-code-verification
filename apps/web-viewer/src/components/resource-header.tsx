@@ -1,28 +1,53 @@
 import {
   AtSign,
-  ExternalLink,
+  Blocks,
+  CircleCheck,
+  CircleX,
+  Coins,
+  Crown,
+  FileCheck,
   Globe,
   Hash,
+  KeyRound,
+  KeySquare,
   type LucideIcon,
+  Network,
+  Puzzle,
+  ScanSearch,
+  Send,
+  ShieldCheck,
+  ShieldOff,
+  UserCog,
+  UsersRound,
+  Wallet,
 } from "lucide-react";
-import { Card, Separator } from "miden-source-code-verification-ui";
-import { Fragment } from "react";
+import { Badge } from "miden-source-code-verification-ui";
 
-import { CopyButton } from "@/components/copy-button";
+import { type DetailField, DetailsCard } from "@/components/details-card";
+import type { VerificationStatus } from "@/lib/verification-status";
 
-type Field = {
-  label: string;
-  icon: LucideIcon;
-  value: string;
-  // Hex IDs and addresses: monospaced, with a copy button.
-  copyable?: boolean;
-  href?: string;
+// Standard components by the name api-compile's `/import` detects them under.
+// Unknown names fall back to `Puzzle`.
+const standardComponentIcons: Record<string, LucideIcon> = {
+  BasicWallet: Wallet,
+  NoteCreator: Send,
+  FungibleFaucet: Coins,
+  CodeInspection: ScanSearch,
+  SchemaCommitment: FileCheck,
+  Authority: Crown,
+  Ownable2Step: UserCog,
+  RoleBasedAccessControl: UsersRound,
+  AuthSingleSig: KeyRound,
+  AuthMultisig: KeySquare,
+  AuthMultisigSmart: KeySquare,
+  AuthGuardedMultisig: KeySquare,
+  AuthNoAuth: ShieldOff,
+  AuthNetworkAccount: Network,
 };
 
-// Top of a verified resource page (and of its "not verified" 404 page), after
-// MidenScan's overview: the resource kind as the page's h1 ("Verified …" unless
-// it's the 404 page), then its details
-// as label/value rows. An account is identified first by its address, then by
+// Top of a verified resource page (and of its "not verified" 404 page): the
+// resource kind as the page's h1 ("Verified …" unless it's the 404 page), then
+// its details as a `DetailsCard`. An account is identified first by its address, then by
 // its hex ID. With `explorerUrl`, that first identifier links to the resource
 // on the network's block explorer.
 export function ResourceHeader({
@@ -32,6 +57,8 @@ export function ResourceHeader({
   address,
   explorerUrl,
   verified = false,
+  verificationStatus,
+  standardAccountComponents = [],
 }: {
   kind: "account" | "note";
   id: string;
@@ -39,9 +66,11 @@ export function ResourceHeader({
   address?: string;
   explorerUrl?: string;
   verified?: boolean;
+  verificationStatus?: VerificationStatus;
+  standardAccountComponents?: string[];
 }) {
   const label = kind === "account" ? "Account" : "Note";
-  const fields: Field[] = [
+  const fields: DetailField[] = [
     ...(address
       ? [{ label: `${label} Address`, icon: AtSign, value: address }]
       : []),
@@ -52,53 +81,59 @@ export function ResourceHeader({
     href: index === 0 ? explorerUrl : undefined,
   }));
   fields.push({ label: "Network", icon: Globe, value: networkName });
+  if (verificationStatus) {
+    fields.push({
+      label: "Verification Status",
+      icon: ShieldCheck,
+      value: <VerificationStatusBadge status={verificationStatus} />,
+    });
+  }
+  if (standardAccountComponents.length > 0) {
+    fields.push({
+      label: "Standard Account Components",
+      icon: Blocks,
+      value: (
+        <span className="flex flex-wrap gap-1">
+          {standardAccountComponents.map((name) => {
+            const Icon = standardComponentIcons[name] ?? Puzzle;
+            return (
+              <Badge key={name} variant="success">
+                <Icon />
+                {name}
+              </Badge>
+            );
+          })}
+        </span>
+      ),
+    });
+  }
 
   return (
     <header className="mt-3 mb-2 flex flex-col gap-3">
       <h1 className="text-lg font-semibold md:text-xl">
         {verified ? `Verified ${label}` : label}
       </h1>
-      <Card className="gap-0 py-0">
-        <dl>
-          {fields.map((field, index) => (
-            <Fragment key={field.label}>
-              {index > 0 && <Separator />}
-              <ResourceField field={field} />
-            </Fragment>
-          ))}
-        </dl>
-      </Card>
+      <DetailsCard fields={fields} />
     </header>
   );
 }
 
-function ResourceField({ field }: { field: Field }) {
-  const { label, icon: Icon, value, copyable, href } = field;
+// Fully verified once every procedure of the resource is accounted for by a
+// standard component or a verified package.
+function VerificationStatusBadge({ status }: { status: VerificationStatus }) {
+  const { verified, total } = status;
+  if (verified >= total) {
+    return (
+      <Badge variant="success">
+        <CircleCheck />
+        Fully verified
+      </Badge>
+    );
+  }
   return (
-    <div className="grid gap-1 px-4 py-3 text-sm sm:grid-cols-[12rem_1fr] sm:items-center sm:gap-4">
-      <dt className="flex items-center gap-2 text-muted-foreground">
-        <Icon className="size-4 shrink-0" />
-        {label}
-      </dt>
-      <dd className="flex min-h-7 min-w-0 items-center gap-1">
-        <span className={copyable ? "font-mono break-all" : undefined}>
-          {href ? (
-            <a
-              href={href}
-              target="_blank"
-              rel="noreferrer"
-              title="View on explorer"
-              className="text-primary underline-offset-4 hover:underline"
-            >
-              {value}
-              <ExternalLink className="ml-1 inline size-3.5 align-baseline" />
-            </a>
-          ) : (
-            value
-          )}
-        </span>
-        {copyable && <CopyButton value={value} />}
-      </dd>
-    </div>
+    <Badge variant="destructive">
+      <CircleX />
+      Partially verified {verified}/{total}
+    </Badge>
   );
 }

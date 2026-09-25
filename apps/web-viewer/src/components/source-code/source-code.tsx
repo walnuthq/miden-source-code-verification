@@ -49,9 +49,9 @@ export function SourceCode({
   );
 
   return (
-    <section className="mt-4">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">Source Code</h3>
+    <section className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <h4 className="text-sm font-semibold">Source Code</h4>
         {action}
       </div>
       {files.length === 0 ? (

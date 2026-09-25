@@ -1,4 +1,6 @@
 import { parseCargoToml } from "miden-source-code-verification-utils";
+import type { PackageDependency } from "@/lib/api-registry.server";
+import type { PackageProcedure } from "@/lib/procedure-signatures";
 
 // A package's source file as the pages render it: syntax-highlighted HTML,
 // produced on the server (see package-sources.server.ts).
@@ -7,9 +9,15 @@ export type SourceFile = { path: string; html: string };
 // What the loaders return per package, and what its Source Code section
 // renders: the displayed files, sorted by path, and the one opened first.
 // `rawFiles` is every file the registry kept for the package, including those
-// the explorer hides, for the Download Sources archive.
+// the explorer hides, for the Download Sources archive. The name, digest,
+// procedures, dependencies and verification time head the package's card.
 export type PackageSources = {
   name: string;
+  digest: string;
+  procedures: PackageProcedure[];
+  dependencies: PackageDependency[];
+  // When the package was verified against the resource, formatted in UTC.
+  verifiedAt: string;
   files: SourceFile[];
   entryPath: string | null;
   rawFiles: Record<string, string>;

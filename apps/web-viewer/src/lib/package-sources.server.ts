@@ -6,11 +6,13 @@ import { createHighlighterCore, type HighlighterCore } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 
 import type { SourcePackage } from "@/lib/api-registry.server";
+import { packageProcedures } from "@/lib/procedure-signatures";
 import {
   filterSourceFiles,
   findEntryFile,
   type PackageSources,
 } from "@/lib/source-files";
+import { formatUtcTimestamp } from "@/lib/timestamps";
 
 // Created on first use and kept for the life of the server instance (Node
 // process or Worker isolate): compiling the grammars is the expensive part.
@@ -34,14 +36,25 @@ function getHighlighter() {
 // Both themes are emitted as CSS variables only, picked in index.css by the
 // app's theme. Shiki escapes the source text, so the HTML is safe to inject even
 // though anyone can submit sources for verification.
-export async function loadPackageSources({
-  name,
-  files,
-}: SourcePackage): Promise<PackageSources> {
+export async function loadPackageSources(
+  { name, digest, files, manifest }: SourcePackage,
+  // The `createdAt` of the record verifying the package against the resource.
+  verifiedAt: string,
+): Promise<PackageSources> {
   const { codeToHtml } = await getHighlighter();
   const displayedFiles = filterSourceFiles(files);
+  const entryPath = findEntryFile(displayedFiles, name);
   return {
     name,
+    digest,
+    procedures: packageProcedures({ manifest, files, entryPath }),
+    verifiedAt: formatUtcTimestamp(verifiedAt),
+    // Only what the page shows; the manifest's `kind` stays on the server.
+    dependencies: manifest.dependencies.map(({ name, version, digest }) => ({
+      name,
+      version,
+      digest,
+    })),
     files: Object.keys(displayedFiles)
       .sort()
       .map((path) => ({
@@ -52,7 +65,7 @@ export async function loadPackageSources({
           defaultColor: false,
         }),
       })),
-    entryPath: findEntryFile(displayedFiles, name),
+    entryPath,
     rawFiles: files,
   };
 }
