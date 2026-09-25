@@ -6,6 +6,7 @@ import { NotVerified } from "@/components/not-verified";
 import { ResourceHeader } from "@/components/resource-header";
 import { PackageSection } from "@/components/source-code/package-section";
 import { getVerifiedNote } from "@/lib/api-registry.server";
+import { getExplorerUrl } from "@/lib/constants";
 import { loadPackageSources } from "@/lib/package-sources.server";
 import type { Route } from "./+types/verified-note";
 
@@ -49,15 +50,26 @@ export default function VerifiedNote({ loaderData }: Route.ComponentProps) {
   const { noteId, networkId, networkName, packages } = loaderData;
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
-      <ResourceHeader id={noteId} networkName={networkName} />
-      {packages.map((pkg) => (
-        <PackageSection
-          key={pkg.name}
-          pkg={pkg}
-          networkId={networkId}
-          resourceId={noteId}
-        />
-      ))}
+      <ResourceHeader
+        kind="note"
+        id={noteId}
+        networkName={networkName}
+        explorerUrl={getExplorerUrl(networkId, "note", noteId)}
+        verified
+      />
+      <section className="mt-8 flex flex-col gap-4">
+        <h2 className="text-base font-semibold md:text-lg">
+          Custom Note Package
+        </h2>
+        {packages.map((pkg) => (
+          <PackageSection
+            key={pkg.name}
+            pkg={pkg}
+            networkId={networkId}
+            resourceId={noteId}
+          />
+        ))}
+      </section>
     </main>
   );
 }
@@ -73,7 +85,7 @@ export function ErrorBoundary({ error, params }: Route.ErrorBoundaryProps) {
   }
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
-      <ResourceHeader id={noteId} networkName={networkName} />
+      <ResourceHeader kind="note" id={noteId} networkName={networkName} />
       <NotVerified kind="note" id={noteId} networkId={networkId} />
     </main>
   );

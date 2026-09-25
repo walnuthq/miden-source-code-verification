@@ -183,6 +183,8 @@ The two front-ends have localhost defaults. Their production URLs are set in the
 | `web-verifier` | `VITE_API_REGISTRY_URL` | `http://localhost:8081` | build time | `cf:deploy` in `apps/web-verifier-cloudflare/package.json` |
 | `web-verifier` | `VITE_WEB_VIEWER_URL`   | `http://localhost:5174` | build time | `cf:deploy` in `apps/web-verifier-cloudflare/package.json` |
 | `web-viewer`   | `VITE_WEB_VERIFIER_URL` | `http://localhost:5173` | build time | `cf:deploy` in `apps/web-viewer-cloudflare/package.json`   |
+| `web-viewer`   | `VITE_EXPLORER_TESTNET_URL` | `https://testnet.midenscan.com` | build time | `cf:deploy` in `apps/web-viewer-cloudflare/package.json` |
+| `web-viewer`   | `VITE_EXPLORER_DEVNET_URL`  | `https://devnet.midenscan.com`  | build time | `cf:deploy` in `apps/web-viewer-cloudflare/package.json` |
 | `web-viewer`   | `API_REGISTRY_URL`      | `http://localhost:8081` | runtime    | `vars` in `apps/web-viewer-cloudflare/wrangler.jsonc`      |
 
 To point a deploy elsewhere, edit these files, not the dashboard:

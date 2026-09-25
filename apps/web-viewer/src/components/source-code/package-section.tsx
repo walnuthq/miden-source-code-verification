@@ -3,7 +3,7 @@ import { SourceCode } from "@/components/source-code/source-code";
 import { type PackageSources, sourcesArchiveName } from "@/lib/source-files";
 
 // One verified package of a resource: each component of an account, or a
-// note's package, headed by its name (the page's h1 is the resource ID).
+// note's package, headed by its name under the page's packages heading.
 export function PackageSection({
   pkg,
   networkId,
@@ -14,10 +14,10 @@ export function PackageSection({
   resourceId: string;
 }) {
   return (
-    <section className="mt-8">
-      <h2 className="font-mono text-base font-semibold md:text-lg">
+    <section>
+      <h3 className="font-mono text-sm font-semibold md:text-base">
         {pkg.name}
-      </h2>
+      </h3>
       <SourceCode
         files={pkg.files}
         entryPath={pkg.entryPath}

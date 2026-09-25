@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   decodeAddress,
   detectNetwork,
+  encodeAddress,
   parseResourceId,
   RESOURCE_ID_PATTERN,
 } from "../src/resource-id.js";
@@ -16,13 +17,10 @@ const ACCOUNT_ID = "0xdef0e93b672a39117a3af1520c6047";
 const NOTE_ID = `0x${"ab".repeat(32)}`;
 
 const accountIdBytes = (accountId: string) => hex.decode(accountId.slice(2));
-const encodeAddress = (networkId: string, bytes: Uint8Array) =>
+const encodeBytes = (networkId: string, bytes: Uint8Array) =>
   bech32m.encodeFromBytes(networkId, bytes);
 const accountAddress = (networkId: string, accountId: string) =>
-  encodeAddress(
-    networkId,
-    Uint8Array.from([232, ...accountIdBytes(accountId)]),
-  );
+  encodeBytes(networkId, Uint8Array.from([232, ...accountIdBytes(accountId)]));
 
 describe("decodeAddress", () => {
   it("decodes miden-protocol's example address", () => {
@@ -52,11 +50,11 @@ describe("decodeAddress", () => {
   it("rejects other address types and lengths", () => {
     const id = accountIdBytes(ACCOUNT_ID);
     expect(
-      decodeAddress(encodeAddress("mtst", Uint8Array.from([0, ...id]))),
+      decodeAddress(encodeBytes("mtst", Uint8Array.from([0, ...id]))),
     ).toBeNull();
     expect(
       decodeAddress(
-        encodeAddress("mtst", Uint8Array.from([232, ...id.slice(1)])),
+        encodeBytes("mtst", Uint8Array.from([232, ...id.slice(1)])),
       ),
     ).toBeNull();
   });
@@ -65,6 +63,41 @@ describe("decodeAddress", () => {
     expect(decodeAddress(ACCOUNT_ID)).toBeNull();
     expect(decodeAddress(NOTE_ID)).toBeNull();
     expect(decodeAddress("")).toBeNull();
+  });
+});
+
+describe("encodeAddress", () => {
+  it("encodes miden-protocol's example account ID", () => {
+    expect(encodeAddress("mm", PROTOCOL_ACCOUNT_ID)).toBe(PROTOCOL_ADDRESS);
+  });
+
+  it("encodes a testnet account ID", () => {
+    expect(encodeAddress("mtst", "0xad41ad8e6776a19173668f043fc081")).toBe(
+      "mtst1azk5rtvwvam2rytnv68sg07qsy44y4ed",
+    );
+  });
+
+  it("accepts uppercase hex", () => {
+    expect(
+      encodeAddress(
+        "mm",
+        PROTOCOL_ACCOUNT_ID.toUpperCase().replace("0X", "0x"),
+      ),
+    ).toBe(PROTOCOL_ADDRESS);
+  });
+
+  it("round-trips with decodeAddress", () => {
+    const address = encodeAddress("mdev", ACCOUNT_ID);
+    expect(address && decodeAddress(address)).toEqual({
+      networkId: "mdev",
+      accountId: ACCOUNT_ID,
+    });
+  });
+
+  it("returns null for anything but a hex account ID", () => {
+    expect(encodeAddress("mtst", NOTE_ID)).toBeNull();
+    expect(encodeAddress("mtst", PROTOCOL_ADDRESS)).toBeNull();
+    expect(encodeAddress("mtst", "")).toBeNull();
   });
 });
 
