@@ -9,6 +9,7 @@ import { PackageSection } from "@/components/source-code/package-section";
 import { getVerifiedAccount } from "@/lib/api-registry.server";
 import { getExplorerUrl } from "@/lib/constants";
 import { loadPackageSources } from "@/lib/package-sources.server";
+import { getVerificationStatus } from "@/lib/verification-status";
 import type { Route } from "./+types/verified-account";
 
 export async function loader({ params }: Route.LoaderArgs) {
@@ -29,10 +30,28 @@ export async function loader({ params }: Route.LoaderArgs) {
   // serialized into the HTML.
   const packages = await Promise.all(
     verifiedAccount.verifiedAccountComponents.map((component) =>
-      loadPackageSources(component.package),
+      loadPackageSources(component.package, component.createdAt),
     ),
   );
-  return { accountId, networkId, networkName, packages };
+  // Worked out here so the procedure lists and manifests stay on the server:
+  // the page only needs the counts and the standard components' names.
+  const verificationStatus = getVerificationStatus({
+    procedures: verifiedAccount.procedures,
+    standardAccountComponents: verifiedAccount.standardAccountComponents,
+    manifests: verifiedAccount.verifiedAccountComponents.map(
+      (component) => component.package.manifest,
+    ),
+  });
+  const standardAccountComponents =
+    verifiedAccount.standardAccountComponents.map(({ name }) => name);
+  return {
+    accountId,
+    networkId,
+    networkName,
+    packages,
+    verificationStatus,
+    standardAccountComponents,
+  };
 }
 
 // From the URL rather than loaderData, so the 404 page keeps the same title.
@@ -52,7 +71,14 @@ export const meta: Route.MetaFunction = ({ params }) => {
 };
 
 export default function VerifiedAccount({ loaderData }: Route.ComponentProps) {
-  const { accountId, networkId, networkName, packages } = loaderData;
+  const {
+    accountId,
+    networkId,
+    networkName,
+    packages,
+    verificationStatus,
+    standardAccountComponents,
+  } = loaderData;
   const address = encodeAddress(networkId, accountId) ?? undefined;
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
@@ -63,6 +89,8 @@ export default function VerifiedAccount({ loaderData }: Route.ComponentProps) {
         address={address}
         explorerUrl={address && getExplorerUrl(networkId, "account", address)}
         verified
+        verificationStatus={verificationStatus}
+        standardAccountComponents={standardAccountComponents}
       />
       <section className="mt-8 flex flex-col gap-4">
         <h2 className="text-base font-semibold md:text-lg">

@@ -26,7 +26,9 @@ export async function loader({ params }: Route.LoaderArgs) {
   // highlighted, and its raw files for the download. The raw record also
   // carries its compiled `.masp`, which would otherwise be serialized into the
   // HTML. A list of one, so the page renders like an account's.
-  const packages = [await loadPackageSources(verifiedNote.package)];
+  const packages = [
+    await loadPackageSources(verifiedNote.package, verifiedNote.createdAt),
+  ];
   return { noteId, networkId, networkName, packages };
 }
 
@@ -56,6 +58,8 @@ export default function VerifiedNote({ loaderData }: Route.ComponentProps) {
         networkName={networkName}
         explorerUrl={getExplorerUrl(networkId, "note", noteId)}
         verified
+        // A note's code is its single script, which verification matched.
+        verificationStatus={{ verified: 1, total: 1 }}
       />
       <section className="mt-8 flex flex-col gap-4">
         <h2 className="text-base font-semibold md:text-lg">

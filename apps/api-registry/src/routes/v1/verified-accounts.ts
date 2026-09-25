@@ -325,6 +325,29 @@ router.get("/:networkId/verified-accounts/code/:code", async (req, res) => {
  *                 accountId:
  *                   type: string
  *                   description: The queried on-chain account identifier, echoed back.
+ *                 standardAccountComponents:
+ *                   type: array
+ *                   description: >
+ *                     The standard components (e.g. `BasicWallet`,
+ *                     `AuthSingleSig`) detected in the account's code, each with
+ *                     the procedure roots it accounts for. Only this id-keyed
+ *                     endpoint returns it, as it comes from the on-chain lookup.
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       name:
+ *                         type: string
+ *                       procedures:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                 procedures:
+ *                   type: array
+ *                   description: >
+ *                     Every procedure root (32-byte hex) in the account's code.
+ *                     Only this id-keyed endpoint returns it.
+ *                   items:
+ *                     type: string
  *       "404":
  *         description: No verified account found for the given parameters.
  *         content:
@@ -347,15 +370,21 @@ router.get("/:networkId/verified-accounts/code/:code", async (req, res) => {
 router.get("/:networkId/verified-accounts/:accountId", async (req, res) => {
   try {
     const { networkId, accountId } = req.params;
-    let code: string;
+    let resource: Awaited<ReturnType<typeof importResource>>;
     try {
-      ({ code } = await importResource({ networkId, resourceId: accountId }));
+      resource = await importResource({ networkId, resourceId: accountId });
     } catch {
       // The account could not be fetched on-chain (unknown/invalid id), so it
       // cannot be matched against the registry.
       res.status(404).json({ error: "verified account not found" });
       return;
     }
+    // A note id resolves too, but to a script root no account record carries.
+    if (resource.type !== "account") {
+      res.status(404).json({ error: "verified account not found" });
+      return;
+    }
+    const { code, standardAccountComponents, procedures } = resource;
     const verifiedAccount = await getVerifiedAccountByCode({ networkId, code });
     if (!verifiedAccount) {
       res.status(404).json({ error: "verified account not found" });
@@ -363,7 +392,14 @@ router.get("/:networkId/verified-accounts/:accountId", async (req, res) => {
     }
     // `networkId` already comes back on the record, so only `accountId` needs
     // echoing — the caller can't otherwise tell which account was resolved.
-    res.json({ ...verifiedAccount, accountId });
+    // The standard components and procedures come straight from the on-chain
+    // import, which the code-keyed route never performs.
+    res.json({
+      ...verifiedAccount,
+      accountId,
+      standardAccountComponents,
+      procedures,
+    });
   } catch (error) {
     console.error(error);
     const message =

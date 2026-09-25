@@ -2,7 +2,14 @@ import { Check, Copy } from "lucide-react";
 import { Button } from "miden-source-code-verification-ui";
 import { useEffect, useState } from "react";
 
-export function CopyButton({ value }: { value: string }) {
+// `label` names what gets copied, for when it isn't the text beside the button.
+export function CopyButton({
+  value,
+  label = "Copy to clipboard",
+}: {
+  value: string;
+  label?: string;
+}) {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -23,8 +30,8 @@ export function CopyButton({ value }: { value: string }) {
       variant="ghost"
       size="icon-sm"
       onClick={copy}
-      aria-label="Copy to clipboard"
-      title="Copy to clipboard"
+      aria-label={label}
+      title={label}
     >
       {copied ? <Check /> : <Copy />}
     </Button>

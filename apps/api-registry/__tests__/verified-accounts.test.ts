@@ -18,6 +18,9 @@ const counterContractDir = `${examplesDir}/counter-contract`;
 const apiUrl = process.env.API_URL ?? "http://localhost:8081";
 const apiV1 = request(`${apiUrl}/v1`);
 
+// Queried directly to check the registry forwards `/import`'s fields as is.
+const apiCompileUrl = process.env.API_COMPILE_URL ?? "http://localhost:8080";
+
 const networkId = process.env.NETWORK_ID ?? "mtst";
 
 // A second network, used to check that records don't leak across networks. Only
@@ -189,6 +192,35 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
     );
   });
 
+  it("forwards the standard components and procedures from the import", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-accounts`)
+      .send({ files, accountId: COUNTER_CONTRACT_ID_1 });
+
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty("verified", true);
+
+    const imported = await request(apiCompileUrl).get(
+      `/${networkId}/import/${COUNTER_CONTRACT_ID_1}`,
+    );
+    expect(imported.status).toBe(200);
+
+    const res2 = await apiV1
+      .get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`)
+      .send();
+
+    expect(res2.status).toBe(200);
+    expect(res2.body.procedures).toEqual(imported.body.procedures);
+    expect(res2.body.standardAccountComponents).toEqual(
+      imported.body.standardAccountComponents,
+    );
+    expect(res2.body.procedures.length).toBeGreaterThan(0);
+  });
+
   it("returns a match for a different account sharing the same code", async () => {
     const files = await readProjectFiles(
       `${counterContractDir}/counter-contract`,
@@ -271,6 +303,9 @@ describe("GET /:networkId/verified-accounts/code/:code", () => {
     // there is no id to echo, unlike the id-keyed endpoint.
     expect(res2.body).toHaveProperty("networkId", networkId);
     expect(res2.body).not.toHaveProperty("accountId");
+    // Nor any of the on-chain import's fields.
+    expect(res2.body).not.toHaveProperty("standardAccountComponents");
+    expect(res2.body).not.toHaveProperty("procedures");
     expect(res2.body.verifiedAccountComponents).toHaveLength(1);
     expect(res2.body.verifiedAccountComponents[0]).toHaveProperty(
       "package.name",
