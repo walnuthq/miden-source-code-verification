@@ -46,6 +46,23 @@ export function decodeAddress(
   }
 }
 
+// Encodes a hex account ID as its Miden account address on the given network
+// (the inverse of `decodeAddress`, without routing parameters). Returns null
+// when the value isn't a hex account ID.
+export function encodeAddress(
+  networkId: string,
+  accountId: string,
+): string | null {
+  if (!ACCOUNT_ID_REGEX.test(accountId)) {
+    return null;
+  }
+  const bytes = hex.decode(accountId.slice(2).toLowerCase());
+  return bech32m.encodeFromBytes(
+    networkId,
+    Uint8Array.from([ACCOUNT_ID_ADDRESS_TYPE, ...bytes]),
+  );
+}
+
 // If the value is a valid Miden account address on a network the registry
 // serves, return that network (e.g. "mtst" / "mdev"); otherwise null.
 export function detectNetwork(value: string): string | null {

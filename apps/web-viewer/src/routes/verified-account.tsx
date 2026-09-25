@@ -1,4 +1,5 @@
 import { getNetworkName } from "miden-source-code-verification-utils/networks";
+import { encodeAddress } from "miden-source-code-verification-utils/resource-id";
 import { data, isRouteErrorResponse } from "react-router";
 
 import { ErrorPage } from "@/components/error-page";
@@ -6,6 +7,7 @@ import { NotVerified } from "@/components/not-verified";
 import { ResourceHeader } from "@/components/resource-header";
 import { PackageSection } from "@/components/source-code/package-section";
 import { getVerifiedAccount } from "@/lib/api-registry.server";
+import { getExplorerUrl } from "@/lib/constants";
 import { loadPackageSources } from "@/lib/package-sources.server";
 import type { Route } from "./+types/verified-account";
 
@@ -51,17 +53,30 @@ export const meta: Route.MetaFunction = ({ params }) => {
 
 export default function VerifiedAccount({ loaderData }: Route.ComponentProps) {
   const { accountId, networkId, networkName, packages } = loaderData;
+  const address = encodeAddress(networkId, accountId) ?? undefined;
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
-      <ResourceHeader id={accountId} networkName={networkName} />
-      {packages.map((pkg) => (
-        <PackageSection
-          key={pkg.name}
-          pkg={pkg}
-          networkId={networkId}
-          resourceId={accountId}
-        />
-      ))}
+      <ResourceHeader
+        kind="account"
+        id={accountId}
+        networkName={networkName}
+        address={address}
+        explorerUrl={address && getExplorerUrl(networkId, "account", address)}
+        verified
+      />
+      <section className="mt-8 flex flex-col gap-4">
+        <h2 className="text-base font-semibold md:text-lg">
+          Custom Account Component Packages
+        </h2>
+        {packages.map((pkg) => (
+          <PackageSection
+            key={pkg.name}
+            pkg={pkg}
+            networkId={networkId}
+            resourceId={accountId}
+          />
+        ))}
+      </section>
     </main>
   );
 }
@@ -75,9 +90,16 @@ export function ErrorBoundary({ error, params }: Route.ErrorBoundaryProps) {
   if (!networkName || !isRouteErrorResponse(error) || error.status !== 404) {
     return <ErrorPage error={error} />;
   }
+  // No explorer link: the account may not exist on-chain.
+  const address = encodeAddress(networkId, accountId) ?? undefined;
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
-      <ResourceHeader id={accountId} networkName={networkName} />
+      <ResourceHeader
+        kind="account"
+        id={accountId}
+        networkName={networkName}
+        address={address}
+      />
       <NotVerified kind="account" id={accountId} networkId={networkId} />
     </main>
   );

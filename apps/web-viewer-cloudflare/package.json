@@ -9,7 +9,7 @@
     "format": "biome check --write .",
     "cf:typegen": "wrangler types",
     "cf:dev": "pnpm --filter miden-source-code-verification-web-viewer... build && cp _headers ../web-viewer/build/client/ && wrangler dev --port 5174",
-    "cf:deploy": "VITE_WEB_VERIFIER_URL=https://miden-source-code-verification-web-verifier.walnut.dev pnpm --filter miden-source-code-verification-web-viewer... build && cp _headers ../web-viewer/build/client/ && wrangler deploy"
+    "cf:deploy": "VITE_WEB_VERIFIER_URL=https://miden-source-code-verification-web-verifier.walnut.dev VITE_EXPLORER_TESTNET_URL=https://testnet.midenscan.com VITE_EXPLORER_DEVNET_URL=https://devnet.midenscan.com pnpm --filter miden-source-code-verification-web-viewer... build && cp _headers ../web-viewer/build/client/ && wrangler deploy"
   },
   "dependencies": {
     "miden-source-code-verification-web-viewer": "workspace:*",
