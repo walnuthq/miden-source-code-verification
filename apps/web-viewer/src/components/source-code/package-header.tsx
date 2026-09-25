@@ -12,20 +12,22 @@ import type { PackageDependency } from "@/lib/api-registry.server";
 import type { PackageProcedure } from "@/lib/procedure-signatures";
 
 // A verified package's details: its name, digest, the procedures it installs,
-// the packages it was compiled against and when it was verified, laid out like
-// the resource's details above it.
+// the packages it was compiled against and when and from where it was verified,
+// laid out like the resource's details above it.
 export function PackageHeader({
   name,
   digest,
   procedures,
   dependencies,
   verifiedAt,
+  source,
 }: {
   name: string;
   digest: string;
   procedures: PackageProcedure[];
   dependencies: PackageDependency[];
   verifiedAt: string;
+  source: string;
 }) {
   const fields: DetailField[] = [
     { label: "Package Name", icon: Package, value: name },
@@ -50,7 +52,20 @@ export function PackageHeader({
       value: <DependencyList dependencies={dependencies} />,
     });
   }
-  fields.push({ label: "Verified at", icon: CalendarCheck, value: verifiedAt });
+  fields.push({
+    label: "Verified at",
+    icon: CalendarCheck,
+    value: (
+      <>
+        {verifiedAt}{" "}
+        {/* Kept on one line so a narrow screen wraps it whole rather than
+            at the hyphen of a source like `web-verifier`. */}
+        <span className="whitespace-nowrap text-muted-foreground">
+          (source: {source})
+        </span>
+      </>
+    ),
+  });
   return <DetailsList fields={fields} />;
 }
 

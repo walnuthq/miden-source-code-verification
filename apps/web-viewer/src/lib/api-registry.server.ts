@@ -1,3 +1,9 @@
+import type {
+  Dependency,
+  FunctionType,
+  ProcedureExport,
+} from "miden-source-code-verification-utils/manifest";
+
 import { API_REGISTRY_URL } from "@/lib/constants.server";
 
 // A compiled package in the registry, as far as the pages read it: its name,
@@ -11,25 +17,21 @@ export type SourcePackage = {
   manifest: PackageManifest;
 };
 
-// Only what the pages read: each exported procedure's path, digest and calling
-// convention (`abi`), for the verification status and the package's procedures,
-// and the packages it was compiled against.
+// Only what the pages read of the shared `Manifest`: each exported procedure's
+// path, digest and calling convention (`abi`), for the verification status and
+// the package's procedures, and the packages it was compiled against. Picked
+// from the shared types so they can't drift from what the registry serves.
 export type PackageManifest = {
+  // `Procedure` is optional as a manifest also exports constants and types.
   exports: {
-    Procedure?: {
-      path: string;
-      digest: string;
-      signature: { abi: number } | null;
+    Procedure?: Pick<ProcedureExport, "path" | "digest"> & {
+      signature: Pick<FunctionType, "abi"> | null;
     };
   }[];
   dependencies: PackageDependency[];
 };
 
-export type PackageDependency = {
-  name: string;
-  version: string;
-  digest: string;
-};
+export type PackageDependency = Pick<Dependency, "name" | "version" | "digest">;
 
 // A standard component detected in an account's code, with the procedure roots
 // it accounts for.
@@ -41,13 +43,16 @@ export type VerifiedAccount = {
   id: string;
   networkId: string;
   code: string;
-  source: string;
   createdAt: string;
   updatedAt: string;
   accountId: string;
   // `createdAt` is when the component was verified against this code, which
   // can be later than its package was first stored.
-  verifiedAccountComponents: { createdAt: string; package: SourcePackage }[];
+  verifiedAccountComponents: {
+    source: string;
+    createdAt: string;
+    package: SourcePackage;
+  }[];
   standardAccountComponents: StandardAccountComponent[];
   // Every procedure root in the account's code.
   procedures: string[];

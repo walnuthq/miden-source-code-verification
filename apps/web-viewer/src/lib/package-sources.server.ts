@@ -38,8 +38,9 @@ function getHighlighter() {
 // though anyone can submit sources for verification.
 export async function loadPackageSources(
   { name, digest, files, manifest }: SourcePackage,
-  // The `createdAt` of the record verifying the package against the resource.
-  verifiedAt: string,
+  // The record verifying the package against the resource: an account's
+  // component, or the note itself.
+  { createdAt, source }: { createdAt: string; source: string },
 ): Promise<PackageSources> {
   const { codeToHtml } = await getHighlighter();
   const displayedFiles = filterSourceFiles(files);
@@ -48,7 +49,8 @@ export async function loadPackageSources(
     name,
     digest,
     procedures: packageProcedures({ manifest, files, entryPath }),
-    verifiedAt: formatUtcTimestamp(verifiedAt),
+    verifiedAt: formatUtcTimestamp(createdAt),
+    source,
     // Only what the page shows; the manifest's `kind` stays on the server.
     dependencies: manifest.dependencies.map(({ name, version, digest }) => ({
       name,

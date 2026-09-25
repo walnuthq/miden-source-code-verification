@@ -8,14 +8,11 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
+import { TARGET_TYPES } from "miden-source-code-verification-utils/manifest";
 
-export const packageTypeEnum = pgEnum("package_type", [
-  "library",
-  "account-component",
-  "authentication-component",
-  "note",
-  "tx-script",
-]);
+// The kind of a package: `miden-mast-package`'s `TargetType`, from the same
+// list that types a manifest dependency's `kind`.
+export const packageTypeEnum = pgEnum("package_type", TARGET_TYPES);
 
 export const packagesTable = pgTable("packages", {
   id: uuid().primaryKey().defaultRandom(),
@@ -47,7 +44,6 @@ export const verifiedAccountCodeTable = pgTable(
       .default(
         "0x0000000000000000000000000000000000000000000000000000000000000000",
       ),
-    source: text().notNull().default("unknown"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -79,6 +75,10 @@ export const verifiedAccountComponentTable = pgTable(
       .default(
         "0x0000000000000000000000000000000000000000000000000000000000000000",
       ),
+    // The client that verified this component. Kept here rather than on the
+    // account code, which later components are verified into, or on the
+    // package, which is shared by every resource compiled to the same digest.
+    source: text().notNull().default("unknown"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

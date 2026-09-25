@@ -1,5 +1,9 @@
 import { join } from "node:path";
 import { parseCargoToml } from "miden-source-code-verification-utils";
+import type {
+  Manifest,
+  TargetType,
+} from "miden-source-code-verification-utils/manifest";
 import { getPackage, insertPackage } from "@/db/packages.js";
 import {
   getVerifiedNoteByScript,
@@ -7,7 +11,6 @@ import {
 } from "@/db/verified-notes.js";
 import { API_COMPILE_URL } from "@/lib/constants.js";
 import { importResource } from "@/lib/import-resource.js";
-import type { Manifest } from "@/lib/types.js";
 
 export const verifyNote = async ({
   networkId,
@@ -42,10 +45,12 @@ export const verifyNote = async ({
     const { error } = data as { error: string };
     throw new Error(error);
   }
-  const { verified, masp, digest, manifest } = data as {
+  const { verified, masp, digest, kind, manifest } = data as {
     verified: boolean;
     masp: string;
     digest: string;
+    // The compiled package's own kind, stored as the package's type.
+    kind: TargetType;
     manifest: Manifest;
   };
   if (verified) {
@@ -62,7 +67,7 @@ export const verifyNote = async ({
       ? dbPackage.id
       : await insertPackage({
           name,
-          type: "note",
+          type: kind,
           files,
           masp,
           digest,

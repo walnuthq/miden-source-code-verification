@@ -27,7 +27,7 @@ export async function loader({ params }: Route.LoaderArgs) {
   // carries its compiled `.masp`, which would otherwise be serialized into the
   // HTML. A list of one, so the page renders like an account's.
   const packages = [
-    await loadPackageSources(verifiedNote.package, verifiedNote.createdAt),
+    await loadPackageSources(verifiedNote.package, verifiedNote),
   ];
   return { noteId, networkId, networkName, packages };
 }
