@@ -28,8 +28,9 @@ function getHighlighter() {
   return highlighter;
 }
 
-// A package's sources as its Source Code section renders them: only the
-// displayed files, highlighted here so no highlighter ships to the browser.
+// A package's sources as its Source Code section renders them: the displayed
+// files, highlighted here so no highlighter ships to the browser, plus every
+// raw file for the download. The package's compiled `.masp` is left out.
 // Both themes are emitted as CSS variables only, picked in index.css by the
 // app's theme. Shiki escapes the source text, so the HTML is safe to inject even
 // though anyone can submit sources for verification.
@@ -52,5 +53,6 @@ export async function loadPackageSources({
         }),
       })),
     entryPath: findEntryFile(displayedFiles, name),
+    rawFiles: files,
   };
 }

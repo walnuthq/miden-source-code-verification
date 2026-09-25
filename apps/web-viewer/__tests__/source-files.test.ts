@@ -4,6 +4,7 @@ import {
   buildFileTree,
   filterSourceFiles,
   findEntryFile,
+  sourcesArchiveName,
 } from "@/lib/source-files";
 
 const cargoToml = (name: string) =>
@@ -132,5 +133,17 @@ describe("buildFileTree", () => {
       { name: "Cargo.toml", path: "Cargo.toml" },
       { name: "miden-project.toml", path: "miden-project.toml" },
     ]);
+  });
+});
+
+describe("sourcesArchiveName", () => {
+  it("prefixes the package with the network and the ID's first 10 chars", () => {
+    expect(
+      sourcesArchiveName({
+        networkId: "mtst",
+        id: "0xad41ad8e6776a19173668f043fc081",
+        packageName: "counter-contract",
+      }),
+    ).toBe("mtst-0xad41ad8e-counter-contract.zip");
   });
 });

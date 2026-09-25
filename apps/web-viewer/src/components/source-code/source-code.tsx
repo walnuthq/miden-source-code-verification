@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 
 import { EditorTabs } from "@/components/source-code/editor-tabs";
 import { FileExplorer } from "@/components/source-code/file-explorer";
@@ -6,13 +6,16 @@ import { buildFileTree, type SourceFile } from "@/lib/source-files";
 
 // A package's sources, after repo.sourcify.dev's contract source view: the file
 // tree on the left, the open files as tabs on the right. Each instance keeps its
-// own tabs, so an account's components don't share them.
+// own tabs, so an account's components don't share them. `action` sits on the
+// right of the heading.
 export function SourceCode({
   files,
   entryPath,
+  action,
 }: {
   files: SourceFile[];
   entryPath: string | null;
+  action?: ReactNode;
 }) {
   const [openPaths, setOpenPaths] = useState(() =>
     entryPath ? [entryPath] : [],
@@ -47,7 +50,10 @@ export function SourceCode({
 
   return (
     <section className="mt-4">
-      <h3 className="mb-2 text-sm font-semibold">Source Code</h3>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">Source Code</h3>
+        {action}
+      </div>
       {files.length === 0 ? (
         <p className="border p-6 text-center text-xs text-muted-foreground">
           No source files to display.
