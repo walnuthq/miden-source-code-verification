@@ -1,4 +1,5 @@
 import {
+  Footer,
   Navbar,
   ThemeProvider,
   ThemeScript,
@@ -30,12 +31,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <ThemeProvider>
-          <div className="min-h-svh bg-muted/20">
+          <div className="flex min-h-svh flex-col bg-muted/20">
             <Navbar
               title="Miden Source Code Verification Web Viewer"
               link={{ label: "Verify Resources", href: WEB_VERIFIER_URL }}
             />
             {children}
+            <Footer />
           </div>
         </ThemeProvider>
         <ScrollRestoration />

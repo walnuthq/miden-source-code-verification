@@ -1,7 +1,9 @@
 // Public surface of the shared design system. Apps import from
 // "miden-source-code-verification-ui" only — never reach into src/ directly.
 
+export { Footer } from "@ui/components/footer";
 export { GithubIcon } from "@ui/components/icons/github-icon";
+export { XIcon } from "@ui/components/icons/x-icon";
 export { Navbar } from "@ui/components/navbar";
 export {
   ThemeProvider,
