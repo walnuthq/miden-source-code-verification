@@ -19,7 +19,7 @@ published as OpenAPI docs (`apps/api-docs`).
 | Standard component / note auto-detection | yes                                           | **no** — only previously verified records are returned   |
 | Source code fields                       | separate `rust` + `masm`                      | single `files` map (path → contents); no `masm`          |
 | Exports / dependencies                   | `exports`, `procedureExports`, `dependencies` | nested under `manifest`                                  |
-| Errors                                   | plain text, always `500`                      | JSON `{ "error" }` with proper `400` / `404` / `500`     |
+| Errors                                   | plain text, always `500`                      | JSON `{ "error" }` with proper `400` / `404` / `5xx`     |
 | Timestamps                               | epoch milliseconds (number)                   | ISO 8601 strings                                         |
 
 The `network` segment (`mtst`, `mdev`) is unchanged.
@@ -179,8 +179,10 @@ The package shape is shared by both endpoints and is slimmer than before:
   "digest": "0x7f70…",
   "masp": "MASP_BINARY_BASE64",
   "files": {
-    // replaces `rust` + `masm`: the exact project inputs that were compiled
+    // replaces `rust` + `masm`: the exact project inputs that were compiled,
+    // including the Cargo.lock that pinned their dependency versions
     "Cargo.toml": "…",
+    "Cargo.lock": "…",
     "miden-project.toml": "…",
     "src/lib.rs": "RUST_SOURCE_CODE",
   },
@@ -232,11 +234,15 @@ Replace "any non-200 means error" logic with proper status handling:
 
 - `404` → the contract/note has not been verified (previously you'd get standard
   components or `null`). On the id-keyed lookups this also covers "the id could
-  not be resolved on-chain" — an unknown or malformed id, an account or note
-  the node does not return, or the compilation API being unreachable. The
-  code-keyed lookups never depend on that service.
+  not be resolved on-chain": an unknown or malformed id, or an account or note
+  the node does not return.
 - `400` → bad request. On reads this only comes from the code/script-keyed
   lookups, when the value isn't a 32-byte hex root.
+- `502` / `503` / `504` → only on the id-keyed lookups: the compilation API they
+  use to resolve the id could not be reached, is busy, or did not answer in
+  time. This is temporary, so retry later, after the number of seconds in
+  `Retry-After` when present. The code-keyed lookups never depend on that
+  service.
 - `500` → retrieval failure (e.g. the database is unavailable).
 
 All error bodies are now JSON: `{ "error": "<message>" }`.

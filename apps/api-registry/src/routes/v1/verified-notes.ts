@@ -50,7 +50,11 @@ type VerifyNoteRequestBody = {
  *                 description: >
  *                   Map of project-relative file paths to their UTF-8 contents.
  *                   Must contain a `Cargo.toml` and a `miden-project.toml` at the
- *                   project root (or under `entrypoint` when set).
+ *                   project root (or under `entrypoint` when set). Include the
+ *                   project's `Cargo.lock` to build with its pinned dependency
+ *                   versions. Without one, the latest compatible versions are
+ *                   resolved, and the lockfile they produce is stored with the
+ *                   package.
  *                 additionalProperties:
  *                   type: string
  *               entrypoint:
@@ -339,7 +343,9 @@ router.get("/:networkId/verified-notes/script/:script", async (req, res) => {
  *                   type: string
  *                   description: The queried on-chain note identifier, echoed back.
  *       "404":
- *         description: No verified note found for the given parameters.
+ *         description: >
+ *           No verified note found for the given parameters, or no note
+ *           with this id on `networkId`.
  *         content:
  *           application/json:
  *             schema:
