@@ -121,6 +121,23 @@ describe("POST /verify", () => {
     expect(res.body).toHaveProperty("masp");
     expect(res.body).toHaveProperty("digest");
     expect(res.body).toHaveProperty("manifest");
+    expect(res.body.files).toEqual(files);
+  });
+
+  it("returns the lockfile an on-chain counter-contract was verified with", async () => {
+    const { "Cargo.lock": _, ...files } = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+
+    const res = await api
+      .post("/verify")
+      .send({ files, networkId, resourceId: COUNTER_CONTRACT_ID_1 });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("verified", true);
+    const { "Cargo.lock": cargoLock, ...sources } = res.body.files;
+    expect(sources).toEqual(files);
+    expect(cargoLock).toContain('name = "counter-contract"');
   });
 
   it("doesn't verify a counter-contract not found on network", async () => {

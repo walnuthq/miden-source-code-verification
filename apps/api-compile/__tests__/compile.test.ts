@@ -60,6 +60,7 @@ describe("POST /compile", () => {
     expect(res.body).not.toHaveProperty("digest");
     expect(res.body).not.toHaveProperty("kind");
     expect(res.body).not.toHaveProperty("manifest");
+    expect(res.body).not.toHaveProperty("files");
   });
 
   it("compiles a counter-contract", async () => {
@@ -190,5 +191,46 @@ describe("POST /compile", () => {
     expect(res.body).toHaveProperty("digest");
     expect(res.body).toHaveProperty("kind", "transaction-script");
     expect(res.body).toHaveProperty("manifest");
+  });
+});
+
+describe("POST /compile returned files", () => {
+  it("echoes the sources with the lockfile it created", async () => {
+    const { "Cargo.lock": _, ...files } = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+
+    const res = await api.post("/compile").send({ files });
+
+    expect(res.status).toBe(200);
+    const { "Cargo.lock": cargoLock, ...sources } = res.body.files;
+    expect(sources).toEqual(files);
+    expect(cargoLock).toContain('name = "counter-contract"');
+  });
+
+  it("returns the lockfile it was sent", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+    expect(files["Cargo.lock"]).toBeDefined();
+
+    const res = await api.post("/compile").send({ files });
+
+    expect(res.status).toBe(200);
+    expect(res.body.files).toEqual(files);
+  });
+
+  it("keys the lockfile by its path under the entrypoint", async () => {
+    const entrypoint = "count-reader";
+    const { [`${entrypoint}/Cargo.lock`]: _, ...files } =
+      await readProjectFiles(counterContractDir);
+
+    const res = await api.post("/compile").send({ files, entrypoint });
+
+    expect(res.status).toBe(200);
+    expect(res.body.files[`${entrypoint}/Cargo.lock`]).toContain(
+      'name = "count-reader"',
+    );
+    expect(res.body.files).not.toHaveProperty("Cargo.lock");
   });
 });

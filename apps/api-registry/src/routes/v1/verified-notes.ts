@@ -1,6 +1,10 @@
 import { join } from "node:path";
 import { Router } from "express";
 import { getVerifiedNoteByScript } from "@/db/verified-notes.js";
+import {
+  ApiCompileError,
+  sendApiCompileUnavailable,
+} from "@/lib/api-compile.js";
 import { importResource } from "@/lib/import-resource.js";
 import { parseRoot } from "@/lib/roots.js";
 import { verifyNote } from "@/lib/verify-note.js";
@@ -46,7 +50,11 @@ type VerifyNoteRequestBody = {
  *                 description: >
  *                   Map of project-relative file paths to their UTF-8 contents.
  *                   Must contain a `Cargo.toml` and a `miden-project.toml` at the
- *                   project root (or under `entrypoint` when set).
+ *                   project root (or under `entrypoint` when set). Include the
+ *                   project's `Cargo.lock` to build with its pinned dependency
+ *                   versions. Without one, the latest compatible versions are
+ *                   resolved, and the lockfile they produce is stored with the
+ *                   package.
  *                 additionalProperties:
  *                   type: string
  *               entrypoint:
@@ -91,6 +99,12 @@ type VerifyNoteRequestBody = {
  *               properties:
  *                 error:
  *                   type: string
+ *       "502":
+ *         $ref: '#/components/responses/CompilerUnavailable'
+ *       "503":
+ *         $ref: '#/components/responses/CompilerUnavailable'
+ *       "504":
+ *         $ref: '#/components/responses/CompilerUnavailable'
  */
 router.post("/:networkId/verified-notes", async (req, res) => {
   try {
@@ -128,6 +142,9 @@ router.post("/:networkId/verified-notes", async (req, res) => {
     res.json({ verified });
   } catch (error) {
     console.error(error);
+    if (sendApiCompileUnavailable(res, error)) {
+      return;
+    }
     const message =
       error instanceof Error ? error.message : "verification failed";
     res.status(500).json({ error: message });
@@ -326,7 +343,9 @@ router.get("/:networkId/verified-notes/script/:script", async (req, res) => {
  *                   type: string
  *                   description: The queried on-chain note identifier, echoed back.
  *       "404":
- *         description: No verified note found for the given parameters.
+ *         description: >
+ *           No verified note found for the given parameters, or no note
+ *           with this id on `networkId`.
  *         content:
  *           application/json:
  *             schema:
@@ -343,6 +362,12 @@ router.get("/:networkId/verified-notes/script/:script", async (req, res) => {
  *               properties:
  *                 error:
  *                   type: string
+ *       "502":
+ *         $ref: '#/components/responses/CompilerUnavailable'
+ *       "503":
+ *         $ref: '#/components/responses/CompilerUnavailable'
+ *       "504":
+ *         $ref: '#/components/responses/CompilerUnavailable'
  */
 router.get("/:networkId/verified-notes/:noteId", async (req, res) => {
   try {
@@ -353,11 +378,14 @@ router.get("/:networkId/verified-notes/:noteId", async (req, res) => {
         networkId,
         resourceId: noteId,
       }));
-    } catch {
-      // The note could not be fetched on-chain (unknown/invalid id), so it
-      // cannot be matched against the registry.
-      res.status(404).json({ error: "verified note not found" });
-      return;
+    } catch (error) {
+      // Only a note api-compile could not find on-chain (unknown/invalid id)
+      // is a 404. Any other failure says nothing about the registry.
+      if (error instanceof ApiCompileError && error.status === 404) {
+        res.status(404).json({ error: "verified note not found" });
+        return;
+      }
+      throw error;
     }
     const verifiedNote = await getVerifiedNoteByScript({ networkId, script });
     if (!verifiedNote) {
@@ -369,6 +397,9 @@ router.get("/:networkId/verified-notes/:noteId", async (req, res) => {
     res.json({ ...verifiedNote, noteId });
   } catch (error) {
     console.error(error);
+    if (sendApiCompileUnavailable(res, error)) {
+      return;
+    }
     const message =
       error instanceof Error ? error.message : "verified note retrieval failed";
     res.status(500).json({ error: message });

@@ -192,6 +192,29 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
     );
   });
 
+  it("records the lockfile the build used when none was sent", async () => {
+    const { "Cargo.lock": _, ...files } = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-accounts`)
+      .send({ files, accountId: COUNTER_CONTRACT_ID_1 });
+
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty("verified", true);
+
+    const res2 = await apiV1
+      .get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`)
+      .send();
+
+    expect(res2.status).toBe(200);
+    const { "Cargo.lock": cargoLock, ...sources } =
+      res2.body.verifiedAccountComponents[0].package.files;
+    expect(sources).toEqual(files);
+    expect(cargoLock).toContain('name = "counter-contract"');
+  });
+
   it("forwards the standard components and procedures from the import", async () => {
     const files = await readProjectFiles(
       `${counterContractDir}/counter-contract`,

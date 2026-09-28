@@ -27,8 +27,7 @@ import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
  *         - type: string
  *         - type: object
  *     ProcedureSignature:
- *       type: object
- *       nullable: true
+ *       type: [object, "null"]
  *       description: Type signature of an exported procedure (null when unavailable).
  *       properties:
  *         abi:
@@ -58,14 +57,12 @@ import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
  *               type: string
  *               description: Fully-qualified path of the exported procedure.
  *             node:
- *               type: integer
- *               nullable: true
+ *               type: [integer, "null"]
  *               description: >
  *                 Id of the procedure's root node in the package's MAST, which
  *                 tells apart procedures that compile to the same digest.
  *             source_node:
- *               type: integer
- *               nullable: true
+ *               type: [integer, "null"]
  *               description: Id of the procedure's node in the package's debug info.
  *             digest:
  *               type: string
@@ -130,7 +127,9 @@ import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
  *           type: object
  *           description: >
  *             Map of project-relative file paths to their UTF-8 source contents
- *             (the exact inputs that were compiled).
+ *             (the exact inputs that were compiled). Includes the `Cargo.lock`
+ *             the build used, even when the verification request didn't send
+ *             one, so the dependency versions behind `digest` are recorded.
  *           additionalProperties:
  *             type: string
  *         masp:
@@ -178,6 +177,24 @@ import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
  *           format: date-time
  *         package:
  *           $ref: '#/components/schemas/Package'
+ *   responses:
+ *     CompilerUnavailable:
+ *       description: >
+ *         The compilation service could not be reached (`502`), is busy (`503`)
+ *         or did not answer in time (`504`). This is temporary: retry later,
+ *         after the number of seconds in `Retry-After` when present.
+ *       headers:
+ *         Retry-After:
+ *           description: Seconds to wait before retrying.
+ *           schema:
+ *             type: integer
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               error:
+ *                 type: string
  */
 
 type CreateAppOptions = {
@@ -214,6 +231,8 @@ export const createApp = ({
   app.use(
     cors({
       origin: allowedOrigins.includes("*") ? true : allowedOrigins,
+      // Lets browser clients read how long to wait after a 503.
+      exposedHeaders: ["Retry-After"],
     }),
   );
 

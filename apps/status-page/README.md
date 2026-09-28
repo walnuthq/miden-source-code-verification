@@ -39,9 +39,10 @@ serve. All four are network-scoped, since records are keyed on the network plus
 the root. The by-root pair is a pure Postgres read; **the by-id pair additionally
 calls api-compile** to resolve the on-chain root before the lookup (see
 `apps/api-registry/src/lib/import-resource.ts`), so an api-compile outage will
-degrade the api-registry card too. Note also that those routes answer 404 both
-when a record is absent and when the on-chain lookup fails — the two are
-indistinguishable from outside.
+degrade the api-registry card too. Those routes answer 404 only when the record
+is absent or the id doesn't resolve on-chain. When api-compile is unreachable,
+busy or too slow, they answer 502, 503 or 504, so an outage doesn't read as a
+missing record.
 
 The compile checks submit
 `apps/api-compile/examples/counter-contract/counter-contract` and the on-chain IDs
@@ -50,8 +51,9 @@ test suite uses, so a change to either reaches both at once. **Nothing about the
 dataset is duplicated here.** The checks mirror `it compiles a counter-contract`,
 `it verifies an on-chain counter-contract` and `it imports an on-chain account`.
 
-`/compile` and `/verify` each return ~80 KB (77 KB of it base64 `masp`), so the
-probe records a small summary rather than the raw body.
+`/compile` and `/verify` each return ~115 KB: ~90 KB of echoed `files` (almost
+all of it the fixture's `Cargo.lock`) and ~20 KB of base64 `masp`. So the probe
+records a small summary rather than the raw body.
 
 A service's checks run **sequentially** so `GET /` wakes api-compile's container
 before the compile checks run and they don't each pay a cold start; services run

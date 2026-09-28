@@ -9,7 +9,7 @@ import {
   getVerifiedNoteByScript,
   insertVerifiedNoteScript,
 } from "@/db/verified-notes.js";
-import { API_COMPILE_URL } from "@/lib/constants.js";
+import { fetchApiCompile } from "@/lib/api-compile.js";
 import { importResource } from "@/lib/import-resource.js";
 
 export const verifyNote = async ({
@@ -30,7 +30,24 @@ export const verifyNote = async ({
   const {
     package: { name },
   } = parseCargoToml(cargoToml);
-  const response = await fetch(`${API_COMPILE_URL}/verify`, {
+  const {
+    verified,
+    masp,
+    digest,
+    kind,
+    manifest,
+    files: compiledFiles,
+  } = await fetchApiCompile<{
+    verified: boolean;
+    masp: string;
+    digest: string;
+    // The compiled package's own kind, stored as the package's type.
+    kind: TargetType;
+    manifest: Manifest;
+    // The sources plus the lockfile the build used. Absent from api-compile
+    // versions that predate it.
+    files?: Record<string, string>;
+  }>("/verify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -40,19 +57,6 @@ export const verifyNote = async ({
       resourceId: noteId,
     }),
   });
-  const data = await response.json();
-  if (!response.ok) {
-    const { error } = data as { error: string };
-    throw new Error(error);
-  }
-  const { verified, masp, digest, kind, manifest } = data as {
-    verified: boolean;
-    masp: string;
-    digest: string;
-    // The compiled package's own kind, stored as the package's type.
-    kind: TargetType;
-    manifest: Manifest;
-  };
   if (verified) {
     const { code: script } = await importResource({
       networkId,
@@ -68,7 +72,9 @@ export const verifyNote = async ({
       : await insertPackage({
           name,
           type: kind,
-          files,
+          // Keeps the lockfile with the sources, so the record pins the
+          // dependency versions that produced `digest`.
+          files: compiledFiles ?? files,
           masp,
           digest,
           manifest,
