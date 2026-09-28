@@ -63,4 +63,12 @@ app.post("/compile", proxy(COMPILE_TIMEOUT_MS));
 app.get("/:networkId/import/:resourceId", proxy(IMPORT_TIMEOUT_MS));
 app.post("/verify", proxy(COMPILE_TIMEOUT_MS));
 
+// The same JSON errors api-compile answers itself, for paths the Worker doesn't
+// forward and for failures in the Worker (Hono's defaults are plain text).
+app.notFound((c) => c.json({ error: "not found" }, 404));
+app.onError((error, c) => {
+  console.error(error);
+  return c.json({ error: "internal error" }, 500);
+});
+
 export default app;
