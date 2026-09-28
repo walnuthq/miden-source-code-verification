@@ -2,7 +2,7 @@
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "miden-source-code-verification-api-registry",
   "main": "src/server.ts",
-  "compatibility_date": "2026-06-01",
+  "compatibility_date": "2026-09-25",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true,
