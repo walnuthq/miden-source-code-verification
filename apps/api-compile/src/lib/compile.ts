@@ -7,7 +7,7 @@ import type {
   Manifest,
   TargetType,
 } from "miden-source-code-verification-utils/manifest";
-import { cargoMidenBuild } from "@/lib/cargo-miden.js";
+import { cargoMidenBuild, readCargoLock } from "@/lib/cargo-miden.js";
 import {
   CARGO_TARGET_DIR,
   COMPILE_CONCURRENCY,
@@ -43,12 +43,13 @@ const build = async ({
     await mkdir(dir, { recursive: true });
     await writeFile(fullPath, content, "utf-8");
   }
+  const projectDir = entrypoint ? `${tmpDir}/${entrypoint}` : tmpDir;
   const {
     stdout = "",
     stderr = "",
     error: cargoMidenError,
   } = await cargoMidenBuild({
-    projectDir: entrypoint ? `${tmpDir}/${entrypoint}` : tmpDir,
+    projectDir,
     midencTargetDir,
     signal,
   });
@@ -65,7 +66,12 @@ const build = async ({
       stdout: midenPackageMetadataStdout = "",
       error: midenPackageMetadataError,
     },
-  ] = await Promise.all([readFile(maspPath), midenPackageMetadata(maspPath)]);
+    cargoLock,
+  ] = await Promise.all([
+    readFile(maspPath),
+    midenPackageMetadata(maspPath),
+    readCargoLock({ projectDir, rootDir: tmpDir }),
+  ]);
   if (midenPackageMetadataError) {
     throw new Error(midenPackageMetadataError);
   }
@@ -82,6 +88,11 @@ const build = async ({
     digest,
     kind,
     manifest,
+    // The sources with the lockfile cargo created or updated, so a client can
+    // resubmit them and get the same dependency versions next time.
+    files: cargoLock
+      ? { ...files, [cargoLock.path]: cargoLock.content }
+      : files,
   };
 };
 

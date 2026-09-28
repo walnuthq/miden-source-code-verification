@@ -51,7 +51,15 @@ router.post("/verify", async (req, res) => {
     // build's files are deleted.
     const result = await queueCompile(
       { files, entrypoint, signal },
-      async ({ stderr, maspPath, masp, digest, kind, manifest }) => {
+      async ({
+        stderr,
+        maspPath,
+        masp,
+        digest,
+        kind,
+        manifest,
+        files: compiledFiles,
+      }) => {
         if (!maspPath) {
           return { error: stderr };
         }
@@ -66,7 +74,14 @@ router.post("/verify", async (req, res) => {
             maspPath,
             digest,
           });
-          return { verified, masp, digest, kind, manifest };
+          return {
+            verified,
+            masp,
+            digest,
+            kind,
+            manifest,
+            files: compiledFiles,
+          };
         } finally {
           if (resourcePath) {
             await removeDirs([dirname(resourcePath)]);

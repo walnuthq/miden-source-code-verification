@@ -30,7 +30,15 @@ router.post("/compile", async (req, res) => {
       return;
     }
     // The response only needs what the build returns in memory.
-    const { stdout, stderr, masp, digest, kind, manifest } = await queueCompile(
+    const {
+      stdout,
+      stderr,
+      masp,
+      digest,
+      kind,
+      manifest,
+      files: compiledFiles,
+    } = await queueCompile(
       {
         files,
         entrypoint,
@@ -45,6 +53,8 @@ router.post("/compile", async (req, res) => {
       digest,
       kind,
       manifest,
+      // Set when the build succeeded: the sources plus the lockfile it used.
+      files: compiledFiles,
     });
   } catch (error) {
     if (signal.aborted) {

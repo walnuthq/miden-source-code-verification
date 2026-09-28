@@ -34,13 +34,23 @@ export const verifyAccountComponent = async ({
   const {
     package: { name },
   } = parseCargoToml(cargoToml);
-  const { verified, masp, digest, kind, manifest } = await fetchApiCompile<{
+  const {
+    verified,
+    masp,
+    digest,
+    kind,
+    manifest,
+    files: compiledFiles,
+  } = await fetchApiCompile<{
     verified: boolean;
     masp: string;
     digest: string;
     // The compiled package's own kind, stored as the package's type.
     kind: TargetType;
     manifest: Manifest;
+    // The sources plus the lockfile the build used. Absent from api-compile
+    // versions that predate it.
+    files?: Record<string, string>;
   }>("/verify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -73,7 +83,9 @@ export const verifyAccountComponent = async ({
       : await insertPackage({
           name,
           type: kind,
-          files,
+          // Keeps the lockfile with the sources, so the record pins the
+          // dependency versions that produced `digest`.
+          files: compiledFiles ?? files,
           masp,
           digest,
           manifest,

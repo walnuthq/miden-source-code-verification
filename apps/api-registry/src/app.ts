@@ -130,7 +130,9 @@ import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
  *           type: object
  *           description: >
  *             Map of project-relative file paths to their UTF-8 source contents
- *             (the exact inputs that were compiled).
+ *             (the exact inputs that were compiled). Includes the `Cargo.lock`
+ *             the build used, even when the verification request didn't send
+ *             one, so the dependency versions behind `digest` are recorded.
  *           additionalProperties:
  *             type: string
  *         masp:
