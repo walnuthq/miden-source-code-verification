@@ -2,8 +2,10 @@
 // the verifier cares about, and reads the kept files into a path -> content map.
 //
 // Port of the Rust logic in walnuthq/miden-verify (`is_included` / `collect_files`):
-// keep files under any `src/` dir, plus `Cargo.toml`, `rust-toolchain.toml`, and
-// `.cargo/config.toml`; prune `target/` and hidden dirs (except `.cargo`).
+// keep files under any `src/` dir, plus `Cargo.toml`, `Cargo.lock`, `build.rs`,
+// `miden-project.toml`, `rust-toolchain.toml` and `.cargo/config.toml`; prune
+// `target/` and hidden dirs (except `.cargo`). `Cargo.lock` pins dependency
+// versions, so the verifier builds what the author built.
 
 export type ProjectFiles = {
   files: Record<string, string>;
@@ -32,6 +34,8 @@ function isIncluded(rel: string): boolean {
   if (parents.includes("src")) return true;
   if (
     name === "Cargo.toml" ||
+    name === "Cargo.lock" ||
+    name === "build.rs" ||
     name === "miden-project.toml" ||
     name === "rust-toolchain.toml"
   )
