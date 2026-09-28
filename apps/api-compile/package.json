@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "cors": "2.8.6",
-    "dotenv": "18.0.3",
+    "dotenv": "18.0.4",
     "express": "5.2.1",
     "lodash": "4.18.1",
     "miden-source-code-verification-utils": "workspace:*"
@@ -31,6 +31,6 @@
     "tsx": "4.23.15",
     "typescript": "7.0.2",
     "vite": "8.3.1",
-    "vitest": "5.0.1"
+    "vitest": "5.0.2"
   }
 }
