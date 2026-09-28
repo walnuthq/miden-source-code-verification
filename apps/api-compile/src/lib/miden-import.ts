@@ -1,4 +1,7 @@
-import { MIDEN_CLIENT_CACHE_DIR } from "@/lib/constants.js";
+import {
+  MIDEN_CLIENT_CACHE_DIR,
+  MIDEN_TOOL_TIMEOUT_MS,
+} from "@/lib/constants.js";
 import { execFile } from "@/lib/utils.js";
 
 export const midenImport = async ({
@@ -15,6 +18,7 @@ export const midenImport = async ({
     );
     const { stdout } = await execFile("miden-import", args, {
       cwd: MIDEN_CLIENT_CACHE_DIR,
+      timeout: MIDEN_TOOL_TIMEOUT_MS,
     });
     return { stdout };
   } catch (error) {

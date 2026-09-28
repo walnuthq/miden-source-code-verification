@@ -1,8 +1,14 @@
-import { CARGO_TARGET_DIR } from "@/lib/constants.js";
+import {
+  CARGO_MIDEN_BUILD_TIMEOUT_MS,
+  CARGO_TARGET_DIR,
+  MIDEN_TOOL_TIMEOUT_MS,
+} from "@/lib/constants.js";
 import { execFile } from "@/lib/utils.js";
 
 export const cargoMidenVersion = async () => {
-  const { stdout } = await execFile("cargo", ["miden", "--version"]);
+  const { stdout } = await execFile("cargo", ["miden", "--version"], {
+    timeout: MIDEN_TOOL_TIMEOUT_MS,
+  });
   const [, version = ""] = stdout.split(" ").map((part) => part.trim());
   const [major, minor, patch] = version.split(".");
   return `${major}.${minor}.${patch}`;
@@ -11,9 +17,11 @@ export const cargoMidenVersion = async () => {
 export const cargoMidenBuild = async ({
   projectDir,
   midencTargetDir,
+  signal,
 }: {
   projectDir: string;
   midencTargetDir: string;
+  signal?: AbortSignal;
 }) => {
   try {
     const { stdout, stderr } = await execFile(
@@ -26,6 +34,8 @@ export const cargoMidenBuild = async ({
           CARGO_TARGET_DIR,
           MIDENC_TARGET_DIR: midencTargetDir,
         },
+        timeout: CARGO_MIDEN_BUILD_TIMEOUT_MS,
+        signal,
       },
     );
     return { stdout, stderr };

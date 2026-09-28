@@ -8,18 +8,23 @@ import type {
   TargetType,
 } from "miden-source-code-verification-utils/manifest";
 import { cargoMidenBuild } from "@/lib/cargo-miden.js";
-import { CARGO_TARGET_DIR } from "@/lib/constants.js";
+import {
+  CARGO_TARGET_DIR,
+  COMPILE_CONCURRENCY,
+  COMPILE_QUEUE_SIZE,
+} from "@/lib/constants.js";
+import { createLimiter } from "@/lib/limiter.js";
 import { midenPackageMetadata } from "@/lib/miden-package-metadata.js";
 
 const { snakeCase } = lodash;
 
-export const compile = async ({
-  files,
-  entrypoint = ".",
-}: {
+type CompileArgs = {
   files: Record<string, string>;
   entrypoint?: string;
-}) => {
+  signal?: AbortSignal;
+};
+
+const compile = async ({ files, entrypoint = ".", signal }: CompileArgs) => {
   const tmpDir = await mkdtemp(join(tmpdir(), "miden-project-")); // Write project files
   const outputName = snakeCase(tmpDir.split("/").at(-1) ?? "");
   const midencTargetDir = `${CARGO_TARGET_DIR}/${outputName}`;
@@ -41,6 +46,7 @@ export const compile = async ({
   } = await cargoMidenBuild({
     projectDir: entrypoint ? `${tmpDir}/${entrypoint}` : tmpDir,
     midencTargetDir,
+    signal,
   });
   if (cargoMidenError) {
     return {
@@ -74,3 +80,12 @@ export const compile = async ({
     manifest,
   };
 };
+
+const limit = createLimiter({
+  concurrency: COMPILE_CONCURRENCY,
+  queueSize: COMPILE_QUEUE_SIZE,
+});
+
+// Throws `BusyError` when the queue is full.
+export const queueCompile = (args: CompileArgs) =>
+  limit(() => compile(args), args.signal);

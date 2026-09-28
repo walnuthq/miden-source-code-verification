@@ -1,6 +1,8 @@
 import { join } from "node:path";
 import { Router } from "express";
-import { compile } from "@/lib/compile.js";
+import { queueCompile } from "@/lib/compile.js";
+import { BusyError } from "@/lib/limiter.js";
+import { abortOnClose } from "@/lib/utils.js";
 import { verify, writeResourceFile } from "@/lib/verify.js";
 
 const router = Router();
@@ -14,6 +16,7 @@ type VerifyRequestBody = {
 };
 
 router.post("/verify", async (req, res) => {
+  const signal = abortOnClose(res);
   try {
     const {
       files,
@@ -46,9 +49,10 @@ router.post("/verify", async (req, res) => {
     }
     const [{ stderr, maspPath, masp, digest, kind, manifest }, resourcePath] =
       await Promise.all([
-        compile({
+        queueCompile({
           files,
           entrypoint,
+          signal,
         }),
         resource ? writeResourceFile(resource) : undefined,
       ]);
@@ -65,6 +69,13 @@ router.post("/verify", async (req, res) => {
     });
     res.json({ verified, masp, digest, kind, manifest });
   } catch (error) {
+    if (signal.aborted) {
+      return;
+    }
+    if (error instanceof BusyError) {
+      res.status(503).set("Retry-After", "30").json({ error: error.message });
+      return;
+    }
     console.error(error);
     const message =
       error instanceof Error ? error.message : "Verification failed";
