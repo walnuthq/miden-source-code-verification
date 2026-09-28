@@ -82,8 +82,17 @@ type VerifyAccountRequestBody = {
  *                   type: boolean
  *       "400":
  *         description: >
- *           Invalid request (missing `accountId`, `files`, `Cargo.toml` or
- *           `miden-project.toml`).
+ *           Invalid request (a body that isn't valid JSON, or missing `accountId`,
+ *           `files`, `Cargo.toml` or `miden-project.toml`).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *       "413":
+ *         description: The request body is larger than 1 MB.
  *         content:
  *           application/json:
  *             schema:

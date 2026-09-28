@@ -8,6 +8,7 @@ import {
   PORT,
   SHUTDOWN_TIMEOUT_MS,
 } from "@/lib/constants.js";
+import { errorHandler, notFound } from "@/lib/errors.js";
 import compileRouter from "@/routes/compile.js";
 import importRouter from "@/routes/import.js";
 import verifyRouter from "@/routes/verify.js";
@@ -61,6 +62,8 @@ app.get("/", async (_req, res) => {
 app.use(compileRouter);
 app.use(verifyRouter);
 app.use(importRouter);
+app.use(notFound);
+app.use(errorHandler);
 
 const server = app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
