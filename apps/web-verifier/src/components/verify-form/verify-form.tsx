@@ -55,7 +55,7 @@ type VerifyResult =
 
 // Identifies the client that originated a verification request. Overridable via
 // the `source` query param; falls back to this when unset.
-const DEFAULT_SOURCE = "miden-source-code-verification-web-verifier";
+const DEFAULT_SOURCE = "web-verifier";
 
 // A busy verifier answers 503 with `Retry-After`. Wait that long (within
 // bounds) and resubmit, up to MAX_BUSY_RETRIES times.
