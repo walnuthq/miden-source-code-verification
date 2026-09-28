@@ -27,8 +27,7 @@ import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
  *         - type: string
  *         - type: object
  *     ProcedureSignature:
- *       type: object
- *       nullable: true
+ *       type: [object, "null"]
  *       description: Type signature of an exported procedure (null when unavailable).
  *       properties:
  *         abi:
@@ -58,14 +57,12 @@ import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
  *               type: string
  *               description: Fully-qualified path of the exported procedure.
  *             node:
- *               type: integer
- *               nullable: true
+ *               type: [integer, "null"]
  *               description: >
  *                 Id of the procedure's root node in the package's MAST, which
  *                 tells apart procedures that compile to the same digest.
  *             source_node:
- *               type: integer
- *               nullable: true
+ *               type: [integer, "null"]
  *               description: Id of the procedure's node in the package's debug info.
  *             digest:
  *               type: string
