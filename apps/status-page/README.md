@@ -201,8 +201,8 @@ pnpm --filter miden-source-code-verification-status-page build
 # Probe against production and preview from the root path
 API_COMPILE_URL=https://miden-source-code-verification-api-compile.walnut.dev \
 API_REGISTRY_URL=https://miden-source-code-verification-api-registry.walnut.dev \
-WEB_VERIFIER_URL=https://miden-source-code-verification-web-verifier.walnut.dev \
-WEB_VIEWER_URL=https://miden-source-code-verification-web-viewer.walnut.dev \
+WEB_VERIFIER_URL=https://miden-verify.walnut.dev \
+WEB_VIEWER_URL=https://miden-registry.walnut.dev \
 STATUS_PAGE_BASE=/ \
   pnpm --filter miden-source-code-verification-status-page build
 
