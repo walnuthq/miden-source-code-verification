@@ -57,6 +57,27 @@ type VerifyResult =
 // the `source` query param; falls back to this when unset.
 const DEFAULT_SOURCE = "miden-source-code-verification-web-verifier";
 
+// A busy verifier answers 503 with `Retry-After`. Wait that long (within
+// bounds) and resubmit, up to MAX_BUSY_RETRIES times.
+const MAX_BUSY_RETRIES = 3;
+const DEFAULT_RETRY_AFTER_SECONDS = 30;
+const MAX_RETRY_AFTER_SECONDS = 120;
+
+const retryAfterSeconds = (header: string | null) => {
+  const seconds = Number(header);
+  if (header === null || !Number.isFinite(seconds) || seconds < 1) {
+    return DEFAULT_RETRY_AFTER_SECONDS;
+  }
+  return Math.min(Math.ceil(seconds), MAX_RETRY_AFTER_SECONDS);
+};
+
+// Messages for failures that aren't about the submitted sources.
+const UNAVAILABLE_MESSAGES: Record<number, string> = {
+  502: "The verifier could not reach the compiler. Please try again later.",
+  503: "The verifier is busy. Please try again in a few minutes.",
+  504: "The verifier took too long to answer. Please try again later.",
+};
+
 export function VerifyForm() {
   // Read `resource` / `network` / `source` query params once on mount to seed
   // the form.
@@ -88,6 +109,16 @@ export function VerifyForm() {
   // the next Verify click — not cleared on input edits).
   const [verifying, setVerifying] = useState(false);
   const [result, setResult] = useState<VerifyResult | null>(null);
+  // Seconds left before resubmitting to a busy verifier, null otherwise.
+  const [retryIn, setRetryIn] = useState<number | null>(null);
+
+  const countdown = async (seconds: number) => {
+    for (let left = seconds; left > 0; left--) {
+      setRetryIn(left);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    setRetryIn(null);
+  };
 
   const onImport = ({ files, entrypoints }: ProjectFiles) => {
     setFiles(files);
@@ -120,19 +151,34 @@ export function VerifyForm() {
     setVerifying(true);
     setResult(null);
     try {
-      const response = await fetch(`${verifierUrl}/v1/${network}/${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          [idField]: idValue,
-          files,
-          entrypoint,
-          source,
-        }),
-      });
-      const data = await response.json();
+      const request = () =>
+        fetch(`${verifierUrl}/v1/${network}/${endpoint}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            [idField]: idValue,
+            files,
+            entrypoint,
+            source,
+          }),
+        });
+      let response = await request();
+      for (
+        let retry = 1;
+        response.status === 503 && retry <= MAX_BUSY_RETRIES;
+        retry++
+      ) {
+        await countdown(retryAfterSeconds(response.headers.get("Retry-After")));
+        response = await request();
+      }
+      // Error pages from a proxy in front of the verifier are not JSON.
+      const data = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(data?.error ?? `Request failed (${response.status})`);
+        throw new Error(
+          UNAVAILABLE_MESSAGES[response.status] ??
+            data?.error ??
+            `Request failed (${response.status})`,
+        );
       }
       setResult(
         data.verified
@@ -153,6 +199,7 @@ export function VerifyForm() {
       });
     } finally {
       setVerifying(false);
+      setRetryIn(null);
     }
   };
 
@@ -240,7 +287,9 @@ export function VerifyForm() {
               {verifying ? (
                 <>
                   <Loader2 className="animate-spin" />
-                  Verifying…
+                  {retryIn === null
+                    ? "Verifying…"
+                    : `Verifier busy, retrying in ${retryIn}s…`}
                 </>
               ) : (
                 "Verify Resource"
