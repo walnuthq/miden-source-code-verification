@@ -1,6 +1,10 @@
 import { join } from "node:path";
 import { Router } from "express";
 import { getVerifiedAccountByCode } from "@/db/verified-accounts.js";
+import {
+  ApiCompileError,
+  sendApiCompileUnavailable,
+} from "@/lib/api-compile.js";
 import { importResource } from "@/lib/import-resource.js";
 import { parseRoot } from "@/lib/roots.js";
 import { verifyAccountComponent } from "@/lib/verify-account-component.js";
@@ -92,6 +96,12 @@ type VerifyAccountRequestBody = {
  *               properties:
  *                 error:
  *                   type: string
+ *       "502":
+ *         $ref: '#/components/responses/CompilerUnavailable'
+ *       "503":
+ *         $ref: '#/components/responses/CompilerUnavailable'
+ *       "504":
+ *         $ref: '#/components/responses/CompilerUnavailable'
  */
 router.post("/:networkId/verified-accounts", async (req, res) => {
   try {
@@ -129,6 +139,9 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
     res.json({ verified });
   } catch (error) {
     console.error(error);
+    if (sendApiCompileUnavailable(res, error)) {
+      return;
+    }
     const message =
       error instanceof Error ? error.message : "verification failed";
     res.status(500).json({ error: message });
@@ -357,6 +370,12 @@ router.get("/:networkId/verified-accounts/code/:code", async (req, res) => {
  *               properties:
  *                 error:
  *                   type: string
+ *       "502":
+ *         $ref: '#/components/responses/CompilerUnavailable'
+ *       "503":
+ *         $ref: '#/components/responses/CompilerUnavailable'
+ *       "504":
+ *         $ref: '#/components/responses/CompilerUnavailable'
  */
 router.get("/:networkId/verified-accounts/:accountId", async (req, res) => {
   try {
@@ -364,11 +383,14 @@ router.get("/:networkId/verified-accounts/:accountId", async (req, res) => {
     let resource: Awaited<ReturnType<typeof importResource>>;
     try {
       resource = await importResource({ networkId, resourceId: accountId });
-    } catch {
-      // The account could not be fetched on-chain (unknown/invalid id), so it
-      // cannot be matched against the registry.
-      res.status(404).json({ error: "verified account not found" });
-      return;
+    } catch (error) {
+      // Only an account api-compile could not find on-chain (unknown/invalid
+      // id) is a 404. Any other failure says nothing about the registry.
+      if (error instanceof ApiCompileError && error.status === 404) {
+        res.status(404).json({ error: "verified account not found" });
+        return;
+      }
+      throw error;
     }
     // A note id resolves too, but to a script root no account record carries.
     if (resource.type !== "account") {
@@ -393,6 +415,9 @@ router.get("/:networkId/verified-accounts/:accountId", async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+    if (sendApiCompileUnavailable(res, error)) {
+      return;
+    }
     const message =
       error instanceof Error
         ? error.message

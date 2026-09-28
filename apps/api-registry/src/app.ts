@@ -178,6 +178,24 @@ import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
  *           format: date-time
  *         package:
  *           $ref: '#/components/schemas/Package'
+ *   responses:
+ *     CompilerUnavailable:
+ *       description: >
+ *         The compilation service could not be reached (`502`), is busy (`503`)
+ *         or did not answer in time (`504`). This is temporary: retry later,
+ *         after the number of seconds in `Retry-After` when present.
+ *       headers:
+ *         Retry-After:
+ *           description: Seconds to wait before retrying.
+ *           schema:
+ *             type: integer
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               error:
+ *                 type: string
  */
 
 type CreateAppOptions = {
@@ -214,6 +232,8 @@ export const createApp = ({
   app.use(
     cors({
       origin: allowedOrigins.includes("*") ? true : allowedOrigins,
+      // Lets browser clients read how long to wait after a 503.
+      exposedHeaders: ["Retry-After"],
     }),
   );
 
