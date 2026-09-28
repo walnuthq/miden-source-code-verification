@@ -2,7 +2,7 @@
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "miden-source-code-verification-web-viewer",
   "main": "src/index.ts",
-  "compatibility_date": "2026-06-01",
+  "compatibility_date": "2026-09-25",
   // Populates `process.env` from `vars`, which is where web-viewer reads its
   // config (as on Node).
   "compatibility_flags": ["nodejs_compat"],
