@@ -2,10 +2,22 @@ import {
   type ExecFileOptions,
   execFile as execFileCb,
 } from "node:child_process";
+import { rm } from "node:fs/promises";
 import { promisify } from "node:util";
 import type { Response } from "express";
 
 const execFileAsync = promisify(execFileCb);
+
+// Best effort: a failed cleanup is logged, never turned into a failed request.
+export const removeDirs = async (dirs: string[]) => {
+  try {
+    await Promise.all(
+      dirs.map((dir) => rm(dir, { recursive: true, force: true })),
+    );
+  } catch (error) {
+    console.error(error);
+  }
+};
 
 // Every subprocess is bounded: a hung tool must fail its own request instead of
 // holding the single container. On a timeout or an abort the error is replaced,

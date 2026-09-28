@@ -29,12 +29,14 @@ router.post("/compile", async (req, res) => {
       res.status(400).json({ error: "missing miden-project.toml" });
       return;
     }
+    // The response only needs what the build returns in memory.
     const { stdout, stderr, masp, digest, kind, manifest } = await queueCompile(
       {
         files,
         entrypoint,
         signal,
       },
+      (compiled) => compiled,
     );
     res.json({
       stdout,

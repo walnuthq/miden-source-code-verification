@@ -1,8 +1,8 @@
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { Router } from "express";
 import { queueCompile } from "@/lib/compile.js";
 import { BusyError } from "@/lib/limiter.js";
-import { abortOnClose } from "@/lib/utils.js";
+import { abortOnClose, removeDirs } from "@/lib/utils.js";
 import { verify, writeResourceFile } from "@/lib/verify.js";
 
 const router = Router();
@@ -47,27 +47,38 @@ router.post("/verify", async (req, res) => {
       res.status(400).json({ error: "missing resourceId" });
       return;
     }
-    const [{ stderr, maspPath, masp, digest, kind, manifest }, resourcePath] =
-      await Promise.all([
-        queueCompile({
-          files,
-          entrypoint,
-          signal,
-        }),
-        resource ? writeResourceFile(resource) : undefined,
-      ]);
-    if (!maspPath) {
-      res.status(400).json({ error: stderr });
+    // Verifying reads the built package from disk, so it runs before the
+    // build's files are deleted.
+    const result = await queueCompile(
+      { files, entrypoint, signal },
+      async ({ stderr, maspPath, masp, digest, kind, manifest }) => {
+        if (!maspPath) {
+          return { error: stderr };
+        }
+        const resourcePath = resource
+          ? await writeResourceFile(resource)
+          : undefined;
+        try {
+          const verified = await verify({
+            networkId,
+            resourceId,
+            resourcePath,
+            maspPath,
+            digest,
+          });
+          return { verified, masp, digest, kind, manifest };
+        } finally {
+          if (resourcePath) {
+            await removeDirs([dirname(resourcePath)]);
+          }
+        }
+      },
+    );
+    if ("error" in result) {
+      res.status(400).json({ error: result.error });
       return;
     }
-    const verified = await verify({
-      networkId,
-      resourceId,
-      resourcePath,
-      maspPath,
-      digest,
-    });
-    res.json({ verified, masp, digest, kind, manifest });
+    res.json(result);
   } catch (error) {
     if (signal.aborted) {
       return;

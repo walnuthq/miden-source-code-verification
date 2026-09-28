@@ -15,6 +15,7 @@ import {
 } from "@/lib/constants.js";
 import { createLimiter } from "@/lib/limiter.js";
 import { midenPackageMetadata } from "@/lib/miden-package-metadata.js";
+import { removeDirs } from "@/lib/utils.js";
 
 const { snakeCase } = lodash;
 
@@ -24,10 +25,13 @@ type CompileArgs = {
   signal?: AbortSignal;
 };
 
-const compile = async ({ files, entrypoint = ".", signal }: CompileArgs) => {
-  const tmpDir = await mkdtemp(join(tmpdir(), "miden-project-")); // Write project files
-  const outputName = snakeCase(tmpDir.split("/").at(-1) ?? "");
-  const midencTargetDir = `${CARGO_TARGET_DIR}/${outputName}`;
+const build = async ({
+  files,
+  entrypoint = ".",
+  signal,
+  tmpDir,
+  midencTargetDir,
+}: CompileArgs & { tmpDir: string; midencTargetDir: string }) => {
   const cargoTomlPath = join(entrypoint, "Cargo.toml");
   const cargoToml = files[cargoTomlPath] ?? "";
   const {
@@ -81,11 +85,43 @@ const compile = async ({ files, entrypoint = ".", signal }: CompileArgs) => {
   };
 };
 
+type Compiled = Awaited<ReturnType<typeof build>>;
+
+// Builds in a fresh copy of the project, into its own output directory. Both
+// are deleted by `cleanup`, or right away if the build throws: nothing reuses
+// them, and left behind they'd fill the disk.
+const compile = async (args: CompileArgs) => {
+  const tmpDir = await mkdtemp(join(tmpdir(), "miden-project-"));
+  const outputName = snakeCase(tmpDir.split("/").at(-1) ?? "");
+  const midencTargetDir = `${CARGO_TARGET_DIR}/${outputName}`;
+  const cleanup = () => removeDirs([tmpDir, midencTargetDir]);
+  try {
+    return { ...(await build({ ...args, tmpDir, midencTargetDir })), cleanup };
+  } catch (error) {
+    await cleanup();
+    throw error;
+  }
+};
+
 const limit = createLimiter({
   concurrency: COMPILE_CONCURRENCY,
   queueSize: COMPILE_QUEUE_SIZE,
 });
 
-// Throws `BusyError` when the queue is full.
-export const queueCompile = (args: CompileArgs) =>
-  limit(() => compile(args), args.signal);
+// Compiles once a slot is free (throws `BusyError` when the queue is full),
+// passes the result to `use`, then deletes the build's files. `use` has to be
+// done with `maspPath` when it returns.
+export const queueCompile = async <T>(
+  args: CompileArgs,
+  use: (compiled: Compiled) => Promise<T> | T,
+) => {
+  const { cleanup, ...compiled } = await limit(
+    () => compile(args),
+    args.signal,
+  );
+  try {
+    return await use(compiled);
+  } finally {
+    await cleanup();
+  }
+};
