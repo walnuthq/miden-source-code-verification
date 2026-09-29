@@ -219,7 +219,9 @@ runs the Slack notify step against the snapshot the build just wrote. That
 workflow is the only one allowed to deploy Pages: a repository has exactly one
 Pages deployment, and a second workflow would overwrite the first on every run.
 
-It runs every 30 minutes on a cron, on the hour and the half hour. Do not shorten
+It runs every 30 minutes on a cron, at :07 and :37 — off-peak, because GitHub
+delays or drops scheduled runs under load, most of all at :00 and :30. Even
+off-peak, GitHub does not guarantee a scheduled run fires on time. Do not shorten
 that interval without reading the note in the workflow about `api-compile`'s
 container sleep.
 
