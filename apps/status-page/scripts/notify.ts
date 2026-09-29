@@ -139,15 +139,24 @@ const summaryLine = (
   // The link the reader wants first: the service that is actually broken.
   const link = `<${service.url}|${service.url.replace(/^https?:\/\//, "")}>`;
 
-  const elapsed = formatDuration(
-    new Date(checkedAt).getTime() - new Date(service.since).getTime(),
-  );
+  const total = service.endpoints.length;
+  const checks = `${total} ${total === 1 ? "check" : "checks"}`;
 
   if (service.health === "healthy") {
-    return `*${link}* is back — all ${service.endpoints.length} checks passing after ${elapsed} down.`;
+    // How long the service was down, which is the length of the state it has
+    // just left. `since` cannot answer that: the health changed on this run, so
+    // probe.ts moved it to now and the difference would always be zero. Older
+    // snapshots have no `previousSince`, and then the duration is simply not
+    // known — say nothing rather than report `0m`.
+    const previousSince = service.previousSince
+      ? new Date(service.previousSince).getTime()
+      : Number.NaN;
+    const downFor = Number.isFinite(previousSince)
+      ? formatDuration(new Date(checkedAt).getTime() - previousSince)
+      : null;
+    return `*${link}* is back — all ${checks} passing${downFor ? ` after ${downFor} down` : ""}.`;
   }
 
-  const total = service.endpoints.length;
   const failing = service.endpoints.filter(
     (endpoint) => endpoint.health !== "healthy",
   ).length;
@@ -155,7 +164,7 @@ const summaryLine = (
     reason.kind === "reminder"
       ? `since ${formatTimestamp(service.since)}`
       : `as of ${formatTimestamp(checkedAt)}`;
-  return `*${link}* — ${failing} of ${total} ${total === 1 ? "check" : "checks"} failing ${when}.`;
+  return `*${link}* — ${failing} of ${checks} failing ${when}.`;
 };
 
 const attachmentFor = (

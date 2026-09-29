@@ -479,7 +479,10 @@ const rollUp = (endpoints: EndpointStatus[]): ServiceHealth => {
 };
 
 /** Everything a probe can know on its own — the history is added afterwards. */
-type ProbedService = Omit<ServiceStatus, "previousHealth" | "since">;
+type ProbedService = Omit<
+  ServiceStatus,
+  "previousHealth" | "since" | "previousSince"
+>;
 
 const probeService = async (
   service: ServiceDefinition,
@@ -564,6 +567,10 @@ const withHistory = (service: ProbedService): ServiceStatus => {
     ...service,
     previousHealth: before?.health ?? null,
     since: unchanged && before.since ? before.since : checkedAt,
+    // The start of the state being left, kept because `since` is about to stop
+    // describing it. Without this a recovery can only measure from its own
+    // timestamp, which is always zero.
+    previousSince: before?.since ?? null,
   };
 };
 
