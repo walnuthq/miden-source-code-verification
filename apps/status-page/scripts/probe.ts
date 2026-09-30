@@ -45,8 +45,13 @@ const WEB_VIEWER_URL = process.env.WEB_VIEWER_URL || "http://localhost:5174";
 const DEFAULT_TIMEOUT_MS = 15_000;
 const PREVIOUS_SNAPSHOT_TIMEOUT_MS = 10_000;
 // The compile endpoints do real work (cargo-miden build) and may additionally
-// pay a container cold start, so they get a much longer leash.
-const COMPILE_TIMEOUT_MS = 120_000;
+// pay a container cold start, so they get a much longer leash. api-compile runs
+// one build at a time, so a compile can also queue behind someone else's build
+// for up to its 240s build timeout. Waiting longer than the Worker's own 420s
+// limit on these routes (apps/api-compile-cloudflare/src/server.ts) lets the
+// Worker decide: a slow but working service still answers, and a stuck one
+// comes back as the Worker's 504 rather than our own timeout.
+const COMPILE_TIMEOUT_MS = 450_000;
 
 const findRepoRoot = (start: string): string => {
   let dir = start;
