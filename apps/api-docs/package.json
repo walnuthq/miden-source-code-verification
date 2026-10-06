@@ -12,9 +12,9 @@
     "format": "biome check --write ."
   },
   "dependencies": {
-    "dotenv": "18.0.4",
+    "dotenv": "18.0.5",
     "swagger-jsdoc": "6.3.0",
-    "swagger-ui-dist": "5.33.0"
+    "swagger-ui-dist": "5.33.1"
   },
   "devDependencies": {
     "@types/node": "24.13.6",
