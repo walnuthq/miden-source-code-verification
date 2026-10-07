@@ -37,14 +37,14 @@ export const verifyAccountComponent = async ({
   const {
     verified,
     masp,
-    digest,
+    commitment,
     kind,
     manifest,
     files: compiledFiles,
   } = await fetchApiCompile<{
     verified: boolean;
     masp: string;
-    digest: string;
+    commitment: string;
     // The compiled package's own kind, stored as the package's type.
     kind: TargetType;
     manifest: Manifest;
@@ -72,28 +72,28 @@ export const verifyAccountComponent = async ({
       : await insertVerifiedAccountCode({ networkId, code });
     const verifiedAccountComponent = await getVerifiedAccountComponent({
       verifiedAccountId,
-      packageDigest: digest,
+      packageCommitment: commitment,
     });
     if (verifiedAccountComponent) {
       throw new Error("account component already verified");
     }
-    const dbPackage = await getPackage(digest);
+    const dbPackage = await getPackage(commitment);
     const packageId = dbPackage
       ? dbPackage.id
       : await insertPackage({
           name,
           type: kind,
           // Keeps the lockfile with the sources, so the record pins the
-          // dependency versions that produced `digest`.
+          // dependency versions that produced `commitment`.
           files: compiledFiles ?? files,
           masp,
-          digest,
+          commitment,
           manifest,
         });
     await insertVerifiedAccountComponent({
       verifiedAccountId,
       packageId,
-      packageDigest: digest,
+      packageCommitment: commitment,
       source,
     });
   }

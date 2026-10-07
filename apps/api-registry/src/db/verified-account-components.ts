@@ -3,25 +3,25 @@ import { verifiedAccountComponentTable } from "@/db/schema.js";
 
 export const getVerifiedAccountComponent = ({
   verifiedAccountId,
-  packageDigest,
+  packageCommitment,
 }: {
   verifiedAccountId: string;
-  packageDigest: string;
+  packageCommitment: string;
 }) =>
   db.query.verifiedAccountComponentTable.findFirst({
-    where: { verifiedAccountId, packageDigest },
+    where: { verifiedAccountId, packageCommitment },
     with: { package: true },
   });
 
 export const insertVerifiedAccountComponent = async ({
   verifiedAccountId,
   packageId,
-  packageDigest,
+  packageCommitment,
   source,
 }: {
   verifiedAccountId: string;
   packageId: string;
-  packageDigest: string;
+  packageCommitment: string;
   source: string;
 }) => {
   const [insertedVerifiedAccountComponent] = await db
@@ -29,7 +29,7 @@ export const insertVerifiedAccountComponent = async ({
     .values({
       verifiedAccountId,
       packageId,
-      packageDigest,
+      packageCommitment,
       source,
     })
     .returning({ id: verifiedAccountComponentTable.id });

@@ -75,8 +75,10 @@ const build = async ({
   if (midenPackageMetadataError) {
     throw new Error(midenPackageMetadataError);
   }
-  const { digest, kind, manifest } = JSON.parse(midenPackageMetadataStdout) as {
-    digest: string;
+  const { commitment, kind, manifest } = JSON.parse(
+    midenPackageMetadataStdout,
+  ) as {
+    commitment: string;
     kind: TargetType;
     manifest: Manifest;
   };
@@ -85,7 +87,7 @@ const build = async ({
     stderr,
     maspPath,
     masp: maspBuffer.toString("base64"),
-    digest,
+    commitment,
     kind,
     manifest,
     // The sources with the lockfile cargo created or updated, so a client can

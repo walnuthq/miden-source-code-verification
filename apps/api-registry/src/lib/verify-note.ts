@@ -33,14 +33,14 @@ export const verifyNote = async ({
   const {
     verified,
     masp,
-    digest,
+    commitment,
     kind,
     manifest,
     files: compiledFiles,
   } = await fetchApiCompile<{
     verified: boolean;
     masp: string;
-    digest: string;
+    commitment: string;
     // The compiled package's own kind, stored as the package's type.
     kind: TargetType;
     manifest: Manifest;
@@ -66,17 +66,17 @@ export const verifyNote = async ({
     if (verifiedNote) {
       throw new Error("note already verified");
     }
-    const dbPackage = await getPackage(digest);
+    const dbPackage = await getPackage(commitment);
     const packageId = dbPackage
       ? dbPackage.id
       : await insertPackage({
           name,
           type: kind,
           // Keeps the lockfile with the sources, so the record pins the
-          // dependency versions that produced `digest`.
+          // dependency versions that produced `commitment`.
           files: compiledFiles ?? files,
           masp,
-          digest,
+          commitment,
           manifest,
         });
     await insertVerifiedNoteScript({
@@ -84,7 +84,7 @@ export const verifyNote = async ({
       script,
       source,
       packageId,
-      packageDigest: digest,
+      packageCommitment: commitment,
     });
   }
   return verified;

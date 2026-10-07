@@ -7,12 +7,12 @@ import type {
 import { API_REGISTRY_URL } from "@/lib/constants.server";
 
 // A compiled package in the registry, as far as the pages read it: its name,
-// digest, the sources it was compiled from, keyed by project-relative path, and
+// commitment, the sources it was compiled from, keyed by project-relative path, and
 // the procedures its manifest exports. It also carries the compiled `.masp`
 // (base64), left untyped.
 export type SourcePackage = {
   name: string;
-  digest: string;
+  commitment: string;
   files: Record<string, string>;
   manifest: PackageManifest;
 };
@@ -66,7 +66,7 @@ export type VerifiedNote = {
   script: string;
   source: string;
   packageId: string;
-  packageDigest: string;
+  packageCommitment: string;
   createdAt: string;
   updatedAt: string;
   noteId: string;

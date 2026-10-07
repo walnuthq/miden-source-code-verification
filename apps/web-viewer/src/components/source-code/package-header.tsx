@@ -11,19 +11,19 @@ import { type DetailField, DetailsList } from "@/components/details-card";
 import type { PackageDependency } from "@/lib/api-registry.server";
 import type { PackageProcedure } from "@/lib/procedure-signatures";
 
-// A verified package's details: its name, digest, the procedures it installs,
-// the packages it was compiled against and when and from where it was verified,
-// laid out like the resource's details above it.
+// A verified package's details: its name, commitment, the procedures it
+// installs, the packages it was compiled against and when and from where it was
+// verified, laid out like the resource's details above it.
 export function PackageHeader({
   name,
-  digest,
+  commitment,
   procedures,
   dependencies,
   verifiedAt,
   source,
 }: {
   name: string;
-  digest: string;
+  commitment: string;
   procedures: PackageProcedure[];
   dependencies: PackageDependency[];
   verifiedAt: string;
@@ -32,9 +32,9 @@ export function PackageHeader({
   const fields: DetailField[] = [
     { label: "Package Name", icon: Package, value: name },
     {
-      label: "Package Digest",
+      label: "Package Commitment",
       icon: Fingerprint,
-      value: digest,
+      value: commitment,
       copyable: true,
     },
   ];

@@ -20,7 +20,7 @@ export const packagesTable = pgTable("packages", {
   type: packageTypeEnum().notNull().default("account-component"),
   files: jsonb().notNull().default({}),
   masp: text().notNull().default(""),
-  digest: varchar({ length: 66 })
+  commitment: varchar({ length: 66 })
     .notNull()
     .default(
       "0x0000000000000000000000000000000000000000000000000000000000000000",
@@ -70,14 +70,15 @@ export const verifiedAccountComponentTable = pgTable(
     packageId: uuid("package_id")
       .notNull()
       .references(() => packagesTable.id, { onDelete: "cascade" }),
-    packageDigest: varchar({ length: 66 })
+    packageCommitment: varchar({ length: 66 })
       .notNull()
       .default(
         "0x0000000000000000000000000000000000000000000000000000000000000000",
       ),
     // The client that verified this component. Kept here rather than on the
     // account code, which later components are verified into, or on the
-    // package, which is shared by every resource compiled to the same digest.
+    // package, which is shared by every resource compiled to the same
+    // commitment.
     source: text().notNull().default("unknown"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -99,7 +100,7 @@ export const verifiedNoteScriptTable = pgTable(
     packageId: uuid("package_id")
       .notNull()
       .references(() => packagesTable.id, { onDelete: "cascade" }),
-    packageDigest: varchar({ length: 66 })
+    packageCommitment: varchar({ length: 66 })
       .notNull()
       .default(
         "0x0000000000000000000000000000000000000000000000000000000000000000",
