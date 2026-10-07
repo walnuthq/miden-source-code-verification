@@ -7,7 +7,7 @@
 //
 // extern crate alloc;
 
-use miden::{component, component_storage, output_note, Asset, NoteIdx, NoteType, Recipient, Tag};
+use miden::{Asset, NoteIdx, NoteType, Recipient, Tag, component, component_storage, output_note};
 
 #[component_storage]
 struct BasicWalletStorage;

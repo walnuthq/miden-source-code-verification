@@ -1,10 +1,12 @@
 // A compiled package's manifest as api-compile returns it and the registry
 // stores and serves it: the JSON that api-compile's `miden-package-metadata`
-// crate prints with serde_json. Each type below mirrors the Rust type of the
-// same name, from the crate versions that crate locks: `miden-mast-package`,
-// `miden-assembly-syntax`, `miden-field` (0.29.4) and `midenc-hir-type`
-// (0.10.2), so a bump of those needs this file re-checked. Rust enums are
-// externally tagged unless noted: a unit variant is its name, any other
+// crate prints. Each type below mirrors the Rust type of the same name, from
+// the crate versions that crate locks: `miden-mast-package`,
+// `miden-assembly-syntax`, `miden-field` (0.35.0) and `midenc-hir-type`
+// (0.17.0), so a bump of those needs this file re-checked. Those types no
+// longer derive `serde`, so the crate's `main.rs` writes the JSON by hand, in
+// the shape their derives used to produce: Rust enums are externally tagged
+// unless noted, a unit variant being its name and any other
 // `{ Variant: payload }`. An `Option` is `null` when absent, as none of these
 // skip it.
 
@@ -31,9 +33,11 @@ export type Word = `0x${string}`;
 
 // ─── midenc-hir-type ────────────────────────────────────────────────────────
 
-// `CallConv`, by discriminant (`serde_repr`): `0` = `Fast`, `1` = `C`,
-// `2` = `Wasm`, `3` = `ComponentModel`.
-export type CallConv = 0 | 1 | 2 | 3;
+// `CallConv`, the conventions predating `Extern` by discriminant, as
+// `serde_repr` wrote them: `0` = `Fast`, `1` = `C`, `2` = `Wasm`,
+// `3` = `ComponentModel`. `Extern` is a convention a language frontend defines,
+// by name, so it is tagged instead.
+export type CallConv = 0 | 1 | 2 | 3 | { Extern: string };
 
 export type AddressSpace = "Byte" | "Element";
 
@@ -41,8 +45,7 @@ export type TypeRepr =
   | "Default"
   | { Align: number }
   | { Packed: number }
-  | "Transparent"
-  | "BigEndian";
+  | "Transparent";
 
 export type PointerType = { addrspace: AddressSpace; pointee: Type };
 
@@ -80,9 +83,14 @@ export type ArrayType = { ty: Type; len: number };
 
 export type FunctionType = { abi: CallConv; params: Type[]; results: Type[] };
 
+// A recursive struct or enum is written out in full where it is first reached,
+// and as `{ Rec: name }` wherever it recurs inside its own definition; a `Rec`
+// therefore always refers to an enclosing `Struct` or `Enum` of that name.
+// `Rec` is not a Rust variant but how `miden-package-metadata` breaks the cycle.
 export type Type =
   | "Unknown"
   | "Never"
+  | "Variadic"
   | "I1"
   | "I8"
   | "U8"
@@ -102,7 +110,8 @@ export type Type =
   | { Enum: EnumType }
   | { Array: ArrayType }
   | { List: Type }
-  | { Function: FunctionType };
+  | { Function: FunctionType }
+  | { Rec: string | null };
 
 // ─── miden-assembly-syntax ──────────────────────────────────────────────────
 

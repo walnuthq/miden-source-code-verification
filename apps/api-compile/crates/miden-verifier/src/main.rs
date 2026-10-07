@@ -1,6 +1,7 @@
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, bail};
 use base64::prelude::*;
 use clap::Parser;
+use miden_assembly_syntax::ast::types::CallConv;
 use miden_client::{
     account::{Account, AccountComponentInterfaceExt, AccountId},
     address::{Address, AddressId, NetworkId},
@@ -84,77 +85,74 @@ fn verify_account_component(account: Account, package: Package) -> Result<Value>
     // component and panics when that does not hold. Every account this API
     // exists to verify authenticates with a Rust-compiled component (see
     // `examples/counter-contract/auth-component-no-auth`), which classifies as
-    // `Custom` rather than one of the `Auth*` variants, so the assertion never
+    // `CustomAuth` rather than one of the `Auth*` variants, so the assertion never
     // holds. Classifying the procedures directly yields the same component list
     // without going through that constructor.
     let interface = AccountComponentInterface::from_procedures(account.code().procedures());
     let mut components = Vec::new();
+    let mut has_custom_code = false;
     for component in &interface {
-        match component {
-            AccountComponentInterface::BasicWallet => components.push("BasicWallet".to_string()),
-            AccountComponentInterface::NoteCreator => components.push("NoteCreator".to_string()),
-            AccountComponentInterface::FungibleFaucet => {
-                components.push("FungibleFaucet".to_string())
+        let name = match component {
+            AccountComponentInterface::BasicWallet => "BasicWallet",
+            AccountComponentInterface::NoteCreator => "NoteCreator",
+            AccountComponentInterface::FungibleFaucet => "FungibleFaucet",
+            AccountComponentInterface::CodeInspection => "CodeInspection",
+            AccountComponentInterface::Authority => "Authority",
+            AccountComponentInterface::Ownable2Step => "Ownable2Step",
+            AccountComponentInterface::RoleBasedAccessControl => "RoleBasedAccessControl",
+            AccountComponentInterface::AuthSingleSig => "AuthSingleSig",
+            AccountComponentInterface::AuthMultisig => "AuthMultisig",
+            AccountComponentInterface::AuthMultisigSmart => "AuthMultisigSmart",
+            AccountComponentInterface::AuthGuardedMultisig => "AuthGuardedMultisig",
+            AccountComponentInterface::AuthNoAuth => "AuthNoAuth",
+            AccountComponentInterface::AuthNetworkAccount => "AuthNetworkAccount",
+            AccountComponentInterface::AuthTxFeeCollector => "AuthTxFeeCollector",
+            // A non-standard auth procedure gets its own `CustomAuth` bucket
+            // instead of landing in `Custom` with the rest, so an account whose
+            // only custom code is its auth component has no `Custom` at all.
+            // Both are code a package can account for.
+            AccountComponentInterface::CustomAuth(_) | AccountComponentInterface::Custom(_) => {
+                has_custom_code = true;
+                continue;
             }
-            AccountComponentInterface::CodeInspection => {
-                components.push("CodeInspection".to_string())
-            }
-            AccountComponentInterface::Authority => components.push("Authority".to_string()),
-            AccountComponentInterface::Ownable2Step => components.push("Ownable2Step".to_string()),
-            AccountComponentInterface::RoleBasedAccessControl => {
-                components.push("RoleBasedAccessControl".to_string())
-            }
-            AccountComponentInterface::AuthSingleSig => {
-                components.push("AuthSingleSig".to_string())
-            }
-            AccountComponentInterface::AuthMultisig => components.push("AuthMultisig".to_string()),
-            AccountComponentInterface::AuthMultisigSmart => {
-                components.push("AuthMultisigSmart".to_string())
-            }
-            AccountComponentInterface::AuthGuardedMultisig => {
-                components.push("AuthGuardedMultisig".to_string())
-            }
-            AccountComponentInterface::AuthNoAuth => components.push("AuthNoAuth".to_string()),
-            AccountComponentInterface::AuthNetworkAccount => {
-                components.push("AuthNetworkAccount".to_string())
-            }
-            AccountComponentInterface::Custom(_) => {
-                if package.manifest.num_exports() == 0 {
-                    bail!("Package has no exports");
-                }
-                // Only the procedures exported with the ComponentModel calling
-                // convention (`CallConv::ComponentModel`, abi == 3) are installed
-                // as account procedures — the same rule `verify_note_script`
-                // applies to pick out a note's entrypoint. Everything else a
-                // package exports is internal to the toolchain: the Wasm-ABI
-                // adapter generated around each procedure, `cabi_realloc`, and
-                // `init`. Matching against those too could never verify, because
-                // none of them is part of the account's code.
-                let procedures: Vec<_> = package
-                    .manifest
-                    .exports()
-                    .filter_map(|export| match export {
-                        PackageExport::Procedure(procedure) => Some(procedure),
-                        _ => None,
-                    })
-                    .filter(|procedure| {
-                        procedure
-                            .signature
-                            .as_ref()
-                            .is_some_and(|signature| signature.abi as u8 == 3)
-                    })
-                    .collect();
-                // `all` holds vacuously on an empty iterator, so a package that
-                // exports no account procedures at all — a transaction script, say
-                // — would otherwise report as verified against any account.
-                let verified = !procedures.is_empty()
-                    && procedures
-                        .iter()
-                        .all(|procedure| account.code().has_procedure(procedure.digest));
-                if verified {
-                    components.push(format!("Custom({})", package.digest()));
-                }
-            }
+        };
+        components.push(name.to_string());
+    }
+
+    if has_custom_code {
+        if package.manifest.num_exports() == 0 {
+            bail!("Package has no exports");
+        }
+        // Only the procedures exported with the ComponentModel calling
+        // convention (`CallConv::ComponentModel`) are installed as account
+        // procedures — the same rule `verify_note_script` applies to pick out a
+        // note's entrypoint. Everything else a package exports is internal to
+        // the toolchain: the Wasm-ABI adapter generated around each procedure,
+        // `cabi_realloc`, and `init`. Matching against those too could never
+        // verify, because none of them is part of the account's code.
+        let procedures: Vec<_> = package
+            .manifest
+            .exports()
+            .filter_map(|export| match export {
+                PackageExport::Procedure(procedure) => Some(procedure),
+                _ => None,
+            })
+            .filter(|procedure| {
+                procedure
+                    .signature
+                    .as_ref()
+                    .is_some_and(|signature| signature.abi == CallConv::ComponentModel)
+            })
+            .collect();
+        // `all` holds vacuously on an empty iterator, so a package that
+        // exports no account procedures at all — a transaction script, say
+        // — would otherwise report as verified against any account.
+        let verified = !procedures.is_empty()
+            && procedures
+                .iter()
+                .all(|procedure| account.code().has_procedure(procedure.digest));
+        if verified {
+            components.push(format!("Custom({})", package.mast_forest_commitment()));
         }
     }
 
@@ -167,7 +165,7 @@ fn verify_note_script(note_script: &NoteScript, package: Package) -> Result<Valu
         standard_note.name().to_string()
     } else {
         // The note script's entrypoint is the procedure exported with the
-        // ComponentModel calling convention (`CallConv::ComponentModel`, abi == 3).
+        // ComponentModel calling convention (`CallConv::ComponentModel`).
         let entrypoint = package
             .manifest
             .exports()
@@ -179,11 +177,11 @@ fn verify_note_script(note_script: &NoteScript, package: Package) -> Result<Valu
                 procedure
                     .signature
                     .as_ref()
-                    .is_some_and(|signature| signature.abi as u8 == 3)
+                    .is_some_and(|signature| signature.abi == CallConv::ComponentModel)
             });
         match entrypoint {
             Some(procedure) if procedure.digest == note_script.root().into() => {
-                format!("Custom({})", package.digest())
+                format!("Custom({})", package.mast_forest_commitment())
             }
             _ => String::new(),
         }
@@ -265,14 +263,14 @@ async fn main() -> Result<()> {
             network_id: network_id_opt,
             account_id,
         } => {
-            if let Some(network_id) = network_id_opt {
-                if network_id != args_network_id {
-                    bail!(
-                        "network ID of resource ({}) does not match provided network ID ({})",
-                        network_id.as_str(),
-                        args_network_id.as_str()
-                    );
-                }
+            if let Some(network_id) = network_id_opt
+                && network_id != args_network_id
+            {
+                bail!(
+                    "network ID of resource ({}) does not match provided network ID ({})",
+                    network_id.as_str(),
+                    args_network_id.as_str()
+                );
             }
 
             let account = if let Some(resource_path) = args.resource_path {
@@ -281,10 +279,7 @@ async fn main() -> Result<()> {
                 Account::read_from_bytes(&resource_bytes)?
             } else {
                 client.import_account_by_id(account_id).await?;
-                let account_record = client.get_account(account_id).await?.unwrap();
-                Account::try_from(account_record).map_err(|e: std::convert::Infallible| {
-                    anyhow!("Account is missing full account data: {}", e)
-                })?
+                client.get_account(account_id).await?.unwrap()
             };
 
             verify_account_component(account, package)?

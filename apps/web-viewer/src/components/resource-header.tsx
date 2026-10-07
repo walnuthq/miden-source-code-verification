@@ -7,6 +7,7 @@ import {
   Crown,
   FileCheck,
   Globe,
+  HandCoins,
   Hash,
   KeyRound,
   KeySquare,
@@ -43,6 +44,7 @@ const standardComponentIcons: Record<string, LucideIcon> = {
   AuthGuardedMultisig: KeySquare,
   AuthNoAuth: ShieldOff,
   AuthNetworkAccount: Network,
+  AuthTxFeeCollector: HandCoins,
 };
 
 // Top of a verified resource page (and of its "not verified" 404 page): the

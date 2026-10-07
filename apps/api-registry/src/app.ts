@@ -32,10 +32,19 @@ import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
  *       description: Type signature of an exported procedure (null when unavailable).
  *       properties:
  *         abi:
- *           type: integer
  *           description: >
- *             Calling convention of the procedure (Miden `CallConv` discriminant):
- *             `0` = fast, `1` = C, `2` = wasm, `3` = component-model.
+ *             Calling convention of the procedure (Miden `CallConv`): its
+ *             discriminant for a built-in convention, `0` = fast, `1` = C,
+ *             `2` = wasm, `3` = component-model, or `{ "Extern": name }` for one
+ *             a language frontend defines.
+ *           oneOf:
+ *             - type: integer
+ *               enum: [0, 1, 2, 3]
+ *             - type: object
+ *               required: [Extern]
+ *               properties:
+ *                 Extern:
+ *                   type: string
  *         params:
  *           type: array
  *           items:

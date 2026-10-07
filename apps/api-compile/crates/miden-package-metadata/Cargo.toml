@@ -6,7 +6,10 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0"
 clap = { version = "4.6", features = ["derive"] }
-miden-mast-package = { version = "=0.29.4", features = ["serde"] }
-miden-serde-utils = "=0.29.4"
-serde = "1.0"
+# The VM crates of the 0.17 toolchain: `cargo-miden 0.11.0` writes its packages
+# against these. They no longer derive `serde` for the manifest, so `main.rs`
+# writes the JSON itself, and `miden-assembly-syntax` supplies the types it walks.
+miden-assembly-syntax = "=0.35.0"
+miden-mast-package = "=0.35.0"
+miden-serde-utils = "=0.35.0"
 serde_json = { version = "1.0", features = ["preserve_order"] }

@@ -276,7 +276,8 @@ async fn main() -> Result<()> {
         None => eprintln!("Chain charges no fees; nothing needs funding"),
     }
 
-    let counter_contracts = assemble_counter_contracts(&mut client, &packages, fees.as_ref()).await?;
+    let counter_contracts =
+        assemble_counter_contracts(&mut client, &packages, fees.as_ref()).await?;
     let counter_ids = [counter_contracts[0].id(), counter_contracts[1].id()];
     let factory = note::create_factory(&mut client).await?;
 

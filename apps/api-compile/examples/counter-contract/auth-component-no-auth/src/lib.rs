@@ -9,7 +9,7 @@
 // extern crate alloc;
 // use alloc::vec::Vec;
 
-use miden::{component, component_storage, Word};
+use miden::{Word, component, component_storage};
 
 #[component_storage]
 struct AuthComponentStorage;

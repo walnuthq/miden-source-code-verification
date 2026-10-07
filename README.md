@@ -27,6 +27,12 @@ That `(networkId, code)` pair is the registry's real key, so it's addressable di
 - **Nothing is left behind.** Each request's copy of the project and its build output are deleted once it's answered. On `SIGTERM`, api-compile stops taking requests, finishes the ones in flight, then exits.
 - **Outages are reported as outages.** When api-compile is unreachable, busy or too slow, the registry answers `502`, `503` (keeping `Retry-After`) or `504`, instead of a `500`, or a `404` on the id-keyed reads. The web-verifier retries a `503` up to 3 times, showing a countdown.
 
+### Miden toolchain
+
+api-compile targets the Miden **0.17** toolchain: it builds projects with `cargo-miden 0.11.0` and reads the network with `miden-client 0.17.2`. Projects to verify should use the matching SDK, `miden = "0.15"`, as the examples in `apps/api-compile/examples` do. Verification compares the procedure roots a project compiles to with the on-chain code, and another compiler version can produce different roots, so code deployed with another toolchain may not verify.
+
+To move to a new toolchain, bump `cargo-miden` in `apps/api-compile/Dockerfile`, the Miden crates in `apps/api-compile/crates/*/Cargo.toml` (`miden-mast-package` and `miden-assembly-syntax` must match the VM version that `cargo-miden` builds against), and the examples' SDK. Then re-check `packages/utils/src/manifest.ts`, which documents the JSON `miden-package-metadata` prints.
+
 ## Repository layout
 
 This is a [pnpm](https://pnpm.io) workspace monorepo (`pnpm-workspace.yaml`). Each service is a package under `apps/`:
