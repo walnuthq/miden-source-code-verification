@@ -108,7 +108,9 @@ import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
  *           type: string
  *         digest:
  *           type: string
- *           description: Digest of the dependency (32-byte hex).
+ *           description: >
+ *             Commitment of the dependency package as resolved at build time
+ *             (32-byte hex) — the same value as that package's `commitment`.
  *     Manifest:
  *       type: object
  *       description: The compiled package manifest — its exports and dependencies.
@@ -139,15 +141,18 @@ import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
  *             Map of project-relative file paths to their UTF-8 source contents
  *             (the exact inputs that were compiled). Includes the `Cargo.lock`
  *             the build used, even when the verification request didn't send
- *             one, so the dependency versions behind `digest` are recorded.
+ *             one, so the dependency versions behind `commitment` are recorded.
  *           additionalProperties:
  *             type: string
  *         masp:
  *           type: string
  *           description: Base64-encoded compiled Miden package (`.masp`).
- *         digest:
+ *         commitment:
  *           type: string
- *           description: Package digest (32-byte hex).
+ *           description: >
+ *             Commitment to the package — its code, name, version, kind,
+ *             manifest and account component metadata (32-byte hex).
+ *             Reproducible: rebuilding the same sources gives the same value.
  *         manifest:
  *           $ref: '#/components/schemas/Manifest'
  *         createdAt:
@@ -171,9 +176,9 @@ import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
  *         packageId:
  *           type: string
  *           format: uuid
- *         packageDigest:
+ *         packageCommitment:
  *           type: string
- *           description: Digest of the component package (32-byte hex).
+ *           description: Commitment of the component package (32-byte hex).
  *         source:
  *           type: string
  *           description: >

@@ -73,7 +73,7 @@ New response shape:
       "id": "…",
       "verifiedAccountId": "…",
       "packageId": "…",
-      "packageDigest": "0x7f70…",
+      "packageCommitment": "0x7f70…",
       "createdAt": "2026-02-23T12:34:28.801Z",
       "updatedAt": "2026-02-23T12:34:28.801Z",
       "package": {
@@ -119,7 +119,7 @@ New response shape:
   // client that submitted the verification ("unknown" by default)
   "source": "web-verifier",
   "packageId": "…",
-  "packageDigest": "0xb32e…",
+  "packageCommitment": "0xb32e…",
   "createdAt": "2026-03-26T…Z",
   "updatedAt": "2026-03-26T…Z",
   "package": {
@@ -176,7 +176,7 @@ The package shape is shared by both endpoints and is slimmer than before:
   // library | account-component | authentication-component | note | tx-script.
   // Verification only ever records `account-component` or `note`.
   "type": "account-component",
-  "digest": "0x7f70…",
+  "commitment": "0x7f70…",
   "masp": "MASP_BINARY_BASE64",
   "files": {
     // replaces `rust` + `masm`: the exact project inputs that were compiled,
@@ -224,7 +224,8 @@ Field mapping from the legacy `Package`:
 | `dependencies`                       | `manifest.dependencies` (`{ name, kind, version, digest }`, no source code)         |
 | `type`                               | same field, renamed values: `account` → `account-component`; `library` added        |
 | `id`                                 | registry uuid — the legacy ids of standard components (`auth-no-auth`, …) are gone  |
-| `masp`, `digest`, `name`             | unchanged                                                                           |
+| `digest`                             | `commitment` — commits to the code, name, version and manifest, a different value   |
+| `masp`, `name`                       | unchanged                                                                           |
 | `status`, `readOnly`                 | removed                                                                             |
 | `createdAt`, `updatedAt` (ms number) | ISO 8601 string                                                                     |
 

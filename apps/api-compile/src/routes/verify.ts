@@ -55,7 +55,7 @@ router.post("/verify", async (req, res) => {
         stderr,
         maspPath,
         masp,
-        digest,
+        commitment,
         kind,
         manifest,
         files: compiledFiles,
@@ -72,12 +72,12 @@ router.post("/verify", async (req, res) => {
             resourceId,
             resourcePath,
             maspPath,
-            digest,
+            commitment,
           });
           return {
             verified,
             masp,
-            digest,
+            commitment,
             kind,
             manifest,
             files: compiledFiles,

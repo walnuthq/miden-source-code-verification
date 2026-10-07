@@ -190,6 +190,12 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
       "package.type",
       "account-component",
     );
+    const [component] = res2.body.verifiedAccountComponents;
+    expect(component.package.commitment).toMatch(/^0x[0-9a-f]{64}$/);
+    expect(component).toHaveProperty(
+      "packageCommitment",
+      component.package.commitment,
+    );
   });
 
   it("records the lockfile the build used when none was sent", async () => {

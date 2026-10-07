@@ -18,13 +18,13 @@ export const insertVerifiedNoteScript = async ({
   script,
   source,
   packageId,
-  packageDigest,
+  packageCommitment,
 }: {
   networkId: string;
   script: string;
   source: string;
   packageId: string;
-  packageDigest: string;
+  packageCommitment: string;
 }) => {
   const [insertedVerifiedNoteScript] = await db
     .insert(verifiedNoteScriptTable)
@@ -33,7 +33,7 @@ export const insertVerifiedNoteScript = async ({
       script,
       source,
       packageId,
-      packageDigest,
+      packageCommitment,
     })
     .returning({ id: verifiedNoteScriptTable.id });
   if (!insertedVerifiedNoteScript) {

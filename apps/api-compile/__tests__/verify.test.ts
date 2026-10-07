@@ -102,7 +102,7 @@ describe("POST /verify", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
     expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("manifest");
   });
 
@@ -119,7 +119,7 @@ describe("POST /verify", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
     expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("manifest");
     expect(res.body.files).toEqual(files);
   });
@@ -186,7 +186,7 @@ describe("POST /verify", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
     expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("manifest");
   });
 
@@ -205,7 +205,7 @@ describe("POST /verify", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
     expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("manifest");
   });
 
@@ -224,7 +224,7 @@ describe("POST /verify", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
     expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("manifest");
   });
 
@@ -281,7 +281,7 @@ describe("POST /verify", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
     expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("manifest");
   });
 
@@ -304,7 +304,7 @@ describe("POST /verify", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
     expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("manifest");
   });
 
@@ -325,7 +325,7 @@ describe("POST /verify", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
     expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("manifest");
   });
 });

@@ -219,9 +219,9 @@ router.post("/:networkId/verified-notes", async (req, res) => {
  *                   type: string
  *                   format: uuid
  *                   description: Identifier of the package the note was verified against.
- *                 packageDigest:
+ *                 packageCommitment:
  *                   type: string
- *                   description: Digest of that package (32-byte hex).
+ *                   description: Commitment of that package (32-byte hex).
  *                 createdAt:
  *                   type: string
  *                   format: date-time
@@ -337,9 +337,9 @@ router.get("/:networkId/verified-notes/script/:script", async (req, res) => {
  *                   type: string
  *                   format: uuid
  *                   description: Identifier of the package the note was verified against.
- *                 packageDigest:
+ *                 packageCommitment:
  *                   type: string
- *                   description: Digest of that package (32-byte hex).
+ *                   description: Commitment of that package (32-byte hex).
  *                 createdAt:
  *                   type: string
  *                   format: date-time

@@ -40,10 +40,16 @@ fn main() -> Result<()> {
     })?;
 
     let metadata = json!({
-        // The digest of the package's MAST forest, which is what `digest()`
-        // returned before 0.35 — not `commitment()`, which also binds the
-        // manifest and every other section.
-        "digest": package.mast_forest_commitment().to_hex(),
+        // The package's identity: its code (exported interface and MAST
+        // forest), name, version, kind, manifest and account component
+        // metadata. Unlike `mast_forest_commitment()`, two packages that compile
+        // to the same MAST but differ otherwise get different values. Unlike
+        // `commitment()`, it leaves out the source provenance section, which
+        // embeds the absolute path of the build's cargo target directory, so
+        // anyone rebuilding the same sources gets the same value. It is also the
+        // `digest` a dependent records for this package in its manifest's
+        // `dependencies`.
+        "commitment": package.dependency_commitment().to_hex(),
         // Serialized by its canonical name, e.g. `account-component`.
         "kind": package.kind.as_str(),
         "manifest": {

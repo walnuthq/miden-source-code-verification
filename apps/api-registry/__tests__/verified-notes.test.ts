@@ -180,6 +180,11 @@ describe("GET /:networkId/verified-notes/:noteId", () => {
     expect(res2.body).toHaveProperty("script", NOTE_SCRIPT);
     expect(res2.body).toHaveProperty("package.name", entrypoint);
     expect(res2.body).toHaveProperty("package.type", "note");
+    expect(res2.body.package.commitment).toMatch(/^0x[0-9a-f]{64}$/);
+    expect(res2.body).toHaveProperty(
+      "packageCommitment",
+      res2.body.package.commitment,
+    );
   });
 
   it("returns a match for a different note sharing the same script", async () => {

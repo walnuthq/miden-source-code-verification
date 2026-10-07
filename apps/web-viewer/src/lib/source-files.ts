@@ -9,12 +9,12 @@ export type SourceFile = { path: string; html: string };
 // What the loaders return per package, and what its Source Code section
 // renders: the displayed files, sorted by path, and the one opened first.
 // `rawFiles` is every file the registry kept for the package, including those
-// the explorer hides, for the Download Sources archive. The name, digest,
+// the explorer hides, for the Download Sources archive. The name, commitment,
 // procedures, dependencies, verification time and source head the package's
 // card.
 export type PackageSources = {
   name: string;
-  digest: string;
+  commitment: string;
   procedures: PackageProcedure[];
   dependencies: PackageDependency[];
   // When the package was verified against the resource, formatted in UTC.

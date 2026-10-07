@@ -34,7 +34,7 @@ router.post("/compile", async (req, res) => {
       stdout,
       stderr,
       masp,
-      digest,
+      commitment,
       kind,
       manifest,
       files: compiledFiles,
@@ -50,7 +50,7 @@ router.post("/compile", async (req, res) => {
       stdout,
       stderr,
       masp,
-      digest,
+      commitment,
       kind,
       manifest,
       // Set when the build succeeded: the sources plus the lockfile it used.

@@ -22,8 +22,8 @@ no CORS headers — client-side checks would simply be blocked.
 | Service | Check | Asserts | Card shows |
 | --- | --- | --- | --- |
 | api-compile | `GET /` | 200 + JSON | the payload in full |
-| api-compile | `POST /compile` | a package came back (a compile failure still returns 200 with no `masp`, so the status code alone would miss it) | digest, exports, dependencies, sizes |
-| api-compile | `POST /verify` | `verified === true` | verified, digest, exports |
+| api-compile | `POST /compile` | a package came back (a compile failure still returns 200 with no `masp`, so the status code alone would miss it) | commitment, exports, dependencies, sizes |
+| api-compile | `POST /verify` | `verified === true` | verified, commitment, exports |
 | api-compile | `GET /:networkId/import/:resourceId` | `type` is an account and `code` matches the fixture | type, code, ✓ matches |
 | api-registry | `GET /` | 200 + JSON | the payload in full |
 | api-registry | `GET /v1/:networkId/verified-accounts/code/:code` | the code root and network come back unchanged, ≥1 component | networkId, code, components, package, source |

@@ -152,7 +152,7 @@ fn verify_account_component(account: Account, package: Package) -> Result<Value>
                 .iter()
                 .all(|procedure| account.code().has_procedure(procedure.digest));
         if verified {
-            components.push(format!("Custom({})", package.mast_forest_commitment()));
+            components.push(format!("Custom({})", package.dependency_commitment()));
         }
     }
 
@@ -181,7 +181,7 @@ fn verify_note_script(note_script: &NoteScript, package: Package) -> Result<Valu
             });
         match entrypoint {
             Some(procedure) if procedure.digest == note_script.root().into() => {
-                format!("Custom({})", package.mast_forest_commitment())
+                format!("Custom({})", package.dependency_commitment())
             }
             _ => String::new(),
         }

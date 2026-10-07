@@ -263,7 +263,7 @@ const apiCompile: ServiceDefinition = {
         const body = asRecord(payload);
         const manifest = asRecord(body.manifest);
         return {
-          digest: truncateHex(body.digest),
+          commitment: truncateHex(body.commitment),
           exports: Array.isArray(manifest.exports)
             ? manifest.exports.length
             : 0,
@@ -282,7 +282,7 @@ const apiCompile: ServiceDefinition = {
           // masp, so the status code alone would not catch it.
           return "compiled without producing a package";
         }
-        if (typeof body.digest !== "string") return "missing digest";
+        if (typeof body.commitment !== "string") return "missing commitment";
         if (!body.manifest) return "missing manifest";
         return null;
       },
@@ -306,7 +306,7 @@ const apiCompile: ServiceDefinition = {
         const manifest = asRecord(body.manifest);
         return {
           verified: body.verified === true,
-          digest: truncateHex(body.digest),
+          commitment: truncateHex(body.commitment),
           exports: Array.isArray(manifest.exports)
             ? manifest.exports.length
             : 0,

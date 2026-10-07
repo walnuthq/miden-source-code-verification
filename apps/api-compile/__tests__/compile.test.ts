@@ -57,7 +57,7 @@ describe("POST /compile", () => {
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).not.toHaveProperty("masp");
-    expect(res.body).not.toHaveProperty("digest");
+    expect(res.body).not.toHaveProperty("commitment");
     expect(res.body).not.toHaveProperty("kind");
     expect(res.body).not.toHaveProperty("manifest");
     expect(res.body).not.toHaveProperty("files");
@@ -75,7 +75,7 @@ describe("POST /compile", () => {
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("kind", "account-component");
     expect(res.body).toHaveProperty("manifest");
   });
@@ -91,7 +91,7 @@ describe("POST /compile", () => {
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("kind", "account-component");
     expect(res.body).toHaveProperty("manifest");
   });
@@ -107,7 +107,7 @@ describe("POST /compile", () => {
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("kind", "note");
     expect(res.body).toHaveProperty("manifest");
   });
@@ -123,7 +123,7 @@ describe("POST /compile", () => {
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("kind", "transaction-script");
     expect(res.body).toHaveProperty("manifest");
   });
@@ -140,7 +140,7 @@ describe("POST /compile", () => {
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("kind", "account-component");
     expect(res.body).toHaveProperty("manifest");
   });
@@ -157,7 +157,7 @@ describe("POST /compile", () => {
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("kind", "account-component");
     expect(res.body).toHaveProperty("manifest");
   });
@@ -172,7 +172,7 @@ describe("POST /compile", () => {
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("kind", "account-component");
     expect(res.body).toHaveProperty("manifest");
   });
@@ -188,7 +188,7 @@ describe("POST /compile", () => {
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("digest");
+    expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("kind", "transaction-script");
     expect(res.body).toHaveProperty("manifest");
   });

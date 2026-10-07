@@ -19,13 +19,13 @@ export const verify = async ({
   resourceId,
   resourcePath,
   maspPath,
-  digest,
+  commitment,
 }: {
   networkId: string;
   resourceId: string;
   resourcePath?: string;
   maspPath: string;
-  digest: string;
+  commitment: string;
 }) => {
   const { stdout, error } = await midenVerifier({
     networkId,
@@ -40,7 +40,7 @@ export const verify = async ({
     return false;
   }
   const output = JSON.parse(stdout) as MidenVerifierOutput;
-  const target = `Custom(${digest})`;
+  const target = `Custom(${commitment})`;
   if (output.type === "account") {
     return output.components.includes(target);
   }

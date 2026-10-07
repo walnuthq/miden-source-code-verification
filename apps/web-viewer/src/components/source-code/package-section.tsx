@@ -51,7 +51,7 @@ export function PackageSection({
         </CardHeader>
         <PackageHeader
           name={pkg.name}
-          digest={pkg.digest}
+          commitment={pkg.commitment}
           procedures={pkg.procedures}
           dependencies={pkg.dependencies}
           verifiedAt={pkg.verifiedAt}
