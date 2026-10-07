@@ -7,7 +7,7 @@
 //
 // extern crate alloc;
 
-use miden::{account, component, component_storage, AccountId, Felt, StorageValue};
+use miden::{AccountId, Felt, StorageValue, account, component, component_storage};
 
 #[account(counter_contract::CounterContract)]
 pub struct CounterAccount;

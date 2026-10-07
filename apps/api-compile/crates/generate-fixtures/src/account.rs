@@ -2,7 +2,6 @@
 //! committing on-chain the ones the tests read back from the network.
 
 use std::collections::BTreeMap;
-use std::convert::Infallible;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -61,7 +60,7 @@ fn init_storage_data(package: &Package, public_key: Option<Word>) -> Result<Init
 
 fn account_component(package: &Package, public_key: Option<Word>) -> Result<AccountComponent> {
     let init_storage_data = init_storage_data(package, public_key)?;
-    AccountComponent::from_package(package, &init_storage_data)
+    AccountComponent::from_package(package.clone(), &init_storage_data)
         .with_context(|| format!("failed to build the {} component", package.name))
 }
 
@@ -144,7 +143,12 @@ pub async fn deploy_counter_contract(
     let request = TransactionRequestBuilder::new()
         // The funding note is consumed first so its assets are in the vault by
         // the time the fee note is funded out of it.
-        .input_notes(funding.into_iter().chain([increment]).map(|note| (note, None)))
+        .input_notes(
+            funding
+                .into_iter()
+                .chain([increment])
+                .map(|note| (note, None)),
+        )
         .own_output_notes(fee_note)
         .build()
         .context("failed to build the transaction request")?;
@@ -159,7 +163,7 @@ pub async fn deploy_counter_contract(
     // Read the account back instead of returning the one built above: the
     // transaction moved it to nonce 1 with a counter of 1, and the fixture
     // should carry the state the node actually serves.
-    let record = client
+    client
         .get_account(account_id)
         .await
         .context("failed to read back the deployed account")?
@@ -168,9 +172,7 @@ pub async fn deploy_counter_contract(
                 "account {} is not tracked by the client",
                 account_id.to_hex()
             )
-        })?;
-    Account::try_from(record)
-        .map_err(|err: Infallible| anyhow!("account is missing full account data: {err}"))
+        })
 }
 
 /// Polls until a transaction is committed. Returning earlier would hand back a

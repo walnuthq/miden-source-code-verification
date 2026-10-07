@@ -104,6 +104,10 @@ fn standard_account_components(account: &Account) -> Vec<Value> {
             "AuthNetworkAccount",
             StandardAccountComponent::AuthNetworkAccount,
         ),
+        (
+            "AuthTxFeeCollector",
+            StandardAccountComponent::AuthTxFeeCollector,
+        ),
     ]
     .into_iter()
     .map(|(name, component)| (name, component.procedure_roots().collect::<Vec<_>>()))
@@ -158,25 +162,21 @@ async fn main() -> Result<()> {
             network_id: network_id_opt,
             account_id,
         } => {
-            if let Some(network_id) = network_id_opt {
-                if network_id != args_network_id {
-                    bail!(
-                        "network ID of resource ({}) does not match provided network ID ({})",
-                        network_id.as_str(),
-                        args_network_id.as_str()
-                    );
-                }
+            if let Some(network_id) = network_id_opt
+                && network_id != args_network_id
+            {
+                bail!(
+                    "network ID of resource ({}) does not match provided network ID ({})",
+                    network_id.as_str(),
+                    args_network_id.as_str()
+                );
             }
 
             client.import_account_by_id(account_id).await?;
-            let account_record = client
+            let account = client
                 .get_account(account_id)
                 .await?
                 .ok_or_else(|| anyhow!("account '{}' not found", args.resource_id))?;
-            let account =
-                Account::try_from(account_record).map_err(|e: std::convert::Infallible| {
-                    anyhow!("Account is missing full account data: {}", e)
-                })?;
 
             let code = account.code().commitment().to_hex();
             let standard_account_components = standard_account_components(&account);
