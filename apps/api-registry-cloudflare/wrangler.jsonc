@@ -31,4 +31,14 @@
       "localConnectionString": "postgres://miden-source-code-verification:miden_source_code_verification_dev_password@localhost:5433/miden-source-code-verification",
     },
   ],
+  // Compiled packages (`.masp`), keyed `<commitment>.masp`, served by
+  // `GET /v1/:networkId/packages/masp/:file`. `wrangler dev` uses a local
+  // simulated bucket. Create the real one with:
+  //   wrangler r2 bucket create miden-source-code-verification-masp
+  "r2_buckets": [
+    {
+      "binding": "MASP_BUCKET",
+      "bucket_name": "miden-source-code-verification-masp",
+    },
+  ],
 }

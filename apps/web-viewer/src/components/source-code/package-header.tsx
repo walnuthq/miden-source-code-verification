@@ -1,20 +1,25 @@
 import {
   CalendarCheck,
+  Download,
+  FileBox,
   Fingerprint,
   Library,
   Package,
   SquareFunction,
 } from "lucide-react";
+import { buttonVariants } from "miden-source-code-verification-ui";
 
 import { CopyButton } from "@/components/copy-button";
 import { type DetailField, DetailsList } from "@/components/details-card";
 import type { PackageDependency } from "@/lib/api-registry.server";
 import type { PackageProcedure } from "@/lib/procedure-signatures";
+import { maspFileName, packageMaspPath } from "@/lib/source-files";
 
-// A verified package's details: its name, commitment, the procedures it
-// installs, the packages it was compiled against and when and from where it was
+// A verified package's details: its name, commitment, its compiled MASP to
+// download, the procedures it installs, the packages it was compiled against and when and from where it was
 // verified, laid out like the resource's details above it.
 export function PackageHeader({
+  networkId,
   name,
   commitment,
   procedures,
@@ -22,6 +27,7 @@ export function PackageHeader({
   verifiedAt,
   source,
 }: {
+  networkId: string;
   name: string;
   commitment: string;
   procedures: PackageProcedure[];
@@ -36,6 +42,16 @@ export function PackageHeader({
       icon: Fingerprint,
       value: commitment,
       copyable: true,
+    },
+    {
+      label: "Package MASP",
+      icon: FileBox,
+      value: (
+        <MaspDownload
+          href={packageMaspPath({ networkId, commitment })}
+          fileName={maspFileName(name)}
+        />
+      ),
     },
   ];
   if (procedures.length > 0) {
@@ -67,6 +83,24 @@ export function PackageHeader({
     ),
   });
   return <DetailsList fields={fields} />;
+}
+
+// A link that saves the compiled package as `fileName`, then that name. A
+// link rather than a button, as the file is served by the web-viewer itself.
+function MaspDownload({ href, fileName }: { href: string; fileName: string }) {
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      <a
+        href={href}
+        download={fileName}
+        className={buttonVariants({ variant: "outline", size: "sm" })}
+      >
+        <Download data-icon="inline-start" />
+        Download MASP
+      </a>
+      <code className="font-mono break-all">{fileName}</code>
+    </span>
+  );
 }
 
 // Each procedure as its Rust signature; its copy button copies the digest,

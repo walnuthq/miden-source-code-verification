@@ -23,6 +23,10 @@
     "./db": {
       "types": "./dist/src/db/index.d.ts",
       "default": "./dist/src/db/index.js"
+    },
+    "./storage": {
+      "types": "./dist/src/storage/masp-store.d.ts",
+      "default": "./dist/src/storage/masp-store.js"
     }
   },
   "dependencies": {

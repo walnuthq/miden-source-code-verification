@@ -50,6 +50,7 @@ export function PackageSection({
           </CardTitle>
         </CardHeader>
         <PackageHeader
+          networkId={networkId}
           name={pkg.name}
           commitment={pkg.commitment}
           procedures={pkg.procedures}

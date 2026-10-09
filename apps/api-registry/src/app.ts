@@ -1,10 +1,17 @@
 import cors from "cors";
 import express, { type Express } from "express";
 import { type Database, dbScope } from "@/db/context.js";
-import { ALLOWED_ORIGINS, API_COMPILE_URL, PORT } from "@/lib/constants.js";
+import {
+  ALLOWED_ORIGINS,
+  API_COMPILE_URL,
+  MASP_STORAGE_DIR,
+  PORT,
+} from "@/lib/constants.js";
 import { errorHandler, notFound } from "@/lib/errors.js";
+import packagesRouterV1 from "@/routes/v1/packages.js";
 import verifiedAccountsRouterV1 from "@/routes/v1/verified-accounts.js";
 import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
+import { createFsMaspStore, type MaspStore } from "@/storage/masp-store.js";
 
 /**
  * @openapi
@@ -144,9 +151,6 @@ import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
  *             one, so the dependency versions behind `commitment` are recorded.
  *           additionalProperties:
  *             type: string
- *         masp:
- *           type: string
- *           description: Base64-encoded compiled Miden package (`.masp`).
  *         commitment:
  *           type: string
  *           description: >
@@ -220,12 +224,20 @@ type CreateAppOptions = {
    * this; the default Node server omits it and keeps the shared singleton.
    */
   requestDbFactory?: () => Database;
+  /**
+   * Where compiled packages (`.masp`) are stored. Defaults to a local directory
+   * (`MASP_STORAGE_DIR`); deployments without a filesystem (e.g. Cloudflare
+   * Workers) supply their own object storage.
+   */
+  maspStore?: MaspStore;
 };
 
 export const createApp = ({
   requestDbFactory,
+  maspStore,
 }: CreateAppOptions = {}): Express => {
   const app = express();
+  app.locals.maspStore = maspStore ?? createFsMaspStore(MASP_STORAGE_DIR);
 
   // Must run before the routers so the request-scoped db is set for the whole
   // handler chain. No-op unless a factory is supplied.
@@ -262,6 +274,7 @@ export const createApp = ({
 
   app.use("/v1", verifiedAccountsRouterV1);
   app.use("/v1", verifiedNotesRouterV1);
+  app.use("/v1", packagesRouterV1);
   app.use(notFound);
   app.use(errorHandler);
 

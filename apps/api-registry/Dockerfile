@@ -51,6 +51,9 @@ FROM base AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build --chown=node:node /prod/api-registry .
+# Default MASP store (see MASP_STORAGE_DIR). Created here, owned by `node`, so a
+# fresh named volume mounted over it inherits a writable directory.
+RUN mkdir -p /data/masp && chown node:node /data/masp
 USER node
 EXPOSE 8081
 CMD ["node", "dist/src/server.js"]

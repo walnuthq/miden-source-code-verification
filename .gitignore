@@ -83,3 +83,6 @@ store.sqlite3
 docs/agents
 CLAUDE.md
 skills-lock.json
+
+# api-registry local MASP store
+.masp/

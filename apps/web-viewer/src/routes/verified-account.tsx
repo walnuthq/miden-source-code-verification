@@ -25,9 +25,7 @@ export async function loader({ params }: Route.LoaderArgs) {
     throw data(null, { status: 404 });
   }
   // Only what the page uses: each component's displayed sources, already
-  // highlighted, and its raw files for the download. The raw record also
-  // carries every package's compiled `.masp`, which would otherwise be
-  // serialized into the HTML.
+  // highlighted, and its raw files for the download.
   const packages = await Promise.all(
     verifiedAccount.verifiedAccountComponents.map((component) =>
       loadPackageSources(component.package, component),

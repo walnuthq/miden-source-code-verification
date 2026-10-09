@@ -8,6 +8,7 @@ import {
 import { importResource } from "@/lib/import-resource.js";
 import { parseRoot } from "@/lib/roots.js";
 import { verifyNote } from "@/lib/verify-note.js";
+import { getMaspStore } from "@/storage/masp-store.js";
 
 const router: Router = Router();
 
@@ -147,6 +148,7 @@ router.post("/:networkId/verified-notes", async (req, res) => {
       files,
       entrypoint,
       source: typeof source === "string" ? source : "unknown",
+      maspStore: getMaspStore(req),
     });
     res.json({ verified });
   } catch (error) {

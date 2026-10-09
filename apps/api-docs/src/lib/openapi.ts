@@ -47,6 +47,7 @@ export const openapiSpec = swaggerJSDoc({
         description: "Verified account component endpoints",
       },
       { name: "verified-notes", description: "Verified note endpoints" },
+      { name: "packages", description: "Compiled package endpoints" },
     ],
   },
   apis,

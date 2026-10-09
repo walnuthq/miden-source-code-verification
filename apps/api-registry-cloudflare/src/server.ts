@@ -1,6 +1,7 @@
 import { httpServerHandler } from "cloudflare:node";
 import { createApp } from "miden-source-code-verification-api-registry/app";
 import { createDb } from "miden-source-code-verification-api-registry/db";
+import { createR2MaspStore } from "./r2-masp-store";
 
 // Cloudflare Workers entrypoint: run the vendor-neutral Express app from
 // `miden-source-code-verification-api-registry` on top of the Workers Node-compat
@@ -13,10 +14,11 @@ import { createDb } from "miden-source-code-verification-api-registry/db";
 // edge, so this stays cheap and avoids exhausting the origin database.
 const PORT = Number(process.env.PORT ?? "8081");
 
-// `env` (and therefore the Hyperdrive binding) is only available per request,
-// not at module load. Capture the connection string on first request — it is
-// stable for the lifetime of the isolate.
+// `env` (and therefore the Hyperdrive and R2 bindings) is only available per
+// request, not at module load. Capture them on first request — they are stable
+// for the lifetime of the isolate.
 let connectionString: string | undefined;
+let maspBucket: R2Bucket | undefined;
 
 const app = createApp({
   requestDbFactory: () => {
@@ -25,6 +27,12 @@ const app = createApp({
     }
     return createDb(connectionString);
   },
+  maspStore: createR2MaspStore(() => {
+    if (!maspBucket) {
+      throw new Error("R2 MASP bucket not initialized");
+    }
+    return maspBucket;
+  }),
 });
 app.listen(PORT);
 
@@ -36,6 +44,7 @@ if (!fetchHandler) {
 export default {
   fetch(request, env, ctx) {
     connectionString ??= env.HYPERDRIVE.connectionString;
+    maspBucket ??= env.MASP_BUCKET;
     return fetchHandler(request, env, ctx);
   },
 } satisfies ExportedHandler<Env>;

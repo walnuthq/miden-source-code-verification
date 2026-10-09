@@ -74,6 +74,10 @@ services:
       - ALLOWED_ORIGINS=*
       - DATABASE_URL=postgresql://miden-source-code-verification:miden_source_code_verification_dev_password@postgres:5432/miden-source-code-verification
       - API_COMPILE_URL=http://api-compile:8080
+      - MASP_STORAGE_DIR=/data/masp
+    # Compiled packages (.masp) live outside Postgres; keep them across restarts.
+    volumes:
+      - miden-source-code-verification-masp:/data/masp
     image: miden-source-code-verification-api-registry
     container_name: miden-source-code-verification-api-registry
     depends_on:
@@ -154,3 +158,4 @@ services:
 
 volumes:
   miden-source-code-verification-postgres:
+  miden-source-code-verification-masp:

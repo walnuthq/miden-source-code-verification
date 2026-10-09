@@ -7,3 +7,6 @@ export const API_COMPILE_URL =
 export const DATABASE_URL =
   process.env.DATABASE_URL ??
   "postgres://miden-source-code-verification:miden_source_code_verification_dev_password@localhost:5432/miden-source-code-verification";
+// Directory of the default (filesystem) store for compiled packages. Unused
+// when the deployment supplies its own store (see `createApp`).
+export const MASP_STORAGE_DIR = process.env.MASP_STORAGE_DIR ?? ".masp";

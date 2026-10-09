@@ -185,6 +185,16 @@ describe("GET /:networkId/verified-notes/:noteId", () => {
       "packageCommitment",
       res2.body.package.commitment,
     );
+    // The compiled package is served on its own, not inlined in the record.
+    expect(res2.body.package).not.toHaveProperty("masp");
+
+    const res3 = await apiV1
+      .get(`/${networkId}/packages/masp/${res2.body.package.commitment}.masp`)
+      .responseType("blob");
+
+    expect(res3.status).toBe(200);
+    expect(res3.headers["content-type"]).toBe("application/octet-stream");
+    expect(res3.body.length).toBeGreaterThan(0);
   });
 
   it("returns a match for a different note sharing the same script", async () => {
