@@ -11,6 +11,9 @@ export type DetailField = {
   // Hex IDs, addresses and digests: monospaced, with a copy button.
   copyable?: boolean;
   href?: string;
+  // Pushed to the right end of the row (e.g. a download button), so the value
+  // stays aligned with the others.
+  action?: ReactNode;
 };
 
 // A card of label/value rows, after MidenScan's overview.
@@ -43,7 +46,7 @@ export function DetailsList({ fields }: { fields: DetailField[] }) {
 }
 
 function DetailRow({ field }: { field: DetailField }) {
-  const { label, icon: Icon, value, copyable, href } = field;
+  const { label, icon: Icon, value, copyable, href, action } = field;
   return (
     <div className="grid gap-1 px-4 py-3 text-sm sm:grid-cols-[15rem_1fr] sm:items-baseline sm:gap-4">
       {/* Baseline-aligned so the row aligns on the label's text: an icon has
@@ -70,6 +73,7 @@ function DetailRow({ field }: { field: DetailField }) {
           )}
         </span>
         {copyable && typeof value === "string" && <CopyButton value={value} />}
+        {action && <span className="ml-auto shrink-0 pl-2">{action}</span>}
       </dd>
     </div>
   );

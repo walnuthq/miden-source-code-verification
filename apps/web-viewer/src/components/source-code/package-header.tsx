@@ -46,8 +46,9 @@ export function PackageHeader({
     {
       label: "Package MASP",
       icon: FileBox,
-      value: (
-        <MaspDownload
+      value: <code className="font-mono break-all">{maspFileName(name)}</code>,
+      action: (
+        <MaspDownloadButton
           href={packageMaspPath({ networkId, commitment })}
           fileName={maspFileName(name)}
         />
@@ -85,21 +86,24 @@ export function PackageHeader({
   return <DetailsList fields={fields} />;
 }
 
-// A link that saves the compiled package as `fileName`, then that name. A
-// link rather than a button, as the file is served by the web-viewer itself.
-function MaspDownload({ href, fileName }: { href: string; fileName: string }) {
+// Saves the compiled package as `fileName`. A link rather than a button, as
+// the file is served by the web-viewer itself.
+function MaspDownloadButton({
+  href,
+  fileName,
+}: {
+  href: string;
+  fileName: string;
+}) {
   return (
-    <span className="flex flex-wrap items-center gap-2">
-      <a
-        href={href}
-        download={fileName}
-        className={buttonVariants({ variant: "outline", size: "sm" })}
-      >
-        <Download data-icon="inline-start" />
-        Download MASP
-      </a>
-      <code className="font-mono break-all">{fileName}</code>
-    </span>
+    <a
+      href={href}
+      download={fileName}
+      className={buttonVariants({ variant: "outline", size: "sm" })}
+    >
+      <Download data-icon="inline-start" />
+      Download MASP
+    </a>
   );
 }
 
