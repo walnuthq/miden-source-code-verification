@@ -4,6 +4,8 @@ import {
   buildFileTree,
   filterSourceFiles,
   findEntryFile,
+  maspFileName,
+  packageMaspPath,
   sourcesArchiveName,
 } from "@/lib/source-files";
 
@@ -145,5 +147,24 @@ describe("sourcesArchiveName", () => {
         packageName: "counter-contract",
       }),
     ).toBe("mtst-0xad41ad8e-counter-contract.zip");
+  });
+});
+
+describe("maspFileName", () => {
+  it("spells the package name with underscores", () => {
+    expect(maspFileName("counter-contract")).toBe("counter_contract.masp");
+  });
+
+  it("keeps a name without hyphens", () => {
+    expect(maspFileName("counter")).toBe("counter.masp");
+  });
+});
+
+describe("packageMaspPath", () => {
+  it("points at the commitment's .masp under the network", () => {
+    const commitment = `0x${"ab".repeat(32)}`;
+    expect(packageMaspPath({ networkId: "mtst", commitment })).toBe(
+      `/mtst/packages/masp/${commitment}.masp`,
+    );
   });
 });

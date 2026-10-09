@@ -196,6 +196,16 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
       "packageCommitment",
       component.package.commitment,
     );
+    // The compiled package is served on its own, not inlined in the record.
+    expect(component.package).not.toHaveProperty("masp");
+
+    const res3 = await apiV1
+      .get(`/${networkId}/packages/masp/${component.package.commitment}.masp`)
+      .responseType("blob");
+
+    expect(res3.status).toBe(200);
+    expect(res3.headers["content-type"]).toBe("application/octet-stream");
+    expect(res3.body.length).toBeGreaterThan(0);
   });
 
   it("records the lockfile the build used when none was sent", async () => {

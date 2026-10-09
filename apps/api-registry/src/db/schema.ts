@@ -19,7 +19,6 @@ export const packagesTable = pgTable("packages", {
   name: varchar({ length: 255 }).notNull().default(""),
   type: packageTypeEnum().notNull().default("account-component"),
   files: jsonb().notNull().default({}),
-  masp: text().notNull().default(""),
   commitment: varchar({ length: 66 })
     .notNull()
     .default(

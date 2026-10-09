@@ -23,9 +23,8 @@ export async function loader({ params }: Route.LoaderArgs) {
     throw data(null, { status: 404 });
   }
   // Only what the page uses: the package's displayed sources, already
-  // highlighted, and its raw files for the download. The raw record also
-  // carries its compiled `.masp`, which would otherwise be serialized into the
-  // HTML. A list of one, so the page renders like an account's.
+  // highlighted, and its raw files for the download. A list of one, so the
+  // page renders like an account's.
   const packages = [
     await loadPackageSources(verifiedNote.package, verifiedNote),
   ];

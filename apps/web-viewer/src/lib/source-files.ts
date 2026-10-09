@@ -41,6 +41,25 @@ export function sourcesArchiveName({
   return `${networkId}-${id.slice(0, 10)}-${packageName}.zip`;
 }
 
+// The Download MASP file name, e.g. `counter_contract.masp`: the package name
+// as Rust spells the crate, which is how cargo-miden names the artifact.
+export function maspFileName(packageName: string): string {
+  return `${packageName.replaceAll("-", "_")}.masp`;
+}
+
+// Where the page downloads a package's compiled MASP: the web-viewer's own
+// proxy of the registry endpoint (see routes/package-masp.ts), so the link is
+// same-origin and the browser honours its `download` name.
+export function packageMaspPath({
+  networkId,
+  commitment,
+}: {
+  networkId: string;
+  commitment: string;
+}): string {
+  return `/${networkId}/packages/masp/${commitment}.masp`;
+}
+
 // A file (no `children`) or folder in the Source Code explorer.
 export type FileTreeNode = {
   name: string;

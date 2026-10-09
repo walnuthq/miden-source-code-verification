@@ -8,8 +8,8 @@ import { API_REGISTRY_URL } from "@/lib/constants.server";
 
 // A compiled package in the registry, as far as the pages read it: its name,
 // commitment, the sources it was compiled from, keyed by project-relative path, and
-// the procedures its manifest exports. It also carries the compiled `.masp`
-// (base64), left untyped.
+// the procedures its manifest exports. Its compiled `.masp` is served apart
+// (see `getPackageMasp`).
 export type SourcePackage = {
   name: string;
   commitment: string;
@@ -108,4 +108,25 @@ export function getVerifiedNote({
   return getVerifiedResource<VerifiedNote>(
     `/v1/${encodeURIComponent(networkId)}/verified-notes/${encodeURIComponent(noteId)}`,
   );
+}
+
+// The registry's response for a package's compiled `.masp` (`file` is
+// `<commitment>.masp`), passed through as is. `null` when there is no such
+// file: a 404, or a 400 for a name that isn't a commitment.
+export async function getPackageMasp({
+  networkId,
+  file,
+}: {
+  networkId: string;
+  file: string;
+}) {
+  const path = `/v1/${encodeURIComponent(networkId)}/packages/masp/${encodeURIComponent(file)}`;
+  const response = await fetch(`${API_REGISTRY_URL}${path}`);
+  if (response.status === 404 || response.status === 400) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`api-registry responded ${response.status} for ${path}`);
+  }
+  return response;
 }

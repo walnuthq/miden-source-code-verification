@@ -177,7 +177,6 @@ The package shape is shared by both endpoints and is slimmer than before:
   // Verification only ever records `account-component` or `note`.
   "type": "account-component",
   "commitment": "0x7f70…",
-  "masp": "MASP_BINARY_BASE64",
   "files": {
     // replaces `rust` + `masm`: the exact project inputs that were compiled,
     // including the Cargo.lock that pinned their dependency versions
@@ -213,19 +212,25 @@ The package shape is shared by both endpoints and is slimmer than before:
 }
 ```
 
+The compiled package is no longer inlined. Download it by commitment:
+`GET /v1/:networkId/packages/masp/:commitment.masp` returns the raw `.masp`
+bytes (`application/octet-stream`), or `404` when no package has that
+commitment.
+
 Field mapping from the legacy `Package`:
 
 | Legacy                               | New                                                                                 |
 | ------------------------------------ | ----------------------------------------------------------------------------------- |
 | `rust`                               | read from `files` (e.g. `files["src/lib.rs"]`)                                      |
-| `masm`                               | gone — `masp` is the only build output kept                                         |
+| `masm`                               | gone — the `.masp` is the only build output kept                                    |
 | `exports`                            | `manifest.exports`                                                                  |
 | `procedureExports`                   | gone — every entry of `manifest.exports` is a `Procedure`, so map over `.Procedure` |
 | `dependencies`                       | `manifest.dependencies` (`{ name, kind, version, digest }`, no source code)         |
 | `type`                               | same field, renamed values: `account` → `account-component`; `library` added        |
 | `id`                                 | registry uuid — the legacy ids of standard components (`auth-no-auth`, …) are gone  |
 | `digest`                             | `commitment` — commits to the code, name, version and manifest, a different value   |
-| `masp`, `name`                       | unchanged                                                                           |
+| `masp`                               | raw bytes from `GET /v1/:networkId/packages/masp/:commitment.masp` (no base64)      |
+| `name`                               | unchanged                                                                           |
 | `status`, `readOnly`                 | removed                                                                             |
 | `createdAt`, `updatedAt` (ms number) | ISO 8601 string                                                                     |
 

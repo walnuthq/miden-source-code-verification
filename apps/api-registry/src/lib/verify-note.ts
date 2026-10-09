@@ -11,6 +11,7 @@ import {
 } from "@/db/verified-notes.js";
 import { fetchApiCompile } from "@/lib/api-compile.js";
 import { importResource } from "@/lib/import-resource.js";
+import type { MaspStore } from "@/storage/masp-store.js";
 
 export const verifyNote = async ({
   networkId,
@@ -18,12 +19,14 @@ export const verifyNote = async ({
   files,
   entrypoint = ".",
   source = "unknown",
+  maspStore,
 }: {
   networkId: string;
   noteId: string;
   files: Record<string, string>;
   entrypoint?: string;
   source?: string;
+  maspStore: MaspStore;
 }) => {
   const cargoTomlPath = join(entrypoint, "Cargo.toml");
   const cargoToml = files[cargoTomlPath] ?? "";
@@ -67,18 +70,22 @@ export const verifyNote = async ({
       throw new Error("note already verified");
     }
     const dbPackage = await getPackage(commitment);
-    const packageId = dbPackage
-      ? dbPackage.id
-      : await insertPackage({
-          name,
-          type: kind,
-          // Keeps the lockfile with the sources, so the record pins the
-          // dependency versions that produced `commitment`.
-          files: compiledFiles ?? files,
-          masp,
-          commitment,
-          manifest,
-        });
+    let packageId = dbPackage?.id;
+    if (!packageId) {
+      // Stored before the row so a package never exists without its
+      // artifact. Keyed by commitment, so a retry after a failed insert just
+      // rewrites the same object.
+      await maspStore.put(commitment, Buffer.from(masp, "base64"));
+      packageId = await insertPackage({
+        name,
+        type: kind,
+        // Keeps the lockfile with the sources, so the record pins the
+        // dependency versions that produced `commitment`.
+        files: compiledFiles ?? files,
+        commitment,
+        manifest,
+      });
+    }
     await insertVerifiedNoteScript({
       networkId,
       script,
