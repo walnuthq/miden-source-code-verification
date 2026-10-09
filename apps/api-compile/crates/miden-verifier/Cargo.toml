@@ -7,8 +7,8 @@ edition = "2024"
 anyhow = "1.0"
 base64 = "0.23"
 clap = { version = "4.6", features = ["derive"] }
-miden-client = { version = "=0.17.2", features = ["tonic", "testing"] }
-miden-client-sqlite-store = { version = "=0.17.2", package = "miden-client-sqlite-store" }
+miden-client = { version = "=0.17.3", features = ["tonic", "testing"] }
+miden-client-sqlite-store = { version = "=0.17.3", package = "miden-client-sqlite-store" }
 # `CallConv`, which `miden-client` does not re-export; pinned to the VM version it resolves.
 miden-assembly-syntax = "=0.35.0"
 miden-standards = { version = "=0.17.1" }
