@@ -9,18 +9,20 @@ registry, and how to make the files identical.
 
 After the MASP artifacts moved to object storage, the two account components of
 the testnet fixture `COUNTER_CONTRACT_ID_1` (`0x858c680a7a66d2916230cc8c2a6c98`)
-were verified through the production web-verifier, and their files were
-downloaded from the production registry. They were compared with builds of the
-same sources (`apps/api-compile/examples/counter-contract/`) from the local
-docker-compose api-compile.
+and the note script of `COUNTER_NOTE_ID_1` (`0x5a1fdb87…87a2`) were verified
+through the production web-verifier, and their files were downloaded from the
+production registry. They were compared with builds of the same sources
+(`apps/api-compile/examples/counter-contract/`) from the local docker-compose
+api-compile.
 
-| Package                  | Commitment    | Size     | Bytes that differ       |
-| ------------------------ | ------------- | -------- | ----------------------- |
-| `counter-contract`       | `0xd4ae…2b9d` | 14,976 B | 32, offsets 14324–14355 |
-| `auth-component-no-auth` | `0xb869…bdf3` | 8,058 B  | 32, offsets 7598–7629   |
+| Package                  | Commitment    | Size      | Bytes that differ       |
+| ------------------------ | ------------- | --------- | ----------------------- |
+| `counter-contract`       | `0xd4ae…2b9d` | 14,976 B  | 32, offsets 14324–14355 |
+| `auth-component-no-auth` | `0xb869…bdf3` | 8,058 B   | 32, offsets 7598–7629   |
+| `counter-note`           | `0x8163…e670` | 422,203 B | 64, offsets 4545–4608   |
 
-The sizes and commitments match. In each file, the only difference is one run
-of 32 consecutive bytes.
+The sizes and commitments match. In each account component, the only
+difference is one run of 32 consecutive bytes. In the note, it's one run of 64.
 
 Two more checks narrowed it down:
 
@@ -35,13 +37,15 @@ Two more checks narrowed it down:
 
 ## Root cause
 
-### The 32 bytes are one hash in the provenance section
+### The differing bytes are hashes in the provenance section
 
-Each file holds a `project_source_provenance` section, followed by
-`account_component_metadata`. The 32 differing bytes sit right after the
-section's name, at the position of the provenance record's `source_hash`. The
-rest of the record (the dependency hash and the build settings) is identical,
-and so is every other section, the MAST forest included.
+Each file holds a `project_source_provenance` section. In the account
+components, the 32 differing bytes sit right after the section's name, at the
+position of the provenance record's `source_hash`. The rest of the record (the
+dependency hash and the build settings) is identical, and so is every other
+section, the MAST forest included. The note's 64 differing bytes are both
+hashes of its record, `source_hash` and `dependency_hash`. See
+[Dependencies propagate the difference](#dependencies-propagate-the-difference).
 
 The section is written by `miden-assembly`
 (`src/project/build_provenance.rs`, 0.35). It's `PackageBuildProvenance::Path`:
@@ -76,17 +80,47 @@ For a Rust project, midenc's frontend (`midenc-compile` 0.11,
   names), since they all appear in the WAT;
 - the path of the `.wasm` file.
 
+### Dependencies propagate the difference
+
+The record is serialized as a tag byte (`4` for `Path` with build settings),
+then `source_hash`, then `dependency_hash`, then two booleans for the build
+settings. In the files above:
+
+| Package                  | Dependencies           | `source_hash` | `dependency_hash` |
+| ------------------------ | ---------------------- | ------------- | ----------------- |
+| `counter-contract`       | none built from source | differs       | identical         |
+| `auth-component-no-auth` | none built from source | differs       | identical         |
+| `counter-note`           | `counter-contract`     | differs       | differs           |
+
+`dependency_hash` comes from `compute_dependency_closure_hash` (`miden-assembly`,
+`src/project/dependency_graph.rs`). For each dependency it hashes a line built
+by `dependency_resolution_hash_input`:
+
+- a registry or preassembled dependency contributes its name and selected
+  version, which don't depend on the host;
+- a path dependency built from source, like `counter-contract` for the note,
+  contributes `source:<id>:<provenance.describe()>`. That description embeds
+  the dependency's own `source_hash`, which comes from its `.wasm`.
+
+So any host difference in a dependency's `.wasm` changes the `dependency_hash`
+of every package above it, transitively. Here, the note's `dependency_hash`
+differs because `counter-contract`'s `source_hash` differs, as the first row
+shows.
+
+The note file holds a second `project_source_provenance` section, near the
+end of the file. It's identical on both machines.
+
 ### Why local and production disagree
 
 Neither the random build directory nor the code version explains it: builds on
 one machine are identical, and both images run the same code. What's left
 is the host:
 
-| | Local (docker-compose, OrbStack) | Production (Cloudflare Containers) |
-| --- | --- | --- |
-| Architecture | `linux/arm64` | `linux/amd64` |
-| Image | built from `apps/api-compile/Dockerfile` | same Dockerfile |
-| Toolchain | `nightly-2026-09-01` | `nightly-2026-09-01` |
+|              | Local (docker-compose, OrbStack)         | Production (Cloudflare Containers) |
+| ------------ | ---------------------------------------- | ---------------------------------- |
+| Architecture | `linux/arm64`                            | `linux/amd64`                      |
+| Image        | built from `apps/api-compile/Dockerfile` | same Dockerfile                    |
+| Toolchain    | `nightly-2026-09-01`                     | `nightly-2026-09-01`               |
 
 The most likely cause is that rustc and LLVM, running on different host
 architectures, emit `.wasm` files that differ in ways that don't reach the
@@ -133,8 +167,10 @@ already deserializes the package to read its commitment and manifest, so it
 can also write out the stripped package, and `compile.ts` would read that file
 instead.
 
-- **Identical bytes.** In both packages here, the provenance hash was the only
-  difference, so the files would come out the same on any machine.
+- **Identical bytes.** In all three packages here, the provenance hashes were
+  the only difference, so the files would come out the same on any machine.
+  Dropping the whole section also removes the `dependency_hash` that carries a
+  dependency's difference into its dependents.
 - **Commitment unchanged.** `dependency_commitment()` doesn't cover the
   section, so it stays the same.
 - **Verification unchanged.** `/verify` doesn't read the section.
@@ -142,8 +178,8 @@ instead.
   loses the cache-reuse hint. Their assembler treats it as a package without
   provenance and rebuilds from source instead of reusing it. Registry consumers
   don't use the section.
-- **Caveat:** this only holds while the provenance hash is the only thing that
-  varies between machines. Two packages is a small sample, and a future
+- **Caveat:** this only holds while the provenance hashes are the only thing
+  that varies between machines. Three packages is a small sample, and a future
   compiler that writes host-specific data into the code itself would change the
   commitment too. That would be a bigger problem, which this fix wouldn't hide.
 
