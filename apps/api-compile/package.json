@@ -14,15 +14,15 @@
   },
   "dependencies": {
     "cors": "2.8.6",
-    "dotenv": "18.0.6",
-    "express": "5.2.1",
+    "dotenv": "18.0.7",
+    "express": "5.3.0",
     "lodash": "4.18.1",
     "miden-source-code-verification-utils": "workspace:*"
   },
   "devDependencies": {
     "@types/cors": "2.8.19",
     "@types/express": "5.0.6",
-    "@types/lodash": "4.17.25",
+    "@types/lodash": "4.17.26",
     "@types/node": "24.13.6",
     "@types/supertest": "7.2.1",
     "miden-source-code-verification-test-utils": "workspace:*",
