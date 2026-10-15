@@ -39,9 +39,42 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Layer caching. wrangler runs a plain `docker build --load` with no cache
+      # flags, so a cold runner would rebuild cargo-miden, the helper crates and
+      # the example warm-up from scratch. Warm a BuildKit builder from the
+      # GitHub Actions cache first: wrangler's build then runs on that builder
+      # (BUILDX_BUILDER below) and finds every unchanged layer locally. Each
+      # Rust binary has its own stage, so editing one crate only rebuilds that
+      # stage.
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Warm the image build cache
+        uses: docker/build-push-action@v7
+        with:
+          # Must match wrangler's build (wrangler.jsonc `image` and
+          # `image_build_context`, linux/amd64) for the cache keys to line up.
+          context: .
+          file: apps/api-compile/Dockerfile
+          platforms: linux/amd64
+          provenance: false
+          # Load the image, not just `type=cacheonly`: on a full cache hit
+          # BuildKit only matches the layers' keys and never downloads them, so
+          # wrangler's build (which can't read the GHA cache) would start over.
+          # Loading pulls the layers into the builder.
+          load: true
+          cache-from: type=gha,scope=api-compile
+          # mode=max also exports the Rust builder stages, not just the final
+          # image's layers: they hold the expensive compiles.
+          cache-to: type=gha,scope=api-compile,mode=max
+
+      # wrangler builds the container image (apps/api-compile/Dockerfile), from
+      # the warm cache above, and pushes it to Cloudflare's registry.
       - name: Deploy api-compile to Cloudflare
         working-directory: apps/api-compile-cloudflare
         run: pnpm cf:deploy
         env:
+          BUILDX_BUILDER: ${{ steps.buildx.outputs.name }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

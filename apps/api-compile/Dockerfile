@@ -23,34 +23,48 @@ ENV RUSTUP_HOME=/usr/local/rustup \
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
   | sh -s -- -y --no-modify-path --profile minimal --default-toolchain nightly-2026-09-01
+# The components the crates' rust-toolchain.toml lists (the examples' list a
+# subset). rustup used to add them on the fly during the crate builds, and the
+# runtime inherited them from there; install them once, up front, so every
+# stage below shares one toolchain and the builds don't modify it.
+RUN rustup component add rustfmt rust-src clippy rust-analyzer
 
-# Build cargo-miden + miden-package-metadata + miden-verifier + miden-import (cargo cache via BuildKit, never persisted in layer)
-FROM rust AS rust-builder
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
-    cargo install cargo-miden --version 0.11.0
+# Each Rust binary builds in its own stage, so BuildKit builds them in parallel
+# and caches them independently: a change to one crate rebuilds that crate
+# only. Each stage gets its own cargo cache (`id=`), since parallel stages
+# sharing one unpack the same crate at once on a cold cache and fail with
+# "File exists (os error 17)". The cache is never persisted in a layer.
+FROM rust AS cargo-miden-builder
+RUN --mount=type=cache,id=cargo-registry-cargo-miden,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=cargo-git-cargo-miden,target=/usr/local/cargo/git \
+    cargo install cargo-miden --version 0.11.0 \
+ && strip /usr/local/cargo/bin/cargo-miden
 
-WORKDIR /home/node/crates
-COPY apps/api-compile/crates .
-
+FROM rust AS miden-package-metadata-builder
 WORKDIR /home/node/crates/miden-package-metadata
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
-    cargo install --path . --locked
+COPY apps/api-compile/crates/miden-package-metadata .
+RUN --mount=type=cache,id=cargo-registry-miden-package-metadata,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=cargo-git-miden-package-metadata,target=/usr/local/cargo/git \
+    cargo install --path . --locked \
+ && strip /usr/local/cargo/bin/miden-package-metadata
 
+FROM rust AS miden-verifier-builder
 WORKDIR /home/node/crates/miden-verifier
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
-    cargo install --path . --locked
+COPY apps/api-compile/crates/miden-verifier .
+RUN --mount=type=cache,id=cargo-registry-miden-verifier,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=cargo-git-miden-verifier,target=/usr/local/cargo/git \
+    cargo install --path . --locked \
+ && strip /usr/local/cargo/bin/miden-verifier
 
+FROM rust AS miden-import-builder
 WORKDIR /home/node/crates/miden-import
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
-    cargo install --path . --locked
+COPY apps/api-compile/crates/miden-import .
+RUN --mount=type=cache,id=cargo-registry-miden-import,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=cargo-git-miden-import,target=/usr/local/cargo/git \
+    cargo install --path . --locked \
+ && strip /usr/local/cargo/bin/miden-import
 
-RUN strip /usr/local/cargo/bin/cargo-miden /usr/local/cargo/bin/miden-package-metadata /usr/local/cargo/bin/miden-verifier /usr/local/cargo/bin/miden-import
-
-# Build the API (TypeScript -> JS) from the pnpm workspace — runs in parallel with rust-builder
+# Build the API (TypeScript -> JS) from the pnpm workspace — runs in parallel with the Rust stages
 FROM base AS api-builder
 WORKDIR /repo
 COPY . .
@@ -84,9 +98,10 @@ ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
     PATH=/usr/local/cargo/bin:$PATH
 
-# Rust toolchain (cargo + rustc + std) needed at runtime to compile user projects
-COPY --from=rust-builder /usr/local/rustup /usr/local/rustup
-COPY --from=rust-builder /usr/local/cargo /usr/local/cargo
+# Rust toolchain (cargo + rustc + std) and cargo-miden, needed at runtime to
+# compile user projects
+COPY --from=cargo-miden-builder /usr/local/rustup /usr/local/rustup
+COPY --from=cargo-miden-builder /usr/local/cargo /usr/local/cargo
 
 # Copy project template
 WORKDIR /cache/examples
@@ -102,6 +117,12 @@ WORKDIR /cache/examples/counter-contract/counter-note
 RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release
 WORKDIR /cache/examples/counter-contract/counter-script
 RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release
+
+# The API's helper binaries, copied after the warm-up builds, which don't use
+# them: a change to one of these crates then doesn't redo the warm-up.
+COPY --from=miden-package-metadata-builder /usr/local/cargo/bin/miden-package-metadata /usr/local/cargo/bin/
+COPY --from=miden-verifier-builder /usr/local/cargo/bin/miden-verifier /usr/local/cargo/bin/
+COPY --from=miden-import-builder /usr/local/cargo/bin/miden-import /usr/local/cargo/bin/
 
 # App: only the built output + production dependencies from the deploy bundle
 WORKDIR /home/node/api
