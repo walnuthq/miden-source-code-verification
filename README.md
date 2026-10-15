@@ -188,6 +188,8 @@ These wrap the vendor-neutral services; deleting them removes Cloudflare with no
 
 Each runs only when its own `apps/<service>/**` or `apps/<service>-cloudflare/**` paths change (or a shared `pnpm-lock.yaml` / `pnpm-workspace.yaml`), so an unrelated change never redeploys every service. Each can also be triggered manually via `workflow_dispatch`, and all require the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets.
 
+The api-compile workflow caches the container image's layers in the GitHub Actions cache, so a deploy that leaves the Rust crates and examples untouched skips their compiles. wrangler's own `docker build` takes no cache flags, so the workflow first builds the image on a Buildx builder from that cache, then points wrangler at the same builder (`BUILDX_BUILDER`). The first run after the cache is empty or evicted (unused for 7 days, or over the 10 GB repository cap) builds from scratch.
+
 ### Front-end URLs on Cloudflare
 
 The two front-ends have localhost defaults. Their production URLs are set in the repository, so a deploy needs no configuration in the Cloudflare dashboard:
