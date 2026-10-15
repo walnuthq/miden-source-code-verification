@@ -20,3 +20,6 @@ allowBuilds:
   sharp: true
   workerd: true
   msw: false
+permissions:
+  drizzle-kit:
+    skills: true
