@@ -23,3 +23,9 @@ allowBuilds:
 permissions:
   drizzle-kit:
     skills: true
+# Where approved agent skills get linked. Without this, pnpm only links into an
+# existing skills dir, and .claude/ is gitignored, so clean checkouts (CI,
+# Docker builds) fail with ERR_PNPM_NO_AGENT_SKILLS_DIR. pnpm creates it.
+skills:
+  dirs:
+    - .claude/skills
