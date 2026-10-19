@@ -39,6 +39,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Before the deploy, so the new code never runs on an old schema; a failed
+      # migration stops the job with nothing deployed. Already-applied
+      # migrations are skipped. The old code keeps serving on the new schema
+      # until the deploy finishes, so migrations must stay compatible with it
+      # (see "Database migrations" in the README).
+      - name: Migrate the database
+        working-directory: apps/api-registry
+        run: pnpm db:migrate
+        env:
+          DATABASE_URL: ${{ secrets.REGISTRY_DATABASE_URL }}
+
       - name: Deploy api-registry to Cloudflare
         working-directory: apps/api-registry-cloudflare
         run: pnpm cf:deploy
