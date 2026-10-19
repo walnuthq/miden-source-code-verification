@@ -15,4 +15,7 @@ export const createR2MaspStore = (getBucket: () => R2Bucket): MaspStore => ({
     const object = await getBucket().get(maspKey(commitment, variant));
     return object ? new Uint8Array(await object.arrayBuffer()) : null;
   },
+  async delete(commitment, variant) {
+    await getBucket().delete(maspKey(commitment, variant));
+  },
 });

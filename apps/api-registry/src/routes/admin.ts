@@ -10,6 +10,7 @@ import {
   fetchApiCompile,
   sendApiCompileUnavailable,
 } from "@/lib/api-compile.js";
+import { cleanupPlaygroundResources } from "@/lib/cleanup-playground.js";
 import { ADMIN_TOKEN } from "@/lib/constants.js";
 import { type DebugBuild, storeDebugBuild } from "@/lib/debug-build.js";
 import { notFound } from "@/lib/errors.js";
@@ -17,10 +18,11 @@ import { inferEntrypoint } from "@/lib/infer-entrypoint.js";
 import { parseRoot } from "@/lib/roots.js";
 import { getMaspStore } from "@/storage/masp-store.js";
 
-// Operator routes, left out of the OpenAPI docs. Today only the backfill of
-// debug builds for packages stored before the registry kept them
-// (`scripts/backfill-debug-packages.ts` drives it), which has to run here: the
-// Worker is what holds the R2 and database bindings.
+// Operator routes, left out of the OpenAPI docs: the backfill of debug builds
+// for packages stored before the registry kept them
+// (`scripts/backfill-debug-packages.ts` drives it) and the cleanup of the
+// playground's verifications. They run here because the Worker is what holds
+// the R2 and database bindings.
 const router: Router = Router();
 
 // Hashed first so both sides have the same length, as `timingSafeEqual` needs.
@@ -120,6 +122,20 @@ router.post("/admin/packages/:commitment/debug-build", async (req, res) => {
     }
     const message =
       error instanceof Error ? error.message : "debug build failed";
+    res.status(500).json({ error: message });
+  }
+});
+
+// Deletes the playground's verifications older than a day, and the packages
+// and artifacts only they used.
+router.post("/admin/playground/cleanup", async (req, res) => {
+  try {
+    res.json(
+      await cleanupPlaygroundResources({ maspStore: getMaspStore(req) }),
+    );
+  } catch (error) {
+    console.error(error);
+    const message = error instanceof Error ? error.message : "cleanup failed";
     res.status(500).json({ error: message });
   }
 });
