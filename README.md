@@ -217,6 +217,17 @@ REGISTRY_URL=https://miden-source-code-verification-api-registry.walnut.dev ADMI
 
 The script builds the packages one at a time and waits out a busy api-compile. Each build goes through api-compile's `POST /compile-debug`, which first rebuilds the release build and answers `409` when it no longer has the stored commitment, as after a toolchain upgrade. Such a package, or one whose entrypoint can't be told from its files (`422`), is skipped and gets a debug build when it is verified again. The script ends with a count of stored, skipped and failed packages.
 
+### Cleaning up playground verifications
+
+The Miden playground verifies throwaway deploys with `source: "miden-playground"`. `POST /admin/playground/cleanup` deletes those older than 24 hours (by when the component or note was verified), with the same `ADMIN_TOKEN` as above:
+
+```bash
+curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
+  https://miden-source-code-verification-api-registry.walnut.dev/admin/playground/cleanup
+```
+
+It deletes their verified account components and notes, then the account codes left with no component and the packages nothing references any more. Last come those packages' `.masp` and `.debug.masp`, unless another package row has the same commitment. A package or account code that another source also verified stays. It answers with the counts: `{ verifiedAccountComponents, verifiedAccounts, verifiedNotes, packages, masps }`.
+
 ### Front-end URLs on Cloudflare
 
 The two front-ends have localhost defaults. Their production URLs are set in the repository, so a deploy needs no configuration in the Cloudflare dashboard:

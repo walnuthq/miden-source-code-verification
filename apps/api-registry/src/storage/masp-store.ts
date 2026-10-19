@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Request } from "express";
 
@@ -23,6 +23,8 @@ export type MaspStore = {
   ): Promise<void>;
   /** `null` when no artifact is stored for `commitment`. */
   get(commitment: string, variant?: MaspVariant): Promise<Uint8Array | null>;
+  /** Removes the artifact, if one is stored. */
+  delete(commitment: string, variant?: MaspVariant): Promise<void>;
 };
 
 /**
@@ -64,6 +66,9 @@ export const createFsMaspStore = (dir: string): MaspStore => ({
       }
       throw error;
     }
+  },
+  async delete(commitment, variant) {
+    await rm(join(dir, maspKey(commitment, variant)), { force: true });
   },
 });
 
