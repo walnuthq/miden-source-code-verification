@@ -190,6 +190,14 @@ Each runs only when its own `apps/<service>/**` or `apps/<service>-cloudflare/**
 
 The api-compile workflow caches the container image's layers in the GitHub Actions cache, so a deploy that leaves the Rust crates and examples untouched skips their compiles. wrangler's own `docker build` takes no cache flags, so the workflow first builds the image on a Buildx builder from that cache, then points wrangler at the same builder (`BUILDX_BUILDER`). The first run after the cache is empty or evicted (unused for 7 days, or over the 10 GB repository cap) builds from scratch.
 
+### Database migrations
+
+The api-registry workflow applies pending Drizzle migrations (`apps/api-registry/drizzle`) to the production database, then deploys the Worker. It connects with the `REGISTRY_DATABASE_URL` repository secret: a direct Postgres connection string to the database Hyperdrive fronts, reachable from GitHub's runners. A migration that fails stops the deploy.
+
+Until the deploy finishes, and for longer if it fails, the Worker still running is the previous version, on the new schema. So each migration must keep working with the code already deployed. Adding a table, or a column that is nullable or has a default, is safe. Renaming or dropping something takes two releases: first ship code that no longer uses it, then the migration that removes it.
+
+Generate migrations with `pnpm --filter miden-source-code-verification-api-registry db:generate` and commit them with the schema change. Don't change production with `db:push`: it bypasses the migration journal the workflow relies on.
+
 ### Front-end URLs on Cloudflare
 
 The two front-ends have localhost defaults. Their production URLs are set in the repository, so a deploy needs no configuration in the Cloudflare dashboard:
