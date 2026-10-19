@@ -14,6 +14,7 @@ import {
   insertVerifiedAccountCode,
 } from "@/db/verified-accounts.js";
 import { fetchApiCompile } from "@/lib/api-compile.js";
+import { type DebugBuild, storeDebugBuild } from "@/lib/debug-build.js";
 import { importResource } from "@/lib/import-resource.js";
 import type { MaspStore } from "@/storage/masp-store.js";
 
@@ -44,6 +45,8 @@ export const verifyAccountComponent = async ({
     kind,
     manifest,
     files: compiledFiles,
+    cargoMidenVersion,
+    debug,
   } = await fetchApiCompile<{
     verified: boolean;
     masp: string;
@@ -54,6 +57,9 @@ export const verifyAccountComponent = async ({
     // The sources plus the lockfile the build used. Absent from api-compile
     // versions that predate it.
     files?: Record<string, string>;
+    // Absent from api-compile versions that predate them.
+    cargoMidenVersion?: string;
+    debug?: DebugBuild;
   }>("/verify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -62,6 +68,7 @@ export const verifyAccountComponent = async ({
       networkId,
       resourceId: accountId,
       entrypoint,
+      debug: true,
     }),
   });
   if (verified) {
@@ -95,7 +102,17 @@ export const verifyAccountComponent = async ({
         files: compiledFiles ?? files,
         commitment,
         manifest,
+        entrypoint,
+        builtWith: cargoMidenVersion,
       });
+    }
+    // Also for a package stored before it had a debug build. A failure is
+    // logged and leaves the package without one: the release build alone is
+    // what verifies.
+    if (!dbPackage?.debugCommitment) {
+      await storeDebugBuild({ maspStore, packageId, commitment, debug }).catch(
+        (error) => console.error(error),
+      );
     }
     await insertVerifiedAccountComponent({
       verifiedAccountId,

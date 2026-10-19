@@ -181,3 +181,12 @@ export type Manifest = {
   exports: PackageExport[];
   dependencies: Dependency[];
 };
+
+// The paths of the procedures a manifest exports, e.g.
+// `miden:counter-contract/counter-contract@0.1.0#increment-count`. A release
+// and a debug build of the same source export the same paths under different
+// digests, which is how the simulator pairs them.
+export const procedureExportPaths = (manifest: Manifest) =>
+  manifest.exports.flatMap((packageExport) =>
+    "Procedure" in packageExport ? [packageExport.Procedure.path] : [],
+  );

@@ -7,13 +7,24 @@ import {
 } from "@/lib/constants.js";
 import { execFile } from "@/lib/utils.js";
 
-export const cargoMidenVersion = async () => {
+const readCargoMidenVersion = async () => {
   const { stdout } = await execFile("cargo", ["miden", "--version"], {
     timeout: MIDEN_TOOL_TIMEOUT_MS,
   });
   const [, version = ""] = stdout.split(" ").map((part) => part.trim());
   const [major, minor, patch] = version.split(".");
   return `${major}.${minor}.${patch}`;
+};
+
+// The toolchain doesn't change while the server runs, so ask cargo once. A
+// failure isn't cached: the next call asks again.
+let cargoMidenVersionPromise: Promise<string> | undefined;
+export const cargoMidenVersion = () => {
+  cargoMidenVersionPromise ??= readCargoMidenVersion().catch((error) => {
+    cargoMidenVersionPromise = undefined;
+    throw error;
+  });
+  return cargoMidenVersionPromise;
 };
 
 // The lockfile cargo used to build `projectDir`, keyed by its path relative to
@@ -45,19 +56,32 @@ export const readCargoLock = async ({
   }
 };
 
+// The package's directory under `MIDENC_TARGET_DIR`: cargo's profile name.
+export const PROFILE_DIRS = { release: "release", debug: "dev" } as const;
+
+export type BuildProfile = keyof typeof PROFILE_DIRS;
+
+// `debug` is the dev profile, which keeps the debug info that names call-trace
+// frames. midenc configures that profile itself with `--config` (overflow
+// checks and debug assertions off, panic=abort), so it wraps on overflow like
+// the release build and `CARGO_PROFILE_DEV_*` variables would change nothing.
 export const cargoMidenBuild = async ({
   projectDir,
   midencTargetDir,
+  profile = "release",
   signal,
 }: {
   projectDir: string;
   midencTargetDir: string;
+  profile?: BuildProfile;
   signal?: AbortSignal;
 }) => {
   try {
     const { stdout, stderr } = await execFile(
       "cargo",
-      ["miden", "build", "--release"],
+      profile === "release"
+        ? ["miden", "build", "--release"]
+        : ["miden", "build"],
       {
         cwd: projectDir,
         env: {

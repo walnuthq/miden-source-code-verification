@@ -9,12 +9,13 @@ const router = Router();
 type CompileRequestBody = {
   files?: Record<string, string>;
   entrypoint?: string;
+  debug?: boolean;
 };
 
 router.post("/compile", async (req, res) => {
   const signal = abortOnClose(res);
   try {
-    const { files, entrypoint = "." } = req.body as CompileRequestBody;
+    const { files, entrypoint = ".", debug } = req.body as CompileRequestBody;
     if (!files || typeof files !== "object") {
       res.status(400).json({ error: "missing files" });
       return;
@@ -38,10 +39,12 @@ router.post("/compile", async (req, res) => {
       kind,
       manifest,
       files: compiledFiles,
+      debug: debugBuild,
     } = await queueCompile(
       {
         files,
         entrypoint,
+        debug: debug === true,
         signal,
       },
       (compiled) => compiled,
@@ -55,6 +58,8 @@ router.post("/compile", async (req, res) => {
       manifest,
       // Set when the build succeeded: the sources plus the lockfile it used.
       files: compiledFiles,
+      // Set when the build succeeded and `debug` was requested.
+      debug: debugBuild,
     });
   } catch (error) {
     if (signal.aborted) {

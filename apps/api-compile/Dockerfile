@@ -106,17 +106,24 @@ COPY --from=cargo-miden-builder /usr/local/cargo /usr/local/cargo
 # Copy project template
 WORKDIR /cache/examples
 COPY apps/api-compile/examples .
-# Warm cargo-miden with counter-contract
+# Warm cargo-miden with counter-contract, in both profiles: each verification
+# also builds its debug variant (dev profile), whose dependencies cargo builds
+# separately from the release ones.
 WORKDIR /cache/examples/counter-contract/auth-component-no-auth
-RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release
+RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release \
+ && CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build
 WORKDIR /cache/examples/counter-contract/counter-contract
-RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release
+RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release \
+ && CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build
 WORKDIR /cache/examples/counter-contract/count-reader
-RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release
+RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release \
+ && CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build
 WORKDIR /cache/examples/counter-contract/counter-note
-RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release
+RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release \
+ && CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build
 WORKDIR /cache/examples/counter-contract/counter-script
-RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release
+RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release \
+ && CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build
 
 # The API's helper binaries, copied after the warm-up builds, which don't use
 # them: a change to one of these crates then doesn't redo the warm-up.
