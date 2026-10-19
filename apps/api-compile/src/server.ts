@@ -10,6 +10,7 @@ import {
 } from "@/lib/constants.js";
 import { errorHandler, notFound } from "@/lib/errors.js";
 import compileRouter from "@/routes/compile.js";
+import compileDebugRouter from "@/routes/compile-debug.js";
 import importRouter from "@/routes/import.js";
 import verifyRouter from "@/routes/verify.js";
 
@@ -60,6 +61,7 @@ app.get("/", async (_req, res) => {
 });
 
 app.use(compileRouter);
+app.use(compileDebugRouter);
 app.use(verifyRouter);
 app.use(importRouter);
 app.use(notFound);

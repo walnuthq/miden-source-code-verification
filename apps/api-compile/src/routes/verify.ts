@@ -13,6 +13,7 @@ type VerifyRequestBody = {
   networkId?: string;
   resourceId?: string;
   resource?: string;
+  debug?: boolean;
 };
 
 router.post("/verify", async (req, res) => {
@@ -24,6 +25,7 @@ router.post("/verify", async (req, res) => {
       networkId,
       resourceId,
       resource,
+      debug,
     } = req.body as VerifyRequestBody;
     if (!files || typeof files !== "object") {
       res.status(400).json({ error: "missing files" });
@@ -50,7 +52,9 @@ router.post("/verify", async (req, res) => {
     // Verifying reads the built package from disk, so it runs before the
     // build's files are deleted.
     const result = await queueCompile(
-      { files, entrypoint, signal },
+      // The debug variant is built whether or not the release build verifies,
+      // in the same queue slot: verifying runs after the slot is released.
+      { files, entrypoint, debug: debug === true, signal },
       async ({
         stderr,
         maspPath,
@@ -59,6 +63,8 @@ router.post("/verify", async (req, res) => {
         kind,
         manifest,
         files: compiledFiles,
+        cargoMidenVersion,
+        debug: debugBuild,
       }) => {
         if (!maspPath) {
           return { error: stderr };
@@ -81,6 +87,10 @@ router.post("/verify", async (req, res) => {
             kind,
             manifest,
             files: compiledFiles,
+            cargoMidenVersion,
+            // Set when `debug` was requested. Its failure is `debug.error`,
+            // which never changes `verified`.
+            debug: debugBuild,
           };
         } finally {
           if (resourcePath) {

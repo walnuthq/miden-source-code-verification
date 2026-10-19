@@ -40,6 +40,7 @@ export const verifyNote = async ({
     kind,
     manifest,
     files: compiledFiles,
+    cargoMidenVersion,
   } = await fetchApiCompile<{
     verified: boolean;
     masp: string;
@@ -50,6 +51,8 @@ export const verifyNote = async ({
     // The sources plus the lockfile the build used. Absent from api-compile
     // versions that predate it.
     files?: Record<string, string>;
+    // Absent from api-compile versions that predate it.
+    cargoMidenVersion?: string;
   }>("/verify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -84,6 +87,8 @@ export const verifyNote = async ({
         files: compiledFiles ?? files,
         commitment,
         manifest,
+        entrypoint,
+        builtWith: cargoMidenVersion,
       });
     }
     await insertVerifiedNoteScript({

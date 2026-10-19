@@ -27,6 +27,14 @@ That `(networkId, code)` pair is the registry's real key, so it's addressable di
 - **Nothing is left behind.** Each request's copy of the project and its build output are deleted once it's answered. On `SIGTERM`, api-compile stops taking requests, finishes the ones in flight, then exits.
 - **Outages are reported as outages.** When api-compile is unreachable, busy or too slow, the registry answers `502`, `503` (keeping `Retry-After`) or `504`, instead of a `500`, or a `404` on the id-keyed reads. The web-verifier retries a `503` up to 3 times, showing a countdown.
 
+### Debug builds
+
+A verified package's release build carries no debug info, so a transaction simulator (Walnut's) can't name the frames of a call trace from it. The registry therefore also stores a **debug build** of every verified account component: the same sources and lockfile built with the dev profile (`cargo miden build` with no `--release`).
+
+- **Built with the release build.** The registry sends `debug: true` to `POST /verify`. api-compile then runs the debug build right after the release one, in the same queue slot. That adds a warm build of about 1.5 s; the image pre-warms both profiles. midenc sets up the dev profile itself (overflow checks and debug assertions off, `panic=abort`), so the debug build wraps on overflow like the release build.
+- **Never decides anything.** It has other procedure roots than the deployed code, so it verifies nothing. A debug build that fails is answered as `debug: { error }` and only logged by the registry; the verification goes on unchanged. One is also dropped when it exports a procedure path the release build doesn't, or when it is over 32 MB.
+- **Stored next to the release build.** It is stored as `<release commitment>.debug.masp`, and the package row records its own commitment (`debugCommitment`) and the cargo-miden that built it. `GET /v1/{networkId}/packages/masp/{commitment}.debug.masp` serves it with an `X-Debug-Commitment` header. Each verified account component carries `debugPackage: { commitment } | null`, so a client knows before downloading whether one exists. Debug builds embed absolute build paths, so their bytes differ between machines even when their commitment is the same.
+
 ### Miden toolchain
 
 api-compile targets the Miden **0.17** toolchain: it builds projects with `cargo-miden 0.11.0` and reads the network with `miden-client 0.17.2`. Projects to verify should use the matching SDK, `miden = "0.15"`, as the examples in `apps/api-compile/examples` do. Verification compares the procedure roots a project compiles to with the on-chain code, and another compiler version can produce different roots, so code deployed with another toolchain may not verify.
@@ -197,6 +205,17 @@ The api-registry workflow applies pending Drizzle migrations (`apps/api-registry
 Until the deploy finishes, and for longer if it fails, the Worker still running is the previous version, on the new schema. So each migration must keep working with the code already deployed. Adding a table, or a column that is nullable or has a default, is safe. Renaming or dropping something takes two releases: first ship code that no longer uses it, then the migration that removes it.
 
 Generate migrations with `pnpm --filter miden-source-code-verification-api-registry db:generate` and commit them with the schema change. Don't change production with `db:push`: it bypasses the migration journal the workflow relies on.
+
+### Backfilling debug builds
+
+Packages stored before the registry kept [debug builds](#debug-builds) get them through two operator routes, `GET /admin/debug-builds/pending` and `POST /admin/packages/{commitment}/debug-build`. They need `Authorization: Bearer $ADMIN_TOKEN` and answer 404 when the registry has no `ADMIN_TOKEN`; on Cloudflare, set it with `wrangler secret put ADMIN_TOKEN`. Then run:
+
+```bash
+REGISTRY_URL=https://miden-source-code-verification-api-registry.walnut.dev ADMIN_TOKEN=… \
+  pnpm --filter miden-source-code-verification-api-registry exec tsx scripts/backfill-debug-packages.ts
+```
+
+The script builds the packages one at a time and waits out a busy api-compile. Each build goes through api-compile's `POST /compile-debug`, which first rebuilds the release build and answers `409` when it no longer has the stored commitment, as after a toolchain upgrade. Such a package, or one whose entrypoint can't be told from its files (`422`), is skipped and gets a debug build when it is verified again. The script ends with a count of stored, skipped and failed packages.
 
 ### Front-end URLs on Cloudflare
 

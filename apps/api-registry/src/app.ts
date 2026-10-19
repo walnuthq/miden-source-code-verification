@@ -8,6 +8,7 @@ import {
   PORT,
 } from "@/lib/constants.js";
 import { errorHandler, notFound } from "@/lib/errors.js";
+import adminRouter from "@/routes/admin.js";
 import packagesRouterV1 from "@/routes/v1/packages.js";
 import verifiedAccountsRouterV1 from "@/routes/v1/verified-accounts.js";
 import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
@@ -159,6 +160,24 @@ import { createFsMaspStore, type MaspStore } from "@/storage/masp-store.js";
  *             Reproducible: rebuilding the same sources gives the same value.
  *         manifest:
  *           $ref: '#/components/schemas/Manifest'
+ *         entrypoint:
+ *           type: [string, "null"]
+ *           description: >
+ *             The project directory within `files` the package was built from
+ *             (`.` for the root). Null for packages recorded before it was
+ *             stored.
+ *         builtWith:
+ *           type: [string, "null"]
+ *           description: Version of cargo-miden that built the package, when known.
+ *         debugCommitment:
+ *           type: [string, "null"]
+ *           description: >
+ *             Commitment of the package's debug build (32-byte hex), served as
+ *             `/v1/{networkId}/packages/masp/{commitment}.debug.masp`. Null
+ *             when it has none yet.
+ *         debugBuiltWith:
+ *           type: [string, "null"]
+ *           description: Version of cargo-miden that built the debug build, when known.
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -196,6 +215,16 @@ import { createFsMaspStore, type MaspStore } from "@/storage/masp-store.js";
  *           format: date-time
  *         package:
  *           $ref: '#/components/schemas/Package'
+ *         debugPackage:
+ *           type: [object, "null"]
+ *           description: >
+ *             The component package's debug build, whose debug info names
+ *             call-trace frames, or null when it has none. Download it from
+ *             `/v1/{networkId}/packages/masp/{packageCommitment}.debug.masp`.
+ *           properties:
+ *             commitment:
+ *               type: string
+ *               description: The debug build's own commitment (32-byte hex).
  *   responses:
  *     CompilerUnavailable:
  *       description: >
@@ -258,8 +287,9 @@ export const createApp = ({
   app.use(
     cors({
       origin: allowedOrigins.includes("*") ? true : allowedOrigins,
-      // Lets browser clients read how long to wait after a 503.
-      exposedHeaders: ["Retry-After"],
+      // Lets browser clients read how long to wait after a 503, and a debug
+      // build's commitment next to its `.debug.masp`.
+      exposedHeaders: ["Retry-After", "X-Debug-Commitment"],
     }),
   );
 
@@ -275,6 +305,7 @@ export const createApp = ({
   app.use("/v1", verifiedAccountsRouterV1);
   app.use("/v1", verifiedNotesRouterV1);
   app.use("/v1", packagesRouterV1);
+  app.use(adminRouter);
   app.use(notFound);
   app.use(errorHandler);
 

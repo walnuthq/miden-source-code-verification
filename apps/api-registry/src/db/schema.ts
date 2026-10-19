@@ -25,6 +25,17 @@ export const packagesTable = pgTable("packages", {
       "0x0000000000000000000000000000000000000000000000000000000000000000",
     ),
   manifest: jsonb().notNull().default({}),
+  // The project directory within `files` the package was built from (`.` for
+  // the root). Null on rows from before it was recorded.
+  entrypoint: text(),
+  // `cargo miden --version` of the build. Null when unknown.
+  builtWith: varchar("built_with", { length: 64 }),
+  // The debug build of the same sources (a dev-profile build, whose debug info
+  // names call-trace frames), stored as `<commitment>.debug.masp`: its own
+  // commitment, and the cargo-miden that built it. Null until it is built,
+  // which makes the row part of the backfill's work list.
+  debugCommitment: varchar("debug_commitment", { length: 66 }),
+  debugBuiltWith: varchar("debug_built_with", { length: 64 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
