@@ -22,5 +22,7 @@ export const COMPILE_QUEUE_SIZE = Number(process.env.COMPILE_QUEUE_SIZE ?? 8);
 export const SHUTDOWN_TIMEOUT_MS = 600_000;
 
 // A debug build is ~100× its release build (1.8 MB for the counter). Larger
-// ones are dropped: the registry holds the whole response in a Worker's memory.
-export const MAX_DEBUG_MASP_BYTES = 32 * 1024 * 1024;
+// ones are dropped: the debugger can't load a package whose debug info is over
+// 16 MiB (0xMiden/compiler#1430), and the registry holds the whole response in
+// a Worker's memory.
+export const MAX_DEBUG_MASP_BYTES = 16 * 1024 * 1024;
