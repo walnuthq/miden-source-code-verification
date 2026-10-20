@@ -4,6 +4,12 @@
 export const WEB_VERIFIER_URL =
   import.meta.env.VITE_WEB_VERIFIER_URL ?? "http://localhost:5173";
 
+// The registry as the browser reaches it, for the Download MASP links. Baked in
+// at build time like WEB_VERIFIER_URL; the server's own API_REGISTRY_URL
+// (constants.server.ts) may be an address only the server can reach.
+export const PUBLIC_API_REGISTRY_URL =
+  import.meta.env.VITE_API_REGISTRY_URL ?? "http://localhost:8081";
+
 // The block explorer for each network the registry serves, keyed by network ID.
 // Baked in at build time like WEB_VERIFIER_URL.
 const EXPLORER_URLS: Record<string, string> = {

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   createFsMaspStore,
+  maspFileName,
   maspKey,
   parseMaspKey,
 } from "../src/storage/masp-store.js";
@@ -45,6 +46,31 @@ describe("maspKey / parseMaspKey", () => {
     ]) {
       expect(parseMaspKey(key)).toBeNull();
     }
+  });
+});
+
+describe("maspFileName", () => {
+  it("spells the package name as Rust spells the crate", () => {
+    expect(maspFileName("counter-contract")).toBe("counter_contract.masp");
+    expect(maspFileName("counter")).toBe("counter.masp");
+  });
+
+  it("names the debug build with .debug", () => {
+    expect(maspFileName("counter-contract", "debug")).toBe(
+      "counter_contract.debug.masp",
+    );
+  });
+
+  it("collapses runs of other characters and drops leading underscores", () => {
+    expect(maspFileName("miden:basic-wallet/basic-wallet")).toBe(
+      "miden_basic_wallet_basic_wallet.masp",
+    );
+    expect(maspFileName("--my  pkg!v1.2")).toBe("my_pkg_v1.2.masp");
+  });
+
+  it("is null when nothing is left of the name", () => {
+    expect(maspFileName("")).toBeNull();
+    expect(maspFileName("-:/", "debug")).toBeNull();
   });
 });
 

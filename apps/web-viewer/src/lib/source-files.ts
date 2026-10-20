@@ -1,5 +1,6 @@
 import { parseCargoToml } from "miden-source-code-verification-utils";
 import type { PackageDependency } from "@/lib/api-registry.server";
+import { PUBLIC_API_REGISTRY_URL } from "@/lib/constants";
 import type { PackageProcedure } from "@/lib/procedure-signatures";
 
 // A package's source file as the pages render it: syntax-highlighted HTML,
@@ -43,22 +44,27 @@ export function sourcesArchiveName({
   return `${networkId}-${id.slice(0, 10)}-${packageName}.zip`;
 }
 
-// The Download MASP file name, e.g. `counter_contract.masp`: the package name
-// as Rust spells the crate, which is how cargo-miden names the artifact. The
-// debug build's is `counter_contract.debug.masp`, so the two don't overwrite
-// each other in a downloads folder.
+// The MASP file name the page shows, e.g. `counter_contract.masp`: the package
+// name as Rust spells the crate, which is how cargo-miden names the artifact.
+// The debug build's is `counter_contract.debug.masp`, so the two don't
+// overwrite each other in a downloads folder. Each run of characters outside
+// `[A-Za-z0-9.]` becomes `_` and leading `_` are dropped: the rule the
+// registry's `Content-Disposition` (which names the downloaded file) and the
+// simulator's command line follow.
 export function maspFileName(
   packageName: string,
   { debug = false }: { debug?: boolean } = {},
 ): string {
-  return `${packageName.replaceAll("-", "_")}${debug ? ".debug" : ""}.masp`;
+  const base =
+    packageName.replace(/[^A-Za-z0-9.]+/g, "_").replace(/^_+/, "") || "package";
+  return `${base}${debug ? ".debug" : ""}.masp`;
 }
 
-// Where the page downloads a package's compiled MASP, or its debug build: the
-// web-viewer's own proxy of the registry endpoint (see routes/package-masp.ts),
-// so the link is same-origin and the browser honours its `download` name.
+// Where the page downloads a package's compiled MASP, or its debug build:
+// straight from the registry, whose `Content-Disposition` names the file
+// `maspFileName` (a cross-origin link's `download` attribute is ignored).
 // `commitment` is the release build's either way.
-export function packageMaspPath({
+export function packageMaspUrl({
   networkId,
   commitment,
   debug = false,
@@ -67,7 +73,7 @@ export function packageMaspPath({
   commitment: string;
   debug?: boolean;
 }): string {
-  return `/${networkId}/packages/masp/${commitment}${debug ? ".debug" : ""}.masp`;
+  return `${PUBLIC_API_REGISTRY_URL}/v1/${networkId}/packages/masp/${commitment}${debug ? ".debug" : ""}.masp`;
 }
 
 // A file (no `children`) or folder in the Source Code explorer.

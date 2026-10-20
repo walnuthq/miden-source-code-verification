@@ -1,6 +1,11 @@
 import { Router } from "express";
 import { getPackage } from "@/db/packages.js";
-import { getMaspStore, maspKey, parseMaspKey } from "@/storage/masp-store.js";
+import {
+  getMaspStore,
+  maspFileName,
+  maspKey,
+  parseMaspKey,
+} from "@/storage/masp-store.js";
 
 const router: Router = Router();
 
@@ -44,6 +49,18 @@ const router: Router = Router();
  *       "200":
  *         description: The compiled package, or its debug build.
  *         headers:
+ *           Content-Disposition:
+ *             description: >
+ *               `attachment`, with a file name taken from the package's name
+ *               as Rust spells the crate (each run of characters outside
+ *               `[A-Za-z0-9.]` replaced by `_`, leading `_` dropped):
+ *               `counter_contract.masp` for `counter-contract`, or
+ *               `counter_contract.debug.masp` for its debug build. This is
+ *               the name cargo-miden gives the artifact. A package without a
+ *               name keeps the requested file name (`{packageCommitment}.masp`
+ *               or `{packageCommitment}.debug.masp`).
+ *             schema:
+ *               type: string
  *           X-Debug-Commitment:
  *             description: >
  *               The debug build's own commitment (32-byte hex). Only sent for
@@ -97,14 +114,14 @@ router.get("/:networkId/packages/masp/:file", async (req, res) => {
       return;
     }
     const { commitment, variant } = key;
-    let debugCommitment: string | null = null;
-    if (variant === "debug") {
-      // The row says whether there is a debug build, and gives its commitment.
-      debugCommitment = (await getPackage(commitment))?.debugCommitment ?? null;
-      if (!debugCommitment) {
-        res.status(404).json({ error: "package debug masp not found" });
-        return;
-      }
+    // The row names the download, and for a `.debug.masp` says whether there
+    // is a debug build and gives its commitment.
+    const dbPackage = await getPackage(commitment);
+    const debugCommitment =
+      variant === "debug" ? (dbPackage?.debugCommitment ?? null) : null;
+    if (variant === "debug" && !debugCommitment) {
+      res.status(404).json({ error: "package debug masp not found" });
+      return;
     }
     const masp = await getMaspStore(req).get(commitment, variant);
     if (!masp) {
@@ -120,7 +137,14 @@ router.get("/:networkId/packages/masp/:file", async (req, res) => {
       res.set("X-Debug-Commitment", debugCommitment);
     }
     res
-      .attachment(maspKey(commitment, variant))
+      // Named after the package, so a cross-origin link (whose `download`
+      // attribute browsers ignore) saves it as e.g. `counter_contract.masp`.
+      // A nameless package, or a stored file without a row, keeps the
+      // commitment-based name.
+      .attachment(
+        maspFileName(dbPackage?.name ?? "", variant) ??
+          maspKey(commitment, variant),
+      )
       .type("application/octet-stream")
       // Content-addressed: the artifact behind a commitment never changes.
       .set("Cache-Control", "public, max-age=31536000, immutable")
