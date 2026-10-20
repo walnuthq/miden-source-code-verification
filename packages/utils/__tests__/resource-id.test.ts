@@ -2,11 +2,12 @@ import { bech32, bech32m, hex } from "@scure/base";
 import { describe, expect, it } from "vitest";
 
 import {
+  addressNetwork,
   decodeAddress,
-  detectNetwork,
   encodeAddress,
   parseResourceId,
   RESOURCE_ID_PATTERN,
+  resourceIdError,
 } from "../src/resource-id.js";
 
 // Example from miden-protocol's `AccountId::to_bech32` docs.
@@ -101,16 +102,60 @@ describe("encodeAddress", () => {
   });
 });
 
-describe("detectNetwork", () => {
-  it("returns the network of an address on a served network", () => {
-    expect(detectNetwork(accountAddress("mtst", ACCOUNT_ID))).toBe("mtst");
-    expect(detectNetwork(accountAddress("mdev", ACCOUNT_ID))).toBe("mdev");
+describe("addressNetwork", () => {
+  it("returns the served network of an address on another network", () => {
+    expect(addressNetwork(accountAddress("mdev", ACCOUNT_ID), "mtst")).toBe(
+      "mdev",
+    );
+    expect(addressNetwork(accountAddress("mtst", ACCOUNT_ID), "mdev")).toBe(
+      "mtst",
+    );
   });
 
-  it("returns null for other networks and non-addresses", () => {
-    expect(detectNetwork(PROTOCOL_ADDRESS)).toBeNull();
-    expect(detectNetwork(ACCOUNT_ID)).toBeNull();
-    expect(detectNetwork("mtst1")).toBeNull();
+  it("returns null for the selected network, unserved networks and non-addresses", () => {
+    expect(
+      addressNetwork(accountAddress("mtst", ACCOUNT_ID), "mtst"),
+    ).toBeNull();
+    expect(addressNetwork(PROTOCOL_ADDRESS, "mtst")).toBeNull();
+    expect(addressNetwork(ACCOUNT_ID, "mtst")).toBeNull();
+    expect(addressNetwork("mdev1", "mtst")).toBeNull();
+  });
+});
+
+describe("resourceIdError", () => {
+  it("accepts empty values and valid IDs on the selected network", () => {
+    expect(resourceIdError("", "mtst")).toBeNull();
+    expect(resourceIdError("  ", "mtst")).toBeNull();
+    expect(resourceIdError(ACCOUNT_ID, "mdev")).toBeNull();
+    expect(resourceIdError(NOTE_ID, "mdev")).toBeNull();
+    expect(
+      resourceIdError(accountAddress("mtst", ACCOUNT_ID), "mtst"),
+    ).toBeNull();
+  });
+
+  it("names the network of an address on a served network", () => {
+    expect(resourceIdError(accountAddress("mdev", ACCOUNT_ID), "mtst")).toEqual(
+      {
+        message: "This is a Devnet address.",
+        isWrongNetwork: true,
+      },
+    );
+  });
+
+  it("gives the prefix of an address on an unserved network", () => {
+    expect(resourceIdError(PROTOCOL_ADDRESS, "mtst")).toEqual({
+      message: "This address is for another network (mm).",
+      isWrongNetwork: true,
+    });
+  });
+
+  it("rejects malformed values", () => {
+    for (const value of ["0x1234", "mtst1", "not an id"]) {
+      expect(resourceIdError(value, "mtst")).toEqual({
+        message: "Not a valid account ID, account address or note ID.",
+        isWrongNetwork: false,
+      });
+    }
   });
 });
 

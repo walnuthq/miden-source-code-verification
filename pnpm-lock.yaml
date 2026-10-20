@@ -566,6 +566,9 @@ importers:
       lucide-react:
         specifier: 1.59.0
         version: 1.59.0(@types/react@19.3.0)(react@19.3.1)
+      miden-source-code-verification-utils:
+        specifier: workspace:*
+        version: link:../utils
       tailwind-merge:
         specifier: 3.7.0
         version: 3.7.0

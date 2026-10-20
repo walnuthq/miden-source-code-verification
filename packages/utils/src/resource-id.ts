@@ -1,6 +1,6 @@
 import { bech32m, hex } from "@scure/base";
 
-import { getNetworkName } from "./networks.js";
+import { getNetwork, isNetworkId, type NetworkId } from "./networks.js";
 
 // Resource ID parsing for web-verifier's and web-viewer's forms. Addresses are
 // decoded in TypeScript following miden-protocol's `Address` encoding, so
@@ -63,11 +63,42 @@ export function encodeAddress(
   );
 }
 
-// If the value is a valid Miden account address on a network the registry
-// serves, return that network (e.g. "mtst" / "mdev"); otherwise null.
-export function detectNetwork(value: string): string | null {
+// The network a mismatched address belongs to, when the registry serves it, so
+// the forms can offer to switch to it. Null for anything else, including an
+// address on `network` itself.
+export function addressNetwork(
+  value: string,
+  network: NetworkId,
+): NetworkId | null {
   const networkId = decodeAddress(value)?.networkId;
-  return networkId && getNetworkName(networkId) ? networkId : null;
+  return isNetworkId(networkId) && networkId !== network ? networkId : null;
+}
+
+// What's wrong with a Resource ID on `network`, or null when it's empty or
+// valid. Hex IDs carry no network, so only addresses can be on the wrong one.
+// `isWrongNetwork` errors are worth showing right away: a decoded address
+// can't be a value still being typed.
+export function resourceIdError(
+  value: string,
+  network: NetworkId,
+): { message: string; isWrongNetwork: boolean } | null {
+  if (value.trim() === "") {
+    return null;
+  }
+  const networkId = decodeAddress(value)?.networkId;
+  if (networkId !== undefined && networkId !== network) {
+    const message = isNetworkId(networkId)
+      ? `This is a ${getNetwork(networkId).label} address.`
+      : `This address is for another network (${networkId}).`;
+    return { message, isWrongNetwork: true };
+  }
+  if (!parseResourceId(value)) {
+    return {
+      message: "Not a valid account ID, account address or note ID.",
+      isWrongNetwork: false,
+    };
+  }
+  return null;
 }
 
 export type ResourceId =
