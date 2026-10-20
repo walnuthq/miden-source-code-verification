@@ -46,12 +46,16 @@ export function sourcesArchiveName({
 // The Download MASP file name, e.g. `counter_contract.masp`: the package name
 // as Rust spells the crate, which is how cargo-miden names the artifact. The
 // debug build's is `counter_contract.debug.masp`, so the two don't overwrite
-// each other in a downloads folder.
+// each other in a downloads folder. Each run of characters outside
+// `[A-Za-z0-9.]` becomes `_` and leading `_` are dropped, the rule the
+// registry's `Content-Disposition` and the simulator's command line follow.
 export function maspFileName(
   packageName: string,
   { debug = false }: { debug?: boolean } = {},
 ): string {
-  return `${packageName.replaceAll("-", "_")}${debug ? ".debug" : ""}.masp`;
+  const base =
+    packageName.replace(/[^A-Za-z0-9.]+/g, "_").replace(/^_+/, "") || "package";
+  return `${base}${debug ? ".debug" : ""}.masp`;
 }
 
 // Where the page downloads a package's compiled MASP, or its debug build: the

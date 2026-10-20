@@ -35,6 +35,23 @@ export type MaspStore = {
 export const maspKey = (commitment: string, variant: MaspVariant = "release") =>
   `${commitment.toLowerCase()}${variant === "debug" ? ".debug" : ""}.masp`;
 
+/**
+ * The download name of a package's `.masp`, e.g. `counter_contract.masp` for
+ * `counter-contract` or `counter_contract.debug.masp` for its debug build: the
+ * package name as Rust spells the crate, which is how cargo-miden names the
+ * artifact and what the simulator's `miden-client call --package` line uses.
+ * Each run of characters outside `[A-Za-z0-9.]` becomes `_`, then leading `_`
+ * are dropped, so WIT-style names (`miden:basic-wallet/basic-wallet`) work too.
+ * `null` when nothing is left of the name.
+ */
+export const maspFileName = (
+  name: string,
+  variant: MaspVariant = "release",
+): string | null => {
+  const base = name.replace(/[^A-Za-z0-9.]+/g, "_").replace(/^_+/, "");
+  return base ? `${base}${variant === "debug" ? ".debug" : ""}.masp` : null;
+};
+
 const MASP_KEY_PATTERN = /^(0x[0-9a-f]{64})(\.debug)?\.masp$/i;
 
 /** The inverse of {@link maspKey}: `null` when `key` isn't one. */

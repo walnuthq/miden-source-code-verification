@@ -12,8 +12,9 @@ export async function loader({ params }: Route.LoaderArgs) {
   if (!upstream) {
     throw data(null, { status: 404 });
   }
-  // Not the registry's `Content-Disposition`: its file name (the commitment)
-  // would override the link's `download` name (e.g. `counter_contract.masp`).
+  // Not the registry's `Content-Disposition`: the same-origin link's `download`
+  // attribute already names the file (see `maspFileName`), and a header name
+  // would override it, which could only make the two disagree.
   const headers = new Headers();
   for (const name of ["Content-Type", "Cache-Control"]) {
     const value = upstream.headers.get(name);

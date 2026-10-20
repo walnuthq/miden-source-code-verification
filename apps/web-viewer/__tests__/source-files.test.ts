@@ -164,6 +164,18 @@ describe("maspFileName", () => {
       "counter_contract.debug.masp",
     );
   });
+
+  it("collapses other characters and drops leading underscores", () => {
+    expect(maspFileName("miden:basic-wallet/basic-wallet")).toBe(
+      "miden_basic_wallet_basic_wallet.masp",
+    );
+    expect(maspFileName("--my  pkg!v1.2")).toBe("my_pkg_v1.2.masp");
+  });
+
+  it("falls back to package.masp when nothing is left of the name", () => {
+    expect(maspFileName("")).toBe("package.masp");
+    expect(maspFileName("-:/", { debug: true })).toBe("package.debug.masp");
+  });
 });
 
 describe("packageMaspPath", () => {

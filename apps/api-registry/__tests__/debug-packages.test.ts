@@ -78,14 +78,17 @@ describe("debug packages", () => {
     expect(debugRes.headers["cache-control"]).toBe(
       "public, max-age=31536000, immutable",
     );
-    expect(debugRes.headers["content-disposition"]).toContain(
-      `${commitment}.debug.masp`,
+    expect(debugRes.headers["content-disposition"]).toBe(
+      "attachment; filename=counter_contract.debug.masp",
     );
 
     // The release file name still answers the release build.
     const releaseRes = await getMasp(`${commitment}.masp`);
     expect(releaseRes.status).toBe(200);
     expect(releaseRes.headers).not.toHaveProperty("x-debug-commitment");
+    expect(releaseRes.headers["content-disposition"]).toBe(
+      "attachment; filename=counter_contract.masp",
+    );
     expect(debugRes.body.length).toBeGreaterThan(releaseRes.body.length);
 
     // The code-keyed lookup carries it too.
@@ -96,6 +99,36 @@ describe("debug packages", () => {
     expect(codeRes.body.verifiedAccountComponents[0]).toHaveProperty(
       "debugPackage",
       { commitment: debugCommitment },
+    );
+  });
+
+  it("names the download after the commitment for a nameless package", async () => {
+    const { commitment } = (await verifyCounterContract()).package;
+    await client.query("UPDATE packages SET name = '' WHERE commitment = $1", [
+      commitment,
+    ]);
+
+    for (const file of [`${commitment}.masp`, `${commitment}.debug.masp`]) {
+      const res = await getMasp(file);
+      expect(res.status).toBe(200);
+      expect(res.headers["content-disposition"]).toBe(
+        `attachment; filename=${file}`,
+      );
+    }
+  });
+
+  it("names the download after the commitment for a file without a row", async () => {
+    const { commitment } = (await verifyCounterContract()).package;
+    // The store keeps the file; only the row goes, as for a file the
+    // registry holds without a package row.
+    await client.query("DELETE FROM packages WHERE commitment = $1", [
+      commitment,
+    ]);
+
+    const res = await getMasp(`${commitment}.masp`);
+    expect(res.status).toBe(200);
+    expect(res.headers["content-disposition"]).toBe(
+      `attachment; filename=${commitment}.masp`,
     );
   });
 
