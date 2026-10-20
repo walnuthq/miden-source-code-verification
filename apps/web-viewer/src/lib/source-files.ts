@@ -15,6 +15,8 @@ export type SourceFile = { path: string; html: string };
 export type PackageSources = {
   name: string;
   commitment: string;
+  // Whether the registry holds a debug build of the package to download.
+  hasDebugBuild: boolean;
   procedures: PackageProcedure[];
   dependencies: PackageDependency[];
   // When the package was verified against the resource, formatted in UTC.
@@ -42,22 +44,30 @@ export function sourcesArchiveName({
 }
 
 // The Download MASP file name, e.g. `counter_contract.masp`: the package name
-// as Rust spells the crate, which is how cargo-miden names the artifact.
-export function maspFileName(packageName: string): string {
-  return `${packageName.replaceAll("-", "_")}.masp`;
+// as Rust spells the crate, which is how cargo-miden names the artifact. The
+// debug build's is `counter_contract.debug.masp`, so the two don't overwrite
+// each other in a downloads folder.
+export function maspFileName(
+  packageName: string,
+  { debug = false }: { debug?: boolean } = {},
+): string {
+  return `${packageName.replaceAll("-", "_")}${debug ? ".debug" : ""}.masp`;
 }
 
-// Where the page downloads a package's compiled MASP: the web-viewer's own
-// proxy of the registry endpoint (see routes/package-masp.ts), so the link is
-// same-origin and the browser honours its `download` name.
+// Where the page downloads a package's compiled MASP, or its debug build: the
+// web-viewer's own proxy of the registry endpoint (see routes/package-masp.ts),
+// so the link is same-origin and the browser honours its `download` name.
+// `commitment` is the release build's either way.
 export function packageMaspPath({
   networkId,
   commitment,
+  debug = false,
 }: {
   networkId: string;
   commitment: string;
+  debug?: boolean;
 }): string {
-  return `/${networkId}/packages/masp/${commitment}.masp`;
+  return `/${networkId}/packages/masp/${commitment}${debug ? ".debug" : ""}.masp`;
 }
 
 // A file (no `children`) or folder in the Source Code explorer.
