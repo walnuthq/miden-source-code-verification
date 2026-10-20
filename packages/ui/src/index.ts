@@ -5,6 +5,7 @@ export { Footer } from "@ui/components/footer";
 export { GithubIcon } from "@ui/components/icons/github-icon";
 export { XIcon } from "@ui/components/icons/x-icon";
 export { Navbar } from "@ui/components/navbar";
+export { NetworkSelect } from "@ui/components/network-select";
 export {
   ThemeProvider,
   ThemeScript,

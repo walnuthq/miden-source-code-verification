@@ -22,22 +22,16 @@ import {
   FieldGroup,
   FieldLabel,
   Input,
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
 } from "miden-source-code-verification-ui";
 import {
-  DEFAULT_NETWORK,
-  getNetworkName,
-  networks,
+  getNetwork,
+  type NetworkId,
 } from "miden-source-code-verification-utils/networks";
 import {
-  detectNetwork,
+  addressNetwork,
   parseResourceId,
   RESOURCE_ID_PATTERN,
+  resourceIdError,
 } from "miden-source-code-verification-utils/resource-id";
 import { type SyntheticEvent, useState } from "react";
 
@@ -78,9 +72,15 @@ const UNAVAILABLE_MESSAGES: Record<number, string> = {
   504: "The verifier took too long to answer. Please try again later.",
 };
 
-export function VerifyForm() {
-  // Read `resource` / `network` / `source` query params once on mount to seed
-  // the form.
+// The network is picked in the navbar, so it comes from `App`.
+export function VerifyForm({
+  network,
+  onNetworkChange,
+}: {
+  network: NetworkId;
+  onNetworkChange: (network: NetworkId) => void;
+}) {
+  // Read `resource` / `source` query params once on mount to seed the form.
   const [params] = useState(() => new URLSearchParams(window.location.search));
   // The verification server endpoint, configurable via the Settings dialog.
   const [verifierUrl, setVerifierUrl] = useState(API_REGISTRY_URL);
@@ -92,10 +92,6 @@ export function VerifyForm() {
   const [resourceTouched, setResourceTouched] = useState(() =>
     params.has("resource"),
   );
-  const [network, setNetwork] = useState<string | null>(() => {
-    const value = params.get("network");
-    return value && getNetworkName(value) ? value : DEFAULT_NETWORK;
-  });
   // Optional override for the request `source`; defaults to DEFAULT_SOURCE.
   const [source] = useState(() => params.get("source") || DEFAULT_SOURCE);
   // Filtered project sources and the entrypoints found within them, kept for
@@ -127,19 +123,30 @@ export function VerifyForm() {
   };
 
   // Null while the Resource ID is malformed. The form is valid when it is
-  // well-formed and at least one source file was imported. Network and
-  // Entrypoint always have valid defaults.
+  // well-formed, not an address on another network, and at least one source
+  // file was imported. Entrypoint always has a valid default.
   const resource = parseResourceId(resourceId);
-  const isFormValid = resource !== null && Object.keys(files).length > 0;
-  const isResourceInvalid =
-    resourceTouched && resourceId.trim() !== "" && resource === null;
+  const resourceError = resourceIdError(resourceId, network);
+  const isFormValid =
+    resource !== null &&
+    resourceError === null &&
+    Object.keys(files).length > 0;
+  // A malformed value waits until the field is left; an address on another
+  // network shows right away, with a button to switch when it's served.
+  const shownResourceError =
+    resourceError && (resourceTouched || resourceError.isWrongNetwork)
+      ? resourceError.message
+      : null;
+  const switchTo = shownResourceError
+    ? addressNetwork(resourceId, network)
+    : null;
 
   // A 64-hex-digit ID is a note; anything else is treated as an account.
   const kind = resource?.kind ?? "account";
 
   const onSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!isFormValid || verifying || !network) return;
+    if (!isFormValid || verifying) return;
 
     const isNote = resource.kind === "note";
     const endpoint = isNote ? "verified-notes" : "verified-accounts";
@@ -221,7 +228,7 @@ export function VerifyForm() {
 
           <form className="flex flex-col gap-6" onSubmit={onSubmit}>
             <FieldGroup>
-              <Field data-invalid={isResourceInvalid}>
+              <Field data-invalid={shownResourceError !== null}>
                 <FieldLabel htmlFor="resource-id">Resource ID</FieldLabel>
                 <Input
                   id="resource-id"
@@ -229,45 +236,30 @@ export function VerifyForm() {
                   required
                   pattern={RESOURCE_ID_PATTERN}
                   value={resourceId}
-                  aria-invalid={isResourceInvalid}
+                  aria-invalid={shownResourceError !== null}
                   onBlur={() => setResourceTouched(true)}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setResourceId(value);
-                    const detected = detectNetwork(value);
-                    if (detected) setNetwork(detected);
-                  }}
+                  onChange={(event) => setResourceId(event.target.value)}
                 />
                 <FieldDescription>
                   The account or note to verify.
                 </FieldDescription>
-                {isResourceInvalid && (
+                {shownResourceError && (
                   <FieldError>
-                    Not a valid account ID, account address or note ID.
+                    {shownResourceError}
+                    {switchTo && (
+                      <>
+                        {" "}
+                        <button
+                          type="button"
+                          className="underline underline-offset-4"
+                          onClick={() => onNetworkChange(switchTo)}
+                        >
+                          Switch to {getNetwork(switchTo).label}
+                        </button>
+                      </>
+                    )}
                   </FieldError>
                 )}
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="network">Network</FieldLabel>
-                <Select
-                  items={networks}
-                  value={network}
-                  onValueChange={(value) => setNetwork(value)}
-                >
-                  <SelectTrigger id="network" className="w-full">
-                    <SelectValue placeholder="Select network" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {networks.map((network) => (
-                        <SelectItem key={network.value} value={network.value}>
-                          {network.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
               </Field>
             </FieldGroup>
 

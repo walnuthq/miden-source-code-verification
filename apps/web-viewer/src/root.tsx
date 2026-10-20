@@ -1,6 +1,7 @@
 import {
   Footer,
   Navbar,
+  NetworkSelect,
   ThemeProvider,
   ThemeScript,
 } from "miden-source-code-verification-ui";
@@ -8,12 +9,30 @@ import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 
 import { ErrorPage } from "@/components/error-page";
 import { WEB_VERIFIER_URL } from "@/lib/constants";
+import { networkSearch, useNetwork } from "@/lib/use-network";
 import type { Route } from "./+types/root";
 import "./index.css";
 
 export const meta: Route.MetaFunction = () => [
   { title: "Miden Source Code Verification Web Viewer" },
 ];
+
+// The navbar with the network selector, whose network the link to the
+// web-verifier carries.
+function AppNavbar() {
+  const [network, setNetwork] = useNetwork();
+  return (
+    <Navbar
+      title="Miden Source Code Verification Web Viewer"
+      link={{
+        label: "Verify Resources",
+        href: `${WEB_VERIFIER_URL}${networkSearch(network)}`,
+      }}
+    >
+      <NetworkSelect value={network} onValueChange={setNetwork} />
+    </Navbar>
+  );
+}
 
 // Shared by every page, including the error boundary, so the navbar and theme
 // toggle are always there.
@@ -32,10 +51,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <body>
         <ThemeProvider>
           <div className="flex min-h-svh flex-col bg-muted/20">
-            <Navbar
-              title="Miden Source Code Verification Web Viewer"
-              link={{ label: "Verify Resources", href: WEB_VERIFIER_URL }}
-            />
+            <AppNavbar />
             {children}
             <Footer />
           </div>

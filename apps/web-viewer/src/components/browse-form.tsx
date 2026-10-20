@@ -8,34 +8,32 @@ import {
   cn,
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   Input,
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
 } from "miden-source-code-verification-ui";
 import {
-  DEFAULT_NETWORK,
-  networks,
+  getNetwork,
+  type NetworkId,
 } from "miden-source-code-verification-utils/networks";
 import {
-  detectNetwork,
+  addressNetwork,
   parseResourceId,
   RESOURCE_ID_PATTERN,
+  resourceIdError,
 } from "miden-source-code-verification-utils/resource-id";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 
+import { useNetwork } from "@/lib/use-network";
+
 // The viewer page for a Resource ID on `networkId`, or null when the value
-// isn't a valid Resource ID. Addresses link by the hex account ID they encode,
+// isn't a valid Resource ID (an address on another network included). Addresses link by the hex account ID they encode,
 // so each account has a single URL.
-function resourcePath(value: string, networkId: string): string | null {
+function resourcePath(value: string, networkId: NetworkId): string | null {
   const resource = parseResourceId(value);
-  if (!resource) {
+  if (!resource || resourceIdError(value, networkId)) {
     return null;
   }
   return resource.kind === "note"
@@ -44,14 +42,28 @@ function resourcePath(value: string, networkId: string): string | null {
 }
 
 // Same design as web-verifier's VerifyForm, but it links to the resource's
-// viewer page instead of submitting anything.
+// viewer page instead of submitting anything. The network is picked in the
+// navbar.
 export function BrowseForm() {
   const navigate = useNavigate();
+  const [network, setNetwork] = useNetwork();
   const [resourceId, setResourceId] = useState("");
-  const [network, setNetwork] = useState<string | null>(DEFAULT_NETWORK);
+  // Whether to report a malformed Resource ID: once the field is left.
+  const [resourceTouched, setResourceTouched] = useState(false);
 
-  // Null while the Resource ID is empty or malformed, which disables the CTA.
-  const path = network ? resourcePath(resourceId, network) : null;
+  // Null while the Resource ID is empty, malformed or an address on another
+  // network, which disables the CTA.
+  const path = resourcePath(resourceId, network);
+  // A malformed value waits until the field is left; an address on another
+  // network shows right away, with a button to switch when it's served.
+  const resourceError = resourceIdError(resourceId, network);
+  const shownResourceError =
+    resourceError && (resourceTouched || resourceError.isWrongNetwork)
+      ? resourceError.message
+      : null;
+  const switchTo = shownResourceError
+    ? addressNetwork(resourceId, network)
+    : null;
 
   return (
     <main className="flex justify-center px-4 py-10">
@@ -63,48 +75,38 @@ export function BrowseForm() {
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           <FieldGroup>
-            <Field>
+            <Field data-invalid={shownResourceError !== null}>
               <FieldLabel htmlFor="resource-id">Resource ID</FieldLabel>
               <Input
                 id="resource-id"
                 placeholder="Account ID, account address, or note ID"
                 pattern={RESOURCE_ID_PATTERN}
                 value={resourceId}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setResourceId(value);
-                  const detected = detectNetwork(value);
-                  if (detected) setNetwork(detected);
-                }}
-                // Not a <form>: Base UI's Select renders a hidden text input,
-                // which stops Enter from submitting one.
+                aria-invalid={shownResourceError !== null}
+                onBlur={() => setResourceTouched(true)}
+                onChange={(event) => setResourceId(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && path) navigate(path);
                 }}
               />
               <FieldDescription>The account or note to view.</FieldDescription>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="network">Network</FieldLabel>
-              <Select
-                items={networks}
-                value={network}
-                onValueChange={(value) => setNetwork(value)}
-              >
-                <SelectTrigger id="network" className="w-full">
-                  <SelectValue placeholder="Select network" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {networks.map((network) => (
-                      <SelectItem key={network.value} value={network.value}>
-                        {network.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+              {shownResourceError && (
+                <FieldError>
+                  {shownResourceError}
+                  {switchTo && (
+                    <>
+                      {" "}
+                      <button
+                        type="button"
+                        className="underline underline-offset-4"
+                        onClick={() => setNetwork(switchTo)}
+                      >
+                        Switch to {getNetwork(switchTo).label}
+                      </button>
+                    </>
+                  )}
+                </FieldError>
+              )}
             </Field>
           </FieldGroup>
 
