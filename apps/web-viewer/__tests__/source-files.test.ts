@@ -5,7 +5,7 @@ import {
   filterSourceFiles,
   findEntryFile,
   maspFileName,
-  packageMaspPath,
+  packageMaspUrl,
   sourcesArchiveName,
 } from "@/lib/source-files";
 
@@ -178,18 +178,18 @@ describe("maspFileName", () => {
   });
 });
 
-describe("packageMaspPath", () => {
+describe("packageMaspUrl", () => {
   const commitment = `0x${"ab".repeat(32)}`;
 
-  it("points at the commitment's .masp under the network", () => {
-    expect(packageMaspPath({ networkId: "mtst", commitment })).toBe(
-      `/mtst/packages/masp/${commitment}.masp`,
+  it("points at the registry's .masp for the commitment", () => {
+    expect(packageMaspUrl({ networkId: "mtst", commitment })).toBe(
+      `http://localhost:8081/v1/mtst/packages/masp/${commitment}.masp`,
     );
   });
 
   it("points at its .debug.masp for the debug build", () => {
-    expect(
-      packageMaspPath({ networkId: "mtst", commitment, debug: true }),
-    ).toBe(`/mtst/packages/masp/${commitment}.debug.masp`);
+    expect(packageMaspUrl({ networkId: "mtst", commitment, debug: true })).toBe(
+      `http://localhost:8081/v1/mtst/packages/masp/${commitment}.debug.masp`,
+    );
   });
 });

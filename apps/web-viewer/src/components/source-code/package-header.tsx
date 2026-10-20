@@ -14,7 +14,7 @@ import { CopyButton } from "@/components/copy-button";
 import { type DetailField, DetailsList } from "@/components/details-card";
 import type { PackageDependency } from "@/lib/api-registry.server";
 import type { PackageProcedure } from "@/lib/procedure-signatures";
-import { maspFileName, packageMaspPath } from "@/lib/source-files";
+import { maspFileName, packageMaspUrl } from "@/lib/source-files";
 
 // A verified package's details: its name, commitment, its compiled MASP (and
 // debug build, when there is one) to download, the procedures it installs, the
@@ -52,10 +52,7 @@ export function PackageHeader({
       icon: FileBox,
       value: <code className="font-mono break-all">{maspFileName(name)}</code>,
       action: (
-        <MaspDownloadButton
-          href={packageMaspPath({ networkId, commitment })}
-          fileName={maspFileName(name)}
-        />
+        <MaspDownloadButton href={packageMaspUrl({ networkId, commitment })} />
       ),
     },
   ];
@@ -72,8 +69,7 @@ export function PackageHeader({
       ),
       action: (
         <MaspDownloadButton
-          href={packageMaspPath({ networkId, commitment, debug: true })}
-          fileName={maspFileName(name, { debug: true })}
+          href={packageMaspUrl({ networkId, commitment, debug: true })}
           label="Download debug MASP"
         />
       ),
@@ -112,19 +108,18 @@ export function PackageHeader({
 
 // Saves the compiled package as `fileName`. A link rather than a button, as
 // the file is served by the web-viewer itself.
+// A plain link to the registry: its `Content-Disposition` makes the browser
+// save the file, under the package's name, rather than navigate to it.
 function MaspDownloadButton({
   href,
-  fileName,
   label = "Download MASP",
 }: {
   href: string;
-  fileName: string;
   label?: string;
 }) {
   return (
     <a
       href={href}
-      download={fileName}
       className={buttonVariants({ variant: "outline", size: "sm" })}
     >
       <Download data-icon="inline-start" />

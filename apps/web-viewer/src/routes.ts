@@ -7,5 +7,4 @@ export default [
     "routes/verified-account.tsx",
   ),
   route(":networkId/verified-notes/:noteId", "routes/verified-note.tsx"),
-  route(":networkId/packages/masp/:file", "routes/package-masp.ts"),
 ] satisfies RouteConfig;

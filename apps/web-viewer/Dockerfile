@@ -23,6 +23,11 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 # host-published port; override with --build-arg.
 ARG VITE_WEB_VERIFIER_URL=http://localhost:5173
 ENV VITE_WEB_VERIFIER_URL=${VITE_WEB_VERIFIER_URL}
+# Build-time registry address for the Download MASP links, which the browser
+# follows (the runtime API_REGISTRY_URL is an in-network address). Defaults to
+# its host-published port.
+ARG VITE_API_REGISTRY_URL=http://localhost:8081
+ENV VITE_API_REGISTRY_URL=${VITE_API_REGISTRY_URL}
 # Build-time block explorer links from verified accounts and notes, per network.
 ARG VITE_EXPLORER_TESTNET_URL=https://testnet.midenscan.com
 ENV VITE_EXPLORER_TESTNET_URL=${VITE_EXPLORER_TESTNET_URL}
