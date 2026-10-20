@@ -73,7 +73,8 @@ fn build_package(
 /// transaction script slot is taken by the fee note (see
 /// `account::deploy_counter_contract`), and the increment moved to the
 /// counter-note. The example is still shipped and still part of the payload the
-/// verification tests send.
+/// verification tests send. So is `examples/miden-bank/withdraw-request-note`,
+/// which no fixture is built from.
 pub struct Packages {
     pub auth_no_auth: Package,
     pub counter_contract: Package,
@@ -81,6 +82,9 @@ pub struct Packages {
     pub counter_note: Package,
     pub basic_wallet: Package,
     pub auth_rpo_falcon512: Package,
+    pub bank_account: Package,
+    pub deposit_note: Package,
+    pub init_tx_script: Package,
 }
 
 impl Packages {
@@ -100,6 +104,12 @@ impl Packages {
         let basic_wallet = build("basic-wallet", "basic-wallet")?;
         let auth_rpo_falcon512 = build("basic-wallet", "auth-component-rpo-falcon512")?;
 
+        // Same ordering constraint: `deposit-note` and `init-tx-script` depend on
+        // `../bank-account` in their `miden-project.toml`.
+        let bank_account = build("miden-bank", "bank-account")?;
+        let deposit_note = build("miden-bank", "deposit-note")?;
+        let init_tx_script = build("miden-bank", "init-tx-script")?;
+
         Ok(Self {
             auth_no_auth,
             counter_contract,
@@ -107,6 +117,9 @@ impl Packages {
             counter_note,
             basic_wallet,
             auth_rpo_falcon512,
+            bank_account,
+            deposit_note,
+            init_tx_script,
         })
     }
 }

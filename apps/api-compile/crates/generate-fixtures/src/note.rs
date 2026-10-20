@@ -1,4 +1,4 @@
-//! Creating the counter-note fixtures on-chain.
+//! Creating the counter-note and deposit-note fixtures on-chain.
 
 use anyhow::{Context, Result, anyhow};
 use miden_client::account::component::{BasicWallet, NoAuth};
@@ -18,7 +18,7 @@ use rand::TryRng;
 use crate::account::wait_for_commitment;
 use crate::build::Packages;
 
-/// Every counter-note this tool emits.
+/// Every note this tool emits.
 pub struct Notes {
     /// The two the tests look up by id. Nothing consumes them: the registry needs
     /// two distinct note ids resolving to one script root, and a spent note would
@@ -29,14 +29,18 @@ pub struct Notes {
     /// for why the counter-note carries the increment rather than
     /// `examples/counter-contract/counter-script`.
     pub increments: [Note; 2],
+    /// The deposit-note equivalent of `fixtures`: two ids, one script root, and
+    /// nothing consumes them. They carry no assets, so a bank consuming one would
+    /// credit nobody anything.
+    pub deposits: [Note; 2],
 }
 
-/// Emits every counter-note in a single transaction and returns them once it is
+/// Emits every note in a single transaction and returns them once it is
 /// committed.
 ///
-/// `counter_contracts` are the accounts the notes are tagged for. They only have
-/// to be assembled, not yet deployed: a note is tagged with an account id, and
-/// the id is fixed the moment the account is built.
+/// `counter_contracts` and `bank` are the accounts the notes are tagged for. They
+/// only have to be assembled, not yet deployed: a note is tagged with an account
+/// id, and the id is fixed the moment the account is built.
 ///
 /// `funding` is the note the factory pays its own transaction fee out of, or
 /// `None` on a chain that charges none.
@@ -45,10 +49,13 @@ pub async fn emit_notes(
     packages: &Packages,
     factory: AccountId,
     counter_contracts: [AccountId; 2],
+    bank: AccountId,
     funding: Option<Note>,
 ) -> Result<Notes> {
     let script = NoteScript::from_package(&packages.counter_note)
         .map_err(|err| anyhow!("failed to build the counter-note script: {err}"))?;
+    let deposit_script = NoteScript::from_package(&packages.deposit_note)
+        .map_err(|err| anyhow!("failed to build the deposit-note script: {err}"))?;
 
     // Same script, same (empty) storage and assets — only the serial number
     // differs. That is exactly what the registry tests need: two distinct note
@@ -69,11 +76,25 @@ pub async fn emit_notes(
         eprintln!("Created increment note {}", note.id().to_hex());
     }
 
+    let deposits = [
+        build_note(client.rng(), &deposit_script, factory, bank)?,
+        build_note(client.rng(), &deposit_script, factory, bank)?,
+    ];
+    for note in &deposits {
+        eprintln!("Created deposit-note {}", note.id().to_hex());
+    }
+
     // No custom script: `own_output_notes` leaves the transaction script to the
     // client, which derives a `send_notes` script from the factory's interface.
     let request = TransactionRequestBuilder::new()
         .input_notes(funding.map(|note| (note, None)))
-        .own_output_notes(fixtures.iter().chain(increments.iter()).cloned())
+        .own_output_notes(
+            fixtures
+                .iter()
+                .chain(increments.iter())
+                .chain(deposits.iter())
+                .cloned(),
+        )
         .build()
         .context("failed to build the note-creating transaction request")?;
     let tx_id = client
@@ -87,6 +108,7 @@ pub async fn emit_notes(
     Ok(Notes {
         fixtures,
         increments,
+        deposits,
     })
 }
 
@@ -142,8 +164,8 @@ fn build_note(
     sender: AccountId,
     target: AccountId,
 ) -> Result<Note> {
-    // The counter-note script takes no inputs: `run(self, _arg, account)` reads
-    // everything it needs off the account it executes against.
+    // Neither script takes inputs: `run(self, _arg, account)` reads everything
+    // it needs off the account it executes against and the note itself.
     let recipient = NoteRecipient::new(rng.draw_word(), script.clone(), NoteStorage::default());
     // Public, so the node keeps the full note and serves it back by id — which
     // is what `GET /:networkId/import/:resourceId` relies on.

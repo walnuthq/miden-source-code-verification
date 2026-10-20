@@ -14,6 +14,7 @@ const counterContractDir = path.resolve(
   __dirname,
   "../examples/counter-contract",
 );
+const bankDir = path.resolve(__dirname, "../examples/miden-bank");
 
 const api = request(process.env.API_URL ?? "http://localhost:8080");
 
@@ -62,6 +63,19 @@ describe("POST /compile with debug", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("commitment");
     expect(res.body).not.toHaveProperty("debug");
+  });
+
+  // bank-account's `withdraw` only builds in debug thanks to a local change
+  // from upstream (see `create_p2id_note`), which this guards.
+  it("builds the debug variant of a bank-account", async () => {
+    const files = await readProjectFiles(`${bankDir}/bank-account`);
+
+    const res = await api.post("/compile").send({ files, debug: true });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("commitment");
+    expect(res.body.debug).not.toHaveProperty("error");
+    expectDebugBuildOf(res.body.debug, res.body);
   });
 });
 

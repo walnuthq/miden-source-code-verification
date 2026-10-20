@@ -10,12 +10,14 @@ use miden_client::account::component::{
 };
 use miden_client::account::{
     Account, AccountBuilder, AccountBuilderSchemaCommitmentExt, AccountComponent, AccountId,
-    AccountType,
+    AccountType, StorageSlotName,
 };
 use miden_client::keystore::FilesystemKeyStore;
 use miden_client::note::Note;
 use miden_client::store::TransactionFilter;
-use miden_client::transaction::{TransactionId, TransactionRequestBuilder, TransactionStatus};
+use miden_client::transaction::{
+    TransactionId, TransactionRequestBuilder, TransactionScript, TransactionStatus,
+};
 use miden_client::vm::Package;
 use miden_client::{Client, ClientRng, Word};
 use rand::TryRng;
@@ -26,6 +28,9 @@ use crate::fee::FeeContext;
 const COMMIT_TIMEOUT: Duration = Duration::from_secs(120);
 const COMMIT_POLL_INTERVAL: Duration = Duration::from_secs(3);
 
+/// The value slot `examples/miden-bank/bank-account` sets to 1 on `initialize`.
+const BANK_INITIALIZED_SLOT: &str = "bank_account::bank::initialized";
+
 // --- Assembling ---
 
 /// Builds the [`InitStorageData`] a component's storage schema asks for.
@@ -35,7 +40,7 @@ const COMMIT_POLL_INTERVAL: Duration = Duration::from_secs(3);
 /// schema defaults win wherever they exist, `public_key` covers the
 /// `miden::standards::auth::pub_key` slot that `auth-component-rpo-falcon512`
 /// declares, and anything else starts at zero — which in `examples/` only ever
-/// means `count-reader`'s counter.
+/// means `count-reader`'s counter and `bank-account`'s `initialized` flag.
 fn init_storage_data(package: &Package, public_key: Option<Word>) -> Result<InitStorageData> {
     let metadata = AccountComponentMetadata::try_from(package)
         .with_context(|| format!("{} carries no account component metadata", package.name))?;
@@ -47,13 +52,17 @@ fn init_storage_data(package: &Package, public_key: Option<Word>) -> Result<Init
             (None, Some(public_key)) if requirement.r#type == SchemaType::pub_key() => {
                 WordValue::FullyTyped(public_key)
             }
+            // `"0"` only parses as a felt; a word-typed slot takes the zero word.
+            (None, _) if requirement.r#type == SchemaType::native_word() => {
+                WordValue::FullyTyped(Word::default())
+            }
             (None, _) => WordValue::Atomic("0".to_string()),
         };
         values.insert(name, value);
     }
 
     // No component under `examples/` wants preset map entries: `counter-contract`'s
-    // storage map starts empty.
+    // and `bank-account`'s storage maps start empty.
     InitStorageData::new(values, BTreeMap::new())
         .with_context(|| format!("failed to build init storage data for {}", package.name))
 }
@@ -173,6 +182,68 @@ pub async fn deploy_counter_contract(
                 account_id.to_hex()
             )
         })
+}
+
+/// Commits an assembled bank account on-chain by running
+/// `examples/miden-bank/init-tx-script`, and returns the account the node ends
+/// up holding.
+///
+/// Unlike the counter contracts, the bank authenticates with the standard
+/// `NoAuth` rather than `examples/counter-contract/auth-component-no-auth`. The
+/// standard one creates the fee note itself, so the transaction script slot
+/// stays free for the real init script and no `own_output_notes` is needed;
+/// the example's can't (see `crate::fee`), and the client won't pair its fee
+/// script with a custom one. `funding` is consumed first so the vault holds the
+/// fee by the time the auth procedure draws on it.
+///
+/// Upstream's `initialize` binary uses `AuthSingleSig` instead, and its README
+/// warns that `NoAuth` next to `BasicWallet` lets anyone spend the vault. These
+/// are throwaway fixture accounts holding a little fee token, so that's moot.
+pub async fn deploy_bank(
+    client: &mut Client<FilesystemKeyStore>,
+    account_id: AccountId,
+    init_tx_script: &Package,
+    funding: Option<Note>,
+) -> Result<Account> {
+    let script = TransactionScript::from_package(init_tx_script)
+        .map_err(|err| anyhow!("failed to load the init-tx-script: {err}"))?;
+
+    let request = TransactionRequestBuilder::new()
+        .input_notes(funding.into_iter().map(|note| (note, None)))
+        .custom_script(script)
+        .build()
+        .context("failed to build the transaction request")?;
+    let tx_id = client
+        .submit_new_transaction(account_id, request)
+        .await
+        .context("failed to submit the initialize transaction")?;
+    eprintln!("  submitted initialize transaction {}", tx_id.to_hex());
+
+    wait_for_commitment(client, tx_id).await?;
+
+    let account = client
+        .get_account(account_id)
+        .await
+        .context("failed to read back the deployed account")?
+        .ok_or_else(|| {
+            anyhow!(
+                "account {} is not tracked by the client",
+                account_id.to_hex()
+            )
+        })?;
+
+    // The same check upstream's `initialize` binary ends with.
+    let initialized_slot = StorageSlotName::new(BANK_INITIALIZED_SLOT)
+        .context("the bank's `initialized` slot name is invalid")?;
+    let initialized = account
+        .storage()
+        .get_item(&initialized_slot)
+        .context("the bank account has no `initialized` slot")?;
+    if initialized[0].as_canonical_u64() != 1 {
+        bail!("bank {} did not initialize", account_id.to_hex());
+    }
+
+    Ok(account)
 }
 
 /// Polls until a transaction is committed. Returning earlier would hand back a

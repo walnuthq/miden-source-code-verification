@@ -12,7 +12,9 @@ pub struct Fixtures {
     pub counter_contracts: [Account; 2],
     pub count_reader: Account,
     pub basic_wallet: Account,
+    pub bank_accounts: [Account; 2],
     pub counter_notes: [Note; 2],
+    pub deposit_notes: [Note; 2],
 }
 
 impl Fixtures {
@@ -43,12 +45,21 @@ impl Fixtures {
             self.count_reader.id().to_hex()
         ));
         out.push_str(&format!(
-            "export const BASIC_WALLET_ID_1 = \"{}\";\n\n",
+            "export const BASIC_WALLET_ID_1 = \"{}\";\n",
             self.basic_wallet.id().to_hex()
         ));
+        for (index, account) in self.bank_accounts.iter().enumerate() {
+            out.push_str(&format!(
+                "export const BANK_ACCOUNT_ID_{} = \"{}\";\n",
+                index + 1,
+                account.id().to_hex()
+            ));
+        }
+        out.push('\n');
 
         // Only the accounts a test hands to the verifier as a local blob need an
-        // entry; `COUNTER_CONTRACT_ID_2` is only ever looked up on-chain.
+        // entry; `COUNTER_CONTRACT_ID_2` and `BANK_ACCOUNT_ID_2` are only ever
+        // looked up on-chain.
         out.push_str("export const accounts = {\n");
         out.push_str(&account_entry(
             "COUNTER_CONTRACT_ID_1",
@@ -56,6 +67,7 @@ impl Fixtures {
         ));
         out.push_str(&account_entry("COUNT_READER_ID", &self.count_reader));
         out.push_str(&account_entry("BASIC_WALLET_ID_1", &self.basic_wallet));
+        out.push_str(&account_entry("BANK_ACCOUNT_ID_1", &self.bank_accounts[0]));
         out.push_str("};\n\n");
 
         for (index, note) in self.counter_notes.iter().enumerate() {
@@ -65,10 +77,18 @@ impl Fixtures {
                 note.id().to_hex()
             ));
         }
+        for (index, note) in self.deposit_notes.iter().enumerate() {
+            out.push_str(&format!(
+                "export const DEPOSIT_NOTE_ID_{} =\n  \"{}\";\n",
+                index + 1,
+                note.id().to_hex()
+            ));
+        }
         out.push('\n');
 
         out.push_str("export const notes = {\n");
         out.push_str(&note_entry("COUNTER_NOTE_ID_1", &self.counter_notes[0]));
+        out.push_str(&note_entry("DEPOSIT_NOTE_ID_1", &self.deposit_notes[0]));
         out.push_str("};\n");
 
         out
