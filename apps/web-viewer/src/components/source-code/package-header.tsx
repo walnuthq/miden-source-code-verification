@@ -1,4 +1,5 @@
 import {
+  Bug,
   CalendarCheck,
   Download,
   FileBox,
@@ -15,13 +16,15 @@ import type { PackageDependency } from "@/lib/api-registry.server";
 import type { PackageProcedure } from "@/lib/procedure-signatures";
 import { maspFileName, packageMaspPath } from "@/lib/source-files";
 
-// A verified package's details: its name, commitment, its compiled MASP to
-// download, the procedures it installs, the packages it was compiled against and when and from where it was
-// verified, laid out like the resource's details above it.
+// A verified package's details: its name, commitment, its compiled MASP (and
+// debug build, when there is one) to download, the procedures it installs, the
+// packages it was compiled against and when and from where it was verified,
+// laid out like the resource's details above it.
 export function PackageHeader({
   networkId,
   name,
   commitment,
+  hasDebugBuild,
   procedures,
   dependencies,
   verifiedAt,
@@ -30,6 +33,7 @@ export function PackageHeader({
   networkId: string;
   name: string;
   commitment: string;
+  hasDebugBuild: boolean;
   procedures: PackageProcedure[];
   dependencies: PackageDependency[];
   verifiedAt: string;
@@ -55,6 +59,26 @@ export function PackageHeader({
       ),
     },
   ];
+  // The same sources built with the dev profile, whose debug info names
+  // call-trace frames. It isn't what was verified, so it gets its own row.
+  if (hasDebugBuild) {
+    fields.push({
+      label: "Package Debug MASP",
+      icon: Bug,
+      value: (
+        <code className="font-mono break-all">
+          {maspFileName(name, { debug: true })}
+        </code>
+      ),
+      action: (
+        <MaspDownloadButton
+          href={packageMaspPath({ networkId, commitment, debug: true })}
+          fileName={maspFileName(name, { debug: true })}
+          label="Download debug MASP"
+        />
+      ),
+    });
+  }
   if (procedures.length > 0) {
     fields.push({
       label: "Package Procedures",
@@ -91,9 +115,11 @@ export function PackageHeader({
 function MaspDownloadButton({
   href,
   fileName,
+  label = "Download MASP",
 }: {
   href: string;
   fileName: string;
+  label?: string;
 }) {
   return (
     <a
@@ -102,7 +128,7 @@ function MaspDownloadButton({
       className={buttonVariants({ variant: "outline", size: "sm" })}
     >
       <Download data-icon="inline-start" />
-      Download MASP
+      {label}
     </a>
   );
 }

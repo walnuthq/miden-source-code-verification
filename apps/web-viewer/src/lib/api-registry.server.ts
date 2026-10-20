@@ -9,12 +9,14 @@ import { API_REGISTRY_URL } from "@/lib/constants.server";
 // A compiled package in the registry, as far as the pages read it: its name,
 // commitment, the sources it was compiled from, keyed by project-relative path, and
 // the procedures its manifest exports. Its compiled `.masp` is served apart
-// (see `getPackageMasp`).
+// (see `getPackageMasp`), and so is its debug build's when `debugCommitment`
+// is set. Records from before debug builds lack the field.
 export type SourcePackage = {
   name: string;
   commitment: string;
   files: Record<string, string>;
   manifest: PackageManifest;
+  debugCommitment?: string | null;
 };
 
 // Only what the pages read of the shared `Manifest`: each exported procedure's
@@ -111,7 +113,8 @@ export function getVerifiedNote({
 }
 
 // The registry's response for a package's compiled `.masp` (`file` is
-// `<commitment>.masp`), passed through as is. `null` when there is no such
+// `<commitment>.masp`, or `<commitment>.debug.masp` for its debug build),
+// passed through as is. `null` when there is no such
 // file: a 404, or a 400 for a name that isn't a commitment.
 export async function getPackageMasp({
   networkId,

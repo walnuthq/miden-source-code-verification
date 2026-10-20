@@ -158,13 +158,26 @@ describe("maspFileName", () => {
   it("keeps a name without hyphens", () => {
     expect(maspFileName("counter")).toBe("counter.masp");
   });
+
+  it("marks the debug build's", () => {
+    expect(maspFileName("counter-contract", { debug: true })).toBe(
+      "counter_contract.debug.masp",
+    );
+  });
 });
 
 describe("packageMaspPath", () => {
+  const commitment = `0x${"ab".repeat(32)}`;
+
   it("points at the commitment's .masp under the network", () => {
-    const commitment = `0x${"ab".repeat(32)}`;
     expect(packageMaspPath({ networkId: "mtst", commitment })).toBe(
       `/mtst/packages/masp/${commitment}.masp`,
     );
+  });
+
+  it("points at its .debug.masp for the debug build", () => {
+    expect(
+      packageMaspPath({ networkId: "mtst", commitment, debug: true }),
+    ).toBe(`/mtst/packages/masp/${commitment}.debug.masp`);
   });
 });

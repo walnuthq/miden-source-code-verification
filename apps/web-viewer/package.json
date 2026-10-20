@@ -19,7 +19,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@react-router/serve": "8.4.0",
+    "@react-router/serve": "8.5.0",
     "@shikijs/langs": "4.5.0",
     "@shikijs/themes": "4.5.0",
     "fflate": "0.8.3",
@@ -29,11 +29,11 @@
     "miden-source-code-verification-utils": "workspace:*",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "react-router": "8.4.0",
+    "react-router": "8.5.0",
     "shiki": "4.5.0"
   },
   "devDependencies": {
-    "@react-router/dev": "8.4.0",
+    "@react-router/dev": "8.5.0",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "24.19.2",
     "@types/react": "19.3.0",

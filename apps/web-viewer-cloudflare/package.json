@@ -13,11 +13,11 @@
   },
   "dependencies": {
     "miden-source-code-verification-web-viewer": "workspace:*",
-    "react-router": "8.4.0"
+    "react-router": "8.5.0"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
     "typescript": "7.0.2",
-    "wrangler": "4.151.1"
+    "wrangler": "4.151.2"
   }
 }
