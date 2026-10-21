@@ -2,7 +2,8 @@ import type { Response } from "express";
 import { API_COMPILE_URL } from "@/lib/constants.js";
 
 // A failed call to api-compile, with the status it answered. When it could not
-// be reached, or did not answer with JSON, the status is 502.
+// be reached, or did not answer with JSON, the status is 502; when it did not
+// answer before `init.signal` timed out, 504.
 export class ApiCompileError extends Error {
   constructor(
     message: string,
@@ -21,6 +22,10 @@ export const fetchApiCompile = async <T>(
   try {
     response = await fetch(`${API_COMPILE_URL}${path}`, init);
   } catch (error) {
+    // What an `AbortSignal.timeout` rejects with.
+    if (error instanceof Error && error.name === "TimeoutError") {
+      throw new ApiCompileError("api-compile did not answer in time", 504);
+    }
     const message = error instanceof Error ? error.message : String(error);
     throw new ApiCompileError(`api-compile is unreachable: ${message}`, 502);
   }

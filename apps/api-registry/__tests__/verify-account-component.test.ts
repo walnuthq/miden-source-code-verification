@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getPackage } from "../src/db/packages.js";
-import { fetchApiCompile } from "../src/lib/api-compile.js";
+import { ApiCompileError, fetchApiCompile } from "../src/lib/api-compile.js";
 import type { DebugBuild } from "../src/lib/debug-build.js";
 import { importResource } from "../src/lib/import-resource.js";
 import { verifyAccountComponent } from "../src/lib/verify-account-component.js";
@@ -130,5 +130,47 @@ describe("verifyAccountComponent with a debug build", () => {
       debugCommitment: DEBUG_COMMITMENT,
     });
     expect(await maspStore.get(COMMITMENT, "debug")).not.toBeNull();
+  });
+});
+
+describe("verifyAccountComponent when api-compile fails", () => {
+  it("fails with the status of a /verify that may pass on a retry", async () => {
+    vi.mocked(importResource).mockClear();
+    const failure = new ApiCompileError("rpc error: request timed out", 502);
+    vi.mocked(fetchApiCompile).mockRejectedValueOnce(failure);
+
+    await expect(
+      verifyAccountComponent({
+        networkId: "mtst",
+        accountId: "0x858c680a7a66d2916230cc8c2a6c98",
+        files,
+        maspStore: createFsMaspStore(join(tmpdir(), "unused-masp-store")),
+      }),
+    ).rejects.toBe(failure);
+    expect(importResource).not.toHaveBeenCalled();
+  });
+});
+
+describe("verifyAccountComponent when the import fails", () => {
+  it("fails with api-compile's status, which the route passes on", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "masp-store-"));
+    try {
+      mockApiCompile(undefined);
+      const failure = new ApiCompileError("rpc error: request timed out", 502);
+      vi.mocked(importResource).mockRejectedValueOnce(failure);
+
+      await expect(
+        verifyAccountComponent({
+          networkId: "mtst",
+          accountId: "0x858c680a7a66d2916230cc8c2a6c98",
+          files,
+          maspStore: createFsMaspStore(dir),
+        }),
+      ).rejects.toBe(failure);
+      // Nothing was recorded for a resource that couldn't be looked up.
+      expect(await getPackage(COMMITMENT)).toBeUndefined();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

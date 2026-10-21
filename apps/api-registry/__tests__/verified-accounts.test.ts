@@ -8,7 +8,14 @@ import {
   readProjectFiles,
 } from "miden-source-code-verification-test-utils";
 import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createApp } from "../src/app.js";
+import { ApiCompileError } from "../src/lib/api-compile.js";
+import { importResource } from "../src/lib/import-resource.js";
+
+// Only the in-process app below sees it: the other tests query the running
+// registry, whose imports are real.
+vi.mock("../src/lib/import-resource.js", () => ({ importResource: vi.fn() }));
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -447,5 +454,39 @@ describe("GET /:networkId/verified-accounts/code/:code", () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "invalid code");
+  });
+});
+
+describe("GET /:networkId/verified-accounts/:accountId when the import fails", () => {
+  const app = request(createApp());
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns 404 for a account api-compile didn't find", async () => {
+    vi.mocked(importResource).mockRejectedValueOnce(
+      new ApiCompileError("not found on the network", 404),
+    );
+    const res = await app.get(
+      `/v1/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`,
+    );
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "verified account not found" });
+  });
+
+  it.each([
+    [502, "rpc error: request timed out"],
+    [504, "api-compile did not answer in time"],
+  ])("passes an api-compile %i through", async (status, error) => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(importResource).mockRejectedValueOnce(
+      new ApiCompileError(error, status),
+    );
+    const res = await app.get(
+      `/v1/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`,
+    );
+    expect(res.status).toBe(status);
+    expect(res.body).toEqual({ error });
   });
 });

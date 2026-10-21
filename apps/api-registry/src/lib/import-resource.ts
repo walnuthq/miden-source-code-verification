@@ -1,4 +1,5 @@
 import { fetchApiCompile } from "@/lib/api-compile.js";
+import { API_COMPILE_IMPORT_TIMEOUT_MS } from "@/lib/constants.js";
 import type { StandardAccountComponent } from "@/lib/types.js";
 
 // An account also comes back with its standard components and every procedure
@@ -16,7 +17,8 @@ type ImportedResource =
  * Fetches the on-chain code of a resource (account code root or note script
  * root) from the api-compile `/:networkId/import/:resourceId` endpoint. The
  * returned `code` is what the registry matches records against. Throws an
- * `ApiCompileError` with status 404 when the resource does not exist.
+ * `ApiCompileError` with status 404 when the resource does not exist, and with
+ * 502–504 when it could not be looked up, which a retry may fix.
  */
 export const importResource = async ({
   networkId,
@@ -24,4 +26,7 @@ export const importResource = async ({
 }: {
   networkId: string;
   resourceId: string;
-}) => fetchApiCompile<ImportedResource>(`/${networkId}/import/${resourceId}`);
+}) =>
+  fetchApiCompile<ImportedResource>(`/${networkId}/import/${resourceId}`, {
+    signal: AbortSignal.timeout(API_COMPILE_IMPORT_TIMEOUT_MS),
+  });

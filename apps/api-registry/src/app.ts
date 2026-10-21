@@ -228,9 +228,10 @@ import { createFsMaspStore, type MaspStore } from "@/storage/masp-store.js";
  *   responses:
  *     CompilerUnavailable:
  *       description: >
- *         The compilation service could not be reached (`502`), is busy (`503`)
- *         or did not answer in time (`504`). This is temporary: retry later,
- *         after the number of seconds in `Retry-After` when present.
+ *         The compilation service could not be reached, or could not read the
+ *         resource on-chain (`502`), is busy (`503`) or did not answer in time
+ *         (`504`). This is temporary: retry later, after the number of seconds
+ *         in `Retry-After` when present.
  *       headers:
  *         Retry-After:
  *           description: Seconds to wait before retrying.
