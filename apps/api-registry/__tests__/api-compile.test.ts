@@ -5,6 +5,8 @@ import {
   fetchApiCompile,
   sendApiCompileUnavailable,
 } from "../src/lib/api-compile.js";
+import { API_COMPILE_IMPORT_TIMEOUT_MS } from "../src/lib/constants.js";
+import { importResource } from "../src/lib/import-resource.js";
 
 const respondWith = (response: globalThis.Response) =>
   vi.stubGlobal(
@@ -19,6 +21,20 @@ const rejectWith = (error: unknown) =>
       throw error;
     }),
   );
+
+// Never answers: rejects once the request's signal aborts, as fetch does.
+const hang = () => {
+  const fetch = vi.fn(
+    (_input: RequestInfo | URL, init?: RequestInit) =>
+      new Promise<globalThis.Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () =>
+          reject(init.signal?.reason),
+        );
+      }),
+  );
+  vi.stubGlobal("fetch", fetch);
+  return fetch;
+};
 
 const catchError = async (promise: Promise<unknown>) => {
   try {
@@ -55,6 +71,7 @@ const fakeRes = () => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("fetchApiCompile", () => {
@@ -104,6 +121,40 @@ describe("fetchApiCompile", () => {
       status: 502,
       message: "api-compile is unreachable: fetch failed",
     });
+  });
+
+  it("reports a request that timed out as a 504", async () => {
+    hang();
+    const error = await catchError(
+      fetchApiCompile("/mtst/import/0x01", {
+        signal: AbortSignal.timeout(10),
+      }),
+    );
+    expect(error).toBeInstanceOf(ApiCompileError);
+    expect(error).toMatchObject({
+      status: 504,
+      message: "api-compile did not answer in time",
+    });
+  });
+});
+
+describe("importResource", () => {
+  it("gives up on an import after the timeout, with a 504", async () => {
+    const timeout = AbortSignal.timeout.bind(AbortSignal);
+    // Fake timers don't drive `AbortSignal.timeout`: shorten it instead.
+    const spy = vi
+      .spyOn(AbortSignal, "timeout")
+      .mockImplementation(() => timeout(10));
+    const fetch = hang();
+    const error = await catchError(
+      importResource({ networkId: "mtst", resourceId: "0x01" }),
+    );
+    expect(error).toMatchObject({ status: 504 });
+    expect(spy).toHaveBeenCalledWith(API_COMPILE_IMPORT_TIMEOUT_MS);
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/\/mtst\/import\/0x01$/),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
   });
 });
 

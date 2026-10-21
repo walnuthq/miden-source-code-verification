@@ -1,6 +1,7 @@
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, anyhow};
 use clap::Parser;
 use miden_client::{
+    ClientError,
     account::{Account, AccountId},
     address::{Address, AddressId, NetworkId},
     builder::ClientBuilder,
@@ -14,6 +15,8 @@ use miden_standards::account::{
 };
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
+use std::fmt;
+use std::process::ExitCode;
 use std::sync::Arc;
 
 #[derive(Parser, Debug)]
@@ -24,6 +27,51 @@ struct Args {
 
     #[arg(long)]
     resource_id: String,
+}
+
+// --- Errors ---
+
+/// A resource that doesn't exist, can't be imported, or an ID that doesn't
+/// name one. It exits with `NOT_FOUND_EXIT_CODE`, so api-compile can tell it
+/// apart from a failure that may go away on a retry (an RPC timeout, a node
+/// hiccup, a store error), which exits with 1.
+#[derive(Debug)]
+struct NotFound(String);
+
+impl fmt::Display for NotFound {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for NotFound {}
+
+const NOT_FOUND_EXIT_CODE: u8 = 2;
+
+macro_rules! not_found {
+    ($($arg:tt)*) => {
+        return Err(NotFound(format!($($arg)*)).into())
+    };
+}
+
+/// Classifies the client errors that say the resource can never be imported.
+fn import_error(error: ClientError) -> anyhow::Error {
+    match &error {
+        ClientError::AccountNotFoundOnChain(_)
+        | ClientError::AccountIsPrivate(_)
+        | ClientError::NoteNotFoundOnChain(_) => NotFound(error.to_string()).into(),
+        // The node answers an unknown note ID with no notes rather than an
+        // error, and the client reports that, and a private note, only by
+        // message. Only one note is ever requested, so an empty answer means
+        // it's missing.
+        ClientError::NoteImportError(message)
+            if message == "No notes fetched from node"
+                || message == "Incomplete imported note is private" =>
+        {
+            NotFound(error.to_string()).into()
+        }
+        _ => error.into(),
+    }
 }
 
 // --- Resource parsing ---
@@ -45,7 +93,7 @@ fn parse_resource_id(resource_id: &str) -> Result<Resource> {
     }
     if let Ok((network_id, address)) = Address::decode(resource_id) {
         let AddressId::AccountId(account_id) = address.id() else {
-            bail!("address '{}' does not contain an account ID", resource_id);
+            not_found!("address '{}' does not contain an account ID", resource_id);
         };
         return Ok(Resource::Account {
             network_id: Some(network_id),
@@ -55,7 +103,7 @@ fn parse_resource_id(resource_id: &str) -> Result<Resource> {
     if let Ok(note_id) = NoteId::try_from_hex(resource_id) {
         return Ok(Resource::Note(note_id));
     }
-    bail!(
+    not_found!(
         "'{}' is not a valid account address, account ID, or note ID",
         resource_id
     )
@@ -131,9 +179,25 @@ fn standard_account_components(account: &Account) -> Vec<Value> {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> ExitCode {
+    match run().await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            // The same output as returning the error from `main`.
+            eprintln!("Error: {error:?}");
+            if error.is::<NotFound>() {
+                ExitCode::from(NOT_FOUND_EXIT_CODE)
+            } else {
+                ExitCode::FAILURE
+            }
+        }
+    }
+}
+
+async fn run() -> Result<()> {
     let args = Args::parse();
-    let args_network_id = NetworkId::new(&args.network_id)?;
+    let args_network_id = NetworkId::new(&args.network_id)
+        .map_err(|error| NotFound(format!("invalid network ID: {error}")))?;
     // Initialize client
     let endpoint = match args_network_id.as_str() {
         "mtst" => Endpoint::testnet(),
@@ -165,14 +229,17 @@ async fn main() -> Result<()> {
             if let Some(network_id) = network_id_opt
                 && network_id != args_network_id
             {
-                bail!(
+                not_found!(
                     "network ID of resource ({}) does not match provided network ID ({})",
                     network_id.as_str(),
                     args_network_id.as_str()
                 );
             }
 
-            client.import_account_by_id(account_id).await?;
+            client
+                .import_account_by_id(account_id)
+                .await
+                .map_err(import_error)?;
             let account = client
                 .get_account(account_id)
                 .await?
@@ -194,7 +261,10 @@ async fn main() -> Result<()> {
             })
         }
         Resource::Note(note_id) => {
-            client.import_notes(&[NoteFile::NoteId(note_id)]).await?;
+            client
+                .import_notes(&[NoteFile::NoteId(note_id)])
+                .await
+                .map_err(import_error)?;
             let note_record = client
                 .get_input_note(note_id)
                 .await?

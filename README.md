@@ -22,10 +22,11 @@ That `(networkId, code)` pair is the registry's real key, so it's addressable di
 ### Compiling: queue, timeouts and lockfiles
 
 - **One build at a time.** Builds share cargo's target directory, whose lock runs them one after another anyway. Up to 8 more requests wait in a queue; past that, `POST /compile` and `POST /verify` answer `503` with `Retry-After: 30`. Both limits are set by `COMPILE_CONCURRENCY` and `COMPILE_QUEUE_SIZE`. A request whose client disconnects leaves the queue, or has its build stopped.
-- **Every step is time-limited.** The build gets 240 s and the other tools 60 s. On Cloudflare, the Worker in front of the container also gives up with a `504` after 90 s for `GET /`, 120 s for imports and 420 s for compiles.
+- **Every step is time-limited.** The build gets 240 s and the other tools 60 s. On Cloudflare, the Worker in front of the container also gives up with a `504` after 90 s for `GET /`, 120 s for imports and 420 s for compiles. The registry itself gives up on an import after 120 s, with a `504`, so a cold start (about 50 s) still answers.
 - **The lockfile comes back.** A successful `POST /compile` or `POST /verify` returns `files`: the submitted sources plus the `Cargo.lock` the build used, keyed by its path in the project. Send it with the next compile to get the same dependency versions. Without a lockfile, every build re-resolves the latest compatible versions, which takes 10–20 s; with one, a cached build takes under a second. The registry stores this `files` map with each new package, so a verified package always records the dependency versions that produced its commitment.
 - **Nothing is left behind.** Each request's copy of the project and its build output are deleted once it's answered. On `SIGTERM`, api-compile stops taking requests, finishes the ones in flight, then exits.
-- **Outages are reported as outages.** When api-compile is unreachable, busy or too slow, the registry answers `502`, `503` (keeping `Retry-After`) or `504`, instead of a `500`, or a `404` on the id-keyed reads. The web-verifier retries a `503` up to 3 times, showing a countdown.
+- **Outages are reported as outages.** When api-compile is unreachable, busy or too slow, the registry answers `502`, `503` (keeping `Retry-After`) or `504`, instead of a `500`, or a `404` on the id-keyed reads. The web-verifier retries a `503` up to 3 times, showing a countdown, and the web-viewer shows a `502`–`504` as a temporary error rather than as "not verified".
+- **"Not found" means not found.** `miden-import` and `miden-verifier` exit with `2` when the request can never succeed (the resource isn't on-chain or is private, the ID is invalid, the networks don't match, the package can't be read) and with `1` for anything a retry may fix (a node or RPC error, a store error). api-compile's `GET /:networkId/import/:resourceId` answers `404` only for exit `2`, and `502` for any other failure, including the tool timeout. `POST /verify` answers `400` and `502` for the same two cases. A transient failure therefore reaches registry clients as a `502`, not as a missing record.
 
 ### Debug builds
 
@@ -37,7 +38,7 @@ A verified package's release build carries no debug info, so a transaction simul
 
 ### Miden toolchain
 
-api-compile targets the Miden **0.17** toolchain: it builds projects with `cargo-miden 0.11.0` and reads the network with `miden-client 0.17.2`. Projects to verify should use the matching SDK, `miden = "0.15"`, as the examples in `apps/api-compile/examples` do. Verification compares the procedure roots a project compiles to with the on-chain code, and another compiler version can produce different roots, so code deployed with another toolchain may not verify.
+api-compile targets the Miden **0.17** toolchain: it builds projects with `cargo-miden 0.11.0` and reads the network with `miden-client 0.17.4`. Projects to verify should use the matching SDK, `miden = "0.15"`, as the examples in `apps/api-compile/examples` do. Verification compares the procedure roots a project compiles to with the on-chain code, and another compiler version can produce different roots, so code deployed with another toolchain may not verify.
 
 To move to a new toolchain, bump `cargo-miden` in `apps/api-compile/Dockerfile`, the Miden crates in `apps/api-compile/crates/*/Cargo.toml` (`miden-mast-package` and `miden-assembly-syntax` must match the VM version that `cargo-miden` builds against), and the examples' SDK. Then re-check `packages/utils/src/manifest.ts`, which documents the JSON `miden-package-metadata` prints.
 

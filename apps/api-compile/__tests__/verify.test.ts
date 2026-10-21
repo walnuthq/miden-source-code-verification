@@ -1,3 +1,4 @@
+import { chmod, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -10,7 +11,8 @@ import {
   readProjectFiles,
 } from "miden-source-code-verification-test-utils";
 import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { VerifierError, verify } from "../src/lib/verify.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,7 +24,33 @@ const api = request(process.env.API_URL ?? "http://localhost:8080");
 
 const networkId = process.env.NETWORK_ID ?? "mtst";
 
-const otherNetworkId = "mlcl";
+// Well-formed IDs nothing on-chain carries.
+const MISSING_ACCOUNT_ID = "0x8d47282fd52608116741a813b3ae2d";
+const MISSING_NOTE_ID = `0x${"5a".repeat(32)}`;
+
+// `verify` runs in-process against a fake `miden-verifier` from this
+// directory, with a tool timeout short enough to trip.
+const { fakeBinDir } = await vi.hoisted(async () => {
+  const { mkdtemp } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  return { fakeBinDir: await mkdtemp(join(tmpdir(), "fake-miden-verifier-")) };
+});
+vi.mock("../src/lib/constants.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/lib/constants.js")>()),
+  MIDEN_CLIENT_CACHE_DIR: fakeBinDir,
+  MIDEN_TOOL_TIMEOUT_MS: 500,
+}));
+
+// Behaves as the resource ID (its 4th argument) says.
+const FAKE_MIDEN_VERIFIER = `#!/bin/sh
+case "$4" in
+  ok) echo '{"type":"note","code":"0x01","script":"Custom(0x02)"}' ;;
+  missing) echo "Error: account with id $4 not found on the network" >&2; exit 2 ;;
+  broken) printf 'Error: rpc error\n\nCaused by:\n    request timed out\n' >&2; exit 1 ;;
+  slow) sleep 5 ;;
+esac
+`;
 
 describe("POST /verify", () => {
   it("rejects requests with no files object", async () => {
@@ -148,11 +176,12 @@ describe("POST /verify", () => {
 
     const res = await api.post("/verify").send({
       files,
-      networkId: otherNetworkId,
-      resourceId: COUNTER_CONTRACT_ID_1,
+      networkId,
+      resourceId: MISSING_ACCOUNT_ID,
     });
 
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
   });
 
   it("doesn't verify a counter-contract if sources don't match", async () => {
@@ -236,11 +265,12 @@ describe("POST /verify", () => {
     const res = await api.post("/verify").send({
       files,
       entrypoint,
-      networkId: otherNetworkId,
-      resourceId: COUNTER_NOTE_ID_1,
+      networkId,
+      resourceId: MISSING_NOTE_ID,
     });
 
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
   });
 
   it("doesn't verify a counter-note if sources don't match", async () => {
@@ -327,5 +357,55 @@ describe("POST /verify", () => {
     expect(res.body).toHaveProperty("masp");
     expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("manifest");
+  });
+});
+
+describe("verify when miden-verifier fails", () => {
+  const path = process.env.PATH;
+  const run = (resourceId: string) =>
+    verify({
+      networkId: "mtst",
+      resourceId,
+      maspPath: "package.masp",
+      commitment: "0x02",
+    });
+
+  beforeAll(async () => {
+    const fake = `${fakeBinDir}/miden-verifier`;
+    await writeFile(fake, FAKE_MIDEN_VERIFIER);
+    await chmod(fake, 0o755);
+    process.env.PATH = `${fakeBinDir}:${path}`;
+  });
+
+  afterAll(async () => {
+    process.env.PATH = path;
+    await rm(fakeBinDir, { recursive: true, force: true });
+  });
+
+  it("answers whether it verified", async () => {
+    await expect(run("ok")).resolves.toBe(true);
+  });
+
+  it("fails with a 400 when it exits with 2", async () => {
+    const error = run("missing");
+    await expect(error).rejects.toBeInstanceOf(VerifierError);
+    await expect(error).rejects.toMatchObject({
+      status: 400,
+      message: "account with id missing not found on the network",
+    });
+  });
+
+  it("fails with a 502 when it exits with 1", async () => {
+    await expect(run("broken")).rejects.toMatchObject({
+      status: 502,
+      message: expect.stringMatching(/^rpc error/),
+    });
+  });
+
+  it("fails with a 502 when it times out", async () => {
+    await expect(run("slow")).rejects.toMatchObject({
+      status: 502,
+      message: "miden-verifier timed out after 0.5s",
+    });
   });
 });

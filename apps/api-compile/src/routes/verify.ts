@@ -3,7 +3,7 @@ import { Router } from "express";
 import { queueCompile } from "@/lib/compile.js";
 import { BusyError } from "@/lib/limiter.js";
 import { abortOnClose, removeDirs } from "@/lib/utils.js";
-import { verify, writeResourceFile } from "@/lib/verify.js";
+import { VerifierError, verify, writeResourceFile } from "@/lib/verify.js";
 
 const router = Router();
 
@@ -113,6 +113,10 @@ router.post("/verify", async (req, res) => {
       return;
     }
     console.error(error);
+    if (error instanceof VerifierError) {
+      res.status(error.status).json({ error: error.message });
+      return;
+    }
     const message =
       error instanceof Error ? error.message : "Verification failed";
     res.status(500).json({ error: message });

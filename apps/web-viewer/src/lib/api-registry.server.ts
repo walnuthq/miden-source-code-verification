@@ -3,6 +3,7 @@ import type {
   FunctionType,
   ProcedureExport,
 } from "miden-source-code-verification-utils/manifest";
+import { data } from "react-router";
 
 import { API_REGISTRY_URL } from "@/lib/constants.server";
 
@@ -77,11 +78,20 @@ export type VerifiedNote = {
 };
 
 // `null` when the registry answers 404: it has no verified record for the
-// resource, which includes ids that don't resolve on-chain.
+// resource, which includes ids that don't resolve on-chain. A 502–504 means it
+// couldn't look the resource up (its compiler, or the node, failed), which the
+// error page reports as temporary rather than as an unexpected error.
 async function getVerifiedResource<T>(path: string): Promise<T | null> {
   const response = await fetch(`${API_REGISTRY_URL}${path}`);
   if (response.status === 404) {
     return null;
+  }
+  if (response.status >= 502 && response.status <= 504) {
+    throw data(null, {
+      status: response.status,
+      statusText:
+        "The verification status could not be checked right now. Please try again in a minute.",
+    });
   }
   if (!response.ok) {
     throw new Error(`api-registry responded ${response.status} for ${path}`);

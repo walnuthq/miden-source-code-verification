@@ -1,7 +1,21 @@
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { MIDEN_TOOL_REJECTED_EXIT_CODE } from "@/lib/constants.js";
 import { midenVerifier } from "@/lib/miden-verifier.js";
+
+// A failed `miden-verifier` run, with the status `/verify` answers it with: 400
+// when the request can never verify (the resource isn't on-chain, the ID or the
+// package is invalid), 502 when a retry may pass (the node, the store, a
+// timeout).
+export class VerifierError extends Error {
+  constructor(
+    message: string,
+    readonly status: 400 | 502,
+  ) {
+    super(message);
+  }
+}
 
 export const writeResourceFile = async (resource: string) => {
   const tmpDir = await mkdtemp(join(tmpdir(), "miden-resource-"));
@@ -27,19 +41,22 @@ export const verify = async ({
   maspPath: string;
   commitment: string;
 }) => {
-  const { stdout, error } = await midenVerifier({
+  const result = await midenVerifier({
     networkId,
     resourceId,
     maspPath,
     resourcePath,
   });
-  if (error) {
-    throw new Error(error);
+  if (result.error !== undefined) {
+    throw new VerifierError(
+      result.error,
+      result.exitCode === MIDEN_TOOL_REJECTED_EXIT_CODE ? 400 : 502,
+    );
   }
-  if (!stdout) {
+  if (!result.stdout) {
     return false;
   }
-  const output = JSON.parse(stdout) as MidenVerifierOutput;
+  const output = JSON.parse(result.stdout) as MidenVerifierOutput;
   const target = `Custom(${commitment})`;
   if (output.type === "account") {
     return output.components.includes(target);
