@@ -1,4 +1,4 @@
-import { Container, getContainer } from "@cloudflare/containers";
+import { Container } from "@cloudflare/containers";
 import { type Context, Hono } from "hono";
 
 export class Compiler extends Container<Env> {
@@ -31,10 +31,20 @@ const HEALTH_TIMEOUT_MS = 90_000;
 const IMPORT_TIMEOUT_MS = 120_000;
 const COMPILE_TIMEOUT_MS = 420_000;
 
+// The single container instance. It runs in Western Europe, next to the
+// Miden nodes (`constraints.regions` in wrangler.jsonc places it); the
+// Durable Object routing to it is hinted there too, so requests don't cross
+// the Atlantic twice. A location hint only applies when the Durable Object is
+// first created, hence a name of its own.
+const CONTAINER_NAME = "compiler-weur";
+
 const proxy =
   (timeoutMs: number) =>
   async (c: Context<{ Bindings: Env }>): Promise<Response> => {
-    const container = getContainer(c.env.COMPILER);
+    const container = c.env.COMPILER.get(
+      c.env.COMPILER.idFromName(CONTAINER_NAME),
+      { locationHint: "weur" },
+    );
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<null>((resolve) => {
       timer = setTimeout(() => resolve(null), timeoutMs);
