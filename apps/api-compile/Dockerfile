@@ -29,45 +29,54 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
 # stage below shares one toolchain and the builds don't modify it.
 RUN rustup component add rustfmt rust-src clippy rust-analyzer
 
-# Each Rust binary builds in its own stage, so BuildKit builds them in parallel
-# and caches them independently: a change to one crate rebuilds that crate
-# only. Each stage gets its own cargo cache (`id=`), since parallel stages
-# sharing one unpack the same crate at once on a cold cache and fail with
-# "File exists (os error 17)". The cache is never persisted in a layer.
+# cargo-miden and the API's helper binaries build in two stages, so BuildKit
+# builds them in parallel and caches them independently. Each stage gets its
+# own cargo cache (`id=`), since parallel stages sharing one unpack the same
+# crate at once on a cold cache and fail with "File exists (os error 17)". The
+# cache is never persisted in a layer.
 FROM rust AS cargo-miden-builder
 RUN --mount=type=cache,id=cargo-registry-cargo-miden,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git-cargo-miden,target=/usr/local/cargo/git \
     cargo install cargo-miden --version 0.11.0 \
  && strip /usr/local/cargo/bin/cargo-miden
 
-FROM rust AS miden-package-metadata-builder
-WORKDIR /home/node/crates/miden-package-metadata
-COPY apps/api-compile/crates/miden-package-metadata .
-RUN --mount=type=cache,id=cargo-registry-miden-package-metadata,target=/usr/local/cargo/registry \
-    --mount=type=cache,id=cargo-git-miden-package-metadata,target=/usr/local/cargo/git \
-    cargo install --path . --locked \
- && strip /usr/local/cargo/bin/miden-package-metadata
-
-FROM rust AS miden-verifier-builder
-WORKDIR /home/node/crates/miden-verifier
-COPY apps/api-compile/crates/miden-verifier .
-RUN --mount=type=cache,id=cargo-registry-miden-verifier,target=/usr/local/cargo/registry \
-    --mount=type=cache,id=cargo-git-miden-verifier,target=/usr/local/cargo/git \
-    cargo install --path . --locked \
- && strip /usr/local/cargo/bin/miden-verifier
-
-FROM rust AS miden-import-builder
-WORKDIR /home/node/crates/miden-import
-COPY apps/api-compile/crates/miden-import .
-RUN --mount=type=cache,id=cargo-registry-miden-import,target=/usr/local/cargo/registry \
-    --mount=type=cache,id=cargo-git-miden-import,target=/usr/local/cargo/git \
-    cargo install --path . --locked \
- && strip /usr/local/cargo/bin/miden-import
+# The helper binaries are one cargo workspace (apps/api-compile/crates), so the
+# miden-client dependency tree they share compiles once. It compiles in its own
+# layer first, against stub sources, keyed on the manifests and lockfile only:
+# an edit to a crate's src/ then rebuilds that crate's own code, not its
+# dependencies. generate-fixtures is a workspace member but isn't shipped, so
+# only its manifest comes in (cargo needs every member to load the workspace).
+FROM rust AS helpers-builder
+WORKDIR /home/node/crates
+COPY apps/api-compile/crates/Cargo.toml apps/api-compile/crates/Cargo.lock apps/api-compile/crates/rust-toolchain.toml ./
+COPY apps/api-compile/crates/generate-fixtures/Cargo.toml generate-fixtures/
+COPY apps/api-compile/crates/miden-import/Cargo.toml miden-import/
+COPY apps/api-compile/crates/miden-package-metadata/Cargo.toml miden-package-metadata/
+COPY apps/api-compile/crates/miden-verifier/Cargo.toml miden-verifier/
+RUN for crate in generate-fixtures miden-import miden-package-metadata miden-verifier; do \
+      mkdir -p $crate/src && echo 'fn main() {}' > $crate/src/main.rs; \
+    done
+RUN --mount=type=cache,id=cargo-registry-helpers,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=cargo-git-helpers,target=/usr/local/cargo/git \
+    cargo build --release --locked --bin miden-import --bin miden-package-metadata --bin miden-verifier
+COPY apps/api-compile/crates/miden-import/src miden-import/src
+COPY apps/api-compile/crates/miden-package-metadata/src miden-package-metadata/src
+COPY apps/api-compile/crates/miden-verifier/src miden-verifier/src
+# COPY keeps the sources' mtimes, which can predate the stub build: touch them
+# so cargo sees them as changed and rebuilds the three crates.
+RUN --mount=type=cache,id=cargo-registry-helpers,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=cargo-git-helpers,target=/usr/local/cargo/git \
+    touch miden-import/src/main.rs miden-package-metadata/src/main.rs miden-verifier/src/main.rs \
+ && cargo build --release --locked --bin miden-import --bin miden-package-metadata --bin miden-verifier \
+ && strip target/release/miden-import target/release/miden-package-metadata target/release/miden-verifier
 
 # Build the API (TypeScript -> JS) from the pnpm workspace — runs in parallel with the Rust stages
 FROM base AS api-builder
 WORKDIR /repo
-COPY . .
+# The install needs only the workspace manifests and the lockfile: copied
+# alone, an edit to source elsewhere in the repo doesn't rerun it. --parents
+# keeps each package.json at its path (a plain glob COPY flattens them).
+COPY --parents package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc apps/*/package.json packages/*/package.json ./
 # Install only what api-compile needs (and its workspace deps), with a cached store.
 # --network-concurrency=2 (down from the default 16) for the slow-network Docker
 # build only: on a thin pipe, many parallel multi-MB binary downloads (workerd,
@@ -76,6 +85,9 @@ COPY . .
 # pnpm-workspace.yaml (pnpm 11+ only honors these there, not in .npmrc).
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --network-concurrency=2 --filter=miden-source-code-verification-api-compile...
+# The sources. The root .dockerignore leaves out node_modules, so this doesn't
+# overwrite what the install just wrote.
+COPY . .
 # Compile TypeScript -> dist/ (tsc + tsc-alias rewrites the @/* path aliases).
 # The trailing `...` also builds api-compile's workspace deps (e.g. the utils
 # package) first, so their JS exists in dist/. Production runs on plain `node`,
@@ -127,9 +139,11 @@ RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo m
 
 # The API's helper binaries, copied after the warm-up builds, which don't use
 # them: a change to one of these crates then doesn't redo the warm-up.
-COPY --from=miden-package-metadata-builder /usr/local/cargo/bin/miden-package-metadata /usr/local/cargo/bin/
-COPY --from=miden-verifier-builder /usr/local/cargo/bin/miden-verifier /usr/local/cargo/bin/
-COPY --from=miden-import-builder /usr/local/cargo/bin/miden-import /usr/local/cargo/bin/
+COPY --from=helpers-builder \
+     /home/node/crates/target/release/miden-import \
+     /home/node/crates/target/release/miden-package-metadata \
+     /home/node/crates/target/release/miden-verifier \
+     /usr/local/cargo/bin/
 
 # App: only the built output + production dependencies from the deploy bundle
 WORKDIR /home/node/api
