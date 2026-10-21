@@ -3,10 +3,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   accounts,
+  BANK_ACCOUNT_ID_1,
   BASIC_WALLET_ID_1,
   COUNT_READER_ID,
   COUNTER_CONTRACT_ID_1,
   COUNTER_NOTE_ID_1,
+  DEPOSIT_NOTE_ID_1,
   notes,
   readProjectFiles,
 } from "miden-source-code-verification-test-utils";
@@ -19,6 +21,7 @@ const __dirname = path.dirname(__filename);
 const examplesDir = path.resolve(__dirname, "../examples");
 const counterContractDir = `${examplesDir}/counter-contract`;
 const basicWalletDir = `${examplesDir}/basic-wallet`;
+const bankDir = `${examplesDir}/miden-bank`;
 
 const api = request(process.env.API_URL ?? "http://localhost:8080");
 
@@ -357,6 +360,165 @@ describe("POST /verify", () => {
     expect(res.body).toHaveProperty("masp");
     expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("manifest");
+  });
+
+  it("verifies a local bank-account", async () => {
+    const files = await readProjectFiles(`${bankDir}/bank-account`);
+    expect(files["Cargo.toml"]).toBeDefined();
+
+    const resourceId = BANK_ACCOUNT_ID_1;
+    const { resource } = accounts[resourceId];
+
+    const res = await api
+      .post("/verify")
+      .send({ files, networkId, resourceId, resource });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("verified", true);
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body).toHaveProperty("commitment");
+    expect(res.body).toHaveProperty("manifest");
+  });
+
+  it("verifies an on-chain bank-account", async () => {
+    const files = await readProjectFiles(`${bankDir}/bank-account`);
+    expect(files["Cargo.toml"]).toBeDefined();
+
+    const res = await api
+      .post("/verify")
+      .send({ files, networkId, resourceId: BANK_ACCOUNT_ID_1 });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("verified", true);
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body).toHaveProperty("commitment");
+    expect(res.body).toHaveProperty("manifest");
+    expect(res.body.files).toEqual(files);
+  });
+
+  it("returns the lockfile an on-chain bank-account was verified with", async () => {
+    const { "Cargo.lock": _, ...files } = await readProjectFiles(
+      `${bankDir}/bank-account`,
+    );
+
+    const res = await api
+      .post("/verify")
+      .send({ files, networkId, resourceId: BANK_ACCOUNT_ID_1 });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("verified", true);
+    const { "Cargo.lock": cargoLock, ...sources } = res.body.files;
+    expect(sources).toEqual(files);
+    expect(cargoLock).toContain('name = "bank-account"');
+  });
+
+  it("doesn't verify a bank-account not found on network", async () => {
+    const files = await readProjectFiles(`${bankDir}/bank-account`);
+    expect(files["Cargo.toml"]).toBeDefined();
+
+    const res = await api.post("/verify").send({
+      files,
+      networkId,
+      resourceId: MISSING_ACCOUNT_ID,
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("doesn't verify a bank-account if sources don't match", async () => {
+    const files = await readProjectFiles(`${bankDir}/bank-account`);
+    expect(files["Cargo.toml"]).toBeDefined();
+    files["src/lib.rs"] = files["src/lib.rs"].replace(
+      "MAX_DEPOSIT_AMOUNT: u64 = 1_000_000",
+      "MAX_DEPOSIT_AMOUNT: u64 = 2_000_000",
+    );
+
+    const resourceId = BANK_ACCOUNT_ID_1;
+    const { resource } = accounts[resourceId];
+
+    const res = await api
+      .post("/verify")
+      .send({ files, networkId, resourceId, resource });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("verified", false);
+  });
+
+  it("verifies a local deposit-note", async () => {
+    const files = await readProjectFiles(bankDir);
+    const entrypoint = "deposit-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const resourceId = DEPOSIT_NOTE_ID_1;
+    const { resource } = notes[resourceId];
+
+    const res = await api
+      .post("/verify")
+      .send({ files, entrypoint, networkId, resourceId, resource });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("verified", true);
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body).toHaveProperty("commitment");
+    expect(res.body).toHaveProperty("manifest");
+  });
+
+  it("verifies an on-chain deposit-note", async () => {
+    const files = await readProjectFiles(bankDir);
+    const entrypoint = "deposit-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const res = await api.post("/verify").send({
+      files,
+      entrypoint,
+      networkId,
+      resourceId: DEPOSIT_NOTE_ID_1,
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("verified", true);
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body).toHaveProperty("commitment");
+    expect(res.body).toHaveProperty("manifest");
+  });
+
+  it("doesn't verify a deposit-note not found on network", async () => {
+    const files = await readProjectFiles(bankDir);
+    const entrypoint = "deposit-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const res = await api.post("/verify").send({
+      files,
+      entrypoint,
+      networkId,
+      resourceId: MISSING_NOTE_ID,
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("doesn't verify a deposit-note if sources don't match", async () => {
+    const files = await readProjectFiles(bankDir);
+    const entrypoint = "deposit-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+    files[`${entrypoint}/src/lib.rs`] = files[
+      `${entrypoint}/src/lib.rs`
+    ].replace(
+      "account.deposit(depositor, asset);",
+      "account.deposit(depositor, asset);\n            account.deposit(depositor, asset);",
+    );
+
+    const resourceId = DEPOSIT_NOTE_ID_1;
+    const { resource } = notes[resourceId];
+
+    const res = await api
+      .post("/verify")
+      .send({ files, entrypoint, networkId, resourceId, resource });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("verified", false);
   });
 });
 

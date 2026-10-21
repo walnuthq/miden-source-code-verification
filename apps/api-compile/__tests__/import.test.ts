@@ -3,8 +3,10 @@ import { join } from "node:path";
 import express from "express";
 import {
   accounts,
+  BANK_ACCOUNT_ID_1,
   COUNTER_CONTRACT_ID_1,
   COUNTER_NOTE_ID_1,
+  DEPOSIT_NOTE_ID_1,
   notes,
 } from "miden-source-code-verification-test-utils";
 import request from "supertest";
@@ -96,6 +98,40 @@ describe("GET /:networkId/import/:resourceId", () => {
     expect(procedures.length).toBeGreaterThan(claimed.length);
   });
 
+  it("imports an on-chain bank account", async () => {
+    const res = await api.get(`/${networkId}/import/${BANK_ACCOUNT_ID_1}`);
+
+    const { code } = accounts[BANK_ACCOUNT_ID_1];
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("type", "account");
+    expect(res.body).toHaveProperty("code", code);
+  });
+
+  it("lists a bank account's standard components", async () => {
+    const res = await api.get(`/${networkId}/import/${BANK_ACCOUNT_ID_1}`);
+
+    expect(res.status).toBe(200);
+    const { standardAccountComponents, procedures } = res.body as {
+      standardAccountComponents: { name: string; procedures: string[] }[];
+      procedures: string[];
+    };
+
+    // The bank carries `BasicWallet` to receive assets and `NoAuth` to pay its
+    // fee, on top of the schema commitment.
+    expect(standardAccountComponents.map(({ name }) => name)).toEqual([
+      "BasicWallet",
+      "AuthNoAuth",
+      "SchemaCommitment",
+    ]);
+
+    const claimed = standardAccountComponents.flatMap(
+      (component) => component.procedures,
+    );
+    // The custom bank component's procedures are left over.
+    expect(procedures.length).toBeGreaterThan(claimed.length);
+  });
+
   it("imports an on-chain note", async () => {
     const res = await api.get(`/${networkId}/import/${COUNTER_NOTE_ID_1}`);
 
@@ -106,6 +142,16 @@ describe("GET /:networkId/import/:resourceId", () => {
     expect(res.body).toHaveProperty("code", code);
     expect(res.body).not.toHaveProperty("standardAccountComponents");
     expect(res.body).not.toHaveProperty("procedures");
+  });
+
+  it("imports an on-chain deposit-note", async () => {
+    const res = await api.get(`/${networkId}/import/${DEPOSIT_NOTE_ID_1}`);
+
+    const { code } = notes[DEPOSIT_NOTE_ID_1];
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("type", "note");
+    expect(res.body).toHaveProperty("code", code);
   });
 
   it("returns 404 for an account not found on the network", async () => {

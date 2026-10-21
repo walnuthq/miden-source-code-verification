@@ -9,6 +9,7 @@ const __dirname = path.dirname(__filename);
 const examplesDir = path.resolve(__dirname, "../examples");
 const counterContractDir = `${examplesDir}/counter-contract`;
 const basicWalletDir = `${examplesDir}/basic-wallet`;
+const bankDir = `${examplesDir}/miden-bank`;
 
 const api = request(process.env.API_URL ?? "http://localhost:8080");
 
@@ -180,6 +181,69 @@ describe("POST /compile", () => {
   it("compiles a basic-wallet-tx-script", async () => {
     const files = await readProjectFiles(basicWalletDir);
     const entrypoint = "basic-wallet-tx-script";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const res = await api.post("/compile").send({ files, entrypoint });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("stdout");
+    expect(res.body).toHaveProperty("stderr");
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body).toHaveProperty("commitment");
+    expect(res.body).toHaveProperty("kind", "transaction-script");
+    expect(res.body).toHaveProperty("manifest");
+  });
+
+  it("compiles a bank-account", async () => {
+    const files = await readProjectFiles(`${bankDir}/bank-account`);
+    expect(files["Cargo.toml"]).toBeDefined();
+
+    const res = await api.post("/compile").send({ files });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("stdout");
+    expect(res.body).toHaveProperty("stderr");
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body).toHaveProperty("commitment");
+    expect(res.body).toHaveProperty("kind", "account-component");
+    expect(res.body).toHaveProperty("manifest");
+  });
+
+  it("compiles a deposit-note", async () => {
+    const files = await readProjectFiles(bankDir);
+    const entrypoint = "deposit-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const res = await api.post("/compile").send({ files, entrypoint });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("stdout");
+    expect(res.body).toHaveProperty("stderr");
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body).toHaveProperty("commitment");
+    expect(res.body).toHaveProperty("kind", "note");
+    expect(res.body).toHaveProperty("manifest");
+  });
+
+  it("compiles a withdraw-request-note", async () => {
+    const files = await readProjectFiles(bankDir);
+    const entrypoint = "withdraw-request-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const res = await api.post("/compile").send({ files, entrypoint });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("stdout");
+    expect(res.body).toHaveProperty("stderr");
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body).toHaveProperty("commitment");
+    expect(res.body).toHaveProperty("kind", "note");
+    expect(res.body).toHaveProperty("manifest");
+  });
+
+  it("compiles an init-tx-script", async () => {
+    const files = await readProjectFiles(bankDir);
+    const entrypoint = "init-tx-script";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
 
     const res = await api.post("/compile").send({ files, entrypoint });

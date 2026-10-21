@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url";
 import {
   COUNTER_NOTE_ID_1,
   COUNTER_NOTE_ID_2,
+  DEPOSIT_NOTE_ID_1,
+  DEPOSIT_NOTE_ID_2,
   notes,
   readProjectFiles,
 } from "miden-source-code-verification-test-utils";
@@ -20,6 +22,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const examplesDir = path.resolve(__dirname, "../../api-compile/examples");
 const counterContractDir = `${examplesDir}/counter-contract`;
+const bankDir = `${examplesDir}/miden-bank`;
 
 const apiUrl = process.env.API_URL ?? "http://localhost:8081";
 const apiV1 = request(`${apiUrl}/v1`);
@@ -35,6 +38,9 @@ const otherNetworkId = "mlcl";
 // they resolve to the same `script` in the registry. This is what lets a
 // verification of one satisfy a lookup of another.
 const NOTE_SCRIPT = notes[COUNTER_NOTE_ID_1].code;
+
+// Both deposit-notes share the same note script too.
+const DEPOSIT_NOTE_SCRIPT = notes[DEPOSIT_NOTE_ID_1].code;
 
 // A well-formed script root that is never verified in these tests, used to
 // check that a script-keyed lookup which matches nothing yields a 404.
@@ -331,6 +337,199 @@ describe("GET /:networkId/verified-notes/script/:script", () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "invalid script");
+  });
+});
+
+// The deposit-note mirrors of the counter-note cases above.
+describe("POST /:networkId/verified-notes with a deposit-note", () => {
+  it("doesn't verify a buggy deposit-note", async () => {
+    const files = await readProjectFiles(bankDir);
+    const entrypoint = "deposit-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    files[`${entrypoint}/src/lib.rs`] = files[
+      `${entrypoint}/src/lib.rs`
+    ].replace("account: &mut Wallet", "account: &mut Bank");
+
+    const res = await apiV1.post(`/${networkId}/verified-notes`).send({
+      noteId: DEPOSIT_NOTE_ID_1,
+      files,
+      entrypoint,
+    });
+
+    expect(res.status).toBe(500);
+  });
+
+  it("verifies a deposit-note", async () => {
+    const files = await readProjectFiles(bankDir);
+    const entrypoint = "deposit-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const res = await apiV1.post(`/${networkId}/verified-notes`).send({
+      noteId: DEPOSIT_NOTE_ID_1,
+      files,
+      entrypoint,
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("verified", true);
+  });
+
+  it("doesn't verify a deposit-note whose script is already in the registry", async () => {
+    const files = await readProjectFiles(bankDir);
+    const entrypoint = "deposit-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    // First note registers the script.
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-notes`)
+      .send({ noteId: DEPOSIT_NOTE_ID_1, files, entrypoint });
+
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty("verified", true);
+
+    // A different note sharing the same script is already covered.
+    const res2 = await apiV1
+      .post(`/${networkId}/verified-notes`)
+      .send({ noteId: DEPOSIT_NOTE_ID_2, files, entrypoint });
+
+    expect(res2.status).toBe(500);
+    expect(res2.body).toHaveProperty("error", "note already verified");
+  });
+
+  it("doesn't verify a deposit-note if sources don't match", async () => {
+    const files = await readProjectFiles(bankDir);
+    const entrypoint = "deposit-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+    files[`${entrypoint}/src/lib.rs`] = files[
+      `${entrypoint}/src/lib.rs`
+    ].replace(
+      "account.deposit(depositor, asset);",
+      "account.deposit(depositor, asset);\n            account.deposit(depositor, asset);",
+    );
+
+    const res = await apiV1.post(`/${networkId}/verified-notes`).send({
+      noteId: DEPOSIT_NOTE_ID_1,
+      files,
+      entrypoint,
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("verified", false);
+  });
+});
+
+describe("GET /:networkId/verified-notes/:noteId with a deposit-note", () => {
+  it("returns 404 for a note absent from the registry", async () => {
+    const res = await apiV1
+      .get(`/${networkId}/verified-notes/${DEPOSIT_NOTE_ID_1}`)
+      .send();
+    expect(res.status).toBe(404);
+  });
+
+  it("returns a previously verified note", async () => {
+    const files = await readProjectFiles(bankDir);
+    const entrypoint = "deposit-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-notes`)
+      .send({ noteId: DEPOSIT_NOTE_ID_1, files, entrypoint });
+
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty("verified", true);
+
+    const res2 = await apiV1
+      .get(`/${networkId}/verified-notes/${DEPOSIT_NOTE_ID_1}`)
+      .send();
+
+    expect(res2.status).toBe(200);
+    expect(res2.body).toHaveProperty("noteId", DEPOSIT_NOTE_ID_1);
+    expect(res2.body).toHaveProperty("networkId", networkId);
+    expect(res2.body).toHaveProperty("script", DEPOSIT_NOTE_SCRIPT);
+    expect(res2.body).toHaveProperty("package.name", entrypoint);
+    expect(res2.body).toHaveProperty("package.type", "note");
+    expect(res2.body.package.commitment).toMatch(/^0x[0-9a-f]{64}$/);
+    expect(res2.body.package).not.toHaveProperty("masp");
+
+    const res3 = await apiV1
+      .get(`/${networkId}/packages/masp/${res2.body.package.commitment}.masp`)
+      .responseType("blob");
+
+    expect(res3.status).toBe(200);
+    expect(res3.headers["content-type"]).toBe("application/octet-stream");
+    expect(res3.body.length).toBeGreaterThan(0);
+  });
+
+  it("returns a match for a different note sharing the same script", async () => {
+    const files = await readProjectFiles(bankDir);
+    const entrypoint = "deposit-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    // Verify one note...
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-notes`)
+      .send({ noteId: DEPOSIT_NOTE_ID_1, files, entrypoint });
+
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty("verified", true);
+
+    // ...then look up a *different*, never-verified note with the same script.
+    const res2 = await apiV1
+      .get(`/${networkId}/verified-notes/${DEPOSIT_NOTE_ID_2}`)
+      .send();
+
+    expect(res2.status).toBe(200);
+    expect(res2.body).toHaveProperty("noteId", DEPOSIT_NOTE_ID_2);
+    expect(res2.body).toHaveProperty("networkId", networkId);
+    expect(res2.body).toHaveProperty("script", DEPOSIT_NOTE_SCRIPT);
+    expect(res2.body).toHaveProperty("package");
+  });
+});
+
+describe("GET /:networkId/verified-notes/script/:script with a deposit-note", () => {
+  it("returns a previously verified note, without an on-chain lookup", async () => {
+    const files = await readProjectFiles(bankDir);
+    const entrypoint = "deposit-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-notes`)
+      .send({ noteId: DEPOSIT_NOTE_ID_1, files, entrypoint });
+
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty("verified", true);
+
+    const res2 = await apiV1
+      .get(`/${networkId}/verified-notes/script/${DEPOSIT_NOTE_SCRIPT}`)
+      .send();
+
+    expect(res2.status).toBe(200);
+    expect(res2.body).toHaveProperty("script", DEPOSIT_NOTE_SCRIPT);
+    expect(res2.body).toHaveProperty("package.name", entrypoint);
+    expect(res2.body).toHaveProperty("package.type", "note");
+    expect(res2.body).toHaveProperty("networkId", networkId);
+    expect(res2.body).not.toHaveProperty("noteId");
+  });
+
+  it("doesn't return a note verified on another network", async () => {
+    const files = await readProjectFiles(bankDir);
+    const entrypoint = "deposit-note";
+    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
+
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-notes`)
+      .send({ noteId: DEPOSIT_NOTE_ID_1, files, entrypoint });
+
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty("verified", true);
+
+    const res2 = await apiV1
+      .get(`/${otherNetworkId}/verified-notes/script/${DEPOSIT_NOTE_SCRIPT}`)
+      .send();
+
+    expect(res2.status).toBe(404);
+    expect(res2.body).toHaveProperty("error", "verified note not found");
   });
 });
 

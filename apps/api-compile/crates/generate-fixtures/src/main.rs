@@ -8,16 +8,18 @@
 //! What ends up on-chain is only what has to be. `/import`, the on-chain half of
 //! `/verify` and both of api-registry's id-keyed lookups resolve an account's
 //! code root or a note's script root from the node, so the two counter-contract
-//! accounts and the two counter-notes are deployed. `count-reader` and
+//! accounts, the two bank accounts, the two counter-notes and the two
+//! deposit-notes are deployed. `count-reader` and
 //! `basic-wallet` are only ever passed to the verifier alongside their
 //! serialized `resource`, so they are built locally and never submitted.
 //!
 //! The accounts are assembled from the compiled example crates rather than from
 //! the standard components `miden-standards` ships. That is what makes the
 //! api-compile verification tests meaningful: they verify those very sources
-//! against these accounts. The lone exception is the throwaway accounts that
-//! emit the notes and pay for everything — see `note::create_factory` and
-//! `fee::fund`.
+//! against these accounts. The exceptions are the throwaway accounts that emit
+//! the notes and pay for everything — see `note::create_factory` and
+//! `fee::fund` — and the bank accounts' wallet and auth, which come from
+//! `miden-standards` too — see `account::deploy_bank`.
 //!
 //! On a chain that charges a transaction fee every account that transacts also
 //! carries the standard `BasicWallet`, and is funded from the public faucet
@@ -36,6 +38,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result, bail};
 use clap::Parser;
 use miden_client::account::component::BasicWallet;
+use miden_client::account::component::NoAuth;
 use miden_client::account::{Account, AccountComponent};
 use miden_client::address::NetworkId;
 use miden_client::auth::AuthSecretKey;
@@ -228,6 +231,40 @@ async fn assemble_counter_contracts(
         .unwrap_or_else(|_| unreachable!("the loop pushes exactly two accounts")))
 }
 
+/// Assembles the two bank accounts and registers them with the client, without
+/// submitting anything.
+///
+/// Each carries the standard `BasicWallet`, to receive its funding note, and the
+/// standard `NoAuth`, which pays the fee and leaves the transaction script free
+/// for `init-tx-script` — see [`account::deploy_bank`]. Both are assembled from
+/// the same components, so they share a code commitment, as the counter
+/// contracts do.
+async fn assemble_banks(
+    client: &mut Client<FilesystemKeyStore>,
+    packages: &Packages,
+) -> Result<[Account; 2]> {
+    let mut accounts = Vec::with_capacity(2);
+
+    for _ in 0..2 {
+        let account = account::assemble(
+            client.rng(),
+            &[&packages.bank_account],
+            None,
+            vec![BasicWallet.into(), NoAuth.into()],
+        )?;
+        client
+            .add_account(&account, false)
+            .await
+            .context("failed to add the account to the client")?;
+        eprintln!("Created bank account {}", account.id().to_hex());
+        accounts.push(account);
+    }
+
+    Ok(accounts
+        .try_into()
+        .unwrap_or_else(|_| unreachable!("the loop pushes exactly two accounts")))
+}
+
 fn write_fixtures(fixtures: &Fixtures, out: Option<PathBuf>) -> Result<()> {
     let rendered = fixtures.render();
 
@@ -279,6 +316,8 @@ async fn main() -> Result<()> {
     let counter_contracts =
         assemble_counter_contracts(&mut client, &packages, fees.as_ref()).await?;
     let counter_ids = [counter_contracts[0].id(), counter_contracts[1].id()];
+    let banks = assemble_banks(&mut client, &packages).await?;
+    let bank_ids = [banks[0].id(), banks[1].id()];
     let factory = note::create_factory(&mut client).await?;
 
     // Everything that transacts is paid up front, in one go, so the faucet is
@@ -294,7 +333,13 @@ async fn main() -> Result<()> {
                 fees,
                 &network_id,
                 &url,
-                &[counter_ids[0], counter_ids[1], factory],
+                &[
+                    counter_ids[0],
+                    counter_ids[1],
+                    bank_ids[0],
+                    bank_ids[1],
+                    factory,
+                ],
             )
             .await?
         }
@@ -306,6 +351,7 @@ async fn main() -> Result<()> {
         &packages,
         factory,
         counter_ids,
+        bank_ids[0],
         funding.remove(&factory),
     )
     .await?;
@@ -329,6 +375,22 @@ async fn main() -> Result<()> {
         .try_into()
         .unwrap_or_else(|_| unreachable!("the loop pushes exactly two accounts"));
 
+    let mut deployed = Vec::with_capacity(2);
+    for account_id in bank_ids {
+        deployed.push(
+            account::deploy_bank(
+                &mut client,
+                account_id,
+                &packages.init_tx_script,
+                funding.remove(&account_id),
+            )
+            .await?,
+        );
+    }
+    let bank_accounts = deployed
+        .try_into()
+        .unwrap_or_else(|_| unreachable!("the loop pushes exactly two accounts"));
+
     let (count_reader, basic_wallet) = build_local_accounts(&mut client, &packages)?;
 
     write_fixtures(
@@ -337,7 +399,9 @@ async fn main() -> Result<()> {
             counter_contracts,
             count_reader,
             basic_wallet,
+            bank_accounts,
             counter_notes: notes.fixtures,
+            deposit_notes: notes.deposits,
         },
         args.out,
     )
