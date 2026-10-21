@@ -1,0 +1,11 @@
+# One workspace for the API's helper binaries (and the fixture generator), so
+# they share one lockfile and one target dir: the miden-client dependency tree
+# compiles once for all of them, not once per crate.
+[workspace]
+resolver = "3"
+members = [
+    "generate-fixtures",
+    "miden-import",
+    "miden-package-metadata",
+    "miden-verifier",
+]
