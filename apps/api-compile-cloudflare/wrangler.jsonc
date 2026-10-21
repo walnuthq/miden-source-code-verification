@@ -31,6 +31,10 @@
       // vCPU made them slow; CPU is billed on use, so the cost difference is
       // mostly the extra memory and disk.
       "instance_type": "standard-2",
+      // Next to the Miden nodes (gateway.fm, Lelystad NL), which every import
+      // and verification calls several times. The Durable Object's
+      // `locationHint` (src/server.ts) doesn't place the container.
+      "constraints": { "regions": ["WEUR"] },
       "ssh": {
         "enabled": true,
       },
