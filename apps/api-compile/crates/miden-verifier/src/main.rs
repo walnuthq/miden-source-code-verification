@@ -1,8 +1,9 @@
-use anyhow::{Result, bail};
+use anyhow::{Result, anyhow};
 use base64::prelude::*;
 use clap::Parser;
 use miden_assembly_syntax::ast::types::CallConv;
 use miden_client::{
+    ClientError,
     account::{Account, AccountComponentInterfaceExt, AccountId},
     address::{Address, AddressId, NetworkId},
     builder::ClientBuilder,
@@ -25,7 +26,9 @@ use miden_client_sqlite_store::ClientBuilderSqliteExt;
 // };
 use miden_standards::note::StandardNote;
 use serde_json::{Value, json};
+use std::fmt;
 use std::fs;
+use std::process::ExitCode;
 use std::sync::Arc;
 
 #[derive(Parser, Debug)]
@@ -42,6 +45,57 @@ struct Args {
 
     #[arg(long)]
     masp_path: String,
+}
+
+// --- Errors ---
+
+/// A request that can never verify: the resource doesn't exist or can't be
+/// imported, the ID doesn't name one, or the package or resource can't be
+/// read. It exits with `REJECTED_EXIT_CODE`, so api-compile can tell it apart
+/// from a failure that may go away on a retry (an RPC timeout, a node hiccup,
+/// a store error), which exits with 1.
+#[derive(Debug)]
+struct Rejected(String);
+
+impl fmt::Display for Rejected {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for Rejected {}
+
+const REJECTED_EXIT_CODE: u8 = 2;
+
+macro_rules! rejected {
+    ($($arg:tt)*) => {
+        return Err(Rejected(format!($($arg)*)).into())
+    };
+}
+
+/// Marks an error the request's own inputs caused.
+fn rejected(error: impl fmt::Display) -> anyhow::Error {
+    Rejected(error.to_string()).into()
+}
+
+/// Classifies the client errors that say the resource can never be imported.
+fn import_error(error: ClientError) -> anyhow::Error {
+    match &error {
+        ClientError::AccountNotFoundOnChain(_)
+        | ClientError::AccountIsPrivate(_)
+        | ClientError::NoteNotFoundOnChain(_) => rejected(error),
+        // The node answers an unknown note ID with no notes rather than an
+        // error, and the client reports that, and a private note, only by
+        // message. Only one note is ever requested, so an empty answer means
+        // it's missing.
+        ClientError::NoteImportError(message)
+            if message == "No notes fetched from node"
+                || message == "Incomplete imported note is private" =>
+        {
+            rejected(error)
+        }
+        _ => error.into(),
+    }
 }
 
 // --- Resource parsing ---
@@ -63,7 +117,7 @@ fn parse_resource_id(resource_id: &str) -> Result<Resource> {
     }
     if let Ok((network_id, address)) = Address::decode(resource_id) {
         let AddressId::AccountId(account_id) = address.id() else {
-            bail!("address '{}' does not contain an account ID", resource_id);
+            rejected!("address '{}' does not contain an account ID", resource_id);
         };
         return Ok(Resource::Account {
             network_id: Some(network_id),
@@ -73,7 +127,7 @@ fn parse_resource_id(resource_id: &str) -> Result<Resource> {
     if let Ok(note_id) = NoteId::try_from_hex(resource_id) {
         return Ok(Resource::Note(note_id));
     }
-    bail!(
+    rejected!(
         "'{}' is not a valid account address, account ID, or note ID",
         resource_id
     )
@@ -121,7 +175,7 @@ fn verify_account_component(account: Account, package: Package) -> Result<Value>
 
     if has_custom_code {
         if package.manifest.num_exports() == 0 {
-            bail!("Package has no exports");
+            rejected!("Package has no exports");
         }
         // Only the procedures exported with the ComponentModel calling
         // convention (`CallConv::ComponentModel`) are installed as account
@@ -191,7 +245,22 @@ fn verify_note_script(note_script: &NoteScript, package: Package) -> Result<Valu
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> ExitCode {
+    match run().await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            // The same output as returning the error from `main`.
+            eprintln!("Error: {error:?}");
+            if error.is::<Rejected>() {
+                ExitCode::from(REJECTED_EXIT_CODE)
+            } else {
+                ExitCode::FAILURE
+            }
+        }
+    }
+}
+
+async fn run() -> Result<()> {
     /*println!("standard notes script roots");
     println!();
     println!("P2ID: {}", P2idNote::script_root());
@@ -231,7 +300,8 @@ async fn main() -> Result<()> {
         }
     }*/
     let args = Args::parse();
-    let args_network_id = NetworkId::new(&args.network_id)?;
+    let args_network_id = NetworkId::new(&args.network_id)
+        .map_err(|error| rejected(format!("invalid network ID: {error}")))?;
     // Initialize client
     let endpoint = match args_network_id.as_str() {
         "mtst" => Endpoint::testnet(),
@@ -256,7 +326,8 @@ async fn main() -> Result<()> {
         .await?;
 
     let package_bytes = fs::read(&args.masp_path)?;
-    let package = Package::read_from_bytes(&package_bytes)?;
+    let package = Package::read_from_bytes(&package_bytes)
+        .map_err(|error| rejected(format!("invalid package: {error}")))?;
 
     let output = match parse_resource_id(&args.resource_id)? {
         Resource::Account {
@@ -266,7 +337,7 @@ async fn main() -> Result<()> {
             if let Some(network_id) = network_id_opt
                 && network_id != args_network_id
             {
-                bail!(
+                rejected!(
                     "network ID of resource ({}) does not match provided network ID ({})",
                     network_id.as_str(),
                     args_network_id.as_str()
@@ -275,11 +346,17 @@ async fn main() -> Result<()> {
 
             let account = if let Some(resource_path) = args.resource_path {
                 let resource = fs::read_to_string(&resource_path)?;
-                let resource_bytes = BASE64_STANDARD.decode(resource)?;
-                Account::read_from_bytes(&resource_bytes)?
+                let resource_bytes = BASE64_STANDARD.decode(resource).map_err(rejected)?;
+                Account::read_from_bytes(&resource_bytes).map_err(rejected)?
             } else {
-                client.import_account_by_id(account_id).await?;
-                client.get_account(account_id).await?.unwrap()
+                client
+                    .import_account_by_id(account_id)
+                    .await
+                    .map_err(import_error)?;
+                client
+                    .get_account(account_id)
+                    .await?
+                    .ok_or_else(|| anyhow!("account '{}' not found", args.resource_id))?
             };
 
             verify_account_component(account, package)?
@@ -287,12 +364,18 @@ async fn main() -> Result<()> {
         Resource::Note(note_id) => {
             let note_script = if let Some(resource_path) = args.resource_path {
                 let resource = fs::read_to_string(&resource_path)?;
-                let resource_bytes = BASE64_STANDARD.decode(resource)?;
-                let note = Note::read_from_bytes(&resource_bytes)?;
+                let resource_bytes = BASE64_STANDARD.decode(resource).map_err(rejected)?;
+                let note = Note::read_from_bytes(&resource_bytes).map_err(rejected)?;
                 note.script().clone()
             } else {
-                client.import_notes(&[NoteFile::NoteId(note_id)]).await?;
-                let note_record = client.get_input_note(note_id).await?.unwrap();
+                client
+                    .import_notes(&[NoteFile::NoteId(note_id)])
+                    .await
+                    .map_err(import_error)?;
+                let note_record = client
+                    .get_input_note(note_id)
+                    .await?
+                    .ok_or_else(|| anyhow!("note '{}' not found", args.resource_id))?;
                 note_record.details().script().clone()
             };
 

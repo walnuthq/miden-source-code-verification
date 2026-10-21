@@ -2,7 +2,7 @@ import {
   MIDEN_CLIENT_CACHE_DIR,
   MIDEN_TOOL_TIMEOUT_MS,
 } from "@/lib/constants.js";
-import { execFile } from "@/lib/utils.js";
+import { execFile, exitCodeOf } from "@/lib/utils.js";
 
 export const midenVerifier = async ({
   networkId,
@@ -47,6 +47,6 @@ export const midenVerifier = async ({
       stderr ||
       (error instanceof Error ? error.message : "miden-verifier failed")
     ).replace(/^Error:\s*/, "");
-    return { error: message };
+    return { error: message, exitCode: exitCodeOf(error) };
   }
 };

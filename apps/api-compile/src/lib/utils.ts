@@ -52,6 +52,16 @@ export const execFile = async (
   }
 };
 
+// The code a failed `execFile` exited with. Unset when the tool didn't exit on
+// its own: it timed out, or couldn't be spawned.
+export const exitCodeOf = (error: unknown) =>
+  typeof error === "object" &&
+  error !== null &&
+  "code" in error &&
+  typeof error.code === "number"
+    ? error.code
+    : undefined;
+
 // Aborts when the client goes away before the response is sent, so a request
 // nobody is waiting for anymore leaves the compile queue or kills its build.
 export const abortOnClose = (res: Response) => {

@@ -11,6 +11,12 @@ export const MIDEN_CLIENT_CACHE_DIR =
 export const CARGO_MIDEN_BUILD_TIMEOUT_MS = 240_000;
 export const MIDEN_TOOL_TIMEOUT_MS = 60_000;
 
+// What `miden-import` and `miden-verifier` exit with when the request can never
+// succeed: the resource doesn't exist, the ID is invalid, or (for the verifier)
+// the package can't be read. Any other failure (an RPC timeout, a store error)
+// exits with 1 and may pass on a retry.
+export const MIDEN_TOOL_REJECTED_EXIT_CODE = 2;
+
 // Builds share CARGO_TARGET_DIR, whose lock makes cargo run them one at a time
 // anyway. Queue a few more and turn the rest away with a 503, rather than pile
 // up waiting builds until the container stops answering.
