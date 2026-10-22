@@ -7,7 +7,6 @@ Public status page for the four deployed services — `api-compile`,
 ## How it works
 
 Two phases, both at build time:
-
 1. `scripts/probe.ts` runs each service's checks and writes the results to
    `public/status.json`.
 2. Vite builds the React app, copying that snapshot into `dist/` alongside
@@ -19,19 +18,19 @@ no CORS headers — client-side checks would simply be blocked.
 
 ## The checks
 
-| Service | Check | Asserts | Card shows |
-| --- | --- | --- | --- |
-| api-compile | `GET /` | 200 + JSON | the payload in full |
-| api-compile | `POST /compile` | a package came back (a compile failure still returns 200 with no `masp`, so the status code alone would miss it) | commitment, exports, dependencies, sizes |
-| api-compile | `POST /verify` | `verified === true` | verified, commitment, exports |
-| api-compile | `GET /:networkId/import/:resourceId` | `type` is an account and `code` matches the fixture | type, code, ✓ matches |
-| api-registry | `GET /` | 200 + JSON | the payload in full |
-| api-registry | `GET /v1/:networkId/verified-accounts/code/:code` | the code root and network come back unchanged, ≥1 component | networkId, code, components, package, source |
-| api-registry | `GET /v1/:networkId/verified-accounts/:accountId` | above, plus the echoed id | the same, plus accountId |
-| api-registry | `GET /v1/:networkId/verified-notes/script/:script` | the script root and network come back unchanged, package is a note | networkId, script, package, source files, source |
-| api-registry | `GET /v1/:networkId/verified-notes/:noteId` | above, plus the echoed id | the same, plus noteId |
-| web-verifier | `GET /` | 200 | — (serves HTML; reachability only) |
-| web-viewer | `GET /` | 200 | — (serves HTML; reachability only) |
+| Service      | Check                                              | Asserts                                                                                                          | Card shows                                       |
+| ------------ | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| api-compile  | `GET /`                                            | 200 + JSON                                                                                                       | the payload in full                              |
+| api-compile  | `POST /compile`                                    | a package came back (a compile failure still returns 200 with no `masp`, so the status code alone would miss it) | commitment, exports, dependencies, sizes         |
+| api-compile  | `POST /verify`                                     | `verified === true`                                                                                              | verified, commitment, exports                    |
+| api-compile  | `GET /:networkId/import/:resourceId`               | `type` is an account and `code` matches the fixture                                                              | type, code, ✓ matches                            |
+| api-registry | `GET /`                                            | 200 + JSON                                                                                                       | the payload in full                              |
+| api-registry | `GET /v1/:networkId/verified-accounts/code/:code`  | the code root and network come back unchanged, ≥1 component                                                      | networkId, code, components, package, source     |
+| api-registry | `GET /v1/:networkId/verified-accounts/:accountId`  | above, plus the echoed id                                                                                        | the same, plus accountId                         |
+| api-registry | `GET /v1/:networkId/verified-notes/script/:script` | the script root and network come back unchanged, package is a note                                               | networkId, script, package, source files, source |
+| api-registry | `GET /v1/:networkId/verified-notes/:noteId`        | above, plus the echoed id                                                                                        | the same, plus noteId                            |
+| web-verifier | `GET /`                                            | 200                                                                                                              | — (serves HTML; reachability only)               |
+| web-viewer   | `GET /`                                            | 200                                                                                                              | — (serves HTML; reachability only)               |
 
 `api-registry`'s `GET /` only echoes env vars and never opens a database
 connection, so the four record lookups are what actually prove the registry can
@@ -67,15 +66,15 @@ read the same as the service being down.
 
 ## Configuration
 
-| Variable | Default | Used by |
-| --- | --- | --- |
-| `API_COMPILE_URL` | `http://localhost:8080` | probe |
-| `API_REGISTRY_URL` | `http://localhost:8081` | probe |
-| `WEB_VERIFIER_URL` | `http://localhost:5173` | probe |
-| `WEB_VIEWER_URL` | `http://localhost:5174` | probe |
-| `STATUS_PAGE_URL` | derived from the repo | probe (previous state), notify |
-| `SLACK_WEBHOOK_URL` | unset — notify is a no-op | notify |
-| `STATUS_PAGE_BASE` | `/miden-source-code-verification/status/` | Vite's `base` |
+| Variable            | Default                                   | Used by                        |
+| ------------------- | ----------------------------------------- | ------------------------------ |
+| `API_COMPILE_URL`   | `http://localhost:8080`                   | probe                          |
+| `API_REGISTRY_URL`  | `http://localhost:8081`                   | probe                          |
+| `WEB_VERIFIER_URL`  | `http://localhost:5173`                   | probe                          |
+| `WEB_VIEWER_URL`    | `http://localhost:5174`                   | probe                          |
+| `STATUS_PAGE_URL`   | derived from the repo                     | probe (previous state), notify |
+| `SLACK_WEBHOOK_URL` | unset — notify is a no-op                 | notify                         |
+| `STATUS_PAGE_BASE`  | `/miden-source-code-verification/status/` | Vite's `base`                  |
 
 The four service URLs come from repository **variables** of the same name in CI,
 and all four are required: an undefined variable reaches the build as an empty
@@ -93,14 +92,14 @@ implementation would post 48 identical "api-compile is down" messages a day and
 the channel would be muted within a week. It therefore speaks only on a
 transition, plus a reminder every 6 hours while an outage continues:
 
-| Previous | Current | Message |
-| --- | --- | --- |
-| none | not healthy | 🔴/🟡 the current state — new to the channel |
-| healthy | degraded/unhealthy | 🟡 `api-registry` is degraded / 🔴 `api-compile` is down |
-| degraded ↔ unhealthy | changed | the new state, so escalations are visible |
-| not healthy | healthy | ✅ `api-compile` recovered — after 1h 30m down |
-| unchanged, not healthy | 6h boundary crossed | 🔴 `api-compile` is still down (6h) |
-| anything else | | **silence** |
+| Previous               | Current             | Message                                                  |
+| ---------------------- | ------------------- | -------------------------------------------------------- |
+| none                   | not healthy         | 🔴/🟡 the current state — new to the channel             |
+| healthy                | degraded/unhealthy  | 🟡 `api-registry` is degraded / 🔴 `api-compile` is down |
+| degraded ↔ unhealthy   | changed             | the new state, so escalations are visible                |
+| not healthy            | healthy             | ✅ `api-compile` recovered — after 1h 30m down           |
+| unchanged, not healthy | 6h boundary crossed | 🔴 `api-compile` is still down (6h)                      |
+| anything else          |                     | **silence**                                              |
 
 Each message leads with a link to the service that is down, lists the failing
 checks with the probe's one-line diagnosis, and links to the status page and the
@@ -119,8 +118,8 @@ fields forward:
   "checkedAt": "2026-08-13T12:00:00.000Z",
   "previousCheckedAt": "2026-08-13T11:30:00.000Z",
   "services": [
-    { "health": "unhealthy", "previousHealth": "healthy", "since": "…" },
-  ],
+    { "health": "unhealthy", "previousHealth": "healthy", "since": "…" }
+  ]
 }
 ```
 

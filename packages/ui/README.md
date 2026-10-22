@@ -55,7 +55,7 @@ resolve: {
 ## Why `@ui` and not `@`
 
 Every app already binds `@` to its own `src`. If this package's primitives kept
-the stock shadcn `@/lib/utils` import, Vite would resolve it against the *app's*
+the stock shadcn `@/lib/utils` import, Vite would resolve it against the _app's_
 `src` and fail. `@ui` is a separate namespace that never collides, and it keeps
 the shadcn CLI usable — see below.
 

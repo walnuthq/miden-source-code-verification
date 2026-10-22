@@ -284,6 +284,25 @@ describe("POST /compile returned files", () => {
     expect(res.body.files).toEqual(files);
   });
 
+  // Builds run `--offline` first; a crate the image never downloaded makes that
+  // fail, and the build runs again online.
+  it("builds with a dependency the cache doesn't have", async () => {
+    const { "Cargo.lock": _, ...files } = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+    files["Cargo.toml"] = files["Cargo.toml"].replace(
+      "[dependencies]\n",
+      '[dependencies]\nnohash-hasher = { version = "0.2", default-features = false }\n',
+    );
+    expect(files["Cargo.toml"]).toContain("nohash-hasher");
+
+    const res = await api.post("/compile").send({ files });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body.files["Cargo.lock"]).toContain('name = "nohash-hasher"');
+  });
+
   it("keys the lockfile by its path under the entrypoint", async () => {
     const entrypoint = "count-reader";
     const { [`${entrypoint}/Cargo.lock`]: _, ...files } =

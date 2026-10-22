@@ -61,10 +61,31 @@ export const PROFILE_DIRS = { release: "release", debug: "dev" } as const;
 
 export type BuildProfile = keyof typeof PROFILE_DIRS;
 
+// Cargo and midenc name `--offline` in every failure it causes: a crate that
+// isn't downloaded, or a missing Wasm target. Read from stderr only, since the
+// error's message repeats the command line, which names the flag too.
+const failedOffline = (error: unknown) =>
+  typeof error === "object" &&
+  error !== null &&
+  "stderr" in error &&
+  typeof error.stderr === "string" &&
+  error.stderr.includes("--offline");
+
 // `debug` is the dev profile, which keeps the debug info that names call-trace
 // frames. midenc configures that profile itself with `--config` (overflow
 // checks and debug assertions off, panic=abort), so it wraps on overflow like
 // the release build and `CARGO_PROFILE_DEV_*` variables would change nothing.
+//
+// CARGO_TARGET_DIR is the warm cache: without it, midenc nests cargo's output
+// under MIDENC_TARGET_DIR, which is per build, and every build starts cold.
+// MIDENC_PACKAGE_CACHE stays unset, so each build stages its dependency
+// packages in a directory of its own, never another request's.
+//
+// The build runs `--offline` first: cargo then resolves only against the crates
+// the image downloaded, so a project without a Cargo.lock gets the warm
+// versions instead of whatever crates.io has since published, which would
+// rebuild the whole dependency tree. A project that needs a crate the image
+// doesn't have fails offline, and builds again online.
 export const cargoMidenBuild = async ({
   projectDir,
   midencTargetDir,
@@ -76,12 +97,15 @@ export const cargoMidenBuild = async ({
   profile?: BuildProfile;
   signal?: AbortSignal;
 }) => {
-  try {
-    const { stdout, stderr } = await execFile(
+  const run = (offline: boolean) =>
+    execFile(
       "cargo",
-      profile === "release"
-        ? ["miden", "build", "--release"]
-        : ["miden", "build"],
+      [
+        "miden",
+        "build",
+        ...(profile === "release" ? ["--release"] : []),
+        ...(offline ? ["--offline"] : []),
+      ],
       {
         cwd: projectDir,
         env: {
@@ -93,6 +117,13 @@ export const cargoMidenBuild = async ({
         signal,
       },
     );
+  try {
+    const { stdout, stderr } = await run(true).catch((error: unknown) => {
+      if (!failedOffline(error)) {
+        throw error;
+      }
+      return run(false);
+    });
     return { stdout, stderr };
   } catch (error) {
     const message =

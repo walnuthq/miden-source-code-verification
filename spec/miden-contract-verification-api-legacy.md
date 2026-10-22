@@ -3,7 +3,6 @@
 Base URL: [https://miden-playground-api.walnut.dev](https://miden-playground-api.walnut.dev)
 
 CORS Access-Control-Allow-Origin:
-
 - [https://playground.miden.xyz](https://playground.miden.xyz)
 - [https://testnet.midenscan.com, https://devnet.midenscan.com](https://testnet.midenscan.com/)
 - [https://explorer.devnet.miden.io](https://explorer.devnet.miden.io/), [https://explorer.testnet.miden.io](https://explorer.testnet.miden.io/)
@@ -75,13 +74,11 @@ When the contract has been previously verified with the API, it will return the 
 This endpoint always returns the list of “standard” components this account implements, even if the contract hasn’t verified a custom component.
 
 Standard accounts:
-
 - basic-fungible-faucet
 - basic-wallet
 - network-fungible-faucet
 
 Standard authentication components:
-
 - auth-multisig-psm
 - auth-multisig
 - auth-no-auth
@@ -208,7 +205,6 @@ GET `/verified-notes/[network]/[id]` Get the verified note info for a given netw
 When the note has been previously verified with the API, it will return the note script info that was used to create the note (including full Rust source code with dependencies).
 
 This endpoint can also detect the list of “standard” notes if the given note is a well-known note:
-
 - p2id
 - p2ide
 - swap

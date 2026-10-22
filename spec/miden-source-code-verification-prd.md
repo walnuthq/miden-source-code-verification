@@ -7,7 +7,6 @@ Miden Source Code Verification is a set of self-hostable services for verifying 
 ## Background & motivation
 
 Today, Miden contract verification lives inside the miden-playground API. This creates two problems:
-
 - **Coupling.** The playground owns logic that other tools (block explorers, CLIs, dApps) increasingly need.
 - **Centralization.** A single hosted verifier is a trust and availability bottleneck for an ecosystem that values verifiability.
 - **Scaling.** Extracting and separating the monolith in separate dedicated services will allow better scaling and avoid single point of failure as well as setup appropriate rate-limiting.
@@ -32,7 +31,6 @@ Extracting verification into standalone services — inspired by Ethereum's [Sou
 ## Verification model
 
 Define terms once:
-
 - **MASP** — Miden Assembly Package, the compiled artifact emitted by `cargo-miden`.
 - **Account component** — a reusable bundle of procedures attached to an account (e.g. `NoAuth`, `BasicWallet`).
 - **Procedure root** — a hash uniquely identifying a compiled procedure.
@@ -55,7 +53,6 @@ The service automatically detects standard components (`NoAuth`, `BasicWallet`, 
 ## Architecture overview
 
 4 services, deployable independently or together:
-
 1. **Compilation & Verification API** — stateless, compute-heavy, Rust-in-container.
 2. **Verified Accounts & Notes Registry API** — stateful, Node.js + Postgres, delegates compute to (1).
 3. **Verify frontend** — static webapp talking to (2).
@@ -76,7 +73,6 @@ Each service below follows the same template: **Purpose / Stack / Dependencies /
 **Dependencies.** Reads from Miden node RPC for on-chain account/note data. No database.
 
 **Endpoints.**
-
 - `POST /compile`
   - **Body** (`application/json`): `{ source: { cargoToml: string, rust: string }, dependencies?: Array<{ name: string, cargoToml: string, rust: string }> }`
   - **Response.** Server-sent event stream of compiler output, terminating with `{ ok: true, masp: <base64>, exports: Export[] }` or `{ ok: false, error: <string> }`.
@@ -101,7 +97,6 @@ Each service below follows the same template: **Purpose / Stack / Dependencies /
 **Dependencies.** Compilation & Verification API (HTTP), Postgres.
 
 **Endpoints.**
-
 - `GET /:network/verified-accounts/:accountId`
   - **Response.** `{ components: Array<{ id, name, type, rust?, exports: Export[] }> }`
   - Standard components are always included even if never explicitly submitted.
@@ -124,7 +119,6 @@ Each service below follows the same template: **Purpose / Stack / Dependencies /
 **Stack.** Vite + Miden React SDK + shadcn/ui.
 
 **Screens.**
-
 - Network selector + account/note ID input.
 - Source upload (upload `Cargo.toml` + `src/lib.rs`, plus optional dependencies via file picker).
 - Verification result with

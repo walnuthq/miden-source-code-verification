@@ -11,7 +11,8 @@
       "**",
       "!**/worker-configuration.d.ts",
       "!**/drizzle",
-      "!**/components/ui"
+      "!**/components/ui",
+      "!**/pnpm-lock.yaml"
     ]
   },
   "formatter": {

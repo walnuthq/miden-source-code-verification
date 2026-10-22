@@ -25,7 +25,6 @@ The sizes and commitments match. In each account component, the only
 difference is one run of 32 consecutive bytes. In the note, it's one run of 64.
 
 Two more checks narrowed it down:
-
 - **Builds on the same machine are identical.** Two consecutive `/compile`
   calls against the local api-compile returned byte-identical files, even though
   api-compile builds every request in a fresh `mkdtemp` directory
@@ -49,7 +48,6 @@ hashes of its record, `source_hash` and `dependency_hash`. See
 
 The section is written by `miden-assembly`
 (`src/project/build_provenance.rs`, 0.35). It's `PackageBuildProvenance::Path`:
-
 - `source_hash`: a hash of the target's build projection plus its root and
   support source files.
 - `dependency_hash`: a hash of the resolved dependency closure.
@@ -64,7 +62,6 @@ package's code.
 
 `compute_path_source_hash_from_sources` (`miden-assembly`,
 `src/project/dependency_graph.rs`) hashes:
-
 1. `Package::build_provenance_projection` (`miden-project`): the package name
    and version, the target and the profile. No paths.
 2. For each source file, a label, `root:<path>` or `support:<path>`, and the
@@ -75,7 +72,6 @@ For a Rust project, midenc's frontend (`midenc-compile` 0.11,
 `pipeline/frontends/rust.rs` and `wasm.rs`) reports a single root source: the
 `.wasm` cargo produced. The hashed content is that module printed as WAT
 (`WasmProvenance { path, wat }`). So `source_hash` depends on:
-
 - every byte of the compiled `.wasm`, custom sections included (producers,
   names), since they all appear in the WAT;
 - the path of the `.wasm` file.
@@ -95,7 +91,6 @@ settings. In the files above:
 `dependency_hash` comes from `compute_dependency_closure_hash` (`miden-assembly`,
 `src/project/dependency_graph.rs`). For each dependency it hashes a line built
 by `dependency_resolution_hash_input`:
-
 - a registry or preassembled dependency contributes its name and selected
   version, which don't depend on the host;
 - a path dependency built from source, like `counter-contract` for the note,
@@ -136,7 +131,6 @@ which other input varies.
 ## Impact
 
 This doesn't affect correctness:
-
 - **Identity.** Packages are keyed by `dependency_commitment()` (see #48). It
   covers the code, name, version, kind, manifest and component metadata, but
   not the provenance section. Both builds have the same commitment, and the
@@ -148,7 +142,6 @@ This doesn't affect correctness:
   whichever build recorded it first.
 
 It does limit consumers in two ways:
-
 - **No checksum check.** Downloading a package and comparing a SHA-256 with a
   local build fails across machines. The only reliable check is to deserialize
   the package and recompute its commitment.
@@ -166,7 +159,6 @@ Before api-compile returns `masp`, deserialize the package, remove the
 already deserializes the package to read its commitment and manifest, so it
 can also write out the stripped package, and `compile.ts` would read that file
 instead.
-
 - **Identical bytes.** In all three packages here, the provenance hashes were
   the only difference, so the files would come out the same on any machine.
   Dropping the whole section also removes the `dependency_hash` that carries a
@@ -197,7 +189,6 @@ fixtures.
 
 Ask the Miden compiler team to make the provenance hash independent of the
 host. For example:
-
 - hash a normalized `.wasm`, without its custom sections, or the lowered HIR
   instead of the raw WAT;
 - label the root source relative to the target directory instead of by
