@@ -7,7 +7,6 @@ Miden Source Code Verification is a set of self-hostable services for verifying 
 ## Architecture overview
 
 A small set of services that can be deployed independently or together:
-
 1. **Compilation & Verification API** (`apps/api-compile`) — stateless, compute-heavy, Rust-in-container. Compiles a Rust source package and checks it against an on-chain account/note.
 2. **Verified Accounts & Notes Registry API** (`apps/api-registry`) — stateful, Node.js + Postgres. Delegates compilation to (1) and persists verified results.
 3. **Accounts & Notes Verifier UI** (`apps/web-verifier`) — a static Vite/React webapp where a user submits a resource ID plus a source directory to verify; talks to (2). From the selected directory it uploads what the [`miden-verify`](https://github.com/walnuthq/miden-verify) CLI does: `Cargo.toml`, `Cargo.lock`, `build.rs`, `miden-project.toml`, `rust-toolchain.toml`, `.cargo/config.toml` and everything under `src/`, skipping `target/` and hidden folders. Verifications it submits are recorded with the source `web-verifier`.
@@ -31,7 +30,6 @@ That `(networkId, code)` pair is the registry's real key, so it's addressable di
 ### Debug builds
 
 A verified package's release build carries no debug info, so a transaction simulator (Walnut's) can't name the frames of a call trace from it. The registry therefore also stores a **debug build** of every verified account component: the same sources and lockfile built with the dev profile (`cargo miden build` with no `--release`).
-
 - **Built with the release build.** The registry sends `debug: true` to `POST /verify`. api-compile then runs the debug build right after the release one, in the same queue slot. That adds a warm build of about 1.5 s; the image pre-warms both profiles. midenc sets up the dev profile itself (overflow checks and debug assertions off, `panic=abort`), so the debug build wraps on overflow like the release build.
 - **Never decides anything.** It has other procedure roots than the deployed code, so it verifies nothing. A debug build that fails is answered as `debug: { error }` and only logged by the registry; the verification goes on unchanged. One is also dropped when it exports a procedure path the release build doesn't, or when it is over 16 MiB, the most the debugger loads.
 - **Stored next to the release build.** It is stored as `<release commitment>.debug.masp`, and the package row records its own commitment (`debugCommitment`) and the cargo-miden that built it. `GET /v1/{networkId}/packages/masp/{commitment}.debug.masp` serves it with an `X-Debug-Commitment` header. Each verified account component carries `debugPackage: { commitment } | null`, so a client knows before downloading whether one exists. Debug builds embed absolute build paths, so their bytes differ between machines even when their commitment is the same.
@@ -46,18 +44,18 @@ To move to a new toolchain, bump `cargo-miden` in `apps/api-compile/Dockerfile`,
 
 This is a [pnpm](https://pnpm.io) workspace monorepo (`pnpm-workspace.yaml`). Each service is a package under `apps/`:
 
-| Path | Service | Port | Stack |
-|------|---------|------|-------|
-| `apps/api-compile` | Compilation & Verification API | `8080` | Rust toolchain in a container |
-| `apps/api-registry` | Registry API | `8081` | Express + Drizzle/Postgres |
-| `apps/web-verifier` | Verifier UI | `5173` | Vite + React SPA (served by nginx in Docker) |
-| `apps/web-viewer` | Viewer UI | `5174` | React Router (Vite) with server rendering (`react-router-serve` in Docker) |
-| `apps/api-docs` | OpenAPI / Swagger UI docs | `8082` | Generated from `api-registry` annotations |
-| `apps/status-page` | Public service status page | `4173` | Vite + React SPA; probed at build time |
-| `apps/*-cloudflare` | Cloudflare Workers deploy wrappers | — | Opt-in; wrap the matching service |
-| `packages/ui` | Shared design system (shadcn `base-lyra`) | — | Used by `web-verifier`, `web-viewer` and `status-page` |
-| `packages/utils` | Shared utilities (`Cargo.toml` parsing, networks, Resource ID parsing, compiled package manifest types) | — | Used by the API services, `web-verifier` and `web-viewer` |
-| `packages/test-utils` | Shared test helpers | — | Used by the API test suites |
+| Path                  | Service                                                                                                 | Port   | Stack                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------------------------------------------- |
+| `apps/api-compile`    | Compilation & Verification API                                                                          | `8080` | Rust toolchain in a container                                              |
+| `apps/api-registry`   | Registry API                                                                                            | `8081` | Express + Drizzle/Postgres                                                 |
+| `apps/web-verifier`   | Verifier UI                                                                                             | `5173` | Vite + React SPA (served by nginx in Docker)                               |
+| `apps/web-viewer`     | Viewer UI                                                                                               | `5174` | React Router (Vite) with server rendering (`react-router-serve` in Docker) |
+| `apps/api-docs`       | OpenAPI / Swagger UI docs                                                                               | `8082` | Generated from `api-registry` annotations                                  |
+| `apps/status-page`    | Public service status page                                                                              | `4173` | Vite + React SPA; probed at build time                                     |
+| `apps/*-cloudflare`   | Cloudflare Workers deploy wrappers                                                                      | —      | Opt-in; wrap the matching service                                          |
+| `packages/ui`         | Shared design system (shadcn `base-lyra`)                                                               | —      | Used by `web-verifier`, `web-viewer` and `status-page`                     |
+| `packages/utils`      | Shared utilities (`Cargo.toml` parsing, networks, Resource ID parsing, compiled package manifest types) | —      | Used by the API services, `web-verifier` and `web-viewer`                  |
+| `packages/test-utils` | Shared test helpers                                                                                     | —      | Used by the API test suites                                                |
 
 Every package is named `miden-source-code-verification-<dir>` (e.g. `miden-source-code-verification-web-verifier`) — that's the value `pnpm --filter` expects.
 
@@ -77,7 +75,6 @@ docker compose up --build
 ```
 
 This builds and starts everything in the right order:
-
 1. **postgres** — the database.
 2. **api-registry-migrate** — a one-shot job that applies the Drizzle migrations, then exits.
 3. **api-compile** (`http://localhost:8080`) — compilation & verification API.
@@ -189,7 +186,6 @@ pnpm --filter miden-source-code-verification-web-viewer-cloudflare cf:deploy
 ```
 
 These wrap the vendor-neutral services; deleting them removes Cloudflare with no impact on the core apps. api-compile runs as a single Cloudflare Container (`max_instances: 1`, instance type `standard-2`: 1 vCPU, 6 GiB of memory, 12 GB of disk), set in `apps/api-compile-cloudflare/wrangler.jsonc`. On push to `main`, a dedicated workflow per service deploys it automatically — and only when that service is affected:
-
 - `.github/workflows/deploy-api-compile-cloudflare.yml`
 - `.github/workflows/deploy-api-registry-cloudflare.yml`
 - `.github/workflows/deploy-web-verifier-cloudflare.yml`
@@ -233,18 +229,17 @@ It deletes their verified account components and notes, then the account codes l
 
 The two front-ends have localhost defaults. Their production URLs are set in the repository, so a deploy needs no configuration in the Cloudflare dashboard:
 
-| App            | Variable                | Default                 | Kind       | Production value set in                           |
-| -------------- | ----------------------- | ----------------------- | ---------- | ------------------------------------------------- |
-| `web-verifier` | `VITE_API_REGISTRY_URL` | `http://localhost:8081` | build time | `cf:deploy` in `apps/web-verifier-cloudflare/package.json` |
-| `web-verifier` | `VITE_WEB_VIEWER_URL`   | `http://localhost:5174` | build time | `cf:deploy` in `apps/web-verifier-cloudflare/package.json` |
-| `web-viewer`   | `VITE_API_REGISTRY_URL` | `http://localhost:8081` | build time | `cf:deploy` in `apps/web-viewer-cloudflare/package.json`   |
-| `web-viewer`   | `VITE_WEB_VERIFIER_URL` | `http://localhost:5173` | build time | `cf:deploy` in `apps/web-viewer-cloudflare/package.json`   |
-| `web-viewer`   | `VITE_EXPLORER_TESTNET_URL` | `https://testnet.midenscan.com` | build time | `cf:deploy` in `apps/web-viewer-cloudflare/package.json` |
-| `web-viewer`   | `VITE_EXPLORER_DEVNET_URL`  | `https://devnet.midenscan.com`  | build time | `cf:deploy` in `apps/web-viewer-cloudflare/package.json` |
-| `web-viewer`   | `API_REGISTRY_URL`      | `http://localhost:8081` | runtime    | `vars` in `apps/web-viewer-cloudflare/wrangler.jsonc`      |
+| App            | Variable                    | Default                         | Kind       | Production value set in                                    |
+| -------------- | --------------------------- | ------------------------------- | ---------- | ---------------------------------------------------------- |
+| `web-verifier` | `VITE_API_REGISTRY_URL`     | `http://localhost:8081`         | build time | `cf:deploy` in `apps/web-verifier-cloudflare/package.json` |
+| `web-verifier` | `VITE_WEB_VIEWER_URL`       | `http://localhost:5174`         | build time | `cf:deploy` in `apps/web-verifier-cloudflare/package.json` |
+| `web-viewer`   | `VITE_API_REGISTRY_URL`     | `http://localhost:8081`         | build time | `cf:deploy` in `apps/web-viewer-cloudflare/package.json`   |
+| `web-viewer`   | `VITE_WEB_VERIFIER_URL`     | `http://localhost:5173`         | build time | `cf:deploy` in `apps/web-viewer-cloudflare/package.json`   |
+| `web-viewer`   | `VITE_EXPLORER_TESTNET_URL` | `https://testnet.midenscan.com` | build time | `cf:deploy` in `apps/web-viewer-cloudflare/package.json`   |
+| `web-viewer`   | `VITE_EXPLORER_DEVNET_URL`  | `https://devnet.midenscan.com`  | build time | `cf:deploy` in `apps/web-viewer-cloudflare/package.json`   |
+| `web-viewer`   | `API_REGISTRY_URL`          | `http://localhost:8081`         | runtime    | `vars` in `apps/web-viewer-cloudflare/wrangler.jsonc`      |
 
 To point a deploy elsewhere, edit these files, not the dashboard:
-
 - **Build-time (`VITE_*`) variables** are baked into the bundles when `cf:deploy` builds the app in GitHub Actions. Cloudflare only receives the built files, so a Worker variable set in the dashboard never reaches them.
 - **Runtime variables** come from `vars` in `wrangler.jsonc`. `wrangler deploy` overwrites any variable set in the dashboard with those values. For `wrangler dev`, override them in the package's `.dev.vars`.
 

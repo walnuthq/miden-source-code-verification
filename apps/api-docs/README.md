@@ -15,7 +15,6 @@ generated at build time and served as a plain `openapi.json` file.
 ## Sources
 
 The spec is generated from JSDoc comments in:
-
 - `apps/api-registry/src/**` — verified account & note registry
 
 To document an endpoint, add an `@openapi` JSDoc block above its handler in
@@ -36,7 +35,6 @@ pnpm --filter miden-source-code-verification-api-docs preview
 ```
 
 The build emits, into `dist/`:
-
 - the vendored Swagger UI assets (`index.html`, CSS, JS)
 - `openapi.json` — the generated spec
 - `swagger-initializer.js` — points Swagger UI at `./openapi.json`

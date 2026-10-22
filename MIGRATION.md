@@ -41,7 +41,6 @@ GET /v1/{networkId}/verified-accounts/{accountId}
 ```
 
 Two things to know:
-
 1. The `{accountId}` segment accepts either the on-chain **account id** (hex,
    e.g. `0xd42901fd1841424000901c7741f24d`) or the **bech32 address** you
    already pass today (`mtst1ar2zjq0arpq5ysqqjqw8ws0jf5fygx84`) — both are
@@ -78,11 +77,11 @@ New response shape:
       "updatedAt": "2026-02-23T12:34:28.801Z",
       "package": {
         /* Package, see below */
-      },
-    },
+      }
+    }
   ],
   // the id (or address) you queried with, echoed back
-  "accountId": "0xd42901fd1841424000901c7741f24d",
+  "accountId": "0xd42901fd1841424000901c7741f24d"
 }
 ```
 
@@ -126,7 +125,7 @@ New response shape:
     /* Package, see below */
   },
   // the id you queried with, echoed back
-  "noteId": "0xcc3f…",
+  "noteId": "0xcc3f…"
 }
 ```
 
@@ -145,7 +144,6 @@ GET /v1/{networkId}/verified-notes/script/{script}     → VerifiedNote     (404
 ```
 
 Differences from the id-keyed lookups:
-
 - No call to the compilation API — this is a single database query, and it works
   even when that service is down.
 - The response is the record itself, **without** the `accountId` / `noteId` echo
@@ -183,7 +181,7 @@ The package shape is shared by both endpoints and is slimmer than before:
     "Cargo.toml": "…",
     "Cargo.lock": "…",
     "miden-project.toml": "…",
-    "src/lib.rs": "RUST_SOURCE_CODE",
+    "src/lib.rs": "RUST_SOURCE_CODE"
   },
   "manifest": {
     // replaces `exports` / `procedureExports` / `dependencies`
@@ -194,21 +192,21 @@ The package shape is shared by both endpoints and is slimmer than before:
           "digest": "0x6370…",
           // null when the compiler could not recover a signature
           "signature": { "abi": 3, "params": ["Felt"], "results": ["Felt"] },
-          "attributes": { "attrs": [] },
-        },
-      },
+          "attributes": { "attrs": [] }
+        }
+      }
     ],
     "dependencies": [
       {
         "name": "counter-account",
         "kind": "account-component",
         "version": "0.1.0",
-        "digest": "0x731c…",
-      },
-    ],
+        "digest": "0x731c…"
+      }
+    ]
   },
   "createdAt": "2026-02-23T…Z",
-  "updatedAt": "2026-02-23T…Z",
+  "updatedAt": "2026-02-23T…Z"
 }
 ```
 
@@ -237,7 +235,6 @@ Field mapping from the legacy `Package`:
 ## Error handling
 
 Replace "any non-200 means error" logic with proper status handling:
-
 - `404` → the contract/note has not been verified (previously you'd get standard
   components or `null`). On the id-keyed lookups this also covers "the id could
   not be resolved on-chain": an unknown or malformed id, or an account or note
