@@ -26,8 +26,11 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
 # The components the crates' rust-toolchain.toml lists (the examples' list a
 # subset). rustup used to add them on the fly during the crate builds, and the
 # runtime inherited them from there; install them once, up front, so every
-# stage below shares one toolchain and the builds don't modify it.
-RUN rustup component add rustfmt rust-src clippy rust-analyzer
+# stage below shares one toolchain and the builds don't modify it. The same
+# goes for the Wasm target the examples list: the runtime disables rustup's
+# auto-install, so nothing installs it later.
+RUN rustup component add rustfmt rust-src clippy rust-analyzer \
+ && rustup target add wasm32-wasip2
 
 # cargo-miden and the API's helper binaries build in two stages, so BuildKit
 # builds them in parallel and caches them independently. Each stage gets its
@@ -108,7 +111,12 @@ FROM base AS runtime
 
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
-    PATH=/usr/local/cargo/bin:$PATH
+    PATH=/usr/local/cargo/bin:$PATH \
+    RUSTUP_AUTO_INSTALL=0
+
+# RUSTUP_AUTO_INSTALL=0: a submitted rust-toolchain.toml that pins another
+# toolchain fails the build right away, instead of rustup downloading that
+# toolchain mid-request and the build then running against a cold cache.
 
 # Rust toolchain (cargo + rustc + std) and cargo-miden, needed at runtime to
 # compile user projects
@@ -122,10 +130,12 @@ COPY apps/api-compile/examples .
 # builds its debug variant (dev profile), whose dependencies cargo builds
 # separately from the release ones. One example is enough: user builds run in
 # a fresh directory, so all they reuse from here is the compiled registry
-# crates, and every example's Cargo.lock pins the same ones.
+# crates, and every example's Cargo.lock pins the same ones. `--locked`: the
+# downloaded crates are what user builds resolve against (they run
+# `--offline` first), so they must be exactly the ones the lockfile pins.
 WORKDIR /cache/examples/counter-contract/counter-contract
-RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release \
- && CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build
+RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release --locked \
+ && CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --locked
 
 # The API's helper binaries, copied after the warm-up builds, which don't use
 # them: a change to one of these crates then doesn't redo the warm-up.
