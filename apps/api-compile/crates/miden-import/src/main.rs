@@ -203,16 +203,22 @@ async fn run() -> Result<()> {
         "mtst" => Endpoint::testnet(),
         "mdev" => Endpoint::devnet(),
         "mlcl" => Endpoint::localhost(),
-        _ => Endpoint::testnet(),
+        other => not_found!("unsupported network ID `{other}`; expected `mtst`, `mdev` or `mlcl`"),
     };
     let timeout_ms = 10_000;
     let rpc_client = Arc::new(GrpcClient::new(&endpoint, timeout_ms));
 
+    // Each network gets its own store and keystore. The client pins the
+    // genesis commitment of the first node it syncs with and sends it with
+    // every later request, so a store shared between networks gets every
+    // request to the other network rejected.
+    let network_dir = std::path::PathBuf::from(args_network_id.as_str());
+
     // Initialize keystore
-    let keystore_path = std::path::PathBuf::from("./keystore");
+    let keystore_path = network_dir.join("keystore");
     let keystore = Arc::new(FilesystemKeyStore::new(keystore_path)?);
 
-    let store_path = std::path::PathBuf::from("./store.sqlite3");
+    let store_path = network_dir.join("store.sqlite3");
 
     let mut client = ClientBuilder::new()
         .rpc(rpc_client)
