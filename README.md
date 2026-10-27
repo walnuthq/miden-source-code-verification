@@ -36,7 +36,7 @@ A verified package's release build carries no debug info, so a transaction simul
 
 ### Miden toolchain
 
-api-compile targets the Miden **0.17** toolchain: it builds projects with `cargo-miden 0.11.0` and reads the network with `miden-client 0.17.4`. Projects to verify should use the matching SDK, `miden = "0.15"`, as the examples in `apps/api-compile/examples` do. Verification compares the procedure roots a project compiles to with the on-chain code, and another compiler version can produce different roots, so code deployed with another toolchain may not verify.
+api-compile targets the Miden **0.17** toolchain: it builds projects with `cargo-miden 0.11.0` and reads the network with `miden-client 0.17.5`. Projects to verify should use the matching SDK, `miden = "0.15"`, as the examples in `apps/api-compile/examples` do. Verification compares the procedure roots a project compiles to with the on-chain code, and another compiler version can produce different roots, so code deployed with another toolchain may not verify.
 
 To move to a new toolchain, bump `cargo-miden` in `apps/api-compile/Dockerfile`, the Miden crates in `apps/api-compile/crates/*/Cargo.toml` (`miden-mast-package` and `miden-assembly-syntax` must match the VM version that `cargo-miden` builds against), and the examples' SDK. Then re-check `packages/utils/src/manifest.ts`, which documents the JSON `miden-package-metadata` prints.
 
