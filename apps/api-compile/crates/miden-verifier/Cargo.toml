@@ -13,5 +13,5 @@ miden-client-sqlite-store = { version = "=0.17.5", package = "miden-client-sqlit
 miden-assembly-syntax = "=0.35.0"
 miden-standards = { version = "=0.17.1" }
 serde_json = { version = "1.0", features = ["preserve_order"] }
-tokio = { version = "1.53", features = ["rt-multi-thread", "net", "macros", "fs"] }
+tokio = { version = "1.54", features = ["rt-multi-thread", "net", "macros", "fs"] }
 rand = { version = "0.10" }
