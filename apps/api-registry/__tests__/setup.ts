@@ -1,6 +1,9 @@
-import "dotenv/config";
+import { existsSync } from "node:fs";
 import { Client } from "pg";
 import { afterAll, beforeAll, beforeEach } from "vitest";
+
+// Like the dev scripts' --env-file-if-exists=.env: shell variables win.
+if (existsSync(".env")) process.loadEnvFile();
 
 // These are integration tests that mutate the database (verifications insert
 // rows). The assertions assume specific rows don't already exist, so we wipe the

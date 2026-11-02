@@ -3,15 +3,13 @@
 //
 //   REGISTRY_URL=https://… ADMIN_TOKEN=… \
 //     pnpm --filter miden-source-code-verification-api-registry \
-//     exec node scripts/backfill-debug-packages.ts
+//     exec node --env-file-if-exists=.env scripts/backfill-debug-packages.ts
 //
 // Packages go one at a time: api-compile builds one at a time anyway. A busy
 // api-compile (503) is retried after its `Retry-After`. A package whose release
 // build the current toolchain no longer reproduces (409), or whose entrypoint
 // can't be told (422), is skipped and keeps no debug build until it is verified
 // again.
-import "dotenv/config";
-
 const REGISTRY_URL = process.env.REGISTRY_URL ?? "http://localhost:8081";
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const MAX_RETRIES = 10;
