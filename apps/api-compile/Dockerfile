@@ -4,15 +4,16 @@
 # root (it needs pnpm-lock.yaml + the workspace manifests). See the root
 # .dockerignore for what is excluded from the context.
 
-FROM node:24-slim AS base
+FROM node:26-slim AS base
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl ca-certificates build-essential \
  && rm -rf /var/lib/apt/lists/*
 ENV PNPM_HOME="/pnpm" \
     PATH="/pnpm:$PATH" \
     COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-# Pin pnpm via the root package.json "packageManager" field.
-RUN corepack enable
+# Node 25+ no longer bundles corepack, so install it from npm (pinned). It
+# pins pnpm via the root package.json "packageManager" field and checks its hash.
+RUN npm install -g corepack@0.36.0 && corepack enable
 
 # Rust toolchain (shared by builder and runtime)
 FROM base AS rust
