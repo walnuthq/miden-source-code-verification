@@ -12,6 +12,7 @@
       "!**/worker-configuration.d.ts",
       "!**/drizzle",
       "!**/components/ui",
+      "!**/.agents",
       "!**/pnpm-lock.yaml"
     ]
   },

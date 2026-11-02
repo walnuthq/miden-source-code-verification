@@ -77,12 +77,14 @@ store.sqlite3
 .wrangler
 .dev.vars*
 
-# Agents
-.agents
-.claude
-docs/agents
-CLAUDE.md
-skills-lock.json
+# Agents. Shared: CLAUDE.md, docs/agents/, the skills in .agents/skills
+# (pinned by skills-lock.json) and their .claude/skills links. Personal: the
+# rest of .claude (settings.local.json, …) and CLAUDE.local.md. The
+# pnpm-drizzle-kit-* skills link into node_modules, so pnpm install brings them.
+.claude/*
+!.claude/skills/
+.claude/skills/pnpm-*
+CLAUDE.local.md
 
 # api-registry local MASP store
 .masp/
