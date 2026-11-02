@@ -16,6 +16,14 @@ Node 26 (`engines: >=26 <27`). The Node packages (api-compile, api-registry, api
 - `.env` is loaded by the command, not the module: `node --env-file-if-exists=.env …` in scripts, `process.loadEnvFile()` in vitest setup files. Don't add dotenv. Shell variables win over `.env`.
 - API tests use `request()` from `miden-source-code-verification-test-utils` (a fetch-based, supertest-like builder), not supertest.
 
+## Drizzle
+
+Only `apps/api-registry` uses Drizzle (`drizzle-orm` and `drizzle-kit` on 1.0 release candidates, pinned to the same version).
+
+- After bumping `drizzle-kit`, run `pnpm exec drizzle-kit check` in `apps/api-registry`. If it asks for `drizzle-kit up`, run that and commit the rewritten `drizzle/*/snapshot.json` files with the bump. Otherwise the deploy workflow's `pnpm db:migrate` fails before the deploy. `up` must leave every `migration.sql` unchanged. Then `drizzle-kit generate --explain` should report `no_changes`.
+- `docker compose up -d --build` runs `drizzle-kit migrate` (the `api-registry-migrate` service) against the local database, so a rebuild checks the migrations folder the way the deploy does.
+- Relational query `where` values must never be `undefined`: since rc.5 it throws. Use `EmptyFilter` from `drizzle-orm/relations` for a filter that is meant to be absent.
+
 ## Testing
 
 The api-compile and api-registry suites call whatever is listening on `localhost:8080`/`8081` (`API_URL` overrides): normally the docker compose stack. To test a server change, rebuild and restart it first (`docker compose up -d --build`), or the suites test the old images.
