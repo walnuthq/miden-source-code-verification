@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { MIDEN_TOOL_REJECTED_EXIT_CODE } from "@/lib/constants.js";
-import { midenImport } from "@/lib/miden-import.js";
+import { MIDEN_TOOL_REJECTED_EXIT_CODE } from "../lib/constants.ts";
+import { midenImport } from "../lib/miden-import.ts";
 
 const router = Router();
 

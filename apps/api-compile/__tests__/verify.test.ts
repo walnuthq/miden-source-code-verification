@@ -11,10 +11,10 @@ import {
   DEPOSIT_NOTE_ID_1,
   notes,
   readProjectFiles,
+  request,
 } from "miden-source-code-verification-test-utils";
-import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { VerifierError, verify } from "../src/lib/verify.js";
+import { VerifierError, verify } from "../src/lib/verify.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,8 +39,8 @@ const { fakeBinDir } = await vi.hoisted(async () => {
   const { join } = await import("node:path");
   return { fakeBinDir: await mkdtemp(join(tmpdir(), "fake-miden-verifier-")) };
 });
-vi.mock("../src/lib/constants.js", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../src/lib/constants.js")>()),
+vi.mock("../src/lib/constants.ts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/lib/constants.ts")>()),
   MIDEN_CLIENT_CACHE_DIR: fakeBinDir,
   MIDEN_TOOL_TIMEOUT_MS: 500,
 }));

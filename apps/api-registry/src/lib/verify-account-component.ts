@@ -4,19 +4,19 @@ import type {
   Manifest,
   TargetType,
 } from "miden-source-code-verification-utils/manifest";
-import { getPackage, insertPackage } from "@/db/packages.js";
+import { getPackage, insertPackage } from "../db/packages.ts";
 import {
   getVerifiedAccountComponent,
   insertVerifiedAccountComponent,
-} from "@/db/verified-account-components.js";
+} from "../db/verified-account-components.ts";
 import {
   getVerifiedAccountByCode,
   insertVerifiedAccountCode,
-} from "@/db/verified-accounts.js";
-import { fetchApiCompile } from "@/lib/api-compile.js";
-import { type DebugBuild, storeDebugBuild } from "@/lib/debug-build.js";
-import { importResource } from "@/lib/import-resource.js";
-import type { MaspStore } from "@/storage/masp-store.js";
+} from "../db/verified-accounts.ts";
+import type { MaspStore } from "../storage/masp-store.ts";
+import { fetchApiCompile } from "./api-compile.ts";
+import { type DebugBuild, storeDebugBuild } from "./debug-build.ts";
+import { importResource } from "./import-resource.ts";
 
 export const verifyAccountComponent = async ({
   networkId,

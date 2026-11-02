@@ -1,8 +1,5 @@
-import {
-  MIDEN_CLIENT_CACHE_DIR,
-  MIDEN_TOOL_TIMEOUT_MS,
-} from "@/lib/constants.js";
-import { execFile, exitCodeOf } from "@/lib/utils.js";
+import { MIDEN_CLIENT_CACHE_DIR, MIDEN_TOOL_TIMEOUT_MS } from "./constants.ts";
+import { execFile, exitCodeOf } from "./utils.ts";
 
 export const midenVerifier = async ({
   networkId,

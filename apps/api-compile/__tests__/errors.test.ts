@@ -1,4 +1,4 @@
-import request from "supertest";
+import { request } from "miden-source-code-verification-test-utils";
 import { describe, expect, it } from "vitest";
 
 const api = request(process.env.API_URL ?? "http://localhost:8080");

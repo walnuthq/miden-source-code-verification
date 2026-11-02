@@ -1,7 +1,6 @@
 import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import lodash from "lodash";
 import { parseCargoToml } from "miden-source-code-verification-utils";
 import {
   type Manifest,
@@ -13,18 +12,16 @@ import {
   cargoMidenVersion,
   PROFILE_DIRS,
   readCargoLock,
-} from "@/lib/cargo-miden.js";
+} from "./cargo-miden.ts";
 import {
   CARGO_TARGET_DIR,
   COMPILE_CONCURRENCY,
   COMPILE_QUEUE_SIZE,
   MAX_DEBUG_MASP_BYTES,
-} from "@/lib/constants.js";
-import { createLimiter } from "@/lib/limiter.js";
-import { midenPackageMetadata } from "@/lib/miden-package-metadata.js";
-import { removeDirs } from "@/lib/utils.js";
-
-const { snakeCase } = lodash;
+} from "./constants.ts";
+import { createLimiter } from "./limiter.ts";
+import { midenPackageMetadata } from "./miden-package-metadata.ts";
+import { removeDirs } from "./utils.ts";
 
 type CompileArgs = {
   files: Record<string, string>;
@@ -220,7 +217,9 @@ type Compiled = Awaited<ReturnType<typeof build>>;
 // them, and left behind they'd fill the disk.
 const compile = async (args: CompileArgs) => {
   const tmpDir = await mkdtemp(join(tmpdir(), "miden-project-"));
-  const outputName = snakeCase(tmpDir.split("/").at(-1) ?? "");
+  // One target dir per request, named after the temp dir (mkdtemp's suffix is
+  // mixed-case, so keep it as is: lowercasing it could make two names clash).
+  const outputName = (tmpDir.split("/").at(-1) ?? "").replaceAll("-", "_");
   const midencTargetDir = `${CARGO_TARGET_DIR}/${outputName}`;
   const cleanup = () => removeDirs([tmpDir, midencTargetDir]);
   try {

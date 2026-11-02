@@ -1,5 +1,5 @@
-import db from "@/db/index.js";
-import { verifiedNoteScriptTable } from "@/db/schema.js";
+import db from "./index.ts";
+import { verifiedNoteScriptTable } from "./schema.ts";
 
 export const getVerifiedNoteByScript = ({
   networkId,

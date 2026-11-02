@@ -4,14 +4,14 @@ import type {
   Manifest,
   TargetType,
 } from "miden-source-code-verification-utils/manifest";
-import { getPackage, insertPackage } from "@/db/packages.js";
+import { getPackage, insertPackage } from "../db/packages.ts";
 import {
   getVerifiedNoteByScript,
   insertVerifiedNoteScript,
-} from "@/db/verified-notes.js";
-import { fetchApiCompile } from "@/lib/api-compile.js";
-import { importResource } from "@/lib/import-resource.js";
-import type { MaspStore } from "@/storage/masp-store.js";
+} from "../db/verified-notes.ts";
+import type { MaspStore } from "../storage/masp-store.ts";
+import { fetchApiCompile } from "./api-compile.ts";
+import { importResource } from "./import-resource.ts";
 
 export const verifyNote = async ({
   networkId,

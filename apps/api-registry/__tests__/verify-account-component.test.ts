@@ -2,24 +2,24 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getPackage } from "../src/db/packages.js";
-import { ApiCompileError, fetchApiCompile } from "../src/lib/api-compile.js";
-import type { DebugBuild } from "../src/lib/debug-build.js";
-import { importResource } from "../src/lib/import-resource.js";
-import { verifyAccountComponent } from "../src/lib/verify-account-component.js";
+import { getPackage } from "../src/db/packages.ts";
+import { ApiCompileError, fetchApiCompile } from "../src/lib/api-compile.ts";
+import type { DebugBuild } from "../src/lib/debug-build.ts";
+import { importResource } from "../src/lib/import-resource.ts";
+import { verifyAccountComponent } from "../src/lib/verify-account-component.ts";
 import {
   createFsMaspStore,
   type MaspStore,
-} from "../src/storage/masp-store.js";
+} from "../src/storage/masp-store.ts";
 
 // Runs the verification in-process, against the local database, with
 // api-compile and the on-chain import mocked: the only way to see how a debug
 // build that fails, or is missing, is handled.
-vi.mock("../src/lib/api-compile.js", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../src/lib/api-compile.js")>()),
+vi.mock("../src/lib/api-compile.ts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/lib/api-compile.ts")>()),
   fetchApiCompile: vi.fn(),
 }));
-vi.mock("../src/lib/import-resource.js", () => ({ importResource: vi.fn() }));
+vi.mock("../src/lib/import-resource.ts", () => ({ importResource: vi.fn() }));
 
 const COMMITMENT = `0x${"aa".repeat(32)}`;
 const DEBUG_COMMITMENT = `0x${"bb".repeat(32)}`;

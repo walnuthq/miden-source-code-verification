@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inferEntrypoint } from "../src/lib/infer-entrypoint.js";
+import { inferEntrypoint } from "../src/lib/infer-entrypoint.ts";
 
 const cargoToml = (name: string) => `[package]\nname = "${name}"\n`;
 

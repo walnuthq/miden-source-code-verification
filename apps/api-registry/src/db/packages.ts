@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
-import db from "@/db/index.js";
-import { packagesTable } from "@/db/schema.js";
+import db from "./index.ts";
+import { packagesTable } from "./schema.ts";
 
 export type NewPackage = typeof packagesTable.$inferInsert;
 

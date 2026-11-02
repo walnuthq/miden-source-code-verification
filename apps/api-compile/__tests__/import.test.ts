@@ -8,8 +8,8 @@ import {
   COUNTER_NOTE_ID_1,
   DEPOSIT_NOTE_ID_1,
   notes,
+  request,
 } from "miden-source-code-verification-test-utils";
-import request from "supertest";
 import {
   afterAll,
   afterEach,
@@ -19,7 +19,7 @@ import {
   it,
   vi,
 } from "vitest";
-import importRouter from "../src/routes/import.js";
+import importRouter from "../src/routes/import.ts";
 
 const api = request(process.env.API_URL ?? "http://localhost:8080");
 
@@ -37,8 +37,8 @@ const { fakeBinDir } = await vi.hoisted(async () => {
   const { join } = await import("node:path");
   return { fakeBinDir: await mkdtemp(join(tmpdir(), "fake-miden-import-")) };
 });
-vi.mock("../src/lib/constants.js", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../src/lib/constants.js")>()),
+vi.mock("../src/lib/constants.ts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/lib/constants.ts")>()),
   MIDEN_CLIENT_CACHE_DIR: fakeBinDir,
   MIDEN_TOOL_TIMEOUT_MS: 500,
 }));

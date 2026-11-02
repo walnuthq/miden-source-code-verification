@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { getAbsoluteFSPath } from "swagger-ui-dist";
-import { openapiSpec } from "@/lib/openapi.js";
+import { openapiSpec } from "./lib/openapi.ts";
 
 // Builds a self-contained static Swagger UI site into `dist/`, suitable for
 // hosting on GitHub Pages (or any static host). No server is involved at

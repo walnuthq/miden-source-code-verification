@@ -4,19 +4,19 @@ import {
   getPackage,
   getPackagesWithoutDebugBuild,
   updatePackage,
-} from "@/db/packages.js";
+} from "../db/packages.ts";
 import {
   ApiCompileError,
   fetchApiCompile,
   sendApiCompileUnavailable,
-} from "@/lib/api-compile.js";
-import { cleanupPlaygroundResources } from "@/lib/cleanup-playground.js";
-import { ADMIN_TOKEN } from "@/lib/constants.js";
-import { type DebugBuild, storeDebugBuild } from "@/lib/debug-build.js";
-import { notFound } from "@/lib/errors.js";
-import { inferEntrypoint } from "@/lib/infer-entrypoint.js";
-import { parseRoot } from "@/lib/roots.js";
-import { getMaspStore } from "@/storage/masp-store.js";
+} from "../lib/api-compile.ts";
+import { cleanupPlaygroundResources } from "../lib/cleanup-playground.ts";
+import { ADMIN_TOKEN } from "../lib/constants.ts";
+import { type DebugBuild, storeDebugBuild } from "../lib/debug-build.ts";
+import { notFound } from "../lib/errors.ts";
+import { inferEntrypoint } from "../lib/infer-entrypoint.ts";
+import { parseRoot } from "../lib/roots.ts";
+import { getMaspStore } from "../storage/masp-store.ts";
 
 // Operator routes, left out of the OpenAPI docs: the backfill of debug builds
 // for packages stored before the registry kept them

@@ -8,7 +8,7 @@ import {
   parseResourceId,
   RESOURCE_ID_PATTERN,
   resourceIdError,
-} from "../src/resource-id.js";
+} from "../src/resource-id.ts";
 
 // Example from miden-protocol's `AccountId::to_bech32` docs.
 const PROTOCOL_ACCOUNT_ID = "0x6d449e4034fadca075d1976fef7e38";

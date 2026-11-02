@@ -1,14 +1,14 @@
 import { join } from "node:path";
 import { Router } from "express";
-import { getVerifiedAccountByCode } from "@/db/verified-accounts.js";
+import { getVerifiedAccountByCode } from "../../db/verified-accounts.ts";
 import {
   ApiCompileError,
   sendApiCompileUnavailable,
-} from "@/lib/api-compile.js";
-import { importResource } from "@/lib/import-resource.js";
-import { parseRoot } from "@/lib/roots.js";
-import { verifyAccountComponent } from "@/lib/verify-account-component.js";
-import { getMaspStore } from "@/storage/masp-store.js";
+} from "../../lib/api-compile.ts";
+import { importResource } from "../../lib/import-resource.ts";
+import { parseRoot } from "../../lib/roots.ts";
+import { verifyAccountComponent } from "../../lib/verify-account-component.ts";
+import { getMaspStore } from "../../storage/masp-store.ts";
 
 const router: Router = Router();
 

@@ -1,4 +1,3 @@
-import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -15,8 +14,8 @@ import type {
   ServiceHealth,
   ServiceStatus,
   StatusSnapshot,
-} from "../src/lib/types.js";
-import { statusPageUrl } from "./status-page-url.js";
+} from "../src/lib/types.ts";
+import { statusPageUrl } from "./status-page-url.ts";
 
 // Build-time probe. Runs on the CI runner (see .github/workflows/deploy-pages.yml)
 // rather than in the browser, because api-registry's CORS allowlist has no

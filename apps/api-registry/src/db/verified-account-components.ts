@@ -1,5 +1,5 @@
-import db from "@/db/index.js";
-import { verifiedAccountComponentTable } from "@/db/schema.js";
+import db from "./index.ts";
+import { verifiedAccountComponentTable } from "./schema.ts";
 
 export const getVerifiedAccountComponent = ({
   verifiedAccountId,

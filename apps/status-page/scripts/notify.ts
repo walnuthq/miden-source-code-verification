@@ -1,12 +1,11 @@
-import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 import type {
   ServiceHealth,
   ServiceStatus,
   StatusSnapshot,
-} from "../src/lib/types.js";
-import { statusPageUrl } from "./status-page-url.js";
+} from "../src/lib/types.ts";
+import { statusPageUrl } from "./status-page-url.ts";
 
 // Posts to Slack when a service's health changes. Runs after scripts/probe.ts
 // (see .github/workflows/deploy-pages.yml) and is a **pure reader** of

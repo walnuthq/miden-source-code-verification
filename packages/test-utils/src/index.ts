@@ -5,7 +5,8 @@ import path from "node:path";
 // and the serialized resources used to verify without hitting the network. Both
 // the api-compile test suite and the status-page probe read them from here, so a
 // change to the dataset reaches both at once.
-export * from "./fixtures.js";
+export * from "./fixtures.ts";
+export * from "./request.ts";
 
 export const readProjectFiles = async (rootDir: string) => {
   const entries = await readdir(rootDir, {

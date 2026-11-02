@@ -1,14 +1,14 @@
 import { join } from "node:path";
 import { Router } from "express";
-import { getVerifiedNoteByScript } from "@/db/verified-notes.js";
+import { getVerifiedNoteByScript } from "../../db/verified-notes.ts";
 import {
   ApiCompileError,
   sendApiCompileUnavailable,
-} from "@/lib/api-compile.js";
-import { importResource } from "@/lib/import-resource.js";
-import { parseRoot } from "@/lib/roots.js";
-import { verifyNote } from "@/lib/verify-note.js";
-import { getMaspStore } from "@/storage/masp-store.js";
+} from "../../lib/api-compile.ts";
+import { importResource } from "../../lib/import-resource.ts";
+import { parseRoot } from "../../lib/roots.ts";
+import { verifyNote } from "../../lib/verify-note.ts";
+import { getMaspStore } from "../../storage/masp-store.ts";
 
 const router: Router = Router();
 

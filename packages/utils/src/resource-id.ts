@@ -1,6 +1,6 @@
 import { bech32m, hex } from "@scure/base";
 
-import { getNetwork, isNetworkId, type NetworkId } from "./networks.js";
+import { getNetwork, isNetworkId, type NetworkId } from "./networks.ts";
 
 // Resource ID parsing for web-verifier's and web-viewer's forms. Addresses are
 // decoded in TypeScript following miden-protocol's `Address` encoding, so

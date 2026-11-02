@@ -1,18 +1,18 @@
 import cors from "cors";
 import express, { type Express } from "express";
-import { type Database, dbScope } from "@/db/context.js";
+import { type Database, dbScope } from "./db/context.ts";
 import {
   ALLOWED_ORIGINS,
   API_COMPILE_URL,
   MASP_STORAGE_DIR,
   PORT,
-} from "@/lib/constants.js";
-import { errorHandler, notFound } from "@/lib/errors.js";
-import adminRouter from "@/routes/admin.js";
-import packagesRouterV1 from "@/routes/v1/packages.js";
-import verifiedAccountsRouterV1 from "@/routes/v1/verified-accounts.js";
-import verifiedNotesRouterV1 from "@/routes/v1/verified-notes.js";
-import { createFsMaspStore, type MaspStore } from "@/storage/masp-store.js";
+} from "./lib/constants.ts";
+import { errorHandler, notFound } from "./lib/errors.ts";
+import adminRouter from "./routes/admin.ts";
+import packagesRouterV1 from "./routes/v1/packages.ts";
+import verifiedAccountsRouterV1 from "./routes/v1/verified-accounts.ts";
+import verifiedNotesRouterV1 from "./routes/v1/verified-notes.ts";
+import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
 
 /**
  * @openapi

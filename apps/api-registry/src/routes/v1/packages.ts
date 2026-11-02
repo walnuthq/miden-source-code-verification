@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { getPackage } from "@/db/packages.js";
+import { getPackage } from "../../db/packages.ts";
 import {
   getMaspStore,
   maspFileName,
   maspKey,
   parseMaspKey,
-} from "@/storage/masp-store.js";
+} from "../../storage/masp-store.ts";
 
 const router: Router = Router();
 
