@@ -1,5 +1,5 @@
-import { createApp } from "@/app.js";
-import { PORT } from "@/lib/constants.js";
+import { createApp } from "./app.ts";
+import { PORT } from "./lib/constants.ts";
 
 const app = createApp();
 

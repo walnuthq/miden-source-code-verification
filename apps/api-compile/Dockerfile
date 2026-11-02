@@ -92,7 +92,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 # The sources. The root .dockerignore leaves out node_modules, so this doesn't
 # overwrite what the install just wrote.
 COPY . .
-# Compile TypeScript -> dist/ (tsc + tsc-alias rewrites the @/* path aliases).
+# Compile TypeScript -> dist/ (tsc rewrites the .ts import extensions to .js).
 # The trailing `...` also builds api-compile's workspace deps (e.g. the utils
 # package) first, so their JS exists in dist/. Production runs on plain `node`,
 # which cannot type-strip the raw .ts these packages ship for dev (that is the

@@ -1,18 +1,18 @@
 import cors from "cors";
 import express from "express";
-import { cargoMidenVersion } from "@/lib/cargo-miden.js";
+import { cargoMidenVersion } from "./lib/cargo-miden.ts";
 import {
   ALLOWED_ORIGINS,
   CARGO_TARGET_DIR,
   MIDEN_CLIENT_CACHE_DIR,
   PORT,
   SHUTDOWN_TIMEOUT_MS,
-} from "@/lib/constants.js";
-import { errorHandler, notFound } from "@/lib/errors.js";
-import compileRouter from "@/routes/compile.js";
-import compileDebugRouter from "@/routes/compile-debug.js";
-import importRouter from "@/routes/import.js";
-import verifyRouter from "@/routes/verify.js";
+} from "./lib/constants.ts";
+import { errorHandler, notFound } from "./lib/errors.ts";
+import compileRouter from "./routes/compile.ts";
+import compileDebugRouter from "./routes/compile-debug.ts";
+import importRouter from "./routes/import.ts";
+import verifyRouter from "./routes/verify.ts";
 
 const app = express();
 

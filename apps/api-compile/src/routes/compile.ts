@@ -1,8 +1,8 @@
 import { join } from "node:path";
 import { Router } from "express";
-import { queueCompile } from "@/lib/compile.js";
-import { BusyError } from "@/lib/limiter.js";
-import { abortOnClose } from "@/lib/utils.js";
+import { queueCompile } from "../lib/compile.ts";
+import { BusyError } from "../lib/limiter.ts";
+import { abortOnClose } from "../lib/utils.ts";
 
 const router = Router();
 

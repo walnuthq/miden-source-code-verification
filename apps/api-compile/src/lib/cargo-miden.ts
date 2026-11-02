@@ -4,8 +4,8 @@ import {
   CARGO_MIDEN_BUILD_TIMEOUT_MS,
   CARGO_TARGET_DIR,
   MIDEN_TOOL_TIMEOUT_MS,
-} from "@/lib/constants.js";
-import { execFile } from "@/lib/utils.js";
+} from "./constants.ts";
+import { execFile } from "./utils.ts";
 
 const readCargoMidenVersion = async () => {
   const { stdout } = await execFile("cargo", ["miden", "--version"], {

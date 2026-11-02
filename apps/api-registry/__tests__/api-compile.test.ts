@@ -4,9 +4,9 @@ import {
   ApiCompileError,
   fetchApiCompile,
   sendApiCompileUnavailable,
-} from "../src/lib/api-compile.js";
-import { API_COMPILE_IMPORT_TIMEOUT_MS } from "../src/lib/constants.js";
-import { importResource } from "../src/lib/import-resource.js";
+} from "../src/lib/api-compile.ts";
+import { API_COMPILE_IMPORT_TIMEOUT_MS } from "../src/lib/constants.ts";
+import { importResource } from "../src/lib/import-resource.ts";
 
 const respondWith = (response: globalThis.Response) =>
   vi.stubGlobal(

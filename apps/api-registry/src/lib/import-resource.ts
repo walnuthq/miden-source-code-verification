@@ -1,6 +1,6 @@
-import { fetchApiCompile } from "@/lib/api-compile.js";
-import { API_COMPILE_IMPORT_TIMEOUT_MS } from "@/lib/constants.js";
-import type { StandardAccountComponent } from "@/lib/types.js";
+import { fetchApiCompile } from "./api-compile.ts";
+import { API_COMPILE_IMPORT_TIMEOUT_MS } from "./constants.ts";
+import type { StandardAccountComponent } from "./types.ts";
 
 // An account also comes back with its standard components and every procedure
 // root in its code, which the id-keyed account lookup forwards as is.

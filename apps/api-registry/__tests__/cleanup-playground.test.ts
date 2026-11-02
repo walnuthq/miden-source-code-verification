@@ -2,21 +2,21 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import db from "../src/db/index.js";
+import db from "../src/db/index.ts";
 import {
   packagesTable,
   verifiedAccountCodeTable,
   verifiedAccountComponentTable,
   verifiedNoteScriptTable,
-} from "../src/db/schema.js";
+} from "../src/db/schema.ts";
 import {
   cleanupPlaygroundResources,
   PLAYGROUND_SOURCE,
-} from "../src/lib/cleanup-playground.js";
+} from "../src/lib/cleanup-playground.ts";
 import {
   createFsMaspStore,
   type MaspStore,
-} from "../src/storage/masp-store.js";
+} from "../src/storage/masp-store.ts";
 
 // Runs the cleanup in-process, against the local database and an fs store.
 

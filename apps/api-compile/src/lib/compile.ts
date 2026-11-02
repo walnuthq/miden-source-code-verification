@@ -12,16 +12,16 @@ import {
   cargoMidenVersion,
   PROFILE_DIRS,
   readCargoLock,
-} from "@/lib/cargo-miden.js";
+} from "./cargo-miden.ts";
 import {
   CARGO_TARGET_DIR,
   COMPILE_CONCURRENCY,
   COMPILE_QUEUE_SIZE,
   MAX_DEBUG_MASP_BYTES,
-} from "@/lib/constants.js";
-import { createLimiter } from "@/lib/limiter.js";
-import { midenPackageMetadata } from "@/lib/miden-package-metadata.js";
-import { removeDirs } from "@/lib/utils.js";
+} from "./constants.ts";
+import { createLimiter } from "./limiter.ts";
+import { midenPackageMetadata } from "./miden-package-metadata.ts";
+import { removeDirs } from "./utils.ts";
 
 type CompileArgs = {
   files: Record<string, string>;

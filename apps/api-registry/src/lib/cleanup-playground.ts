@@ -1,12 +1,12 @@
 import { and, eq, inArray, lt, notExists } from "drizzle-orm";
-import db from "@/db/index.js";
+import db from "../db/index.ts";
 import {
   packagesTable,
   verifiedAccountCodeTable,
   verifiedAccountComponentTable,
   verifiedNoteScriptTable,
-} from "@/db/schema.js";
-import type { MaspStore } from "@/storage/masp-store.js";
+} from "../db/schema.ts";
+import type { MaspStore } from "../storage/masp-store.ts";
 
 // The `source` the Miden playground verifies with. Its verifications are
 // throwaway deploys, so they only live for a day.

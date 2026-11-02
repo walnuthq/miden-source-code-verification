@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch --conditions development src/server.ts",
-    "build": "tsc && tsc-alias",
+    "dev": "node --watch --conditions development src/server.ts",
+    "build": "tsc",
     "typecheck": "tsc --noEmit",
     "start": "node dist/src/server.js",
     "test": "vitest run",
@@ -25,8 +25,6 @@
     "@types/supertest": "7.2.1",
     "miden-source-code-verification-test-utils": "workspace:*",
     "supertest": "7.3.1",
-    "tsc-alias": "1.9.10",
-    "tsx": "4.23.15",
     "typescript": "7.0.2",
     "vite": "8.3.5",
     "vitest": "5.0.5"

@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsx src/build.ts",
+    "build": "node src/build.ts",
     "preview": "sirv dist --port 8082",
-    "dev": "tsx src/build.ts && sirv dist --port 8082 --dev",
+    "dev": "node src/build.ts && sirv dist --port 8082 --dev",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome check --write ."
@@ -21,7 +21,6 @@
     "@types/swagger-jsdoc": "6.0.4",
     "@types/swagger-ui-dist": "3.30.6",
     "sirv-cli": "3.0.1",
-    "tsx": "4.23.15",
     "typescript": "7.0.2"
   }
 }

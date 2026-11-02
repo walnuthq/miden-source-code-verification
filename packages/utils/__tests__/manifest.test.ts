@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { type Manifest, procedureExportPaths } from "../src/manifest.js";
+import { type Manifest, procedureExportPaths } from "../src/manifest.ts";
 
 const procedure = (path: string) => ({
   Procedure: {

@@ -3,7 +3,7 @@
 //
 //   REGISTRY_URL=https://… ADMIN_TOKEN=… \
 //     pnpm --filter miden-source-code-verification-api-registry \
-//     exec tsx scripts/backfill-debug-packages.ts
+//     exec node scripts/backfill-debug-packages.ts
 //
 // Packages go one at a time: api-compile builds one at a time anyway. A busy
 // api-compile (503) is retried after its `Retry-After`. A package whose release

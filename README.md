@@ -209,7 +209,7 @@ Packages stored before the registry kept [debug builds](#debug-builds) get them 
 
 ```bash
 REGISTRY_URL=https://miden-source-code-verification-api-registry.walnut.dev ADMIN_TOKEN=… \
-  pnpm --filter miden-source-code-verification-api-registry exec tsx scripts/backfill-debug-packages.ts
+  pnpm --filter miden-source-code-verification-api-registry exec node scripts/backfill-debug-packages.ts
 ```
 
 The script builds the packages one at a time and waits out a busy api-compile. Each build goes through api-compile's `POST /compile-debug`, which first rebuilds the release build and answers `409` when it no longer has the stored commitment, as after a toolchain upgrade. Such a package, or one whose entrypoint can't be told from its files (`422`), is skipped and gets a debug build when it is verified again. The script ends with a count of stored, skipped and failed packages.

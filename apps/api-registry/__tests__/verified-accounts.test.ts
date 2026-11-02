@@ -11,13 +11,13 @@ import {
 } from "miden-source-code-verification-test-utils";
 import request from "supertest";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createApp } from "../src/app.js";
-import { ApiCompileError } from "../src/lib/api-compile.js";
-import { importResource } from "../src/lib/import-resource.js";
+import { createApp } from "../src/app.ts";
+import { ApiCompileError } from "../src/lib/api-compile.ts";
+import { importResource } from "../src/lib/import-resource.ts";
 
 // Only the in-process app below sees it: the other tests query the running
 // registry, whose imports are real.
-vi.mock("../src/lib/import-resource.js", () => ({ importResource: vi.fn() }));
+vi.mock("../src/lib/import-resource.ts", () => ({ importResource: vi.fn() }));
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

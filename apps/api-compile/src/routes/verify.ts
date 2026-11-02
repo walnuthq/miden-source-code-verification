@@ -1,9 +1,9 @@
 import { dirname, join } from "node:path";
 import { Router } from "express";
-import { queueCompile } from "@/lib/compile.js";
-import { BusyError } from "@/lib/limiter.js";
-import { abortOnClose, removeDirs } from "@/lib/utils.js";
-import { VerifierError, verify, writeResourceFile } from "@/lib/verify.js";
+import { queueCompile } from "../lib/compile.ts";
+import { BusyError } from "../lib/limiter.ts";
+import { abortOnClose, removeDirs } from "../lib/utils.ts";
+import { VerifierError, verify, writeResourceFile } from "../lib/verify.ts";
 
 const router = Router();
 

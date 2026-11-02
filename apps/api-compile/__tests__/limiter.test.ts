@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BusyError, createLimiter } from "../src/lib/limiter.js";
+import { BusyError, createLimiter } from "../src/lib/limiter.ts";
 
 const deferred = () => {
   let resolve = () => {};

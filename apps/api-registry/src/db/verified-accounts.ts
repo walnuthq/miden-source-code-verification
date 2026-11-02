@@ -1,5 +1,5 @@
-import db from "@/db/index.js";
-import { verifiedAccountCodeTable } from "@/db/schema.js";
+import db from "./index.ts";
+import { verifiedAccountCodeTable } from "./schema.ts";
 
 export const getVerifiedAccountByCode = async ({
   networkId,

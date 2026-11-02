@@ -1,5 +1,5 @@
-import { MIDEN_TOOL_TIMEOUT_MS } from "@/lib/constants.js";
-import { execFile } from "@/lib/utils.js";
+import { MIDEN_TOOL_TIMEOUT_MS } from "./constants.ts";
+import { execFile } from "./utils.ts";
 
 export const midenPackageMetadata = async (maspPath: string) => {
   try {

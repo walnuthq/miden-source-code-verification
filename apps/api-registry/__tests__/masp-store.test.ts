@@ -7,7 +7,7 @@ import {
   maspFileName,
   maspKey,
   parseMaspKey,
-} from "../src/storage/masp-store.js";
+} from "../src/storage/masp-store.ts";
 
 const COMMITMENT =
   "0xd4ae21452bf89eec3d7156eb9ae870f07c792bf8526329631492ff7ee9862b9d";

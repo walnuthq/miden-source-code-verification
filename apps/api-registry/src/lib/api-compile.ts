@@ -1,16 +1,17 @@
 import type { Response } from "express";
-import { API_COMPILE_URL } from "@/lib/constants.js";
+import { API_COMPILE_URL } from "./constants.ts";
 
 // A failed call to api-compile, with the status it answered. When it could not
 // be reached, or did not answer with JSON, the status is 502; when it did not
 // answer before `init.signal` timed out, 504.
 export class ApiCompileError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-    readonly retryAfter?: string,
-  ) {
+  readonly status: number;
+  readonly retryAfter?: string;
+
+  constructor(message: string, status: number, retryAfter?: string) {
     super(message);
+    this.status = status;
+    this.retryAfter = retryAfter;
   }
 }
 

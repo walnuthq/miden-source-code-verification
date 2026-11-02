@@ -1,8 +1,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { relations } from "@/db/relations.js";
-import { DATABASE_URL } from "@/lib/constants.js";
+import { DATABASE_URL } from "../lib/constants.ts";
+import { relations } from "./relations.ts";
 
 /**
  * Build a fresh Drizzle instance backed by its own `pg.Pool`.
@@ -38,7 +38,7 @@ const getDb = (): Database => {
 };
 
 /**
- * Proxy so existing `import db from "@/db/index.js"` call sites keep working
+ * Proxy so existing `import db from "./index.ts"` call sites keep working
  * unchanged while the underlying instance is resolved per access — request
  * scoped when a store is set, singleton otherwise.
  */

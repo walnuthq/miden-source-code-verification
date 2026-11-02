@@ -1,6 +1,6 @@
 import type { Manifest } from "miden-source-code-verification-utils/manifest";
-import { updatePackage } from "@/db/packages.js";
-import type { MaspStore } from "@/storage/masp-store.js";
+import { updatePackage } from "../db/packages.ts";
+import type { MaspStore } from "../storage/masp-store.ts";
 
 // api-compile's debug build of a package's sources: a dev-profile build whose
 // debug info names call-trace frames. Its failure is an `error`, which never
