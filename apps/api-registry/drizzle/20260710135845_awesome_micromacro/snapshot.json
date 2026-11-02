@@ -1,47 +1,216 @@
 {
-  "version": "8",
+  "type": "base",
+  "version": "9",
   "dialect": "postgres",
   "id": "fd2a8734-94f1-49f7-af92-a48a47ebd66a",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
+  "footprints": [
+    {
+      "statementType": "create_enum",
+      "statementTarget": [
+        "enum",
+        "public",
+        "package_type"
+      ],
+      "writes": [
+        "s|enum|public.package_type",
+        "n|enum|public.package_type",
+        "e|enum|public.package_type",
+        "n|type|public.package_type"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "packages"
+      ],
+      "writes": [
+        "s|tbl|public.packages",
+        "n|tbl|public.packages",
+        "e|tbl|public.packages",
+        "n|rel|public.packages",
+        "n|type|public.packages",
+        "n|rel|public.packages_pkey"
+      ],
+      "reads": [
+        "n|sch|public",
+        "n|enum|public.package_type"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "verified_accounts_code"
+      ],
+      "writes": [
+        "s|tbl|public.verified_accounts_code",
+        "n|tbl|public.verified_accounts_code",
+        "e|tbl|public.verified_accounts_code",
+        "n|rel|public.verified_accounts_code",
+        "n|type|public.verified_accounts_code",
+        "n|rel|public.verified_accounts_code_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "verified_account_components"
+      ],
+      "writes": [
+        "s|tbl|public.verified_account_components",
+        "n|tbl|public.verified_account_components",
+        "e|tbl|public.verified_account_components",
+        "n|rel|public.verified_account_components",
+        "n|type|public.verified_account_components",
+        "n|rel|public.verified_account_components_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "verified_notes_script"
+      ],
+      "writes": [
+        "s|tbl|public.verified_notes_script",
+        "n|tbl|public.verified_notes_script",
+        "e|tbl|public.verified_notes_script",
+        "n|rel|public.verified_notes_script",
+        "n|type|public.verified_notes_script",
+        "n|rel|public.verified_notes_script_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "verified_account_components"
+      ],
+      "writes": [
+        "s|fk|public.verified_account_components.verified_account_components_XtBtCOvEjIMc_fkey",
+        "n|fk|public.verified_account_components.verified_account_components_XtBtCOvEjIMc_fkey",
+        "e|fk|public.verified_account_components.verified_account_components_XtBtCOvEjIMc_fkey",
+        "n|con|public.verified_account_components.verified_account_components_XtBtCOvEjIMc_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.verified_account_components",
+        "n|sch|public",
+        "n|tbl|public.verified_accounts_code",
+        "n|sch|public",
+        "n|col|public.verified_account_components.verified_account_id",
+        "n|col|public.verified_accounts_code.id",
+        "e|uniqueness|public.verified_accounts_code.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "verified_account_components"
+      ],
+      "writes": [
+        "s|fk|public.verified_account_components.verified_account_components_package_id_packages_id_fkey",
+        "n|fk|public.verified_account_components.verified_account_components_package_id_packages_id_fkey",
+        "e|fk|public.verified_account_components.verified_account_components_package_id_packages_id_fkey",
+        "n|con|public.verified_account_components.verified_account_components_package_id_packages_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.verified_account_components",
+        "n|sch|public",
+        "n|tbl|public.packages",
+        "n|sch|public",
+        "n|col|public.verified_account_components.package_id",
+        "n|col|public.packages.id",
+        "e|uniqueness|public.packages.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "verified_notes_script"
+      ],
+      "writes": [
+        "s|fk|public.verified_notes_script.verified_notes_script_package_id_packages_id_fkey",
+        "n|fk|public.verified_notes_script.verified_notes_script_package_id_packages_id_fkey",
+        "e|fk|public.verified_notes_script.verified_notes_script_package_id_packages_id_fkey",
+        "n|con|public.verified_notes_script.verified_notes_script_package_id_packages_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.verified_notes_script",
+        "n|sch|public",
+        "n|tbl|public.packages",
+        "n|sch|public",
+        "n|col|public.verified_notes_script.package_id",
+        "n|col|public.packages.id",
+        "e|uniqueness|public.packages.id"
+      ]
+    }
+  ],
   "ddl": [
     {
+      "schema": "public",
+      "name": "packages",
+      "isRlsEnabled": false,
+      "entityType": "tables"
+    },
+    {
+      "schema": "public",
+      "name": "verified_accounts_code",
+      "isRlsEnabled": false,
+      "entityType": "tables"
+    },
+    {
+      "schema": "public",
+      "name": "verified_account_components",
+      "isRlsEnabled": false,
+      "entityType": "tables"
+    },
+    {
+      "schema": "public",
+      "name": "verified_notes_script",
+      "isRlsEnabled": false,
+      "entityType": "tables"
+    },
+    {
+      "schema": "public",
+      "name": "package_type",
       "values": [
         "account",
         "note",
         "tx-script",
         "authentication-component"
       ],
-      "name": "package_type",
-      "entityType": "enums",
-      "schema": "public"
+      "entityType": "enums"
     },
     {
-      "isRlsEnabled": false,
-      "name": "packages",
-      "entityType": "tables",
-      "schema": "public"
-    },
-    {
-      "isRlsEnabled": false,
-      "name": "verified_accounts_code",
-      "entityType": "tables",
-      "schema": "public"
-    },
-    {
-      "isRlsEnabled": false,
-      "name": "verified_account_components",
-      "entityType": "tables",
-      "schema": "public"
-    },
-    {
-      "isRlsEnabled": false,
-      "name": "verified_notes_script",
-      "entityType": "tables",
-      "schema": "public"
-    },
-    {
+      "schema": "public",
+      "table": "packages",
+      "name": "id",
       "type": "uuid",
       "typeSchema": null,
       "notNull": true,
@@ -49,12 +218,12 @@
       "default": "gen_random_uuid()",
       "generated": null,
       "identity": null,
-      "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "packages"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "packages",
+      "name": "name",
       "type": "varchar(255)",
       "typeSchema": null,
       "notNull": true,
@@ -62,12 +231,12 @@
       "default": "''",
       "generated": null,
       "identity": null,
-      "name": "name",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "packages"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "packages",
+      "name": "type",
       "type": "package_type",
       "typeSchema": "public",
       "notNull": true,
@@ -75,12 +244,12 @@
       "default": "'account'",
       "generated": null,
       "identity": null,
-      "name": "type",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "packages"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "packages",
+      "name": "files",
       "type": "jsonb",
       "typeSchema": null,
       "notNull": true,
@@ -88,12 +257,12 @@
       "default": "'{}'",
       "generated": null,
       "identity": null,
-      "name": "files",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "packages"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "packages",
+      "name": "masp",
       "type": "text",
       "typeSchema": null,
       "notNull": true,
@@ -101,12 +270,12 @@
       "default": "''",
       "generated": null,
       "identity": null,
-      "name": "masp",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "packages"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "packages",
+      "name": "digest",
       "type": "varchar(66)",
       "typeSchema": null,
       "notNull": true,
@@ -114,12 +283,12 @@
       "default": "'0x0000000000000000000000000000000000000000000000000000000000000000'",
       "generated": null,
       "identity": null,
-      "name": "digest",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "packages"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "packages",
+      "name": "manifest",
       "type": "jsonb",
       "typeSchema": null,
       "notNull": true,
@@ -127,25 +296,12 @@
       "default": "'{}'",
       "generated": null,
       "identity": null,
-      "name": "manifest",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "packages"
+      "entityType": "columns"
     },
     {
-      "type": "timestamp",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
+      "schema": "public",
+      "table": "packages",
       "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "packages"
-    },
-    {
       "type": "timestamp",
       "typeSchema": null,
       "notNull": true,
@@ -153,12 +309,25 @@
       "default": "now()",
       "generated": null,
       "identity": null,
-      "name": "updated_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "packages"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "packages",
+      "name": "updated_at",
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "verified_accounts_code",
+      "name": "id",
       "type": "uuid",
       "typeSchema": null,
       "notNull": true,
@@ -166,25 +335,25 @@
       "default": "gen_random_uuid()",
       "generated": null,
       "identity": null,
-      "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "verified_accounts_code"
+      "entityType": "columns"
     },
     {
-      "type": "varchar(66)",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "'0x0000000000000000000000000000000000000000000000000000000000000000'",
-      "generated": null,
-      "identity": null,
+      "schema": "public",
+      "table": "verified_accounts_code",
       "name": "code",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "verified_accounts_code"
+      "type": "varchar(66)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'0x0000000000000000000000000000000000000000000000000000000000000000'",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "verified_accounts_code",
+      "name": "source",
       "type": "text",
       "typeSchema": null,
       "notNull": true,
@@ -192,25 +361,12 @@
       "default": "'unknown'",
       "generated": null,
       "identity": null,
-      "name": "source",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "verified_accounts_code"
+      "entityType": "columns"
     },
     {
-      "type": "timestamp",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
+      "schema": "public",
+      "table": "verified_accounts_code",
       "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "verified_accounts_code"
-    },
-    {
       "type": "timestamp",
       "typeSchema": null,
       "notNull": true,
@@ -218,12 +374,25 @@
       "default": "now()",
       "generated": null,
       "identity": null,
-      "name": "updated_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "verified_accounts_code"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "verified_accounts_code",
+      "name": "updated_at",
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "verified_account_components",
+      "name": "id",
       "type": "uuid",
       "typeSchema": null,
       "notNull": true,
@@ -231,25 +400,12 @@
       "default": "gen_random_uuid()",
       "generated": null,
       "identity": null,
-      "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "verified_account_components"
+      "entityType": "columns"
     },
     {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
+      "schema": "public",
+      "table": "verified_account_components",
       "name": "verified_account_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "verified_account_components"
-    },
-    {
       "type": "uuid",
       "typeSchema": null,
       "notNull": true,
@@ -257,12 +413,25 @@
       "default": null,
       "generated": null,
       "identity": null,
-      "name": "package_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "verified_account_components"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "verified_account_components",
+      "name": "package_id",
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "verified_account_components",
+      "name": "packageDigest",
       "type": "varchar(66)",
       "typeSchema": null,
       "notNull": true,
@@ -270,25 +439,12 @@
       "default": "'0x0000000000000000000000000000000000000000000000000000000000000000'",
       "generated": null,
       "identity": null,
-      "name": "packageDigest",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "verified_account_components"
+      "entityType": "columns"
     },
     {
-      "type": "timestamp",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
+      "schema": "public",
+      "table": "verified_account_components",
       "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "verified_account_components"
-    },
-    {
       "type": "timestamp",
       "typeSchema": null,
       "notNull": true,
@@ -296,12 +452,25 @@
       "default": "now()",
       "generated": null,
       "identity": null,
-      "name": "updated_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "verified_account_components"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "verified_account_components",
+      "name": "updated_at",
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "verified_notes_script",
+      "name": "id",
       "type": "uuid",
       "typeSchema": null,
       "notNull": true,
@@ -309,12 +478,12 @@
       "default": "gen_random_uuid()",
       "generated": null,
       "identity": null,
-      "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "verified_notes_script"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "verified_notes_script",
+      "name": "script",
       "type": "varchar(66)",
       "typeSchema": null,
       "notNull": true,
@@ -322,12 +491,12 @@
       "default": "'0x0000000000000000000000000000000000000000000000000000000000000000'",
       "generated": null,
       "identity": null,
-      "name": "script",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "verified_notes_script"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "verified_notes_script",
+      "name": "source",
       "type": "text",
       "typeSchema": null,
       "notNull": true,
@@ -335,12 +504,12 @@
       "default": "'unknown'",
       "generated": null,
       "identity": null,
-      "name": "source",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "verified_notes_script"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "verified_notes_script",
+      "name": "package_id",
       "type": "uuid",
       "typeSchema": null,
       "notNull": true,
@@ -348,12 +517,12 @@
       "default": null,
       "generated": null,
       "identity": null,
-      "name": "package_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "verified_notes_script"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "verified_notes_script",
+      "name": "packageDigest",
       "type": "varchar(66)",
       "typeSchema": null,
       "notNull": true,
@@ -361,25 +530,12 @@
       "default": "'0x0000000000000000000000000000000000000000000000000000000000000000'",
       "generated": null,
       "identity": null,
-      "name": "packageDigest",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "verified_notes_script"
+      "entityType": "columns"
     },
     {
-      "type": "timestamp",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
+      "schema": "public",
+      "table": "verified_notes_script",
       "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "verified_notes_script"
-    },
-    {
       "type": "timestamp",
       "typeSchema": null,
       "notNull": true,
@@ -387,12 +543,25 @@
       "default": "now()",
       "generated": null,
       "identity": null,
-      "name": "updated_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "verified_notes_script"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "verified_notes_script",
+      "name": "updated_at",
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "verified_account_components",
+      "name": "verified_account_components_XtBtCOvEjIMc_fkey",
       "nameExplicit": false,
       "columns": [
         "verified_account_id"
@@ -404,85 +573,81 @@
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
-      "name": "verified_account_components_XtBtCOvEjIMc_fkey",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "verified_account_components"
+      "entityType": "fks"
     },
     {
-      "nameExplicit": false,
-      "columns": [
-        "package_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "packages",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "CASCADE",
-      "name": "verified_account_components_package_id_packages_id_fkey",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "verified_account_components"
-    },
-    {
-      "nameExplicit": false,
-      "columns": [
-        "package_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "packages",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "CASCADE",
-      "name": "verified_notes_script_package_id_packages_id_fkey",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "verified_notes_script"
-    },
-    {
-      "columns": [
-        "id"
-      ],
-      "nameExplicit": false,
-      "name": "packages_pkey",
-      "schema": "public",
-      "table": "packages",
-      "entityType": "pks"
-    },
-    {
-      "columns": [
-        "id"
-      ],
-      "nameExplicit": false,
-      "name": "verified_accounts_code_pkey",
-      "schema": "public",
-      "table": "verified_accounts_code",
-      "entityType": "pks"
-    },
-    {
-      "columns": [
-        "id"
-      ],
-      "nameExplicit": false,
-      "name": "verified_account_components_pkey",
       "schema": "public",
       "table": "verified_account_components",
-      "entityType": "pks"
+      "name": "verified_account_components_package_id_packages_id_fkey",
+      "nameExplicit": false,
+      "columns": [
+        "package_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "packages",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "entityType": "fks"
     },
     {
+      "schema": "public",
+      "table": "verified_notes_script",
+      "name": "verified_notes_script_package_id_packages_id_fkey",
+      "nameExplicit": false,
+      "columns": [
+        "package_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "packages",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "packages",
+      "name": "packages_pkey",
       "columns": [
         "id"
       ],
       "nameExplicit": false,
-      "name": "verified_notes_script_pkey",
+      "entityType": "pks"
+    },
+    {
+      "schema": "public",
+      "table": "verified_accounts_code",
+      "name": "verified_accounts_code_pkey",
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "schema": "public",
+      "table": "verified_account_components",
+      "name": "verified_account_components_pkey",
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
       "schema": "public",
       "table": "verified_notes_script",
+      "name": "verified_notes_script_pkey",
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
       "entityType": "pks"
     }
-  ],
-  "renames": []
+  ]
 }
