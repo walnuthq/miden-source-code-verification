@@ -7,8 +7,8 @@ import {
   DEPOSIT_NOTE_ID_2,
   notes,
   readProjectFiles,
+  request,
 } from "miden-source-code-verification-test-utils";
-import request from "supertest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app.ts";
 import { ApiCompileError } from "../src/lib/api-compile.ts";

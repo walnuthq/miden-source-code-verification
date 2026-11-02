@@ -8,8 +8,8 @@ import {
   COUNTER_NOTE_ID_1,
   DEPOSIT_NOTE_ID_1,
   notes,
+  request,
 } from "miden-source-code-verification-test-utils";
-import request from "supertest";
 import {
   afterAll,
   afterEach,

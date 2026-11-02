@@ -4,9 +4,9 @@ import {
   accounts,
   COUNTER_CONTRACT_ID_1,
   readProjectFiles,
+  request,
 } from "miden-source-code-verification-test-utils";
 import { Client } from "pg";
-import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const __filename = fileURLToPath(import.meta.url);

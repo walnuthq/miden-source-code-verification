@@ -1,7 +1,9 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readProjectFiles } from "miden-source-code-verification-test-utils";
-import request from "supertest";
+import {
+  readProjectFiles,
+  request,
+} from "miden-source-code-verification-test-utils";
 import { describe, expect, it } from "vitest";
 
 const __filename = fileURLToPath(import.meta.url);

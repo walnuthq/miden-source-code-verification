@@ -11,8 +11,8 @@ import {
   DEPOSIT_NOTE_ID_1,
   notes,
   readProjectFiles,
+  request,
 } from "miden-source-code-verification-test-utils";
-import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { VerifierError, verify } from "../src/lib/verify.ts";
 

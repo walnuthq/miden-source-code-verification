@@ -8,8 +8,8 @@ import {
   COUNTER_CONTRACT_ID_1,
   COUNTER_CONTRACT_ID_2,
   readProjectFiles,
+  request,
 } from "miden-source-code-verification-test-utils";
-import request from "supertest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app.ts";
 import { ApiCompileError } from "../src/lib/api-compile.ts";
