@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@cloudflare/containers": "0.3.7",
-    "hono": "4.13.14"
+    "hono": "4.13.16"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
