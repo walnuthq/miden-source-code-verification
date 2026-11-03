@@ -260,6 +260,64 @@ describe("POST /compile", () => {
   });
 });
 
+describe("POST /compile masm", () => {
+  it("leaves the masm out unless asked", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+
+    const res = await api.post("/compile").send({ files });
+
+    expect(res.status).toBe(200);
+    expect(res.body).not.toHaveProperty("masm");
+  });
+
+  it("returns the release build's masm with masm: true", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+    const plain = await api.post("/compile").send({ files });
+
+    const res = await api.post("/compile").send({ files, masm: true });
+
+    expect(res.status).toBe(200);
+    expect(res.body.masm.source).toContain(
+      'namespace "miden:counter-contract/counter-contract@0.1.0"',
+    );
+    expect(res.body.masm.source).toContain('pub proc "increment-count"');
+    // Emitting the masm doesn't change the package.
+    expect(res.body.commitment).toBe(plain.body.commitment);
+    expect(res.body.masp).toBe(plain.body.masp);
+  });
+
+  it("returns the entrypoint's masm in a workspace", async () => {
+    const files = await readProjectFiles(counterContractDir);
+    const entrypoint = "count-reader";
+
+    const res = await api
+      .post("/compile")
+      .send({ files, entrypoint, masm: true });
+
+    expect(res.status).toBe(200);
+    expect(res.body.masm.source).toContain(
+      'namespace "miden:count-reader/count-reader@0.1.0"',
+    );
+  });
+
+  it("has no masm when the build fails", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+    files["src/lib.rs"] = files["src/lib.rs"].replace(", Word", "");
+
+    const res = await api.post("/compile").send({ files, masm: true });
+
+    expect(res.status).toBe(200);
+    expect(res.body).not.toHaveProperty("masp");
+    expect(res.body).not.toHaveProperty("masm");
+  });
+});
+
 describe("POST /compile returned files", () => {
   it("echoes the sources with the lockfile it created", async () => {
     const { "Cargo.lock": _, ...files } = await readProjectFiles(

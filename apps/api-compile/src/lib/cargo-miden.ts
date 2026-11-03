@@ -96,17 +96,24 @@ const failedOffline = (error: unknown) =>
 // a crate the image doesn't have at all still goes online. It changes the
 // dependency versions the client sent, so `/verify`, which must build exactly
 // what was submitted, never sets it.
+//
+// `masmDir`: also write the package's Miden Assembly, as text, to
+// `<masmDir>/<package>.masm` (midenc's `--emit masm`). It must be an existing
+// directory: midenc writes a file of that name otherwise. The package itself
+// is byte-identical with or without it.
 export const cargoMidenBuild = async ({
   projectDir,
   midencTargetDir,
   profile = "release",
   warmLockfile = false,
+  masmDir,
   signal,
 }: {
   projectDir: string;
   midencTargetDir: string;
   profile?: BuildProfile;
   warmLockfile?: boolean;
+  masmDir?: string;
   signal?: AbortSignal;
 }) => {
   const run = (offline: boolean) =>
@@ -117,6 +124,7 @@ export const cargoMidenBuild = async ({
         "build",
         ...(profile === "release" ? ["--release"] : []),
         ...(offline ? ["--offline"] : []),
+        ...(masmDir ? ["--emit", `masm=${masmDir}`] : []),
       ],
       {
         cwd: projectDir,

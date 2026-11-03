@@ -36,3 +36,8 @@ export const SHUTDOWN_TIMEOUT_MS = 600_000;
 // 16 MiB (0xMiden/compiler#1430), and the registry holds the whole response in
 // a Worker's memory.
 export const MAX_DEBUG_MASP_BYTES = 16 * 1024 * 1024;
+
+// The Miden Assembly `POST /compile` returns with `masm: true` is ~40 KB for
+// the counter, most of it Wasm glue. Larger ones are left out of the response,
+// which the registry holds in a Worker's memory.
+export const MAX_MASM_BYTES = 4 * 1024 * 1024;

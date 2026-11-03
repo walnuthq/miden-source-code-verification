@@ -18,6 +18,7 @@ import {
   COMPILE_CONCURRENCY,
   COMPILE_QUEUE_SIZE,
   MAX_DEBUG_MASP_BYTES,
+  MAX_MASM_BYTES,
 } from "./constants.ts";
 import { createLimiter } from "./limiter.ts";
 import { midenPackageMetadata } from "./miden-package-metadata.ts";
@@ -35,7 +36,32 @@ type CompileArgs = {
   // ones it has, before building online (see `cargoMidenBuild`). The returned
   // `files` then carry the updated lockfile.
   warmLockfile?: boolean;
+  // Also return the release build's Miden Assembly, as text.
+  masm?: boolean;
   signal?: AbortSignal;
+};
+
+const errorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
+// The release build's Miden Assembly. Like the debug build, it never fails the
+// request it's part of, so a failure is an `error`. It's for reading: it calls
+// library procedures (`miden::protocol::*`, `intrinsics::*`) without including
+// them, so it doesn't reassemble into the package on its own.
+export type MasmOutput = { source: string } | { error: string };
+
+const readMasm = async (masmPath: string): Promise<MasmOutput> => {
+  try {
+    const { size } = await stat(masmPath);
+    if (size > MAX_MASM_BYTES) {
+      return { error: "masm too large" };
+    }
+    return { source: await readFile(masmPath, "utf-8") };
+  } catch (error) {
+    // The message would name the server's paths.
+    console.error(error);
+    return { error: "masm unavailable" };
+  }
 };
 
 // A debug build of the same sources: its package with debug info, which names
@@ -49,9 +75,6 @@ export type DebugBuild =
       cargoMidenVersion?: string;
     }
   | { error: string };
-
-const errorMessage = (error: unknown, fallback: string) =>
-  error instanceof Error ? error.message : fallback;
 
 const buildDebug = async ({
   projectDir,
@@ -120,6 +143,7 @@ const build = async ({
   debug = false,
   expectedCommitment,
   warmLockfile,
+  masm = false,
   signal,
   tmpDir,
   midencTargetDir,
@@ -136,6 +160,11 @@ const build = async ({
     await writeFile(fullPath, content, "utf-8");
   }
   const projectDir = entrypoint ? `${tmpDir}/${entrypoint}` : tmpDir;
+  // Under the build's own output directory, so `cleanup` deletes it.
+  const masmDir = masm ? `${midencTargetDir}/masm` : undefined;
+  if (masmDir) {
+    await mkdir(masmDir, { recursive: true });
+  }
   const {
     stdout = "",
     stderr = "",
@@ -144,6 +173,7 @@ const build = async ({
     projectDir,
     midencTargetDir,
     warmLockfile,
+    masmDir,
     signal,
   });
   if (cargoMidenError) {
@@ -161,6 +191,7 @@ const build = async ({
     },
     cargoLock,
     builtWith,
+    masmOutput,
   ] = await Promise.all([
     readFile(maspPath),
     midenPackageMetadata(maspPath),
@@ -169,6 +200,7 @@ const build = async ({
       console.error(error);
       return undefined;
     }),
+    masmDir ? readMasm(`${masmDir}/${packageName}.masm`) : undefined,
   ]);
   if (midenPackageMetadataError) {
     throw new Error(midenPackageMetadataError);
@@ -208,6 +240,8 @@ const build = async ({
     // Set when `expectedCommitment` was given and the build doesn't match it.
     drift,
     debug: debugBuild,
+    // Set when `masm` was requested.
+    masm: masmOutput,
     // The sources with the lockfile cargo created or updated, so a client can
     // resubmit them and get the same dependency versions next time.
     files: cargoLock
