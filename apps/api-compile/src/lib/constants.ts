@@ -1,6 +1,12 @@
 export const PORT = process.env.PORT ?? "8080";
 export const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ?? "*";
 export const CARGO_TARGET_DIR = process.env.CARGO_TARGET_DIR ?? "/cache/target";
+// The lockfile the image warmed cargo's cache with (see the Dockerfile): the
+// crate versions an offline build finds. `GET /lockfile` serves it, so clients
+// that send their own lockfile can keep it in step.
+export const WARM_CARGO_LOCK =
+  process.env.WARM_CARGO_LOCK ??
+  "/cache/examples/counter-contract/counter-contract/Cargo.lock";
 export const MIDEN_CLIENT_CACHE_DIR =
   process.env.MIDEN_CLIENT_CACHE_DIR ?? "/cache";
 

@@ -31,6 +31,10 @@ type CompileArgs = {
   // Only build the debug variant when the release build has this commitment,
   // i.e. when the toolchain still reproduces a stored package.
   expectedCommitment?: string;
+  // Re-resolve a lockfile that pins crates the image doesn't have against the
+  // ones it has, before building online (see `cargoMidenBuild`). The returned
+  // `files` then carry the updated lockfile.
+  warmLockfile?: boolean;
   signal?: AbortSignal;
 };
 
@@ -115,6 +119,7 @@ const build = async ({
   entrypoint = ".",
   debug = false,
   expectedCommitment,
+  warmLockfile,
   signal,
   tmpDir,
   midencTargetDir,
@@ -138,6 +143,7 @@ const build = async ({
   } = await cargoMidenBuild({
     projectDir,
     midencTargetDir,
+    warmLockfile,
     signal,
   });
   if (cargoMidenError) {

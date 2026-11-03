@@ -305,6 +305,33 @@ describe("POST /compile returned files", () => {
     expect(res.body.files["Cargo.lock"]).toContain('name = "nohash-hasher"');
   });
 
+  // A lockfile pinning another version of a warm crate (here smallvec 1.15.0,
+  // which no build downloads) fails offline. `warmLockfile` re-resolves it
+  // against the downloaded crates instead of downloading and rebuilding.
+  it("re-resolves a stale lockfile offline with warmLockfile", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+    const warmSmallvec = files["Cargo.lock"].match(
+      /name = "smallvec"\nversion = "([^"]+)"/,
+    )?.[1];
+    expect(warmSmallvec).toBeDefined();
+    files["Cargo.lock"] = files["Cargo.lock"].replace(
+      /(name = "smallvec"\nversion = )"[^"]+"(\nsource = "[^"]+"\nchecksum = )"[0-9a-f]+"/,
+      '$1"1.15.0"$2"8917285742e9f3e1683f0a9c4e6b57960b7314d0b08d30d1ecd426713ee2eee9"',
+    );
+    expect(files["Cargo.lock"]).toContain('version = "1.15.0"');
+
+    const res = await api.post("/compile").send({ files, warmLockfile: true });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body.stderr).not.toContain("Downloaded");
+    expect(res.body.files["Cargo.lock"]).toContain(
+      `name = "smallvec"\nversion = "${warmSmallvec}"`,
+    );
+  });
+
   it("keys the lockfile by its path under the entrypoint", async () => {
     const entrypoint = "count-reader";
     const { [`${entrypoint}/Cargo.lock`]: _, ...files } =

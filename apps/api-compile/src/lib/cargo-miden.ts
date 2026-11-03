@@ -86,15 +86,27 @@ const failedOffline = (error: unknown) =>
 // versions instead of whatever crates.io has since published, which would
 // rebuild the whole dependency tree. A project that needs a crate the image
 // doesn't have fails offline, and builds again online.
+//
+// `warmLockfile`: a lockfile that pins other versions of the warm crates (a
+// client's copy from before the examples' lockfiles were updated) fails offline
+// too, and online it downloads and rebuilds every crate that differs: minutes,
+// on a container that loses them when it sleeps. With `warmLockfile`, such a
+// failure first re-resolves the lockfile offline (`cargo update --offline`,
+// which can only pick the downloaded versions) and builds offline again; only
+// a crate the image doesn't have at all still goes online. It changes the
+// dependency versions the client sent, so `/verify`, which must build exactly
+// what was submitted, never sets it.
 export const cargoMidenBuild = async ({
   projectDir,
   midencTargetDir,
   profile = "release",
+  warmLockfile = false,
   signal,
 }: {
   projectDir: string;
   midencTargetDir: string;
   profile?: BuildProfile;
+  warmLockfile?: boolean;
   signal?: AbortSignal;
 }) => {
   const run = (offline: boolean) =>
@@ -117,12 +129,33 @@ export const cargoMidenBuild = async ({
         signal,
       },
     );
-  try {
-    const { stdout, stderr } = await run(true).catch((error: unknown) => {
+  // Re-resolves the lockfile against the downloaded crates, then builds
+  // offline again. Undefined when it can't: the online build runs instead.
+  const runWarm = async () => {
+    try {
+      await execFile("cargo", ["update", "--offline"], {
+        cwd: projectDir,
+        timeout: MIDEN_TOOL_TIMEOUT_MS,
+        signal,
+      });
+    } catch (error) {
+      // Some crate isn't downloaded at all: the online build fetches it.
+      console.error(error);
+      return undefined;
+    }
+    return run(true).catch((error: unknown) => {
       if (!failedOffline(error)) {
         throw error;
       }
-      return run(false);
+      return undefined;
+    });
+  };
+  try {
+    const { stdout, stderr } = await run(true).catch(async (error: unknown) => {
+      if (!failedOffline(error)) {
+        throw error;
+      }
+      return (warmLockfile ? await runWarm() : undefined) ?? run(false);
     });
     return { stdout, stderr };
   } catch (error) {

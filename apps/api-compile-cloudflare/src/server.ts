@@ -72,6 +72,8 @@ app.get("/", proxy(HEALTH_TIMEOUT_MS));
 app.post("/compile", proxy(COMPILE_TIMEOUT_MS));
 app.post("/compile-debug", proxy(COMPILE_TIMEOUT_MS));
 app.get("/:networkId/import/:resourceId", proxy(IMPORT_TIMEOUT_MS));
+// A file read, but it may wake the container: the health probe's allowance.
+app.get("/lockfile", proxy(HEALTH_TIMEOUT_MS));
 app.post("/verify", proxy(COMPILE_TIMEOUT_MS));
 
 // The same JSON errors api-compile answers itself, for paths the Worker doesn't

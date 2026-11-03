@@ -10,12 +10,18 @@ type CompileRequestBody = {
   files?: Record<string, string>;
   entrypoint?: string;
   debug?: boolean;
+  warmLockfile?: boolean;
 };
 
 router.post("/compile", async (req, res) => {
   const signal = abortOnClose(res);
   try {
-    const { files, entrypoint = ".", debug } = req.body as CompileRequestBody;
+    const {
+      files,
+      entrypoint = ".",
+      debug,
+      warmLockfile,
+    } = req.body as CompileRequestBody;
     if (!files || typeof files !== "object") {
       res.status(400).json({ error: "missing files" });
       return;
@@ -45,6 +51,7 @@ router.post("/compile", async (req, res) => {
         files,
         entrypoint,
         debug: debug === true,
+        warmLockfile: warmLockfile === true,
         signal,
       },
       (compiled) => compiled,

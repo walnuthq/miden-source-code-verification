@@ -29,3 +29,11 @@ Only `apps/api-registry` uses Drizzle (`drizzle-orm` and `drizzle-kit` on 1.0 re
 The api-compile and api-registry suites call whatever is listening on `localhost:8080`/`8081` (`API_URL` overrides): normally the docker compose stack. To test a server change, rebuild and restart it first (`docker compose up -d --build`), or the suites test the old images.
 
 Docker images install a pinned corepack (`npm install -g corepack@…`), since Node 25+ doesn't bundle it. All four Dockerfiles share that base stage: change them together.
+
+## api-compile's warm lockfile
+
+The image warms cargo's cache from `apps/api-compile/examples/counter-contract/counter-contract/Cargo.lock`, which every example's lockfile matches, and builds run `--offline` first. Miden Playground (walnuthq/miden-playground) sends its own lockfile, `apps/api/templates/project-template/Cargo.lock`, which must pin the same registry crates.
+- After a `cargo update` of the examples' lockfiles (or a toolchain bump), run `pnpm lockfile:sync` in the playground's `apps/api` against the new image, and ship both together. Otherwise every playground build downloads and rebuilds the crates that differ (176 s on production, lost each time the container sleeps).
+- `GET /lockfile` serves the warm lockfile (`WARM_CARGO_LOCK`), for that check.
+- `POST /compile` with `warmLockfile: true` re-resolves a lockfile that fails offline (`cargo update --offline`) before building online, and returns the updated lockfile. `/verify` and `/compile-debug` never do: they must build the exact lockfile they're sent.
+
