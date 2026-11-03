@@ -12,6 +12,7 @@ import { errorHandler, notFound } from "./lib/errors.ts";
 import compileRouter from "./routes/compile.ts";
 import compileDebugRouter from "./routes/compile-debug.ts";
 import importRouter from "./routes/import.ts";
+import lockfileRouter from "./routes/lockfile.ts";
 import verifyRouter from "./routes/verify.ts";
 
 const app = express();
@@ -64,6 +65,7 @@ app.use(compileRouter);
 app.use(compileDebugRouter);
 app.use(verifyRouter);
 app.use(importRouter);
+app.use(lockfileRouter);
 app.use(notFound);
 app.use(errorHandler);
 
