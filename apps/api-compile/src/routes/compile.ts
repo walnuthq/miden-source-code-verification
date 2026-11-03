@@ -11,6 +11,7 @@ type CompileRequestBody = {
   entrypoint?: string;
   debug?: boolean;
   warmLockfile?: boolean;
+  masm?: boolean;
 };
 
 router.post("/compile", async (req, res) => {
@@ -21,6 +22,7 @@ router.post("/compile", async (req, res) => {
       entrypoint = ".",
       debug,
       warmLockfile,
+      masm,
     } = req.body as CompileRequestBody;
     if (!files || typeof files !== "object") {
       res.status(400).json({ error: "missing files" });
@@ -46,12 +48,14 @@ router.post("/compile", async (req, res) => {
       manifest,
       files: compiledFiles,
       debug: debugBuild,
+      masm: masmOutput,
     } = await queueCompile(
       {
         files,
         entrypoint,
         debug: debug === true,
         warmLockfile: warmLockfile === true,
+        masm: masm === true,
         signal,
       },
       (compiled) => compiled,
@@ -67,6 +71,9 @@ router.post("/compile", async (req, res) => {
       files: compiledFiles,
       // Set when the build succeeded and `debug` was requested.
       debug: debugBuild,
+      // Set when the build succeeded and `masm` was requested: `{ source }`,
+      // the release build's Miden Assembly as text, or `{ error }`.
+      masm: masmOutput,
     });
   } catch (error) {
     if (signal.aborted) {
