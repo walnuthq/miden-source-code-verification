@@ -3090,8 +3090,12 @@ dependencies = [
  "anyhow",
  "clap",
  "miden-assembly-syntax",
+ "miden-core",
+ "miden-core-lib",
  "miden-mast-package",
+ "miden-protocol",
  "miden-serde-utils",
+ "miden-standards",
  "serde_json",
 ]
 

@@ -46,6 +46,7 @@ router.post("/compile", async (req, res) => {
       commitment,
       kind,
       manifest,
+      readOnly,
       files: compiledFiles,
       debug: debugBuild,
       masm: masmOutput,
@@ -67,6 +68,9 @@ router.post("/compile", async (req, res) => {
       commitment,
       kind,
       manifest,
+      // Set when the build succeeded: whether each exported procedure is
+      // read-only, by export path (`ReadOnlyProcedures`).
+      readOnly,
       // Set when the build succeeded: the sources plus the lockfile it used.
       files: compiledFiles,
       // Set when the build succeeded and `debug` was requested.

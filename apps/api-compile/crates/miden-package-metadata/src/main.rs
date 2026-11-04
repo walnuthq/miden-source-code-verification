@@ -12,6 +12,8 @@ use miden_serde_utils::Deserializable;
 use serde_json::{Map, Value, json};
 use std::path::PathBuf;
 
+mod read_only;
+
 /// Extracts and prints metadata from a Miden package (.masp) file as JSON.
 #[derive(Parser)]
 #[command(version, about)]
@@ -56,6 +58,17 @@ fn main() -> Result<()> {
             "exports": package.manifest.exports().map(export).collect::<Result<Vec<_>>>()?,
             "dependencies": package.manifest.dependencies().map(dependency).collect::<Vec<_>>(),
         },
+        // Whether each exported procedure is read-only, by export path: `true`
+        // when nothing it can reach changes state, `false` when something can,
+        // `null` when it can't be told (a dynamic call, a direct syscall, or a
+        // procedure from a package other than the core, protocol and standards
+        // libraries). Not part of the manifest: the toolchain doesn't record
+        // it, `read_only.rs` reads it from the MAST.
+        "readOnly": read_only::Analyzer::default()
+            .exports(&package)
+            .into_iter()
+            .map(|(path, access)| (path, json!(access.read_only())))
+            .collect::<Map<_, _>>(),
     });
 
     println!("{}", serde_json::to_string(&metadata)?);
