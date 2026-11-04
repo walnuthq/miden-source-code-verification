@@ -182,6 +182,15 @@ export type Manifest = {
   dependencies: Dependency[];
 };
 
+// Whether each procedure a package exports is read-only, by export path: what
+// `miden-package-metadata` prints next to the manifest, read from the MAST
+// (`read_only.rs`), since the toolchain doesn't record it. `true` when nothing
+// the procedure can reach changes state (account storage, vault, nonce or code,
+// output notes...), `false` when something can, `null` when it can't be told
+// (a dynamic call, a direct syscall, or a procedure from a package other than
+// the core, protocol and standards libraries).
+export type ReadOnlyProcedures = Record<string, boolean | null>;
+
 // The paths of the procedures a manifest exports, e.g.
 // `miden:counter-contract/counter-contract@0.1.0#increment-count`. A release
 // and a debug build of the same source export the same paths under different

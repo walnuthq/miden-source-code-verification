@@ -5,6 +5,7 @@ import { parseCargoToml } from "miden-source-code-verification-utils";
 import {
   type Manifest,
   procedureExportPaths,
+  type ReadOnlyProcedures,
   type TargetType,
 } from "miden-source-code-verification-utils/manifest";
 import {
@@ -205,12 +206,16 @@ const build = async ({
   if (midenPackageMetadataError) {
     throw new Error(midenPackageMetadataError);
   }
-  const { commitment, kind, manifest } = JSON.parse(
-    midenPackageMetadataStdout,
-  ) as {
+  const {
+    commitment,
+    kind,
+    manifest,
+    readOnly = {},
+  } = JSON.parse(midenPackageMetadataStdout) as {
     commitment: string;
     kind: TargetType;
     manifest: Manifest;
+    readOnly?: ReadOnlyProcedures;
   };
   const drift =
     expectedCommitment !== undefined &&
@@ -236,6 +241,7 @@ const build = async ({
     commitment,
     kind,
     manifest,
+    readOnly,
     cargoMidenVersion: builtWith,
     // Set when `expectedCommitment` was given and the build doesn't match it.
     drift,
