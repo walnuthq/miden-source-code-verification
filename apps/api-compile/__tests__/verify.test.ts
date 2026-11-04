@@ -205,6 +205,38 @@ describe("POST /verify", () => {
     expect(res.body).toHaveProperty("verified", false);
   });
 
+  // Mainnet has no fixtures: this checks against the public USDCx fee faucet,
+  // whose code the counter-contract doesn't match.
+  it("doesn't verify a counter-contract against a Mainnet account with other code", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+
+    const res = await api.post("/verify").send({
+      files,
+      networkId: "mm",
+      resourceId: "0xe69e6ca6e39df1b10c1e5399399feb",
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("verified", false);
+  });
+
+  it("doesn't verify against a network it doesn't serve", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+
+    const res = await api.post("/verify").send({
+      files,
+      networkId: "mxx",
+      resourceId: COUNTER_CONTRACT_ID_1,
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/unsupported network ID `mxx`/);
+  });
+
   it("verifies an on-chain auth-component-no-auth", async () => {
     const files = await readProjectFiles(
       `${counterContractDir}/auth-component-no-auth`,

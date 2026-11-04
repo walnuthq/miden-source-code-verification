@@ -148,6 +148,16 @@ describe("sourcesArchiveName", () => {
       }),
     ).toBe("mtst-0xad41ad8e-counter-contract.zip");
   });
+
+  it("prefixes a Mainnet package with mm", () => {
+    expect(
+      sourcesArchiveName({
+        networkId: "mm",
+        id: "0xe69e6ca6e39df1b10c1e5399399feb",
+        packageName: "counter-account",
+      }),
+    ).toBe("mm-0xe69e6ca6-counter-account.zip");
+  });
 });
 
 describe("maspFileName", () => {

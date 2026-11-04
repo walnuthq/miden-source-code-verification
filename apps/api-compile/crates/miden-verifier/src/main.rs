@@ -306,8 +306,9 @@ async fn run() -> Result<()> {
     let endpoint = match args_network_id.as_str() {
         "mtst" => Endpoint::testnet(),
         "mdev" => Endpoint::devnet(),
+        "mm" => Endpoint::mainnet(),
         "mlcl" => Endpoint::localhost(),
-        other => rejected!("unsupported network ID `{other}`; expected `mtst`, `mdev` or `mlcl`"),
+        other => rejected!("unsupported network ID `{other}`; expected `mtst`, `mdev`, `mm` or `mlcl`"),
     };
     let timeout_ms = 10_000;
     let rpc_client = Arc::new(GrpcClient::new(&endpoint, timeout_ms));

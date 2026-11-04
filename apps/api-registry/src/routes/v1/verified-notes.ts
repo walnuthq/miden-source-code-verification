@@ -34,7 +34,7 @@ type VerifyNoteRequestBody = {
  *         required: true
  *         schema:
  *           type: string
- *         description: Network identifier (e.g. `mtst`, `mdev`).
+ *         description: Network identifier (e.g. `mtst`, `mdev`, `mm`).
  *     requestBody:
  *       required: true
  *       content:
@@ -181,7 +181,7 @@ router.post("/:networkId/verified-notes", async (req, res) => {
  *         required: true
  *         schema:
  *           type: string
- *         description: Network identifier (e.g. `mtst`, `mdev`).
+ *         description: Network identifier (e.g. `mtst`, `mdev`, `mm`).
  *       - in: path
  *         name: script
  *         required: true
@@ -301,7 +301,7 @@ router.get("/:networkId/verified-notes/script/:script", async (req, res) => {
  *         required: true
  *         schema:
  *           type: string
- *         description: Network identifier (e.g. `mtst`, `mdev`).
+ *         description: Network identifier (e.g. `mtst`, `mdev`, `mm`).
  *       - in: path
  *         name: noteId
  *         required: true
