@@ -63,6 +63,7 @@ describe("POST /compile", () => {
     expect(res.body).not.toHaveProperty("commitment");
     expect(res.body).not.toHaveProperty("kind");
     expect(res.body).not.toHaveProperty("manifest");
+    expect(res.body).not.toHaveProperty("readOnly");
     expect(res.body).not.toHaveProperty("files");
   });
 
@@ -315,6 +316,26 @@ describe("POST /compile masm", () => {
     expect(res.status).toBe(200);
     expect(res.body).not.toHaveProperty("masp");
     expect(res.body).not.toHaveProperty("masm");
+  });
+});
+
+describe("POST /compile readOnly", () => {
+  it("tells the counter-contract's getter from its state change", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+
+    const res = await api.post("/compile").send({ files });
+
+    expect(res.status).toBe(200);
+    const component = '::"miden:counter-contract/counter-contract@0.1.0"';
+    expect(res.body.readOnly).toEqual({
+      // Reads the count map through `active_account::get_map_item`.
+      [`${component}::"get-count"`]: true,
+      // Writes it through `native_account::set_map_item`.
+      [`${component}::"increment-count"`]: false,
+      [`${component}::init`]: true,
+    });
   });
 });
 
