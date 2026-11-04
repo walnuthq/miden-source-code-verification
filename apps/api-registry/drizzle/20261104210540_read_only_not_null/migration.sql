@@ -1,0 +1,1 @@
+ALTER TABLE "packages" ALTER COLUMN "read_only" SET NOT NULL;

@@ -1,10 +1,8 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { type RequestHandler, Router } from "express";
-import type { ReadOnlyProcedures } from "miden-source-code-verification-utils/manifest";
 import {
   getPackage,
   getPackagesWithoutDebugBuild,
-  getPackagesWithoutReadOnly,
   updatePackage,
 } from "../db/packages.ts";
 import {
@@ -20,10 +18,9 @@ import { inferEntrypoint } from "../lib/infer-entrypoint.ts";
 import { parseRoot } from "../lib/roots.ts";
 import { getMaspStore } from "../storage/masp-store.ts";
 
-// Operator routes, left out of the OpenAPI docs: the backfills of debug builds
-// and of procedures' read-only flags for packages stored before the registry
-// kept them (`scripts/backfill-debug-packages.ts` and
-// `scripts/backfill-read-only.ts` drive them) and the cleanup of the
+// Operator routes, left out of the OpenAPI docs: the backfill of debug builds
+// for packages stored before the registry kept them
+// (`scripts/backfill-debug-packages.ts` drives it) and the cleanup of the
 // playground's verifications. They run here because the Worker is what holds
 // the R2 and database bindings.
 const router: Router = Router();
@@ -125,74 +122,6 @@ router.post("/admin/packages/:commitment/debug-build", async (req, res) => {
     }
     const message =
       error instanceof Error ? error.message : "debug build failed";
-    res.status(500).json({ error: message });
-  }
-});
-
-// The packages the read-only backfill still has to read.
-router.get("/admin/read-only/pending", async (_req, res) => {
-  try {
-    res.json(await getPackagesWithoutReadOnly());
-  } catch (error) {
-    console.error(error);
-    const message = error instanceof Error ? error.message : "listing failed";
-    res.status(500).json({ error: message });
-  }
-});
-
-// Reads which procedures of one stored package are read-only and records it.
-// api-compile reads them from the stored `.masp`, so nothing is rebuilt and
-// the toolchain's drift doesn't matter, only that it still reads the format.
-// It answers the package's commitment too, which must be the stored one.
-router.post("/admin/packages/:commitment/read-only", async (req, res) => {
-  try {
-    const commitment = parseRoot(req.params.commitment);
-    if (!commitment) {
-      res.status(400).json({ error: "invalid package commitment" });
-      return;
-    }
-    const dbPackage = await getPackage(commitment);
-    if (!dbPackage) {
-      res.status(404).json({ error: "package not found" });
-      return;
-    }
-    if (dbPackage.readOnly) {
-      res.json({ readOnly: dbPackage.readOnly });
-      return;
-    }
-    const masp = await getMaspStore(req).get(commitment);
-    if (!masp) {
-      res.status(404).json({ error: "package masp not found" });
-      return;
-    }
-    const metadata = await fetchApiCompile<{
-      commitment: string;
-      readOnly: ReadOnlyProcedures;
-    }>("/package-metadata", {
-      method: "POST",
-      headers: { "Content-Type": "application/octet-stream" },
-      body: masp,
-    });
-    if (metadata.commitment.toLowerCase() !== commitment.toLowerCase()) {
-      res.status(409).json({
-        error: `stored masp has commitment ${metadata.commitment}`,
-      });
-      return;
-    }
-    await updatePackage(dbPackage.id, { readOnly: metadata.readOnly });
-    res.json({ readOnly: metadata.readOnly });
-  } catch (error) {
-    console.error(error);
-    if (sendApiCompileUnavailable(res, error)) {
-      return;
-    }
-    // 400: api-compile can't read the stored package.
-    if (error instanceof ApiCompileError && error.status < 500) {
-      res.status(error.status).json({ error: error.message });
-      return;
-    }
-    const message =
-      error instanceof Error ? error.message : "reading read-only failed";
     res.status(500).json({ error: message });
   }
 });

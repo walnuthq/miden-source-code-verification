@@ -35,6 +35,7 @@ const mockApiCompile = (debug: DebugBuild | undefined) =>
     commitment: COMMITMENT,
     kind: "account-component",
     manifest: { exports: [], dependencies: [] },
+    readOnly: {},
     files,
     cargoMidenVersion: "0.11.0",
     debug,

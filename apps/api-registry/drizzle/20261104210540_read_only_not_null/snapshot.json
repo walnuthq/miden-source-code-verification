@@ -1,0 +1,38 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "781ebca2-7126-45bd-9b46-2ea89a95af90",
+  "prevIds": [
+    "15c86499-40b0-42ae-a4c1-9f66484f6e59"
+  ],
+  "footprints": [
+    {
+      "statementType": "alter_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "packages",
+        "read_only"
+      ],
+      "writes": [
+        "s|colprop|public.packages.read_only.notNull"
+      ],
+      "reads": [
+        "n|tbl|public.packages",
+        "n|sch|public",
+        "n|col|public.packages.read_only"
+      ],
+      "sqlHash": "bf9bbd6f81fd71c2"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "alter",
+      "key": "columns\u0000[\"public\",\"packages\",\"read_only\"]",
+      "set": {
+        "notNull": true
+      }
+    }
+  ]
+}

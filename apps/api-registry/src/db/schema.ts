@@ -40,10 +40,9 @@ export const packagesTable = pgTable("packages", {
   debugCommitment: varchar("debug_commitment", { length: 66 }),
   debugBuiltWith: varchar("debug_built_with", { length: 64 }),
   // Whether each exported procedure is read-only, by export path, as
-  // api-compile reads it from the package (`ReadOnlyProcedures`). Null until
-  // it is read, which makes the row part of the read-only backfill's work
-  // list.
-  readOnly: jsonb("read_only").$type<ReadOnlyProcedures>(),
+  // api-compile reads it from the package (`ReadOnlyProcedures`). Without a
+  // default, like `networkId`, so an insert that forgets it fails to compile.
+  readOnly: jsonb("read_only").$type<ReadOnlyProcedures>().notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
