@@ -34,6 +34,8 @@ ARG VITE_EXPLORER_TESTNET_URL=https://testnet.midenscan.com
 ENV VITE_EXPLORER_TESTNET_URL=${VITE_EXPLORER_TESTNET_URL}
 ARG VITE_EXPLORER_DEVNET_URL=https://devnet.midenscan.com
 ENV VITE_EXPLORER_DEVNET_URL=${VITE_EXPLORER_DEVNET_URL}
+ARG VITE_EXPLORER_MAINNET_URL=https://explorer.mainnet.miden.io
+ENV VITE_EXPLORER_MAINNET_URL=${VITE_EXPLORER_MAINNET_URL}
 # react-router build -> apps/web-viewer/build/{client,server}. The trailing `...`
 # builds web-viewer's workspace deps first (the utils package), whose dist/ is
 # what the build bundles.

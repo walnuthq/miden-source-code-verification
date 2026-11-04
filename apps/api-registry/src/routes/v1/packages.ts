@@ -34,7 +34,7 @@ const router: Router = Router();
  *         required: true
  *         schema:
  *           type: string
- *         description: Network identifier (e.g. `mtst`, `mdev`).
+ *         description: Network identifier (e.g. `mtst`, `mdev`, `mm`).
  *       - in: path
  *         name: packageCommitment
  *         required: true

@@ -107,6 +107,7 @@ describe("addressNetwork", () => {
     expect(addressNetwork(accountAddress("mdev", ACCOUNT_ID), "mtst")).toBe(
       "mdev",
     );
+    expect(addressNetwork(PROTOCOL_ADDRESS, "mtst")).toBe("mm");
     expect(addressNetwork(accountAddress("mtst", ACCOUNT_ID), "mdev")).toBe(
       "mtst",
     );
@@ -116,7 +117,9 @@ describe("addressNetwork", () => {
     expect(
       addressNetwork(accountAddress("mtst", ACCOUNT_ID), "mtst"),
     ).toBeNull();
-    expect(addressNetwork(PROTOCOL_ADDRESS, "mtst")).toBeNull();
+    expect(
+      addressNetwork(accountAddress("mxx", ACCOUNT_ID), "mtst"),
+    ).toBeNull();
     expect(addressNetwork(ACCOUNT_ID, "mtst")).toBeNull();
     expect(addressNetwork("mdev1", "mtst")).toBeNull();
   });
@@ -142,9 +145,16 @@ describe("resourceIdError", () => {
     );
   });
 
-  it("gives the prefix of an address on an unserved network", () => {
+  it("names Mainnet for a Mainnet address", () => {
     expect(resourceIdError(PROTOCOL_ADDRESS, "mtst")).toEqual({
-      message: "This address is for another network (mm).",
+      message: "This is a Mainnet address.",
+      isWrongNetwork: true,
+    });
+  });
+
+  it("gives the prefix of an address on an unserved network", () => {
+    expect(resourceIdError(accountAddress("mxx", ACCOUNT_ID), "mtst")).toEqual({
+      message: "This address is for another network (mxx).",
       isWrongNetwork: true,
     });
   });

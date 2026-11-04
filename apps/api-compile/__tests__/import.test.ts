@@ -176,6 +176,45 @@ describe("GET /:networkId/import/:resourceId", () => {
   });
 });
 
+// Mainnet has no fixtures, since deploying there needs an invite code and real
+// fees. These cases only read the public USDCx fee faucet.
+const MAINNET_FAUCET_ID = "0xe69e6ca6e39df1b10c1e5399399feb";
+const MAINNET_FAUCET_ADDRESS =
+  "mm1arnfum9xuwwlrvgvrefejwvlavn3vk24_qr7qqq9wr6w";
+
+describe("GET /:networkId/import/:resourceId across networks", () => {
+  it("imports a Mainnet account", async () => {
+    const res = await api.get(`/mm/import/${MAINNET_FAUCET_ID}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("type", "account");
+    expect(res.body.code).toMatch(/^0x[0-9a-f]{64}$/);
+  });
+
+  it("imports a Mainnet account by its address", async () => {
+    const res = await api.get(`/mm/import/${MAINNET_FAUCET_ADDRESS}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("type", "account");
+  });
+
+  it("returns 404 for an address on another network", async () => {
+    const res = await api.get(`/mtst/import/${MAINNET_FAUCET_ADDRESS}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatch(
+      /network ID of resource \(mm\) does not match provided network ID \(mtst\)/,
+    );
+  });
+
+  it("returns 404 for a network it doesn't serve", async () => {
+    const res = await api.get(`/mxx/import/${MAINNET_FAUCET_ID}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatch(/unsupported network ID `mxx`/);
+  });
+});
+
 describe("GET /:networkId/import/:resourceId when miden-import fails", () => {
   const app = express().use(importRouter);
   const path = process.env.PATH;

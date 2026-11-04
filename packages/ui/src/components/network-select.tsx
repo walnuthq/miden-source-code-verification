@@ -18,6 +18,7 @@ import {
 const DOT_CLASS: Record<NetworkId, string> = {
   mtst: "bg-success",
   mdev: "bg-chart-2",
+  mm: "bg-primary",
 };
 
 function NetworkLabel({ network }: { network: NetworkId }) {

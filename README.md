@@ -18,6 +18,8 @@ Verified results are keyed by the network plus the resource's on-chain **code** 
 
 That `(networkId, code)` pair is the registry's real key, so it's addressable directly: `GET /v1/{networkId}/verified-accounts/code/{code}` and `GET /v1/{networkId}/verified-notes/script/{script}` return a record with a single database query and no on-chain lookup. The id-keyed reads (`GET /v1/{networkId}/verified-accounts/{accountId}`, `GET /v1/{networkId}/verified-notes/{noteId}`) are convenience resolvers on top: they ask the Compilation API for the resource's code first, then serve the same record with the queried id echoed back. Callers that already know the code should use the code-keyed endpoints — one less API call per read.
 
+The networks served are Testnet (`mtst`, the default), Devnet (`mdev`) and Mainnet (`mm`), each with its own client store in `miden-import` and `miden-verifier`. `mlcl` reaches a node on localhost and works only when api-compile runs on the host. Mainnet is currently Miden's invite-only **Partner Mainnet**, which will be reset before public mainnet. After the reset, `mm` code and script roots, and the MASPs, stay valid, but the account and note IDs verified there no longer exist on-chain, so lookups by ID fail. Reading Mainnet needs no invite code. Only account creation is gated, so most accounts verified there are network accounts.
+
 ### Compiling: queue, timeouts and lockfiles
 
 - **One build at a time.** Builds share cargo's target directory, whose lock runs them one after another anyway. Up to 8 more requests wait in a queue; past that, `POST /compile` and `POST /verify` answer `503` with `Retry-After: 30`. Both limits are set by `COMPILE_CONCURRENCY` and `COMPILE_QUEUE_SIZE`. A request whose client disconnects leaves the queue, or has its build stopped.
@@ -230,15 +232,16 @@ It deletes their verified account components and notes, then the account codes l
 
 The two front-ends have localhost defaults. Their production URLs are set in the repository, so a deploy needs no configuration in the Cloudflare dashboard:
 
-| App            | Variable                    | Default                         | Kind       | Production value set in                                    |
-| -------------- | --------------------------- | ------------------------------- | ---------- | ---------------------------------------------------------- |
-| `web-verifier` | `VITE_API_REGISTRY_URL`     | `http://localhost:8081`         | build time | `cf:deploy` in `apps/web-verifier-cloudflare/package.json` |
-| `web-verifier` | `VITE_WEB_VIEWER_URL`       | `http://localhost:5174`         | build time | `cf:deploy` in `apps/web-verifier-cloudflare/package.json` |
-| `web-viewer`   | `VITE_API_REGISTRY_URL`     | `http://localhost:8081`         | build time | `cf:deploy` in `apps/web-viewer-cloudflare/package.json`   |
-| `web-viewer`   | `VITE_WEB_VERIFIER_URL`     | `http://localhost:5173`         | build time | `cf:deploy` in `apps/web-viewer-cloudflare/package.json`   |
-| `web-viewer`   | `VITE_EXPLORER_TESTNET_URL` | `https://testnet.midenscan.com` | build time | `cf:deploy` in `apps/web-viewer-cloudflare/package.json`   |
-| `web-viewer`   | `VITE_EXPLORER_DEVNET_URL`  | `https://devnet.midenscan.com`  | build time | `cf:deploy` in `apps/web-viewer-cloudflare/package.json`   |
-| `web-viewer`   | `API_REGISTRY_URL`          | `http://localhost:8081`         | runtime    | `vars` in `apps/web-viewer-cloudflare/wrangler.jsonc`      |
+| App            | Variable                    | Default                             | Kind       | Production value set in                                    |
+| -------------- | --------------------------- | ----------------------------------- | ---------- | ---------------------------------------------------------- |
+| `web-verifier` | `VITE_API_REGISTRY_URL`     | `http://localhost:8081`             | build time | `cf:deploy` in `apps/web-verifier-cloudflare/package.json` |
+| `web-verifier` | `VITE_WEB_VIEWER_URL`       | `http://localhost:5174`             | build time | `cf:deploy` in `apps/web-verifier-cloudflare/package.json` |
+| `web-viewer`   | `VITE_API_REGISTRY_URL`     | `http://localhost:8081`             | build time | `cf:deploy` in `apps/web-viewer-cloudflare/package.json`   |
+| `web-viewer`   | `VITE_WEB_VERIFIER_URL`     | `http://localhost:5173`             | build time | `cf:deploy` in `apps/web-viewer-cloudflare/package.json`   |
+| `web-viewer`   | `VITE_EXPLORER_TESTNET_URL` | `https://testnet.midenscan.com`     | build time | `cf:deploy` in `apps/web-viewer-cloudflare/package.json`   |
+| `web-viewer`   | `VITE_EXPLORER_DEVNET_URL`  | `https://devnet.midenscan.com`      | build time | `cf:deploy` in `apps/web-viewer-cloudflare/package.json`   |
+| `web-viewer`   | `VITE_EXPLORER_MAINNET_URL` | `https://explorer.mainnet.miden.io` | build time | `cf:deploy` in `apps/web-viewer-cloudflare/package.json`   |
+| `web-viewer`   | `API_REGISTRY_URL`          | `http://localhost:8081`             | runtime    | `vars` in `apps/web-viewer-cloudflare/wrangler.jsonc`      |
 
 To point a deploy elsewhere, edit these files, not the dashboard:
 - **Build-time (`VITE_*`) variables** are baked into the bundles when `cf:deploy` builds the app in GitHub Actions. Cloudflare only receives the built files, so a Worker variable set in the dashboard never reaches them.

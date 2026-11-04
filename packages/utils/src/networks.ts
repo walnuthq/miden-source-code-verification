@@ -4,7 +4,7 @@
 export const networks = [
   { label: "Testnet", value: "mtst" },
   { label: "Devnet", value: "mdev" },
-  // { label: "Mainnet", value: "mm" },
+  { label: "Mainnet", value: "mm" },
 ] as const;
 
 export type NetworkId = (typeof networks)[number]["value"];

@@ -18,6 +18,9 @@ const EXPLORER_URLS: Record<string, string> = {
     "https://testnet.midenscan.com",
   mdev:
     import.meta.env.VITE_EXPLORER_DEVNET_URL ?? "https://devnet.midenscan.com",
+  mm:
+    import.meta.env.VITE_EXPLORER_MAINNET_URL ??
+    "https://explorer.mainnet.miden.io",
 };
 
 // A resource's page on its network's explorer, or undefined for a network
