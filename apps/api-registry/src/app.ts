@@ -178,6 +178,16 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *         debugBuiltWith:
  *           type: [string, "null"]
  *           description: Version of cargo-miden that built the debug build, when known.
+ *         readOnly:
+ *           type: object
+ *           description: >
+ *             Whether each procedure the package exports is read-only, keyed
+ *             by its export path (as in the manifest's exports): `true` when
+ *             nothing it can reach changes state, `false` when something can,
+ *             `null` when it can't be told (a dynamic call, a direct syscall,
+ *             or a procedure from another package).
+ *           additionalProperties:
+ *             type: [boolean, "null"]
  *         createdAt:
  *           type: string
  *           format: date-time

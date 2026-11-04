@@ -2,9 +2,10 @@ import { join } from "node:path";
 import { parseCargoToml } from "miden-source-code-verification-utils";
 import type {
   Manifest,
+  ReadOnlyProcedures,
   TargetType,
 } from "miden-source-code-verification-utils/manifest";
-import { getPackage, insertPackage } from "../db/packages.ts";
+import { getPackage, insertPackage, updatePackage } from "../db/packages.ts";
 import {
   getVerifiedAccountComponent,
   insertVerifiedAccountComponent,
@@ -44,6 +45,7 @@ export const verifyAccountComponent = async ({
     commitment,
     kind,
     manifest,
+    readOnly,
     files: compiledFiles,
     cargoMidenVersion,
     debug,
@@ -54,6 +56,9 @@ export const verifyAccountComponent = async ({
     // The compiled package's own kind, stored as the package's type.
     kind: TargetType;
     manifest: Manifest;
+    // Absent from api-compile versions that predate it: the backfill reads it
+    // later.
+    readOnly?: ReadOnlyProcedures;
     // The sources plus the lockfile the build used. Absent from api-compile
     // versions that predate it.
     files?: Record<string, string>;
@@ -102,9 +107,13 @@ export const verifyAccountComponent = async ({
         files: compiledFiles ?? files,
         commitment,
         manifest,
+        readOnly: readOnly ?? null,
         entrypoint,
         builtWith: cargoMidenVersion,
       });
+    } else if (!dbPackage?.readOnly && readOnly) {
+      // A package stored before the registry kept it.
+      await updatePackage(packageId, { readOnly });
     }
     // Also for a package stored before it had a debug build. A failure is
     // logged and leaves the package without one: the release build alone is

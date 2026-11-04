@@ -30,7 +30,7 @@ class TestRequest implements PromiseLike<TestResponse> {
   readonly #method: string;
   readonly #path: string;
   readonly #headers = new Headers();
-  #body: string | undefined;
+  #body: string | Uint8Array<ArrayBuffer> | undefined;
   #asBuffer = false;
 
   constructor(target: Target, method: string, path: string) {
@@ -45,8 +45,16 @@ class TestRequest implements PromiseLike<TestResponse> {
   }
 
   // An object goes as JSON; a string goes as is (set its Content-Type first,
-  // otherwise it goes as a form, as with supertest).
+  // otherwise it goes as a form, as with supertest); bytes go as is, as
+  // `application/octet-stream` unless set.
   send(body: unknown) {
+    if (body instanceof Uint8Array) {
+      this.#body = new Uint8Array(body);
+      if (!this.#headers.has("content-type")) {
+        this.#headers.set("content-type", "application/octet-stream");
+      }
+      return this;
+    }
     const isString = typeof body === "string";
     this.#body = isString ? body : JSON.stringify(body);
     if (!this.#headers.has("content-type")) {

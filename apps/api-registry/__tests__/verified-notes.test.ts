@@ -9,6 +9,7 @@ import {
   readProjectFiles,
   request,
 } from "miden-source-code-verification-test-utils";
+import { procedureExportPaths } from "miden-source-code-verification-utils/manifest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app.ts";
 import { ApiCompileError } from "../src/lib/api-compile.ts";
@@ -200,6 +201,10 @@ describe("GET /:networkId/verified-notes/:noteId", () => {
     );
     // The compiled package is served on its own, not inlined in the record.
     expect(res2.body.package).not.toHaveProperty("masp");
+    // Whether each of its procedures is read-only, by export path.
+    expect(Object.keys(res2.body.package.readOnly).sort()).toEqual(
+      procedureExportPaths(res2.body.package.manifest).sort(),
+    );
 
     const res3 = await apiV1
       .get(`/${networkId}/packages/masp/${res2.body.package.commitment}.masp`)

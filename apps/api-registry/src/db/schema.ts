@@ -8,7 +8,10 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
-import { TARGET_TYPES } from "miden-source-code-verification-utils/manifest";
+import {
+  type ReadOnlyProcedures,
+  TARGET_TYPES,
+} from "miden-source-code-verification-utils/manifest";
 
 // The kind of a package: `miden-mast-package`'s `TargetType`, from the same
 // list that types a manifest dependency's `kind`.
@@ -36,6 +39,11 @@ export const packagesTable = pgTable("packages", {
   // which makes the row part of the backfill's work list.
   debugCommitment: varchar("debug_commitment", { length: 66 }),
   debugBuiltWith: varchar("debug_built_with", { length: 64 }),
+  // Whether each exported procedure is read-only, by export path, as
+  // api-compile reads it from the package (`ReadOnlyProcedures`). Null until
+  // it is read, which makes the row part of the read-only backfill's work
+  // list.
+  readOnly: jsonb("read_only").$type<ReadOnlyProcedures>(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

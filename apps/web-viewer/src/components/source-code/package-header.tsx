@@ -1,14 +1,16 @@
 import {
   Bug,
   CalendarCheck,
+  CircleHelp,
   Download,
+  Eye,
   FileBox,
   Fingerprint,
   Library,
   Package,
   SquareFunction,
 } from "lucide-react";
-import { buttonVariants } from "miden-source-code-verification-ui";
+import { Badge, buttonVariants } from "miden-source-code-verification-ui";
 
 import { CopyButton } from "@/components/copy-button";
 import { type DetailField, DetailsList } from "@/components/details-card";
@@ -129,17 +131,46 @@ function MaspDownloadButton({
 }
 
 // Each procedure as its Rust signature; its copy button copies the digest,
-// which is what the account's code holds.
+// which is what the account's code holds. Whether it is read-only sits at the
+// right end, in line with the download buttons above.
 function ProcedureList({ procedures }: { procedures: PackageProcedure[] }) {
   return (
     <ul className="flex flex-col">
-      {procedures.map(({ name, signature, digest }) => (
+      {procedures.map(({ name, signature, digest, readOnly }) => (
         <li key={digest} className="flex items-center gap-1">
-          <code className="font-mono wrap-break-word">{signature}</code>
+          <code className="min-w-0 font-mono wrap-break-word">{signature}</code>
           <CopyButton value={digest} label={`Copy ${name} digest`} />
+          <ReadOnlyBadge readOnly={readOnly} />
         </li>
       ))}
     </ul>
+  );
+}
+
+// Only a read-only procedure, or one that can't be told, gets a badge: most
+// procedures change state, and a badge on each would say nothing.
+function ReadOnlyBadge({ readOnly }: { readOnly: boolean | null }) {
+  if (readOnly === false) {
+    return null;
+  }
+  return readOnly ? (
+    <Badge
+      variant="secondary"
+      className="ml-auto"
+      title="Nothing this procedure can reach changes state"
+    >
+      <Eye />
+      Read-only
+    </Badge>
+  ) : (
+    <Badge
+      variant="outline"
+      className="ml-auto text-muted-foreground"
+      title="Can't tell whether this procedure changes state: it makes a dynamic call, a direct syscall, or calls a procedure from another package"
+    >
+      <CircleHelp />
+      Unknown
+    </Badge>
   );
 }
 

@@ -56,7 +56,9 @@ function DetailRow({ field }: { field: DetailField }) {
         {label}
       </dt>
       <dd className="flex min-h-7 min-w-0 items-center gap-1">
-        <span className={copyable ? "font-mono break-all" : undefined}>
+        {/* A copyable value keeps its copy button beside it; any other fills
+            the row, so a list in it can push items to the right end too. */}
+        <span className={copyable ? "font-mono break-all" : "min-w-0 flex-1"}>
           {href ? (
             <a
               href={href}
