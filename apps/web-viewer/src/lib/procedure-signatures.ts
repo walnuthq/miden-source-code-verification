@@ -1,12 +1,15 @@
+import type { ReadOnlyProcedures } from "miden-source-code-verification-utils/manifest";
+
 import type { PackageManifest } from "@/lib/api-registry.server";
 
 // A procedure a package installs in its account (or a note's entrypoint), as
-// its card lists it: its Rust name, the signature it was compiled from, and its
-// digest.
+// its card lists it: its Rust name, the signature it was compiled from, its
+// digest, and whether it is read-only (`null` when that can't be told).
 export type PackageProcedure = {
   name: string;
   signature: string;
   digest: string;
+  readOnly: boolean | null;
 };
 
 // Only the procedures a package exports with the ComponentModel calling
@@ -121,13 +124,15 @@ function findFunction(masked: string, name: string): number | null {
 // signature read from the package's crate: the `.rs` files beside its entry
 // file, the entry file first. Listed in the order they are declared, as in the
 // source; one whose signature can't be found falls back to `fn <name>` after
-// the others.
+// the others. `readOnly` has every exported procedure's path.
 export function packageProcedures({
   manifest,
+  readOnly,
   files,
   entryPath,
 }: {
   manifest: PackageManifest;
+  readOnly: ReadOnlyProcedures;
   files: Record<string, string>;
   entryPath: string | null;
 }): PackageProcedure[] {
@@ -147,21 +152,21 @@ export function packageProcedures({
   );
   const located = procedures.map(({ path, digest }) => {
     const name = procedureName(path);
+    const procedure = { name, digest, readOnly: readOnly[path] };
     for (const [fileIndex, masked] of sources.entries()) {
       const start = findFunction(masked, name);
       const signature = start === null ? null : readSignature(masked, start);
       if (start !== null && signature) {
-        return { name, signature, digest, order: [fileIndex, start] };
+        return { ...procedure, signature, order: [fileIndex, start] };
       }
     }
     return {
-      name,
+      ...procedure,
       signature: `fn ${name}`,
-      digest,
       order: [Number.POSITIVE_INFINITY, 0],
     };
   });
   return located
     .sort((a, b) => a.order[0] - b.order[0] || a.order[1] - b.order[1])
-    .map(({ name, signature, digest }) => ({ name, signature, digest }));
+    .map(({ order: _, ...procedure }) => procedure);
 }

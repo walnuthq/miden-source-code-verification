@@ -2,6 +2,7 @@ import type {
   Dependency,
   FunctionType,
   ProcedureExport,
+  ReadOnlyProcedures,
 } from "miden-source-code-verification-utils/manifest";
 import { data } from "react-router";
 
@@ -12,12 +13,14 @@ import { API_REGISTRY_URL } from "@/lib/constants.server";
 // the procedures its manifest exports. Its compiled `.masp` is downloaded
 // straight from the registry (see `packageMaspUrl`), and so is its debug
 // build's when `debugCommitment` is set. Records from before debug builds lack
-// the field.
+// the field. `readOnly` tells which of its procedures are read-only, by export
+// path.
 export type SourcePackage = {
   name: string;
   commitment: string;
   files: Record<string, string>;
   manifest: PackageManifest;
+  readOnly: ReadOnlyProcedures;
   debugCommitment?: string | null;
 };
 

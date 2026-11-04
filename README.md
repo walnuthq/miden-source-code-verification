@@ -37,6 +37,10 @@ A verified package's release build carries no debug info, so a transaction simul
 - **Never decides anything.** It has other procedure roots than the deployed code, so it verifies nothing. A debug build that fails is answered as `debug: { error }` and only logged by the registry; the verification goes on unchanged. One is also dropped when it exports a procedure path the release build doesn't, or when it is over 16 MiB, the most the debugger loads.
 - **Stored next to the release build.** It is stored as `<release commitment>.debug.masp`, and the package row records its own commitment (`debugCommitment`) and the cargo-miden that built it. `GET /v1/{networkId}/packages/masp/{commitment}.debug.masp` serves it with an `X-Debug-Commitment` header. Each verified account component carries `debugPackage: { commitment } | null`, so a client knows before downloading whether one exists. Debug builds embed absolute build paths, so their bytes differ between machines even when their commitment is the same.
 
+### Read-only procedures
+
+`miden-package-metadata` also tells whether each procedure a package exports is read-only, by walking its MAST (see `read_only.rs`): `true` when nothing it can reach changes state, `false` when something can, `null` when it can't be told (a dynamic call, a direct syscall, or a procedure from another package). `POST /compile` and `POST /verify` return it as `readOnly`, keyed by export path. The registry stores it with each package, and the web-viewer badges each read-only procedure, or one it can't tell, in the package's procedures. `POST /package-metadata` reads it, with the commitment, kind and manifest, from a `.masp` sent as `application/octet-stream`, without building anything: the [backfill](#backfilling-read-only-procedures) uses it.
+
 ### Miden toolchain
 
 api-compile targets the Miden **0.17** toolchain: it builds projects with `cargo-miden 0.11.0` and reads the network with `miden-client 0.17.5`. Projects to verify should use the matching SDK, `miden = "0.15"`, as the examples in `apps/api-compile/examples` do. Verification compares the procedure roots a project compiles to with the on-chain code, and another compiler version can produce different roots, so code deployed with another toolchain may not verify.
@@ -216,6 +220,17 @@ REGISTRY_URL=https://miden-source-code-verification-api-registry.walnut.dev ADMI
 ```
 
 The script builds the packages one at a time and waits out a busy api-compile. Each build goes through api-compile's `POST /compile-debug`, which first rebuilds the release build and answers `409` when it no longer has the stored commitment, as after a toolchain upgrade. Such a package, or one whose entrypoint can't be told from its files (`422`), is skipped and gets a debug build when it is verified again. The script ends with a count of stored, skipped and failed packages.
+
+### Backfilling read-only procedures
+
+Packages stored before the registry kept [read-only procedures](#read-only-procedures) get them through two operator routes, `GET /admin/read-only/pending` and `POST /admin/packages/{commitment}/read-only`, with the same `ADMIN_TOKEN` as above. Run it after deploying api-compile and the registry:
+
+```bash
+REGISTRY_URL=https://miden-source-code-verification-api-registry.walnut.dev ADMIN_TOKEN=… \
+  pnpm --filter miden-source-code-verification-api-registry exec node --env-file-if-exists=.env scripts/backfill-read-only.ts
+```
+
+Each package's stored `.masp` goes to api-compile's `POST /package-metadata`, so nothing is rebuilt and a toolchain upgrade doesn't stop it. The answer's commitment must be the stored one (`409` otherwise). The web-viewer assumes every package has them, so the script reports any package it couldn't read as failed and exits non-zero. It retries an api-compile that is waking up or busy.
 
 ### Cleaning up playground verifications
 

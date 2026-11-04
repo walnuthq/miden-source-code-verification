@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import type { ReadOnlyProcedures } from "miden-source-code-verification-utils/manifest";
 import { describe, expect, it } from "vitest";
 
 import type { PackageManifest } from "@/lib/api-registry.server";
@@ -17,14 +18,25 @@ const examplesDir = path.resolve(
 const readExample = (relativePath: string) =>
   readFileSync(path.join(examplesDir, relativePath), "utf8");
 
-// A manifest exporting each `[path, digest, abi]`.
-const manifest = (
-  ...exports: [path: string, digest: string, abi: number][]
-): PackageManifest => ({
-  exports: exports.map(([path, digest, abi]) => ({
-    Procedure: { path, digest, signature: { abi } },
-  })),
-  dependencies: [],
+// A manifest exporting each `[path, digest, abi, readOnly]`, and its read-only
+// map, as the registry serves them. `readOnly` defaults to `null`.
+const exported = (
+  ...exports: [
+    path: string,
+    digest: string,
+    abi: number,
+    readOnly?: boolean | null,
+  ][]
+): { manifest: PackageManifest; readOnly: ReadOnlyProcedures } => ({
+  manifest: {
+    exports: exports.map(([path, digest, abi]) => ({
+      Procedure: { path, digest, signature: { abi } },
+    })),
+    dependencies: [],
+  },
+  readOnly: Object.fromEntries(
+    exports.map(([path, , , readOnly = null]) => [path, readOnly]),
+  ),
 });
 
 const counterPath = (name: string) =>
@@ -51,10 +63,10 @@ describe("packageProcedures", () => {
     };
     const procedures = packageProcedures({
       // Exported alphabetically, as the compiler does, plus `init` (abi 0).
-      manifest: manifest(
-        [counterPath('"get-count"'), "0x01", 3],
-        [counterPath('"increment-count"'), "0x02", 3],
-        [counterPath("init"), "0x03", 0],
+      ...exported(
+        [counterPath('"get-count"'), "0x01", 3, true],
+        [counterPath('"increment-count"'), "0x02", 3, false],
+        [counterPath("init"), "0x03", 0, true],
       ),
       files,
       entryPath: "counter-contract/src/lib.rs",
@@ -64,18 +76,20 @@ describe("packageProcedures", () => {
         name: "get_count",
         signature: "fn get_count(&self) -> Felt;",
         digest: "0x01",
+        readOnly: true,
       },
       {
         name: "increment_count",
         signature: "fn increment_count(&mut self) -> Felt;",
         digest: "0x02",
+        readOnly: false,
       },
     ]);
   });
 
   it("reads a note's entrypoint after #[note_script], without its body", () => {
     const procedures = packageProcedures({
-      manifest: manifest([
+      ...exported([
         '::"miden:counter-note/miden-counter-note@0.1.0"::run',
         "0x01",
         3,
@@ -109,7 +123,7 @@ trait Wallet {
 }
 `;
     const procedures = packageProcedures({
-      manifest: manifest([counterPath("send"), "0x01", 3]),
+      ...exported([counterPath("send"), "0x01", 3]),
       files: { "src/lib.rs": source },
       entryPath: "src/lib.rs",
     });
@@ -120,7 +134,7 @@ trait Wallet {
 
   it("only searches the package's own crate", () => {
     const procedures = packageProcedures({
-      manifest: manifest([counterPath('"get-count"'), "0x01", 3]),
+      ...exported([counterPath('"get-count"'), "0x01", 3]),
       files: {
         "counter-contract/src/lib.rs": "#[component]\ntrait Counter {}\n",
         "count-reader/src/lib.rs":
@@ -133,7 +147,7 @@ trait Wallet {
 
   it("falls back to the name when the signature can't be found, listed last", () => {
     const procedures = packageProcedures({
-      manifest: manifest(
+      ...exported(
         [counterPath("missing"), "0x01", 3],
         [counterPath('"get-count"'), "0x02", 3],
       ),

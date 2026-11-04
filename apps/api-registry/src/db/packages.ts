@@ -22,7 +22,10 @@ export const getPackage = (commitment: string) =>
 
 export const updatePackage = async (
   id: string,
-  update: Pick<NewPackage, "entrypoint" | "debugCommitment" | "debugBuiltWith">,
+  update: Pick<
+    NewPackage,
+    "entrypoint" | "debugCommitment" | "debugBuiltWith" | "readOnly"
+  >,
 ) => {
   await db
     .update(packagesTable)
@@ -36,5 +39,15 @@ export const getPackagesWithoutDebugBuild = () =>
   db.query.packagesTable.findMany({
     columns: { id: true, name: true, commitment: true, entrypoint: true },
     where: { type: "account-component", debugCommitment: { isNull: true } },
+    orderBy: { createdAt: "asc" },
+  });
+
+// The read-only backfill's work list: packages, of every kind, whose
+// procedures haven't been read yet. A note's entrypoint is listed on its page
+// like an account's procedures.
+export const getPackagesWithoutReadOnly = () =>
+  db.query.packagesTable.findMany({
+    columns: { id: true, name: true, commitment: true },
+    where: { readOnly: { isNull: true } },
     orderBy: { createdAt: "asc" },
   });
