@@ -4,7 +4,7 @@
 
 use miden::*;
 
-/// Native (active) account this tx-script runs against: the bank-account `Bank` component.
+/// Native (active) account this transaction script runs against: the bank-account `Bank` component.
 #[account(bank_account::Bank)]
 pub struct Wallet;
 

@@ -171,7 +171,7 @@ The package shape is shared by both endpoints and is slimmer than before:
 {
   "id": "…",
   "name": "bank-account",
-  // library | account-component | authentication-component | note | tx-script.
+  // library | executable | kernel | account-component | note | transaction-script.
   // Verification only ever records `account-component` or `note`.
   "type": "account-component",
   "commitment": "0x7f70…",
