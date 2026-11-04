@@ -24,6 +24,15 @@ Only `apps/api-registry` uses Drizzle (`drizzle-orm` and `drizzle-kit` on 1.0 re
 - `docker compose up -d --build` runs `drizzle-kit migrate` (the `api-registry-migrate` service) against the local database, so a rebuild checks the migrations folder the way the deploy does.
 - Relational query `where` values must never be `undefined`: since rc.5 it throws. Use `EmptyFilter` from `drizzle-orm/relations` for a filter that is meant to be absent.
 
+## Backfilling package data
+
+When the registry starts storing something new per package that the web-viewer reads with no fallback (like `read_only`), the user wants the backfill in the same PR, with no UI handling for the missing case.
+- Ship the column nullable. Add admin routes on the registry, behind `ADMIN_TOKEN` (they run there because the Worker holds the R2 and database bindings), plus a `scripts/backfill-*.ts` that drives them. Have the script exit non-zero on any package it can't fill, rather than skip it.
+- If the value can be read from the stored `.masp`, read it there rather than rebuilding: a rebuild fails on packages the current toolchain no longer reproduces.
+- A merge deploys every affected service at once, so older packages' pages break from the web-viewer deploy until the backfill has run. Run it as soon as api-compile's container rollout ends (check with `wrangler containers info`).
+- Once it has run on production, remove the plumbing in a follow-up PR and make the column NOT NULL.
+- The production `ADMIN_TOKEN` is a write-only Wrangler secret that nothing automated uses. If it's lost, set a new one with `wrangler secret put ADMIN_TOKEN` in `apps/api-registry-cloudflare`.
+
 ## Testing
 
 The api-compile and api-registry suites call whatever is listening on `localhost:8080`/`8081` (`API_URL` overrides): normally the docker compose stack. To test a server change, rebuild and restart it first (`docker compose up -d --build`), or the suites test the old images.
