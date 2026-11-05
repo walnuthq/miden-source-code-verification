@@ -9,6 +9,10 @@ Before working in one of these areas, read its file in `docs/claude/`. Their rul
 | A new per-package registry column that the web-viewer reads, admin routes, `ADMIN_TOKEN`                                     | `registry-backfill.md`   |
 | Writing or running the api-compile and api-registry suites, fixtures (`packages/test-utils`), which network a test may touch | `testing.md`             |
 | `apps/api-compile/examples/**/Cargo.lock`, `cargo update`, toolchain bumps, `GET /lockfile`, `warmLockfile`                  | `warm-lockfile.md`       |
+| After a merge: checking a deploy or an api-compile container rollout, anything that touches production                       | `deploys.md`             |
+| Running api-compile or api-registry on the host, checking UI changes, `wrangler dev` in `apps/*-cloudflare`                  | `local-development.md`   |
+| Bumping dependencies, pnpm or `packageManager`                                                                               | `dependency-bumps.md`    |
+| `POST /compile-debug`, debug packages and their commitments, cargo profiles                                                  | `debug-builds.md`        |
 
 # Rules that bite outside their area
 
@@ -16,6 +20,7 @@ Before working in one of these areas, read its file in `docs/claude/`. Their rul
 - Only erasable syntax (`erasableSyntaxOnly`): no enums, namespaces or constructor parameter properties.
 - `.env` is loaded by the command, not the module: `node --env-file-if-exists=.env …` in scripts, `process.loadEnvFile()` in vitest setup files. Don't add dotenv. Shell variables win over `.env`.
 - The api-compile and api-registry suites test whatever listens on `localhost:8080`/`8081`, normally the docker compose stack: rebuild it (`docker compose up -d --build`) before testing a server change, or they test the old images.
+- Check web-viewer and web-verifier changes against their dev servers (`pnpm --filter ./apps/<app> dev`), not by rebuilding the compose images: rebuild a container only when its Rust crate changes.
 - Docker images install a pinned corepack (`npm install -g corepack@…`), since Node 25+ doesn't bundle it. All four Dockerfiles share that base stage: change them together.
 - After a `cargo update` of the examples' lockfiles or a toolchain bump, the Playground's project-template lockfile must be re-synced against the new image and shipped with it, or every Playground build loses the warm cache. `warm-lockfile.md` has the steps.
 - The shadcn skill's advice to render a link as `<Button render={<a />} nativeButton={false}>` is wrong here: Base UI forces `role="button"` on the `<a>`. Style links with `buttonVariants` on a plain `<a>`, as `packages/ui/src/components/navbar.tsx` does.

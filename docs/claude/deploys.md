@@ -1,0 +1,10 @@
+# Deploys and rollouts
+
+A merge to main deploys every service whose paths changed (the `paths:` filters in `.github/workflows/deploy-*.yml`). The Workers (api-registry, web-viewer, web-verifier) and Pages finish in minutes. api-compile builds its container image first, over half an hour when the image cache is cold, then Cloudflare rolls the new version out to the container app. Functional checks belong on the local docker stack, never on production.
+
+- Don't send requests to production api-compile while a rollout is active, not even `GET /`. Cloudflare keeps the previous container version alive while it receives requests, so every probe delays the rollout, and a container woken mid-rollout may answer on the old version and muddy the check.
+- Confirm a rollout with read-only checks: the deploy run log (`Current Version ID`, `Modified application`), `wrangler containers info <app-id>` for the app version and whether a rollout is active, `wrangler containers instances <app-id>` for the running instance's version (`wrangler containers list` gives the app id), and `wrangler deployments status` in each `apps/*-cloudflare` dir for the Workers.
+- When the deploy run has finished and the only instance is `inactive` with no version, there's no old version to keep alive. Ask before sending one confirming request to production: it wakes the instance on the new version. The instance listing can lag a short wake, so trust the response. A cold start adds about 5 s end to end, roughly 2 s to wake the container and 3 s from a cold cargo cache.
+- `gh run list --commit` needs the full SHA. A short SHA matches nothing, and a polling loop built on it exits at once.
+- `wrangler deploy --dry-run` in `apps/api-compile-cloudflare` builds the full container image (amd64, emulated on Apple Silicon), so it isn't a quick bundle check. `tsc --noEmit` covers the Worker.
+- The registry's migrations run inside its deploy (`database-migrations.md`), and a backfill that needs the new api-compile waits for the container rollout to end (`registry-backfill.md`).
