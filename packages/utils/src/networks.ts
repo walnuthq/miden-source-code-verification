@@ -1,10 +1,11 @@
 // The networks the registry serves, keyed by the `networkId` segment of its
 // routes, which is also the bech32 prefix of their addresses. Shared by
-// web-verifier's and web-viewer's navbars and forms. Testnet is the default.
+// web-verifier's and web-viewer's navbars and forms, in the navbar's order.
+// Testnet is the default.
 export const networks = [
+  { label: "Mainnet", value: "mm" },
   { label: "Testnet", value: "mtst" },
   { label: "Devnet", value: "mdev" },
-  { label: "Mainnet", value: "mm" },
 ] as const;
 
 export type NetworkId = (typeof networks)[number]["value"];

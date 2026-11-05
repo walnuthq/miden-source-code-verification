@@ -16,9 +16,9 @@ import {
 
 // Status dot per network.
 const DOT_CLASS: Record<NetworkId, string> = {
-  mtst: "bg-success",
-  mdev: "bg-chart-2",
   mm: "bg-primary",
+  mtst: "bg-chart-2",
+  mdev: "bg-success",
 };
 
 function NetworkLabel({ network }: { network: NetworkId }) {
