@@ -5,6 +5,7 @@ Status: **implemented** on branch `feat/mainnet-support` (2026-11-04); see "What
 ## Why
 
 Miden opened **Partner Mainnet**, an invite-only mainnet that users join through Bread Wallet with an invite code. The Playground is adding a "Mainnet sandbox". There, users deploy accounts (in practice **network accounts**, see "Allowlist" below) and create notes on Mainnet. Today the Playground has to **skip source code verification on Mainnet**, because this service doesn't serve it:
+
 - `packages/utils/src/networks.ts` has `// { label: "Mainnet", value: "mm" },` commented out.
 - `miden-verifier` and `miden-import` reject any network ID other than `mtst`, `mdev` and `mlcl`.
 
@@ -13,11 +14,13 @@ Goal: verify account components and note scripts deployed on Mainnet, store them
 ## What shipped (2026-11-04)
 
 Implemented on `feat/mainnet-support`. Decisions taken while implementing:
+
 - **No Mainnet fixtures.** Deploying needs an invite code and real fees, so `generate-fixtures` still rejects `mm`, and the status-page probe (section 6) stays Testnet-only.
 - **Mainnet is listed for everyone** in the network select, labelled plainly "Mainnet" (open question 3). The README explains that it's Partner Mainnet and will be reset.
 - **The explorer is Midenscan.** `https://explorer.mainnet.miden.io` serves the same app as testnet.midenscan.com (`MIDEN_NETWORK: "mainnet"`), and `/account/<id>` resolves, so the existing link format applies (open question 2).
 
 Changes, by section below:
+
 1. `networks.ts` lists `{ label: "Mainnet", value: "mm" }`, and `network-select.tsx` gives it a `bg-primary` (Miden orange) dot. `DEFAULT_NETWORK` stays `mtst`. `RESOURCE_ID_PATTERN` and the address decoding needed no change.
 2. `miden-verifier` and `miden-import` map `"mm"` to `Endpoint::mainnet()` (miden-client 0.17.5, no dependency change), and their error message lists `mm`. Per-network stores are created lazily, as for `mdev`, so nothing changed in the Dockerfile. A cold Mainnet import, store created from scratch, took 0.65 s.
 3. **No change needed.** api-compile TS, the Cloudflare proxy and api-registry don't validate network IDs: they pass them through to the binaries, which reject unknown ones (404 on import, 400 on verify).
@@ -26,6 +29,7 @@ Changes, by section below:
 6. Skipped (needs a fixture).
 
 Tests, all read-only against Mainnet:
+
 - **api-compile import:** the public USDCx faucet `0xe69e6ca6e39df1b10c1e5399399feb` imports on `/mm` by hex ID and by address. That address on `/mtst` gets the network-mismatch 404, and an unknown network (`mxx`) gets a 404.
 - **api-compile verify:** the counter-contract against the Mainnet faucet returns 200 `verified: false`, a real Mainnet verify with no deploy. An unknown network gets a 400.
 - **utils:** `networks.test.ts` is new. `resource-id.test.ts` now expects `mm` addresses to be named "Mainnet", and uses `mxx` as the network we don't serve.
@@ -107,6 +111,7 @@ Checked against the live network with `@miden-sdk/miden-sdk` 0.17.8 (its Node en
 ## Downstream: Miden Playground (after this ships)
 
 Done in walnuthq/miden-playground, not here. Listed so the two changes line up:
+
 - Remove the `networkId !== "mm"` verification guards:
   - `apps/web/hooks/use-accounts.ts` (deploy-time `verifyAccountComponentsFromPackageIds`)
   - `apps/web/hooks/use-notes.ts` (`verifyNoteFromPackageId`)

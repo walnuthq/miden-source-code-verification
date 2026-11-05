@@ -27,6 +27,7 @@ Only `apps/api-registry` uses Drizzle (`drizzle-orm` and `drizzle-kit` on 1.0 re
 ## Backfilling package data
 
 When the registry starts storing something new per package that the web-viewer reads with no fallback (like `read_only`), the user wants the backfill in the same PR, with no UI handling for the missing case.
+
 - Ship the column nullable. Add admin routes on the registry, behind `ADMIN_TOKEN` (they run there because the Worker holds the R2 and database bindings), plus a `scripts/backfill-*.ts` that drives them. Have the script exit non-zero on any package it can't fill, rather than skip it.
 - If the value can be read from the stored `.masp`, read it there rather than rebuilding: a rebuild fails on packages the current toolchain no longer reproduces.
 - A merge deploys every affected service at once, so older packages' pages break from the web-viewer deploy until the backfill has run. Run it as soon as api-compile's container rollout ends (check with `wrangler containers info`).
@@ -44,6 +45,7 @@ Docker images install a pinned corepack (`npm install -g corepack@…`), since N
 ## api-compile's warm lockfile
 
 The image warms cargo's cache from `apps/api-compile/examples/counter-contract/counter-contract/Cargo.lock`, which every example's lockfile matches, and builds run `--offline` first. Miden Playground (walnuthq/miden-playground) sends its own lockfile, `apps/api/templates/project-template/Cargo.lock`, which must pin the same registry crates.
+
 - After a `cargo update` of the examples' lockfiles (or a toolchain bump), run `pnpm lockfile:sync` in the playground's `apps/api` against the new image, and ship both together. Otherwise every playground build downloads and rebuilds the crates that differ (176 s on production, lost each time the container sleeps).
 - `GET /lockfile` serves the warm lockfile (`WARM_CARGO_LOCK`), for that check.
 - `POST /compile` with `warmLockfile: true` re-resolves a lockfile that fails offline (`cargo update --offline`) before building online, and returns the updated lockfile. `/verify` and `/compile-debug` never do: they must build the exact lockfile they're sent.
