@@ -1,51 +1,21 @@
-## Agent skills
+# Area guides
 
-Vendored in `.agents/skills/` and pinned by `skills-lock.json`, managed with the `skills` CLI (`npx skills add|update|remove`); `.claude/skills/` links to them. The `pnpm-drizzle-kit-*` skills come with `node_modules` and aren't committed. Personal settings go in `.claude/settings.local.json` or `CLAUDE.local.md`, both ignored.
+Before working in one of these areas, read its file in `docs/claude/`. Their rules aren't loaded otherwise.
 
-- Add skills with `npx skills add <source> -s <name> -y` and no `-a`: that puts one copy in `.agents/skills` (read by Codex and Copilot) and links it from `.claude/skills`. `-a claude-code` copies it into `.claude/skills` instead.
-- When adding a skill from a new source, add its license to `.agents/THIRD_PARTY_LICENSES/`.
-- The shadcn skill is patched: its `SKILL.md` runs `npx shadcn@latest info --json -c packages/ui`, with a note to always pass `-c packages/ui`. From the repo root the CLI fails with `monorepo_root` and the skill won't load. `npx skills update` reverts the patch: re-apply it, and don't add a root `components.json` instead.
-- The shadcn skill's advice to render a link as `<Button render={<a />} nativeButton={false}>` is wrong here: Base UI forces `role="button"` on the `<a>`. Style links with `buttonVariants` on a plain `<a>`, as `packages/ui/src/components/navbar.tsx` does.
+| Working on                                                                                                                   | Read                     |
+| ---------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| Skills (`.agents/skills`, `.claude/skills`, `skills-lock.json`), `npx skills`                                                | `skills.md`              |
+| `apps/api-registry/src/db/schema.ts`, its `drizzle/` migrations, relational queries, `drizzle-kit` bumps                     | `database-migrations.md` |
+| A new per-package registry column that the web-viewer reads, admin routes, `ADMIN_TOKEN`                                     | `registry-backfill.md`   |
+| Writing or running the api-compile and api-registry suites, fixtures (`packages/test-utils`), which network a test may touch | `testing.md`             |
+| `apps/api-compile/examples/**/Cargo.lock`, `cargo update`, toolchain bumps, `GET /lockfile`, `warmLockfile`                  | `warm-lockfile.md`       |
 
-## Node and TypeScript conventions
+# Rules that bite outside their area
 
-Node 26 (`engines: >=26 <27`). The Node packages (api-compile, api-registry, api-docs, the status-page scripts, utils, test-utils) run their TypeScript on Node directly, with no tsx:
-
-- Import local files by relative path with the `.ts` extension (`../lib/errors.ts`). No `@/` aliases and no `.js` specifiers: Node resolves neither. `tsc` rewrites `.ts` to `.js` on build (`rewriteRelativeImportExtensions`).
+- The Node packages (api-compile, api-registry, api-docs, the status-page scripts, utils, test-utils) run their TypeScript on Node 26 (`engines: >=26 <27`) directly, with no tsx. Import local files by relative path with the `.ts` extension (`../lib/errors.ts`). No `@/` aliases and no `.js` specifiers: Node resolves neither. `tsc` rewrites `.ts` to `.js` on build (`rewriteRelativeImportExtensions`).
 - Only erasable syntax (`erasableSyntaxOnly`): no enums, namespaces or constructor parameter properties.
 - `.env` is loaded by the command, not the module: `node --env-file-if-exists=.env …` in scripts, `process.loadEnvFile()` in vitest setup files. Don't add dotenv. Shell variables win over `.env`.
-- API tests use `request()` from `miden-source-code-verification-test-utils` (a fetch-based, supertest-like builder), not supertest.
-
-## Drizzle
-
-Only `apps/api-registry` uses Drizzle (`drizzle-orm` and `drizzle-kit` on 1.0 release candidates, pinned to the same version).
-
-- After bumping `drizzle-kit`, run `pnpm exec drizzle-kit check` in `apps/api-registry`. If it asks for `drizzle-kit up`, run that and commit the rewritten `drizzle/*/snapshot.json` files with the bump. Otherwise the deploy workflow's `pnpm db:migrate` fails before the deploy. `up` must leave every `migration.sql` unchanged. Then `drizzle-kit generate --explain` should report `no_changes`.
-- `docker compose up -d --build` runs `drizzle-kit migrate` (the `api-registry-migrate` service) against the local database, so a rebuild checks the migrations folder the way the deploy does.
-- Relational query `where` values must never be `undefined`: since rc.5 it throws. Use `EmptyFilter` from `drizzle-orm/relations` for a filter that is meant to be absent.
-
-## Backfilling package data
-
-When the registry starts storing something new per package that the web-viewer reads with no fallback (like `read_only`), the user wants the backfill in the same PR, with no UI handling for the missing case.
-
-- Ship the column nullable. Add admin routes on the registry, behind `ADMIN_TOKEN` (they run there because the Worker holds the R2 and database bindings), plus a `scripts/backfill-*.ts` that drives them. Have the script exit non-zero on any package it can't fill, rather than skip it.
-- If the value can be read from the stored `.masp`, read it there rather than rebuilding: a rebuild fails on packages the current toolchain no longer reproduces.
-- A merge deploys every affected service at once, so older packages' pages break from the web-viewer deploy until the backfill has run. Run it as soon as api-compile's container rollout ends (check with `wrangler containers info`).
-- Once it has run on production, remove the plumbing in a follow-up PR and make the column NOT NULL.
-- The production `ADMIN_TOKEN` is a write-only Wrangler secret that nothing automated uses. If it's lost, set a new one with `wrangler secret put ADMIN_TOKEN` in `apps/api-registry-cloudflare`.
-
-## Testing
-
-The api-compile and api-registry suites call whatever is listening on `localhost:8080`/`8081` (`API_URL` overrides): normally the docker compose stack. To test a server change, rebuild and restart it first (`docker compose up -d --build`), or the suites test the old images.
-
-Fixtures (`packages/test-utils`) live on Testnet only. Mainnet (`mm`, Miden's invite-only Partner Mainnet) has none: creating an account there needs an invite code and costs real fees, so don't deploy to it. Mainnet tests only read the public USDCx fee faucet (`0xe69e6ca6e39df1b10c1e5399399feb`). Use `mxx` for a network the binaries don't serve: `mlcl` resolves on the host but not in the container.
-
-Docker images install a pinned corepack (`npm install -g corepack@…`), since Node 25+ doesn't bundle it. All four Dockerfiles share that base stage: change them together.
-
-## api-compile's warm lockfile
-
-The image warms cargo's cache from `apps/api-compile/examples/counter-contract/counter-contract/Cargo.lock`, which every example's lockfile matches, and builds run `--offline` first. Miden Playground (walnuthq/miden-playground) sends its own lockfile, `apps/api/templates/project-template/Cargo.lock`, which must pin the same registry crates.
-
-- After a `cargo update` of the examples' lockfiles (or a toolchain bump), run `pnpm lockfile:sync` in the playground's `apps/api` against the new image, and ship both together. Otherwise every playground build downloads and rebuilds the crates that differ (176 s on production, lost each time the container sleeps).
-- `GET /lockfile` serves the warm lockfile (`WARM_CARGO_LOCK`), for that check.
-- `POST /compile` with `warmLockfile: true` re-resolves a lockfile that fails offline (`cargo update --offline`) before building online, and returns the updated lockfile. `/verify` and `/compile-debug` never do: they must build the exact lockfile they're sent.
+- The api-compile and api-registry suites test whatever listens on `localhost:8080`/`8081`, normally the docker compose stack: rebuild it (`docker compose up -d --build`) before testing a server change, or they test the old images.
+- Docker images install a pinned corepack (`npm install -g corepack@…`), since Node 25+ doesn't bundle it. All four Dockerfiles share that base stage: change them together.
+- After a `cargo update` of the examples' lockfiles or a toolchain bump, the Playground's project-template lockfile must be re-synced against the new image and shipped with it, or every Playground build loses the warm cache. `warm-lockfile.md` has the steps.
+- The shadcn skill's advice to render a link as `<Button render={<a />} nativeButton={false}>` is wrong here: Base UI forces `role="button"` on the `<a>`. Style links with `buttonVariants` on a plain `<a>`, as `packages/ui/src/components/navbar.tsx` does.
