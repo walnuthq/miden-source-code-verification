@@ -41,6 +41,7 @@ GET /v1/{networkId}/verified-accounts/{accountId}
 ```
 
 Two things to know:
+
 1. The `{accountId}` segment accepts either the on-chain **account id** (hex,
    e.g. `0xd42901fd1841424000901c7741f24d`) or the **bech32 address** you
    already pass today (`mtst1ar2zjq0arpq5ysqqjqw8ws0jf5fygx84`) — both are
@@ -144,6 +145,7 @@ GET /v1/{networkId}/verified-notes/script/{script}     → VerifiedNote     (404
 ```
 
 Differences from the id-keyed lookups:
+
 - No call to the compilation API — this is a single database query, and it works
   even when that service is down.
 - The response is the record itself, **without** the `accountId` / `noteId` echo
@@ -235,6 +237,7 @@ Field mapping from the legacy `Package`:
 ## Error handling
 
 Replace "any non-200 means error" logic with proper status handling:
+
 - `404` → the contract/note has not been verified (previously you'd get standard
   components or `null`). On the id-keyed lookups this also covers "the id could
   not be resolved on-chain": an unknown or malformed id, or an account or note

@@ -7,6 +7,7 @@ Public status page for the four deployed services — `api-compile`,
 ## How it works
 
 Two phases, both at build time:
+
 1. `scripts/probe.ts` runs each service's checks and writes the results to
    `public/status.json`.
 2. Vite builds the React app, copying that snapshot into `dist/` alongside
