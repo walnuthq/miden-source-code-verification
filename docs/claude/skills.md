@@ -1,6 +1,6 @@
 # Agent skills
 
-Vendored in `.agents/skills/` and pinned by `skills-lock.json`, managed with the `skills` CLI (`npx skills add|update|remove`); `.claude/skills/` links to them. The `pnpm-drizzle-kit-*` skills come with `node_modules` and aren't committed. Personal settings go in `.claude/settings.local.json` or `CLAUDE.local.md`, both ignored.
+Vendored in `.agents/skills/` and pinned by `skills-lock.json`, managed with the `skills` CLI (`npx skills add|update|remove`); `.claude/skills/` links to them. The `drizzle` skill comes with `node_modules` and isn't committed: pnpm links it and lists the link in a `# pnpm` block of the tracked `.claude/skills/.gitignore`, so commit that file if an install changes it. Personal settings go in `.claude/settings.local.json` or `CLAUDE.local.md`, both ignored.
 
 - Add skills with `npx skills add <source> -s <name> -y` and no `-a`: that puts one copy in `.agents/skills` (read by Codex and Copilot) and links it from `.claude/skills`. `-a claude-code` copies it into `.claude/skills` instead.
 - When adding a skill from a new source, add its license to `.agents/THIRD_PARTY_LICENSES/`.
