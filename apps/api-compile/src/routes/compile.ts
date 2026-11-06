@@ -1,5 +1,5 @@
-import { join } from "node:path";
 import { Router } from "express";
+import { openProject } from "miden-source-code-verification-utils/project";
 import { queueCompile } from "../lib/compile.ts";
 import { BusyError } from "../lib/limiter.ts";
 import { abortOnClose } from "../lib/utils.ts";
@@ -7,8 +7,8 @@ import { abortOnClose } from "../lib/utils.ts";
 const router = Router();
 
 type CompileRequestBody = {
-  files?: Record<string, string>;
-  entrypoint?: string;
+  files?: unknown;
+  entrypoint?: unknown;
   debug?: boolean;
   warmLockfile?: boolean;
   masm?: boolean;
@@ -17,25 +17,11 @@ type CompileRequestBody = {
 router.post("/compile", async (req, res) => {
   const signal = abortOnClose(res);
   try {
-    const {
-      files,
-      entrypoint = ".",
-      debug,
-      warmLockfile,
-      masm,
-    } = req.body as CompileRequestBody;
-    if (!files || typeof files !== "object") {
-      res.status(400).json({ error: "missing files" });
-      return;
-    }
-    const cargoTomlPath = join(entrypoint, "Cargo.toml");
-    if (!files[cargoTomlPath]) {
-      res.status(400).json({ error: "missing Cargo.toml" });
-      return;
-    }
-    const midenProjectTomlPath = join(entrypoint, "miden-project.toml");
-    if (!files[midenProjectTomlPath]) {
-      res.status(400).json({ error: "missing miden-project.toml" });
+    const { files, entrypoint, debug, warmLockfile, masm } =
+      req.body as CompileRequestBody;
+    const opened = openProject(files, entrypoint);
+    if ("error" in opened) {
+      res.status(400).json({ error: opened.error });
       return;
     }
     // The response only needs what the build returns in memory.
@@ -52,8 +38,7 @@ router.post("/compile", async (req, res) => {
       masm: masmOutput,
     } = await queueCompile(
       {
-        files,
-        entrypoint,
+        project: opened.project,
         debug: debug === true,
         warmLockfile: warmLockfile === true,
         masm: masm === true,

@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { type RequestHandler, Router } from "express";
+import { inferEntrypoint } from "miden-source-code-verification-utils/project";
 import {
   getPackage,
   getPackagesWithoutDebugBuild,
@@ -14,7 +15,6 @@ import { cleanupPlaygroundResources } from "../lib/cleanup-playground.ts";
 import { ADMIN_TOKEN } from "../lib/constants.ts";
 import { type DebugBuild, storeDebugBuild } from "../lib/debug-build.ts";
 import { notFound } from "../lib/errors.ts";
-import { inferEntrypoint } from "../lib/infer-entrypoint.ts";
 import { parseRoot } from "../lib/roots.ts";
 import { getMaspStore } from "../storage/masp-store.ts";
 

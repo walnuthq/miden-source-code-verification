@@ -27,6 +27,7 @@ const files = {
   "Cargo.toml": '[package]\nname = "counter-contract"\n',
   "miden-project.toml": "",
 };
+const project = { files, entrypoint: ".", name: "counter-contract" };
 
 const mockApiCompile = (debug: DebugBuild | undefined) =>
   vi.mocked(fetchApiCompile).mockResolvedValueOnce({
@@ -57,7 +58,7 @@ const verify = (maspStore: MaspStore, code: string) => {
   return verifyAccountComponent({
     networkId: "mtst",
     accountId: "0x858c680a7a66d2916230cc8c2a6c98",
-    files,
+    project,
     maspStore,
   });
 };
@@ -144,7 +145,7 @@ describe("verifyAccountComponent when api-compile fails", () => {
       verifyAccountComponent({
         networkId: "mtst",
         accountId: "0x858c680a7a66d2916230cc8c2a6c98",
-        files,
+        project,
         maspStore: createFsMaspStore(join(tmpdir(), "unused-masp-store")),
       }),
     ).rejects.toBe(failure);
@@ -164,7 +165,7 @@ describe("verifyAccountComponent when the import fails", () => {
         verifyAccountComponent({
           networkId: "mtst",
           accountId: "0x858c680a7a66d2916230cc8c2a6c98",
-          files,
+          project,
           maspStore: createFsMaspStore(dir),
         }),
       ).rejects.toBe(failure);

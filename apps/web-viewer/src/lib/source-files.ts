@@ -1,4 +1,4 @@
-import { parseCargoToml } from "miden-source-code-verification-utils";
+import { cargoPackageName } from "miden-source-code-verification-utils/project";
 import type { PackageDependency } from "@/lib/api-registry.server";
 import { PUBLIC_API_REGISTRY_URL } from "@/lib/constants";
 import type { PackageProcedure } from "@/lib/procedure-signatures";
@@ -107,9 +107,6 @@ export function filterSourceFiles(
   );
 }
 
-// Cargo accepts `-` and `_` interchangeably in crate names.
-const normalizeCrateName = (name: string) => name.replaceAll("_", "-");
-
 // The file a package's viewer opens first: the `src/lib.rs` of the crate the
 // package was built from, i.e. the one whose Cargo.toml carries the package's
 // name, since an upload can also hold the crate's local dependencies. Falls
@@ -124,19 +121,13 @@ export function findEntryFile(
       continue;
     }
     const libPath = `${path.slice(0, -"Cargo.toml".length)}src/lib.rs`;
-    if (!(libPath in files)) {
-      continue;
-    }
-    try {
-      const { package: cargoPackage } = parseCargoToml(files[path]);
-      if (
-        normalizeCrateName(cargoPackage.name) ===
-        normalizeCrateName(packageName)
-      ) {
-        return libPath;
-      }
-    } catch {
-      // A manifest that doesn't parse (or has no [package]) can't be the entry.
+    // A manifest that doesn't parse, or has no [package], can't be the entry.
+    // Both names come from a Cargo.toml, so they match exactly or not at all.
+    if (
+      libPath in files &&
+      cargoPackageName(files[path] ?? "") === packageName
+    ) {
+      return libPath;
     }
   }
   return (
