@@ -1,5 +1,6 @@
 import { dirname } from "node:path";
 import { Router } from "express";
+import type { VerifyResponse } from "miden-source-code-verification-utils/api-compile";
 import { openProject } from "miden-source-code-verification-utils/project";
 import { queueCompile } from "../lib/compile.ts";
 import { abortOnClose, removeDirs } from "../lib/utils.ts";
@@ -43,26 +44,28 @@ router.post("/verify", async (req, res) => {
       debug: debug === true,
       signal: abortOnClose(res),
     },
-    async ({
-      stderr,
-      maspPath,
-      masp,
-      commitment,
-      kind,
-      manifest,
-      readOnly,
-      files: compiledFiles,
-      cargoMidenVersion,
-      debug: debugBuild,
-    }) => {
-      if (!maspPath) {
-        return { error: stderr };
+    async (build) => {
+      // Without a package there is nothing to check: the failed build's
+      // diagnostics are the error.
+      if (!build.built) {
+        return { error: build.stderr };
       }
+      const {
+        maspPath,
+        masp,
+        commitment,
+        kind,
+        manifest,
+        readOnly,
+        files: compiledFiles,
+        cargoMidenVersion,
+        debug: debugBuild,
+      } = build;
       const resourcePath = resource
         ? await writeResourceFile(resource)
         : undefined;
       try {
-        const verified = await verify({
+        const { verified, root } = await verify({
           networkId,
           resourceId,
           resourcePath,
@@ -71,6 +74,7 @@ router.post("/verify", async (req, res) => {
         });
         return {
           verified,
+          root,
           masp,
           commitment,
           kind,
@@ -78,10 +82,8 @@ router.post("/verify", async (req, res) => {
           readOnly,
           files: compiledFiles,
           cargoMidenVersion,
-          // Set when `debug` was requested. Its failure is `debug.error`,
-          // which never changes `verified`.
           debug: debugBuild,
-        };
+        } satisfies VerifyResponse;
       } finally {
         if (resourcePath) {
           await removeDirs([dirname(resourcePath)]);

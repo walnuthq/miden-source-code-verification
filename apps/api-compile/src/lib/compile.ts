@@ -1,6 +1,11 @@
 import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type {
+  BuiltPackage,
+  DebugBuild,
+  MasmOutput,
+} from "miden-source-code-verification-utils/api-compile";
 import {
   type Manifest,
   procedureExportPaths,
@@ -46,12 +51,8 @@ type CompileArgs = {
 const errorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
 
-// The release build's Miden Assembly. Like the debug build, it never fails the
-// request it's part of, so a failure is an `error`. It's for reading: it calls
-// library procedures (`miden::protocol::*`, `intrinsics::*`) without including
-// them, so it doesn't reassemble into the package on its own.
-export type MasmOutput = { source: string } | { error: string };
-
+// The release build's Miden Assembly, as a `MasmOutput`: a failure never fails
+// the request it's part of.
 const readMasm = async (masmPath: string): Promise<MasmOutput> => {
   try {
     const { size } = await stat(masmPath);
@@ -66,18 +67,8 @@ const readMasm = async (masmPath: string): Promise<MasmOutput> => {
   }
 };
 
-// A debug build of the same sources: its package with debug info, which names
-// call-trace frames but has other procedure roots than the release build. It
-// never fails the request it's part of, so a failure is an `error`.
-export type DebugBuild =
-  | {
-      masp: string;
-      commitment: string;
-      manifest: Manifest;
-      cargoMidenVersion?: string;
-    }
-  | { error: string };
-
+// A debug build of the same sources, as a `DebugBuild`: a failure never fails
+// the request it's part of.
 const buildDebug = async ({
   projectDir,
   midencTargetDir,
@@ -139,7 +130,30 @@ const buildDebug = async ({
   }
 };
 
-const build = async ({
+// What compiling a project yields: built, with its package and cargo-miden's
+// output, or failed, with the output alone. A failed build is an outcome the
+// routes answer, not an error.
+export type Build =
+  | { built: false; stdout: string; stderr: string }
+  | ({
+      built: true;
+      stdout: string;
+      stderr: string;
+      // The package on disk, for the verifier. Gone once `queueCompile`'s
+      // `use` returns.
+      maspPath: string;
+      // The cargo-miden that built it, when its version could be read.
+      cargoMidenVersion?: string;
+      // Set when `expectedCommitment` was given and the build doesn't match
+      // it.
+      drift: boolean;
+      // Set when `debug` was requested, unless the build drifted.
+      debug?: DebugBuild;
+      // Set when `masm` was requested.
+      masm?: MasmOutput;
+    } & BuiltPackage);
+
+const buildProject = async ({
   project: { files, entrypoint, name: packageName },
   debug = false,
   expectedCommitment,
@@ -148,7 +162,10 @@ const build = async ({
   signal,
   tmpDir,
   midencTargetDir,
-}: CompileArgs & { tmpDir: string; midencTargetDir: string }) => {
+}: CompileArgs & {
+  tmpDir: string;
+  midencTargetDir: string;
+}): Promise<Build> => {
   for (const [path, content] of Object.entries(files)) {
     const fullPath = join(tmpDir, path);
     const dir = fullPath.substring(0, fullPath.lastIndexOf("/"));
@@ -173,10 +190,7 @@ const build = async ({
     signal,
   });
   if (cargoMidenError) {
-    return {
-      stdout,
-      stderr: cargoMidenError,
-    };
+    return { built: false, stdout, stderr: cargoMidenError };
   }
   const maspPath = `${midencTargetDir}/${PROFILE_DIRS.release}/${packageName}.masp`;
   const [
@@ -229,6 +243,7 @@ const build = async ({
         })
       : undefined;
   return {
+    built: true,
     stdout,
     stderr,
     maspPath,
@@ -238,10 +253,8 @@ const build = async ({
     manifest,
     readOnly,
     cargoMidenVersion: builtWith,
-    // Set when `expectedCommitment` was given and the build doesn't match it.
     drift,
     debug: debugBuild,
-    // Set when `masm` was requested.
     masm: masmOutput,
     // The sources with the lockfile cargo created or updated, so a client can
     // resubmit them and get the same dependency versions next time.
@@ -250,8 +263,6 @@ const build = async ({
       : files,
   };
 };
-
-type Compiled = Awaited<ReturnType<typeof build>>;
 
 // Builds in a fresh copy of the project, into its own output directory. Both
 // are deleted by `cleanup`, or right away if the build throws: nothing reuses
@@ -264,7 +275,10 @@ const compile = async (args: CompileArgs) => {
   const midencTargetDir = `${CARGO_TARGET_DIR}/${outputName}`;
   const cleanup = () => removeDirs([tmpDir, midencTargetDir]);
   try {
-    return { ...(await build({ ...args, tmpDir, midencTargetDir })), cleanup };
+    return {
+      build: await buildProject({ ...args, tmpDir, midencTargetDir }),
+      cleanup,
+    };
   } catch (error) {
     await cleanup();
     throw error;
@@ -277,18 +291,15 @@ const limit = createLimiter({
 });
 
 // Compiles once a slot is free (throws `BusyError` when the queue is full),
-// passes the result to `use`, then deletes the build's files. `use` has to be
-// done with `maspPath` when it returns.
+// passes the build to `use`, then deletes its files. `use` has to be done
+// with `maspPath` when it returns.
 export const queueCompile = async <T>(
   args: CompileArgs,
-  use: (compiled: Compiled) => Promise<T> | T,
+  use: (build: Build) => Promise<T> | T,
 ) => {
-  const { cleanup, ...compiled } = await limit(
-    () => compile(args),
-    args.signal,
-  );
+  const { build, cleanup } = await limit(() => compile(args), args.signal);
   try {
-    return await use(compiled);
+    return await use(build);
   } finally {
     await cleanup();
   }

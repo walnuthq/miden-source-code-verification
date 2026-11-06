@@ -19,26 +19,26 @@ no CORS headers — client-side checks would simply be blocked.
 
 ## The checks
 
-| Service      | Check                                              | Asserts                                                                                                          | Card shows                                       |
-| ------------ | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| api-compile  | `GET /`                                            | 200 + JSON                                                                                                       | the payload in full                              |
-| api-compile  | `POST /compile`                                    | a package came back (a compile failure still returns 200 with no `masp`, so the status code alone would miss it) | commitment, exports, dependencies, sizes         |
-| api-compile  | `POST /verify`                                     | `verified === true`                                                                                              | verified, commitment, exports                    |
-| api-compile  | `GET /:networkId/import/:resourceId`               | `type` is an account and `code` matches the fixture                                                              | type, code, ✓ matches                            |
-| api-registry | `GET /`                                            | 200 + JSON                                                                                                       | the payload in full                              |
-| api-registry | `GET /v1/:networkId/verified-accounts/code/:code`  | the code root and network come back unchanged, ≥1 component                                                      | networkId, code, components, package, source     |
-| api-registry | `GET /v1/:networkId/verified-accounts/:accountId`  | above, plus the echoed id                                                                                        | the same, plus accountId                         |
-| api-registry | `GET /v1/:networkId/verified-notes/script/:script` | the script root and network come back unchanged, package is a note                                               | networkId, script, package, source files, source |
-| api-registry | `GET /v1/:networkId/verified-notes/:noteId`        | above, plus the echoed id                                                                                        | the same, plus noteId                            |
-| web-verifier | `GET /`                                            | 200                                                                                                              | — (serves HTML; reachability only)               |
-| web-viewer   | `GET /`                                            | 200                                                                                                              | — (serves HTML; reachability only)               |
+| Service      | Check                                              | Asserts                                                                                                     | Card shows                                       |
+| ------------ | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| api-compile  | `GET /`                                            | 200 + JSON                                                                                                  | the payload in full                              |
+| api-compile  | `POST /compile`                                    | `built === true` (a failed build is an outcome: still a 200, with `built: false` and the compiler's output) | built, commitment, exports, dependencies, sizes  |
+| api-compile  | `POST /verify`                                     | `verified === true`                                                                                         | verified, commitment, exports                    |
+| api-compile  | `GET /:networkId/import/:resourceId`               | `type` is an account and `code` matches the fixture                                                         | type, code, ✓ matches                            |
+| api-registry | `GET /`                                            | 200 + JSON                                                                                                  | the payload in full                              |
+| api-registry | `GET /v1/:networkId/verified-accounts/code/:code`  | the code root and network come back unchanged, ≥1 component                                                 | networkId, code, components, package, source     |
+| api-registry | `GET /v1/:networkId/verified-accounts/:accountId`  | above, plus the echoed id                                                                                   | the same, plus accountId                         |
+| api-registry | `GET /v1/:networkId/verified-notes/script/:script` | the script root and network come back unchanged, package is a note                                          | networkId, script, package, source files, source |
+| api-registry | `GET /v1/:networkId/verified-notes/:noteId`        | above, plus the echoed id                                                                                   | the same, plus noteId                            |
+| web-verifier | `GET /`                                            | 200                                                                                                         | — (serves HTML; reachability only)               |
+| web-viewer   | `GET /`                                            | 200                                                                                                         | — (serves HTML; reachability only)               |
 
 `api-registry`'s `GET /` only echoes env vars and never opens a database
 connection, so the four record lookups are what actually prove the registry can
 serve. All four are network-scoped, since records are keyed on the network plus
 the root. The by-root pair is a pure Postgres read; **the by-id pair additionally
 calls api-compile** to resolve the on-chain root before the lookup (see
-`apps/api-registry/src/lib/import-resource.ts`), so an api-compile outage will
+`apps/api-registry/src/lib/verified-record.ts`), so an api-compile outage will
 degrade the api-registry card too. Those routes answer 404 only when the record
 is absent or the id doesn't resolve on-chain. When api-compile is unreachable,
 busy or too slow, they answer 502, 503 or 504, so an outage doesn't read as a

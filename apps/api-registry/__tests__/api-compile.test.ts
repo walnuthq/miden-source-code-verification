@@ -75,7 +75,7 @@ describe("createHttpApiCompile", () => {
   });
 
   it("posts the project, the resource and the debug flag to /verify", async () => {
-    const fetch = respondWith(Response.json({ verified: false }));
+    const fetch = respondWith(Response.json({ verified: false, root: "0x01" }));
     await verify();
     expect(fetch).toHaveBeenCalledWith(
       "http://api-compile/verify",
@@ -87,6 +87,23 @@ describe("createHttpApiCompile", () => {
       networkId: "mtst",
       resourceId: "0x01",
       debug: true,
+    });
+  });
+
+  it("returns what /verify answers", async () => {
+    respondWith(Response.json({ verified: true, root: "0x01" }));
+    await expect(verify()).resolves.toEqual({ verified: true, root: "0x01" });
+  });
+
+  // What an api-compile from before `root` answers, as the one still serving
+  // during its rollout.
+  it("reports a /verify answer with no root as a 502", async () => {
+    respondWith(Response.json({ verified: true }));
+    const error = await catchError(verify());
+    expect(error).toBeInstanceOf(ApiCompileError);
+    expect(error).toMatchObject({
+      status: 502,
+      message: "api-compile answered with no resource root",
     });
   });
 

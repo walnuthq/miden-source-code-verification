@@ -76,10 +76,8 @@ router.post("/admin/packages/:commitment/debug-build", async (req, res) => {
     entrypoint,
     expectedCommitment: commitment,
   });
-  if (!debug || "error" in debug) {
-    res
-      .status(422)
-      .json({ error: debug?.error ?? "api-compile returned no debug build" });
+  if ("error" in debug) {
+    res.status(422).json({ error: debug.error });
     return;
   }
   await storeDebugBuild({

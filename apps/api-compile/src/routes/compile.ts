@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type { CompileResponse } from "miden-source-code-verification-utils/api-compile";
 import { openProject } from "miden-source-code-verification-utils/project";
 import { queueCompile } from "../lib/compile.ts";
 import { abortOnClose } from "../lib/utils.ts";
@@ -21,7 +22,26 @@ router.post("/compile", async (req, res) => {
     res.status(400).json({ error: opened.error });
     return;
   }
-  // The response only needs what the build returns in memory.
+  const build = await queueCompile(
+    {
+      project: opened.project,
+      debug: debug === true,
+      warmLockfile: warmLockfile === true,
+      masm: masm === true,
+      signal: abortOnClose(res),
+    },
+    (build) => build,
+  );
+  // A failed build is an answer, with cargo-miden's diagnostics.
+  if (!build.built) {
+    res.json({
+      built: false,
+      stdout: build.stdout,
+      stderr: build.stderr,
+    } satisfies CompileResponse);
+    return;
+  }
+  // Only what the build returns in memory: its path on disk stays out.
   const {
     stdout,
     stderr,
@@ -33,34 +53,20 @@ router.post("/compile", async (req, res) => {
     files: compiledFiles,
     debug: debugBuild,
     masm: masmOutput,
-  } = await queueCompile(
-    {
-      project: opened.project,
-      debug: debug === true,
-      warmLockfile: warmLockfile === true,
-      masm: masm === true,
-      signal: abortOnClose(res),
-    },
-    (compiled) => compiled,
-  );
+  } = build;
   res.json({
+    built: true,
     stdout,
     stderr,
     masp,
     commitment,
     kind,
     manifest,
-    // Set when the build succeeded: whether each exported procedure is
-    // read-only, by export path (`ReadOnlyProcedures`).
     readOnly,
-    // Set when the build succeeded: the sources plus the lockfile it used.
     files: compiledFiles,
-    // Set when the build succeeded and `debug` was requested.
     debug: debugBuild,
-    // Set when the build succeeded and `masm` was requested: `{ source }`,
-    // the release build's Miden Assembly as text, or `{ error }`.
     masm: masmOutput,
-  });
+  } satisfies CompileResponse);
 });
 
 export default router;

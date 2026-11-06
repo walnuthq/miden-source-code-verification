@@ -1,6 +1,6 @@
+import type { DebugBuild } from "miden-source-code-verification-utils/api-compile";
 import { updatePackage } from "../db/packages.ts";
 import type { MaspStore } from "../storage/masp-store.ts";
-import type { DebugBuild } from "./api-compile.ts";
 
 // Stores a package's debug build next to its release build, keyed by the
 // release `commitment`, then records it on the row: artifact before row, as

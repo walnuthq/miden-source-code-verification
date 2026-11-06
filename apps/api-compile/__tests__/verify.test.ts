@@ -52,6 +52,7 @@ case "$4" in
   missing) echo "Error: account with id $4 not found on the network" >&2; exit 2 ;;
   broken) printf 'Error: rpc error\n\nCaused by:\n    request timed out\n' >&2; exit 1 ;;
   slow) sleep 5 ;;
+  silent) exit 0 ;;
 esac
 `;
 
@@ -108,6 +109,10 @@ describe("POST /verify", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
+    expect(res.body).toHaveProperty(
+      "root",
+      accounts[COUNTER_CONTRACT_ID_1].code,
+    );
     expect(res.body).toHaveProperty("masp");
     expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("manifest");
@@ -125,6 +130,10 @@ describe("POST /verify", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
+    expect(res.body).toHaveProperty(
+      "root",
+      accounts[COUNTER_CONTRACT_ID_1].code,
+    );
     expect(res.body).toHaveProperty("masp");
     expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("manifest");
@@ -179,6 +188,10 @@ describe("POST /verify", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", false);
+    expect(res.body).toHaveProperty(
+      "root",
+      accounts[COUNTER_CONTRACT_ID_1].code,
+    );
   });
 
   // Mainnet has no fixtures: this checks against the public USDCx fee faucet,
@@ -244,6 +257,7 @@ describe("POST /verify", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
+    expect(res.body).toHaveProperty("root", notes[COUNTER_NOTE_ID_1].code);
     expect(res.body).toHaveProperty("masp");
     expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("manifest");
@@ -263,6 +277,7 @@ describe("POST /verify", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
+    expect(res.body).toHaveProperty("root", notes[COUNTER_NOTE_ID_1].code);
     expect(res.body).toHaveProperty("masp");
     expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("manifest");
@@ -552,8 +567,15 @@ describe("verify when miden-verifier fails", () => {
     await rm(fakeBinDir, { recursive: true, force: true });
   });
 
-  it("answers whether it verified", async () => {
-    await expect(run("ok")).resolves.toBe(true);
+  it("answers whether it verified, with the resource's root", async () => {
+    await expect(run("ok")).resolves.toEqual({ verified: true, root: "0x01" });
+  });
+
+  it("fails with a 502 when it prints nothing", async () => {
+    await expect(run("silent")).rejects.toMatchObject({
+      status: 502,
+      message: "miden-verifier printed no result",
+    });
   });
 
   it("fails with a 400 when it exits with 2", async () => {

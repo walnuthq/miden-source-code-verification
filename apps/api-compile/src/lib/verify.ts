@@ -22,10 +22,14 @@ export const writeResourceFile = async (resource: string) => {
   return resourcePath;
 };
 
+// `code` is the resource's root: the account code root, or the note script
+// root. The same root `miden-import` reads.
 type MidenVerifierOutput =
   | { type: "account"; code: string; components: string[] }
   | { type: "note"; code: string; script: string };
 
+// Whether the package at `maspPath` is the resource's on chain, with the
+// resource's root as the verifier read it.
 export const verify = async ({
   networkId,
   resourceId,
@@ -51,13 +55,16 @@ export const verify = async ({
       result.exitCode === MIDEN_TOOL_REJECTED_EXIT_CODE ? 400 : 502,
     );
   }
+  // The tool prints its result whenever it exits 0, so nothing on stdout is a
+  // broken run, not a resource that didn't verify.
   if (!result.stdout) {
-    return false;
+    throw new VerifierError("miden-verifier printed no result", 502);
   }
   const output = JSON.parse(result.stdout) as MidenVerifierOutput;
   const target = `Custom(${commitment})`;
-  if (output.type === "account") {
-    return output.components.includes(target);
-  }
-  return output.script === target;
+  const verified =
+    output.type === "account"
+      ? output.components.includes(target)
+      : output.script === target;
+  return { verified, root: output.code };
 };
