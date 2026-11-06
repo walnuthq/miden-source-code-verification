@@ -94,7 +94,7 @@ describe("POST /:networkId/verified-accounts", () => {
       .post(`/${networkId}/verified-accounts`)
       .send({ accountId: COUNTER_CONTRACT_ID_1, files });
 
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(400);
   });
 
   it("verifies a counter-contract", async () => {
@@ -468,7 +468,7 @@ describe("POST /:networkId/verified-accounts with a bank-account", () => {
       .post(`/${networkId}/verified-accounts`)
       .send({ accountId: BANK_ACCOUNT_ID_1, files });
 
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(400);
   });
 
   it("verifies a bank-account", async () => {

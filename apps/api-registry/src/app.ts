@@ -1,5 +1,9 @@
 import cors from "cors";
 import express, { type Express } from "express";
+import {
+  errorHandler,
+  notFound,
+} from "miden-source-code-verification-utils/http-errors";
 import { type Database, dbScope } from "./db/context.ts";
 import {
   ALLOWED_ORIGINS,
@@ -7,7 +11,6 @@ import {
   MASP_STORAGE_DIR,
   PORT,
 } from "./lib/constants.ts";
-import { errorHandler, notFound } from "./lib/errors.ts";
 import adminRouter from "./routes/admin.ts";
 import packagesRouterV1 from "./routes/v1/packages.ts";
 import verifiedAccountsRouterV1 from "./routes/v1/verified-accounts.ts";

@@ -8,13 +8,7 @@ const router = Router();
 // registry crates builds offline in seconds; one that pins other versions
 // downloads and rebuilds them (or, with `warmLockfile`, is re-resolved).
 router.get("/lockfile", async (_req, res) => {
-  try {
-    const cargoLock = await readFile(WARM_CARGO_LOCK, "utf-8");
-    res.type("text/plain").send(cargoLock);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "warm lockfile unavailable" });
-  }
+  res.type("text/plain").send(await readFile(WARM_CARGO_LOCK, "utf-8"));
 });
 
 export default router;

@@ -105,56 +105,49 @@ const router: Router = Router();
  *                   type: string
  */
 router.get("/:networkId/packages/masp/:file", async (req, res) => {
-  try {
-    // Parsed here rather than as an Express `:param.masp` pattern so a
-    // malformed name gets a clear 400 instead of a 404.
-    const key = parseMaspKey(req.params.file);
-    if (!key) {
-      res.status(400).json({ error: "invalid package commitment" });
-      return;
-    }
-    const { commitment, variant } = key;
-    // The row names the download, and for a `.debug.masp` says whether there
-    // is a debug build and gives its commitment.
-    const dbPackage = await getPackage(commitment);
-    const debugCommitment =
-      variant === "debug" ? (dbPackage?.debugCommitment ?? null) : null;
-    if (variant === "debug" && !debugCommitment) {
-      res.status(404).json({ error: "package debug masp not found" });
-      return;
-    }
-    const masp = await getMaspStore(req).get(commitment, variant);
-    if (!masp) {
-      res.status(404).json({
-        error:
-          variant === "debug"
-            ? "package debug masp not found"
-            : "package masp not found",
-      });
-      return;
-    }
-    if (debugCommitment) {
-      res.set("X-Debug-Commitment", debugCommitment);
-    }
-    res
-      // Named after the package, so a cross-origin link (whose `download`
-      // attribute browsers ignore) saves it as e.g. `counter_contract.masp`.
-      // A nameless package, or a stored file without a row, keeps the
-      // commitment-based name.
-      .attachment(
-        maspFileName(dbPackage?.name ?? "", variant) ??
-          maspKey(commitment, variant),
-      )
-      .type("application/octet-stream")
-      // Content-addressed: the artifact behind a commitment never changes.
-      .set("Cache-Control", "public, max-age=31536000, immutable")
-      .send(Buffer.from(masp));
-  } catch (error) {
-    console.error(error);
-    const message =
-      error instanceof Error ? error.message : "package masp retrieval failed";
-    res.status(500).json({ error: message });
+  // Parsed here rather than as an Express `:param.masp` pattern so a
+  // malformed name gets a clear 400 instead of a 404.
+  const key = parseMaspKey(req.params.file);
+  if (!key) {
+    res.status(400).json({ error: "invalid package commitment" });
+    return;
   }
+  const { commitment, variant } = key;
+  // The row names the download, and for a `.debug.masp` says whether there
+  // is a debug build and gives its commitment.
+  const dbPackage = await getPackage(commitment);
+  const debugCommitment =
+    variant === "debug" ? (dbPackage?.debugCommitment ?? null) : null;
+  if (variant === "debug" && !debugCommitment) {
+    res.status(404).json({ error: "package debug masp not found" });
+    return;
+  }
+  const masp = await getMaspStore(req).get(commitment, variant);
+  if (!masp) {
+    res.status(404).json({
+      error:
+        variant === "debug"
+          ? "package debug masp not found"
+          : "package masp not found",
+    });
+    return;
+  }
+  if (debugCommitment) {
+    res.set("X-Debug-Commitment", debugCommitment);
+  }
+  res
+    // Named after the package, so a cross-origin link (whose `download`
+    // attribute browsers ignore) saves it as e.g. `counter_contract.masp`.
+    // A nameless package, or a stored file without a row, keeps the
+    // commitment-based name.
+    .attachment(
+      maspFileName(dbPackage?.name ?? "", variant) ??
+        maspKey(commitment, variant),
+    )
+    .type("application/octet-stream")
+    // Content-addressed: the artifact behind a commitment never changes.
+    .set("Cache-Control", "public, max-age=31536000, immutable")
+    .send(Buffer.from(masp));
 });
 
 export default router;

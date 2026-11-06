@@ -10,6 +10,7 @@ import {
   notes,
   request,
 } from "miden-source-code-verification-test-utils";
+import { errorHandler } from "miden-source-code-verification-utils/http-errors";
 import {
   afterAll,
   afterEach,
@@ -216,7 +217,7 @@ describe("GET /:networkId/import/:resourceId across networks", () => {
 });
 
 describe("GET /:networkId/import/:resourceId when miden-import fails", () => {
-  const app = express().use(importRouter);
+  const app = express().use(importRouter).use(errorHandler);
   const path = process.env.PATH;
 
   beforeAll(async () => {

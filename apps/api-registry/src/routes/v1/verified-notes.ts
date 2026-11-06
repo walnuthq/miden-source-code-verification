@@ -1,10 +1,7 @@
 import { Router } from "express";
 import { openProject } from "miden-source-code-verification-utils/project";
 import { getVerifiedNoteByScript } from "../../db/verified-notes.ts";
-import {
-  ApiCompileError,
-  sendApiCompileUnavailable,
-} from "../../lib/api-compile.ts";
+import { ApiCompileError } from "../../lib/api-compile.ts";
 import { importResource } from "../../lib/import-resource.ts";
 import { parseRoot } from "../../lib/roots.ts";
 import { verifyNote } from "../../lib/verify-note.ts";
@@ -87,7 +84,9 @@ type VerifyNoteRequestBody = {
  *           leading `/`), or a file whose content isn't a string; an
  *           `entrypoint` that isn't a relative directory; no `Cargo.toml` or
  *           `miden-project.toml` at the entrypoint; a `Cargo.toml` that isn't
- *           valid TOML or has no `[package]` (a workspace root).
+ *           valid TOML or has no `[package]` (a workspace root). Also a
+ *           project the compilation service couldn't build, or a note it
+ *           couldn't find on `networkId`, with its message as the error.
  *         content:
  *           application/json:
  *             schema:
@@ -121,35 +120,25 @@ type VerifyNoteRequestBody = {
  *         $ref: '#/components/responses/CompilerUnavailable'
  */
 router.post("/:networkId/verified-notes", async (req, res) => {
-  try {
-    const { noteId, files, entrypoint, source } =
-      req.body as VerifyNoteRequestBody;
-    if (!noteId) {
-      res.status(400).json({ error: "missing noteId" });
-      return;
-    }
-    const opened = openProject(files, entrypoint);
-    if ("error" in opened) {
-      res.status(400).json({ error: opened.error });
-      return;
-    }
-    const verified = await verifyNote({
-      networkId: req.params.networkId,
-      noteId,
-      project: opened.project,
-      source: typeof source === "string" ? source : "unknown",
-      maspStore: getMaspStore(req),
-    });
-    res.json({ verified });
-  } catch (error) {
-    console.error(error);
-    if (sendApiCompileUnavailable(res, error)) {
-      return;
-    }
-    const message =
-      error instanceof Error ? error.message : "verification failed";
-    res.status(500).json({ error: message });
+  const { noteId, files, entrypoint, source } =
+    req.body as VerifyNoteRequestBody;
+  if (!noteId) {
+    res.status(400).json({ error: "missing noteId" });
+    return;
   }
+  const opened = openProject(files, entrypoint);
+  if ("error" in opened) {
+    res.status(400).json({ error: opened.error });
+    return;
+  }
+  const verified = await verifyNote({
+    networkId: req.params.networkId,
+    noteId,
+    project: opened.project,
+    source: typeof source === "string" ? source : "unknown",
+    maspStore: getMaspStore(req),
+  });
+  res.json({ verified });
 });
 
 /**
@@ -251,25 +240,18 @@ router.post("/:networkId/verified-notes", async (req, res) => {
  *                   type: string
  */
 router.get("/:networkId/verified-notes/script/:script", async (req, res) => {
-  try {
-    const { networkId } = req.params;
-    const script = parseRoot(req.params.script);
-    if (!script) {
-      res.status(400).json({ error: "invalid script" });
-      return;
-    }
-    const verifiedNote = await getVerifiedNoteByScript({ networkId, script });
-    if (!verifiedNote) {
-      res.status(404).json({ error: "verified note not found" });
-      return;
-    }
-    res.json(verifiedNote);
-  } catch (error) {
-    console.error(error);
-    const message =
-      error instanceof Error ? error.message : "verified note retrieval failed";
-    res.status(500).json({ error: message });
+  const { networkId } = req.params;
+  const script = parseRoot(req.params.script);
+  if (!script) {
+    res.status(400).json({ error: "invalid script" });
+    return;
   }
+  const verifiedNote = await getVerifiedNoteByScript({ networkId, script });
+  if (!verifiedNote) {
+    res.status(404).json({ error: "verified note not found" });
+    return;
+  }
+  res.json(verifiedNote);
 });
 
 /**
@@ -371,40 +353,30 @@ router.get("/:networkId/verified-notes/script/:script", async (req, res) => {
  *         $ref: '#/components/responses/CompilerUnavailable'
  */
 router.get("/:networkId/verified-notes/:noteId", async (req, res) => {
+  const { networkId, noteId } = req.params;
+  let script: string;
   try {
-    const { networkId, noteId } = req.params;
-    let script: string;
-    try {
-      ({ code: script } = await importResource({
-        networkId,
-        resourceId: noteId,
-      }));
-    } catch (error) {
-      // Only a note api-compile could not find on-chain (unknown/invalid id)
-      // is a 404. Any other failure says nothing about the registry.
-      if (error instanceof ApiCompileError && error.status === 404) {
-        res.status(404).json({ error: "verified note not found" });
-        return;
-      }
-      throw error;
-    }
-    const verifiedNote = await getVerifiedNoteByScript({ networkId, script });
-    if (!verifiedNote) {
+    ({ code: script } = await importResource({
+      networkId,
+      resourceId: noteId,
+    }));
+  } catch (error) {
+    // Only a note api-compile could not find on-chain (unknown/invalid id)
+    // is a 404. Any other failure says nothing about the registry.
+    if (error instanceof ApiCompileError && error.status === 404) {
       res.status(404).json({ error: "verified note not found" });
       return;
     }
-    // `networkId` already comes back on the record, so only `noteId` needs
-    // echoing — the caller can't otherwise tell which note was resolved.
-    res.json({ ...verifiedNote, noteId });
-  } catch (error) {
-    console.error(error);
-    if (sendApiCompileUnavailable(res, error)) {
-      return;
-    }
-    const message =
-      error instanceof Error ? error.message : "verified note retrieval failed";
-    res.status(500).json({ error: message });
+    throw error;
   }
+  const verifiedNote = await getVerifiedNoteByScript({ networkId, script });
+  if (!verifiedNote) {
+    res.status(404).json({ error: "verified note not found" });
+    return;
+  }
+  // `networkId` already comes back on the record, so only `noteId` needs
+  // echoing — the caller can't otherwise tell which note was resolved.
+  res.json({ ...verifiedNote, noteId });
 });
 
 export default router;

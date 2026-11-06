@@ -1,17 +1,16 @@
-import type { Response } from "express";
+import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import { API_COMPILE_URL } from "./constants.ts";
 
-// A failed call to api-compile, with the status it answered. When it could not
-// be reached, or did not answer with JSON, the status is 502; when it did not
-// answer before `init.signal` timed out, 504.
-export class ApiCompileError extends Error {
-  readonly status: number;
-  readonly retryAfter?: string;
-
+// A failed call to api-compile, answered with the status it answered and its
+// `Retry-After`, so a client can tell a temporary outage (502–504) from a
+// refused request (4xx). When api-compile could not be reached, or did not
+// answer with JSON, the status is 502; when it did not answer before
+// `init.signal` timed out, 504.
+export class ApiCompileError extends HttpError {
   constructor(message: string, status: number, retryAfter?: string) {
-    super(message);
-    this.status = status;
-    this.retryAfter = retryAfter;
+    super(status, message, {
+      headers: retryAfter === undefined ? {} : { "Retry-After": retryAfter },
+    });
   }
 }
 
@@ -45,22 +44,4 @@ export const fetchApiCompile = async <T>(
     throw new ApiCompileError("api-compile answered with invalid JSON", 502);
   }
   return data as T;
-};
-
-// When api-compile was unreachable (502), busy (503) or too slow (504), answer
-// with the same status and its `Retry-After`, so a client can tell a temporary
-// outage from a failed verification. Returns whether it answered.
-export const sendApiCompileUnavailable = (res: Response, error: unknown) => {
-  if (
-    !(error instanceof ApiCompileError) ||
-    error.status < 502 ||
-    error.status > 504
-  ) {
-    return false;
-  }
-  if (error.retryAfter) {
-    res.set("Retry-After", error.retryAfter);
-  }
-  res.status(error.status).json({ error: error.message });
-  return true;
 };
