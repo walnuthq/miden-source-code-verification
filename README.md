@@ -53,18 +53,18 @@ To move to a new toolchain, bump `cargo-miden` in `apps/api-compile/Dockerfile`,
 
 This is a [pnpm](https://pnpm.io) workspace monorepo (`pnpm-workspace.yaml`). Each service is a package under `apps/`:
 
-| Path                  | Service                                                                                                 | Port   | Stack                                                                      |
-| --------------------- | ------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------------------------------------------- |
-| `apps/api-compile`    | Compilation & Verification API                                                                          | `8080` | Rust toolchain in a container                                              |
-| `apps/api-registry`   | Registry API                                                                                            | `8081` | Express + Drizzle/Postgres                                                 |
-| `apps/web-verifier`   | Verifier UI                                                                                             | `5173` | Vite + React SPA (served by nginx in Docker)                               |
-| `apps/web-viewer`     | Viewer UI                                                                                               | `5174` | React Router (Vite) with server rendering (`react-router-serve` in Docker) |
-| `apps/api-docs`       | OpenAPI / Swagger UI docs                                                                               | `8082` | Generated from `api-registry` annotations                                  |
-| `apps/status-page`    | Public service status page                                                                              | `4173` | Vite + React SPA; probed at build time                                     |
-| `apps/*-cloudflare`   | Cloudflare Workers deploy wrappers                                                                      | —      | Opt-in; wrap the matching service                                          |
-| `packages/ui`         | Shared design system (shadcn `base-lyra`)                                                               | —      | Used by `web-verifier`, `web-viewer` and `status-page`                     |
-| `packages/utils`      | Shared utilities (opening a project, networks, Resource ID parsing, compiled package manifest types)    | —      | Used by the API services, `web-verifier` and `web-viewer`                  |
-| `packages/test-utils` | Shared test helpers                                                                                     | —      | Used by the API test suites                                                |
+| Path                  | Service                                                                                              | Port   | Stack                                                                      |
+| --------------------- | ---------------------------------------------------------------------------------------------------- | ------ | -------------------------------------------------------------------------- |
+| `apps/api-compile`    | Compilation & Verification API                                                                       | `8080` | Rust toolchain in a container                                              |
+| `apps/api-registry`   | Registry API                                                                                         | `8081` | Express + Drizzle/Postgres                                                 |
+| `apps/web-verifier`   | Verifier UI                                                                                          | `5173` | Vite + React SPA (served by nginx in Docker)                               |
+| `apps/web-viewer`     | Viewer UI                                                                                            | `5174` | React Router (Vite) with server rendering (`react-router-serve` in Docker) |
+| `apps/api-docs`       | OpenAPI / Swagger UI docs                                                                            | `8082` | Generated from `api-registry` annotations                                  |
+| `apps/status-page`    | Public service status page                                                                           | `4173` | Vite + React SPA; probed at build time                                     |
+| `apps/*-cloudflare`   | Cloudflare Workers deploy wrappers                                                                   | —      | Opt-in; wrap the matching service                                          |
+| `packages/ui`         | Shared design system (shadcn `base-lyra`)                                                            | —      | Used by `web-verifier`, `web-viewer` and `status-page`                     |
+| `packages/utils`      | Shared utilities (opening a project, networks, Resource ID parsing, compiled package manifest types) | —      | Used by the API services, `web-verifier` and `web-viewer`                  |
+| `packages/test-utils` | Shared test helpers                                                                                  | —      | Used by the API test suites                                                |
 
 Every package is named `miden-source-code-verification-<dir>` (e.g. `miden-source-code-verification-web-verifier`) — that's the value `pnpm --filter` expects.
 
