@@ -7,10 +7,10 @@ import {
   getPackagesWithoutDebugBuild,
   updatePackage,
 } from "../db/packages.ts";
-import { fetchApiCompile } from "../lib/api-compile.ts";
+import { getApiCompile } from "../lib/api-compile.ts";
 import { cleanupPlaygroundResources } from "../lib/cleanup-playground.ts";
 import { ADMIN_TOKEN } from "../lib/constants.ts";
-import { type DebugBuild, storeDebugBuild } from "../lib/debug-build.ts";
+import { storeDebugBuild } from "../lib/debug-build.ts";
 import { parseRoot } from "../lib/roots.ts";
 import { getMaspStore } from "../storage/masp-store.ts";
 
@@ -71,18 +71,11 @@ router.post("/admin/packages/:commitment/debug-build", async (req, res) => {
     res.status(422).json({ error: "ambiguous entrypoint" });
     return;
   }
-  const { debug } = await fetchApiCompile<{ debug?: DebugBuild }>(
-    "/compile-debug",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        files,
-        entrypoint,
-        expectedCommitment: commitment,
-      }),
-    },
-  );
+  const { debug } = await getApiCompile(req).compileDebug({
+    files,
+    entrypoint,
+    expectedCommitment: commitment,
+  });
   if (!debug || "error" in debug) {
     res
       .status(422)

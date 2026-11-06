@@ -1,10 +1,13 @@
 import { Router } from "express";
 import { openProject } from "miden-source-code-verification-utils/project";
 import { getVerifiedAccountByCode } from "../../db/verified-accounts.ts";
-import { ApiCompileError } from "../../lib/api-compile.ts";
-import { importResource } from "../../lib/import-resource.ts";
+import {
+  ApiCompileError,
+  getApiCompile,
+  type ImportedResource,
+} from "../../lib/api-compile.ts";
 import { parseRoot } from "../../lib/roots.ts";
-import { verifyAccountComponent } from "../../lib/verify-account-component.ts";
+import { verifyResource } from "../../lib/verify-resource.ts";
 import { getMaspStore } from "../../storage/masp-store.ts";
 
 const router: Router = Router();
@@ -95,6 +98,17 @@ type VerifyAccountRequestBody = {
  *               properties:
  *                 error:
  *                   type: string
+ *       "409":
+ *         description: >
+ *           The account's code root on `networkId` is already verified by this
+ *           very package: nothing to record.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
  *       "413":
  *         description: The request body is larger than 1 MB.
  *         content:
@@ -132,12 +146,13 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
     res.status(400).json({ error: opened.error });
     return;
   }
-  const verified = await verifyAccountComponent({
+  const verified = await verifyResource({
     networkId: req.params.networkId,
-    accountId,
+    resource: { kind: "account", accountId },
     project: opened.project,
     source: typeof source === "string" ? source : "unknown",
     maspStore: getMaspStore(req),
+    apiCompile: getApiCompile(req),
   });
   res.json({ verified });
 });
@@ -366,9 +381,12 @@ router.get("/:networkId/verified-accounts/code/:code", async (req, res) => {
  */
 router.get("/:networkId/verified-accounts/:accountId", async (req, res) => {
   const { networkId, accountId } = req.params;
-  let resource: Awaited<ReturnType<typeof importResource>>;
+  let resource: ImportedResource;
   try {
-    resource = await importResource({ networkId, resourceId: accountId });
+    resource = await getApiCompile(req).importResource({
+      networkId,
+      resourceId: accountId,
+    });
   } catch (error) {
     // Only an account api-compile could not find on-chain (unknown/invalid
     // id) is a 404. Any other failure says nothing about the registry.

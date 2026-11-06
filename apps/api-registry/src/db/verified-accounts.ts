@@ -1,5 +1,4 @@
 import db from "./index.ts";
-import { verifiedAccountCodeTable } from "./schema.ts";
 
 export const getVerifiedAccountByCode = async ({
   networkId,
@@ -28,24 +27,4 @@ export const getVerifiedAccountByCode = async ({
       }),
     ),
   };
-};
-
-export const insertVerifiedAccountCode = async ({
-  networkId,
-  code,
-}: {
-  networkId: string;
-  code: string;
-}) => {
-  const [insertedVerifiedAccountCode] = await db
-    .insert(verifiedAccountCodeTable)
-    .values({
-      networkId,
-      code,
-    })
-    .returning({ id: verifiedAccountCodeTable.id });
-  if (!insertedVerifiedAccountCode) {
-    throw new Error("insert verified account code failed");
-  }
-  return insertedVerifiedAccountCode.id;
 };

@@ -1,5 +1,4 @@
 import db from "./index.ts";
-import { verifiedNoteScriptTable } from "./schema.ts";
 
 export const getVerifiedNoteByScript = ({
   networkId,
@@ -12,32 +11,3 @@ export const getVerifiedNoteByScript = ({
     where: { networkId, script },
     with: { package: true },
   });
-
-export const insertVerifiedNoteScript = async ({
-  networkId,
-  script,
-  source,
-  packageId,
-  packageCommitment,
-}: {
-  networkId: string;
-  script: string;
-  source: string;
-  packageId: string;
-  packageCommitment: string;
-}) => {
-  const [insertedVerifiedNoteScript] = await db
-    .insert(verifiedNoteScriptTable)
-    .values({
-      networkId,
-      script,
-      source,
-      packageId,
-      packageCommitment,
-    })
-    .returning({ id: verifiedNoteScriptTable.id });
-  if (!insertedVerifiedNoteScript) {
-    throw new Error("insert verified note script failed");
-  }
-  return insertedVerifiedNoteScript.id;
-};

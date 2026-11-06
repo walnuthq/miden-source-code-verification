@@ -1,13 +1,33 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiCompileError, fetchApiCompile } from "../src/lib/api-compile.ts";
+import {
+  ApiCompileError,
+  createHttpApiCompile,
+} from "../src/lib/api-compile.ts";
 import { API_COMPILE_IMPORT_TIMEOUT_MS } from "../src/lib/constants.ts";
-import { importResource } from "../src/lib/import-resource.ts";
 
-const respondWith = (response: globalThis.Response) =>
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => response),
+const apiCompile = createHttpApiCompile("http://api-compile");
+const project = {
+  files: { "Cargo.toml": "" },
+  entrypoint: ".",
+  name: "counter-contract",
+};
+const verify = () =>
+  apiCompile.verify({
+    project,
+    networkId: "mtst",
+    resourceId: "0x01",
+    debug: true,
+  });
+const importResource = () =>
+  apiCompile.importResource({ networkId: "mtst", resourceId: "0x01" });
+
+const respondWith = (response: globalThis.Response) => {
+  const fetch = vi.fn((_input: unknown, _init?: RequestInit) =>
+    Promise.resolve(response),
   );
+  vi.stubGlobal("fetch", fetch);
+  return fetch;
+};
 
 const rejectWith = (error: unknown) =>
   vi.stubGlobal(
@@ -45,12 +65,28 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("fetchApiCompile", () => {
+describe("createHttpApiCompile", () => {
   it("returns the JSON body of a successful response", async () => {
     respondWith(Response.json({ type: "note", code: "0x01" }));
-    await expect(fetchApiCompile("/mtst/import/0x01")).resolves.toEqual({
+    await expect(importResource()).resolves.toEqual({
       type: "note",
       code: "0x01",
+    });
+  });
+
+  it("posts the project, the resource and the debug flag to /verify", async () => {
+    const fetch = respondWith(Response.json({ verified: false }));
+    await verify();
+    expect(fetch).toHaveBeenCalledWith(
+      "http://api-compile/verify",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual({
+      files: project.files,
+      entrypoint: ".",
+      networkId: "mtst",
+      resourceId: "0x01",
+      debug: true,
     });
   });
 
@@ -61,7 +97,7 @@ describe("fetchApiCompile", () => {
         { status: 503, headers: { "Retry-After": "30" } },
       ),
     );
-    const error = await catchError(fetchApiCompile("/verify"));
+    const error = await catchError(verify());
     expect(error).toBeInstanceOf(ApiCompileError);
     expect(error).toMatchObject({
       status: 503,
@@ -72,7 +108,7 @@ describe("fetchApiCompile", () => {
 
   it("handles an error page that isn't JSON", async () => {
     respondWith(new Response("<html>Bad gateway</html>", { status: 502 }));
-    const error = await catchError(fetchApiCompile("/verify"));
+    const error = await catchError(verify());
     expect(error).toMatchObject({
       status: 502,
       message: "api-compile responded 502",
@@ -81,35 +117,19 @@ describe("fetchApiCompile", () => {
 
   it("reports a successful response that isn't JSON as a 502", async () => {
     respondWith(new Response("not json", { status: 200 }));
-    const error = await catchError(fetchApiCompile("/verify"));
+    const error = await catchError(verify());
     expect(error).toMatchObject({ status: 502 });
   });
 
   it("reports an unreachable api-compile as a 502", async () => {
     rejectWith(new TypeError("fetch failed"));
-    const error = await catchError(fetchApiCompile("/verify"));
+    const error = await catchError(verify());
     expect(error).toMatchObject({
       status: 502,
       message: "api-compile is unreachable: fetch failed",
     });
   });
 
-  it("reports a request that timed out as a 504", async () => {
-    hang();
-    const error = await catchError(
-      fetchApiCompile("/mtst/import/0x01", {
-        signal: AbortSignal.timeout(10),
-      }),
-    );
-    expect(error).toBeInstanceOf(ApiCompileError);
-    expect(error).toMatchObject({
-      status: 504,
-      message: "api-compile did not answer in time",
-    });
-  });
-});
-
-describe("importResource", () => {
   it("gives up on an import after the timeout, with a 504", async () => {
     const timeout = AbortSignal.timeout.bind(AbortSignal);
     // Fake timers don't drive `AbortSignal.timeout`: shorten it instead.
@@ -117,13 +137,15 @@ describe("importResource", () => {
       .spyOn(AbortSignal, "timeout")
       .mockImplementation(() => timeout(10));
     const fetch = hang();
-    const error = await catchError(
-      importResource({ networkId: "mtst", resourceId: "0x01" }),
-    );
-    expect(error).toMatchObject({ status: 504 });
+    const error = await catchError(importResource());
+    expect(error).toBeInstanceOf(ApiCompileError);
+    expect(error).toMatchObject({
+      status: 504,
+      message: "api-compile did not answer in time",
+    });
     expect(spy).toHaveBeenCalledWith(API_COMPILE_IMPORT_TIMEOUT_MS);
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/\/mtst\/import\/0x01$/),
+      "http://api-compile/mtst/import/0x01",
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });

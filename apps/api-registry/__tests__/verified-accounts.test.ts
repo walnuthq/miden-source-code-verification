@@ -13,11 +13,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app.ts";
 import { ApiCompileError } from "../src/lib/api-compile.ts";
-import { importResource } from "../src/lib/import-resource.ts";
-
-// Only the in-process app below sees it: the other tests query the running
-// registry, whose imports are real.
-vi.mock("../src/lib/import-resource.ts", () => ({ importResource: vi.fn() }));
+import { fakeApiCompile } from "./fake-api-compile.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -130,7 +126,7 @@ describe("POST /:networkId/verified-accounts", () => {
       .post(`/${networkId}/verified-accounts`)
       .send({ accountId: COUNTER_CONTRACT_ID_1, files });
 
-    expect(res2.status).toBe(500);
+    expect(res2.status).toBe(409);
     expect(res2.body).toHaveProperty(
       "error",
       "account component already verified",
@@ -500,7 +496,7 @@ describe("POST /:networkId/verified-accounts with a bank-account", () => {
       .post(`/${networkId}/verified-accounts`)
       .send({ accountId: BANK_ACCOUNT_ID_2, files });
 
-    expect(res2.status).toBe(500);
+    expect(res2.status).toBe(409);
     expect(res2.body).toHaveProperty(
       "error",
       "account component already verified",
@@ -699,14 +695,23 @@ describe("GET /:networkId/verified-accounts/code/:code with a bank-account", () 
 });
 
 describe("GET /:networkId/verified-accounts/:accountId when the import fails", () => {
-  const app = request(createApp());
+  // In process, with an api-compile whose import fails with `error`: the other
+  // tests query the running registry, whose api-compile is real.
+  const appWhoseImportFails = (error: ApiCompileError) =>
+    request(
+      createApp({
+        apiCompile: fakeApiCompile({
+          importResource: () => Promise.reject(error),
+        }),
+      }),
+    );
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
   it("returns 404 for a account api-compile didn't find", async () => {
-    vi.mocked(importResource).mockRejectedValueOnce(
+    const app = appWhoseImportFails(
       new ApiCompileError("not found on the network", 404),
     );
     const res = await app.get(
@@ -721,9 +726,7 @@ describe("GET /:networkId/verified-accounts/:accountId when the import fails", (
     [504, "api-compile did not answer in time"],
   ])("passes an api-compile %i through", async (status, error) => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.mocked(importResource).mockRejectedValueOnce(
-      new ApiCompileError(error, status),
-    );
+    const app = appWhoseImportFails(new ApiCompileError(error, status));
     const res = await app.get(
       `/v1/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`,
     );

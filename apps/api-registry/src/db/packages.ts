@@ -4,17 +4,6 @@ import { packagesTable } from "./schema.ts";
 
 export type NewPackage = typeof packagesTable.$inferInsert;
 
-export const insertPackage = async (newPackage: NewPackage) => {
-  const [insertedPackage] = await db
-    .insert(packagesTable)
-    .values(newPackage)
-    .returning({ id: packagesTable.id });
-  if (!insertedPackage) {
-    throw new Error("insert package failed");
-  }
-  return insertedPackage.id;
-};
-
 export const getPackage = (commitment: string) =>
   db.query.packagesTable.findFirst({
     where: { commitment },

@@ -65,7 +65,7 @@ export const verifiedAccountCodeTable = pgTable(
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [
-    // The registry's real key. Unique because `verifyAccountComponent` reads
+    // The registry's real key. Unique because `verifyResource` reads
     // then inserts, so without it two concurrent verifications of the same code
     // would each create a row and later lookups would see only one of them.
     // A unique *index* rather than a bare constraint: it doubles as the index
@@ -127,7 +127,7 @@ export const verifiedNoteScriptTable = pgTable(
   },
   (table) => [
     // See the note on `verifiedAccountCodeTable` — same reasoning, and here it
-    // also backs the "note already verified" guard in `verifyNote`.
+    // also backs the "note already verified" guard in `verifyResource`.
     uniqueIndex("verified_notes_script_network_id_script_idx").on(
       table.networkId,
       table.script,
