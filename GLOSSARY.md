@@ -38,6 +38,10 @@ The record that a note root on a network is a verified package.
 A verified account or a verified note: what a lookup by resource id or by root answers.
 _Avoid_: entry, row, match
 
+**Build**:
+What compiling a project yields: built, with its package and cargo-miden's output, or failed, with the output alone. A failed build is an outcome, not an error: `POST /compile` answers it with `built: false`.
+_Avoid_: compile result, compilation output
+
 **Debug build**:
 The dev-profile build of a verified package's sources, kept so a simulator can name call-trace frames. It never decides whether anything is verified.
 _Avoid_: dev build, debug package

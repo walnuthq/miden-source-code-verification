@@ -1,10 +1,7 @@
+import type { StandardAccountComponent } from "miden-source-code-verification-utils/api-compile";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import db from "../db/index.ts";
-import {
-  type ApiCompile,
-  ApiCompileError,
-  type StandardAccountComponent,
-} from "./api-compile.ts";
+import { type ApiCompile, ApiCompileError } from "./api-compile.ts";
 import type { Resource } from "./verify-resource.ts";
 
 // The kind of a resource, which picks the table its verified record is in.

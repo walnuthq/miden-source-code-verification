@@ -262,6 +262,7 @@ const apiCompile: ServiceDefinition = {
         const body = asRecord(payload);
         const manifest = asRecord(body.manifest);
         return {
+          built: body.built === true,
           commitment: truncateHex(body.commitment),
           exports: Array.isArray(manifest.exports)
             ? manifest.exports.length
@@ -276,10 +277,11 @@ const apiCompile: ServiceDefinition = {
       },
       assert: (payload) => {
         const body = asRecord(payload);
-        if (typeof body.masp !== "string" || body.masp.length === 0) {
-          // A compile failure still returns 200 with stdout/stderr and no
-          // masp, so the status code alone would not catch it.
-          return "compiled without producing a package";
+        if (body.built !== true) {
+          // A failed build is an outcome: still a 200, with `built: false`
+          // and the compiler's output, so the status code alone would not
+          // catch it.
+          return "the sources did not build";
         }
         if (typeof body.commitment !== "string") return "missing commitment";
         if (!body.manifest) return "missing manifest";

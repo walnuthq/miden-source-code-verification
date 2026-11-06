@@ -1,10 +1,10 @@
 import type { Request } from "express";
-import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import type {
-  Manifest,
-  ReadOnlyProcedures,
-  TargetType,
-} from "miden-source-code-verification-utils/manifest";
+  CompileDebugResponse,
+  ImportedResource,
+  VerifyResponse,
+} from "miden-source-code-verification-utils/api-compile";
+import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import type { Project } from "miden-source-code-verification-utils/project";
 import { API_COMPILE_IMPORT_TIMEOUT_MS } from "./constants.ts";
 
@@ -21,71 +21,28 @@ export class ApiCompileError extends HttpError {
   }
 }
 
-// A standard account component detected in an account's code by api-compile's
-// `/import`, with the procedure roots it claims.
-export type StandardAccountComponent = { name: string; procedures: string[] };
-
-// What `/import` answers: the on-chain code of a resource, an account code root
-// or a note script root, which the registry keys its records on. An account
-// also comes back with its standard components and every procedure root in its
-// code, which the id-keyed account lookup forwards as is.
-export type ImportedResource =
-  | {
-      type: "account";
-      code: string;
-      standardAccountComponents: StandardAccountComponent[];
-      procedures: string[];
-    }
-  | { type: "note"; code: string };
-
-// api-compile's debug build of a package's sources: a dev-profile build whose
-// debug info names call-trace frames. Its failure is an `error`, which never
-// fails the verification it came with.
-export type DebugBuild =
-  | {
-      masp: string;
-      commitment: string;
-      manifest: Manifest;
-      cargoMidenVersion?: string;
-    }
-  | { error: string };
-
-// What `/verify` answers when the project built: whether its package is the
-// resource's on chain, and the package itself.
-export type VerifyResult = {
-  verified: boolean;
-  masp: string;
-  commitment: string;
-  // The compiled package's own kind, stored as the package's type.
-  kind: TargetType;
-  manifest: Manifest;
-  readOnly: ReadOnlyProcedures;
-  // The sources plus the lockfile the build used. Absent from api-compile
-  // versions that predate it.
-  files?: Record<string, string>;
-  // Absent from api-compile versions that predate it.
-  cargoMidenVersion?: string;
-  // Set when a debug build was requested.
-  debug?: DebugBuild;
-};
-
 /**
- * The calls the registry makes to api-compile. `createHttpApiCompile` is the
- * one over HTTP, which `createApp` attaches to the app; in-process tests pass
- * a fake instead. Each call rejects with an `ApiCompileError` carrying
- * api-compile's status: 400 when the request can never succeed (a project
- * that doesn't build, a resource not on chain), 404 for an import of a
- * resource that doesn't exist, 502–504 when a retry may pass.
+ * The calls the registry makes to api-compile, answering what it answers (the
+ * types in `miden-source-code-verification-utils/api-compile`).
+ * `createHttpApiCompile` is the one over HTTP, which `createApp` attaches to
+ * the app; in-process tests pass a fake instead. Each call rejects with an
+ * `ApiCompileError` carrying api-compile's status: 400 when the request can
+ * never succeed (a project that doesn't build, a resource not on chain), 404
+ * for an import of a resource that doesn't exist, 502–504 when a retry may
+ * pass.
  */
 export type ApiCompile = {
-  /** Builds `project` and checks its package against the resource on chain. */
+  /**
+   * Builds `project` and checks its package against the resource on chain,
+   * answering the resource's root with the result.
+   */
   verify(input: {
     project: Project;
     networkId: string;
     resourceId: string;
     /** Whether to build the debug variant too. */
     debug: boolean;
-  }): Promise<VerifyResult>;
+  }): Promise<VerifyResponse>;
   /** Fetches the on-chain code of a resource. */
   importResource(input: {
     networkId: string;
@@ -100,7 +57,7 @@ export type ApiCompile = {
     files: Record<string, string>;
     entrypoint: string;
     expectedCommitment: string;
-  }): Promise<{ debug?: DebugBuild }>;
+  }): Promise<CompileDebugResponse>;
 };
 
 const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
@@ -141,21 +98,37 @@ const postJson = <T>(url: string, body: unknown) =>
 
 /** The {@link ApiCompile} served at `baseUrl`. */
 export const createHttpApiCompile = (baseUrl: string): ApiCompile => ({
-  verify: ({ project: { files, entrypoint }, networkId, resourceId, debug }) =>
-    postJson<VerifyResult>(`${baseUrl}/verify`, {
+  verify: async ({
+    project: { files, entrypoint },
+    networkId,
+    resourceId,
+    debug,
+  }) => {
+    const response = await postJson<VerifyResponse>(`${baseUrl}/verify`, {
       files,
       entrypoint,
       networkId,
       resourceId,
       debug,
-    }),
+    });
+    // An api-compile from before `root` was answered, as the one still
+    // serving during its rollout: without the root there is nothing to key a
+    // record on, and the next request may reach the new one.
+    if (typeof response.root !== "string") {
+      throw new ApiCompileError(
+        "api-compile answered with no resource root",
+        502,
+      );
+    }
+    return response;
+  },
   importResource: ({ networkId, resourceId }) =>
     fetchJson<ImportedResource>(
       `${baseUrl}/${networkId}/import/${resourceId}`,
       { signal: AbortSignal.timeout(API_COMPILE_IMPORT_TIMEOUT_MS) },
     ),
   compileDebug: (input) =>
-    postJson<{ debug?: DebugBuild }>(`${baseUrl}/compile-debug`, input),
+    postJson<CompileDebugResponse>(`${baseUrl}/compile-debug`, input),
 });
 
 /** The api-compile `createApp` attached to the app handling `req`. */

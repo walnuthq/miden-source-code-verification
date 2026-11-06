@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type { ImportedResource } from "miden-source-code-verification-utils/api-compile";
 import { MIDEN_TOOL_REJECTED_EXIT_CODE } from "../lib/constants.ts";
 import { midenImport } from "../lib/miden-import.ts";
 
@@ -16,7 +17,8 @@ router.get("/:networkId/import/:resourceId", async (req, res) => {
     res.status(status).json({ error: result.error });
     return;
   }
-  res.json(JSON.parse(result.stdout));
+  // What `miden-import` prints is the answer, as is.
+  res.json(JSON.parse(result.stdout) as ImportedResource);
 });
 
 export default router;

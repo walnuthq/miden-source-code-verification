@@ -1,16 +1,14 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type {
+  DebugBuild,
+  VerifyResponse,
+} from "miden-source-code-verification-utils/api-compile";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getPackage } from "../src/db/packages.ts";
-import {
-  type ApiCompile,
-  ApiCompileError,
-  type DebugBuild,
-  type ImportedResource,
-  type VerifyResult,
-} from "../src/lib/api-compile.ts";
+import { type ApiCompile, ApiCompileError } from "../src/lib/api-compile.ts";
 import { findVerifiedRecordByRoot } from "../src/lib/verified-record.ts";
 import { type Resource, verifyResource } from "../src/lib/verify-resource.ts";
 import {
@@ -21,7 +19,8 @@ import { fakeApiCompile } from "./fake-api-compile.ts";
 
 // Runs the verification in-process, against the local database, with
 // api-compile faked: the only way to see how a debug build that fails, or is
-// missing, is handled, and what recording the same root twice does.
+// missing, is handled, and what recording the same root twice does. A
+// verification only calls `verify`, which answers the resource's root.
 
 const COMMITMENT = `0x${"aa".repeat(32)}`;
 const DEBUG_COMMITMENT = `0x${"bb".repeat(32)}`;
@@ -37,7 +36,8 @@ const ACCOUNT: Resource = {
 };
 const NOTE: Resource = { kind: "note", noteId: `0x${"cc".repeat(32)}` };
 
-const built = (debug?: DebugBuild): VerifyResult => ({
+// Without the root, which each test picks so that its record is its own.
+const built = (debug?: DebugBuild): Omit<VerifyResponse, "root"> => ({
   verified: true,
   masp: Buffer.from("release").toString("base64"),
   commitment: COMMITMENT,
@@ -55,16 +55,6 @@ const debugBuild: DebugBuild = {
   manifest: { exports: [], dependencies: [] },
   cargoMidenVersion: "0.11.0",
 };
-
-const imported = (resource: Resource, root: string): ImportedResource =>
-  resource.kind === "account"
-    ? {
-        type: "account",
-        code: root,
-        standardAccountComponents: [],
-        procedures: [],
-      }
-    : { type: "note", code: root };
 
 describe("verifyResource", () => {
   let dir: string;
@@ -91,15 +81,12 @@ describe("verifyResource", () => {
   // Each root its own, so each verification is a new record.
   const verifyBuilt = (
     resource: Resource,
-    result: VerifyResult,
+    result: Omit<VerifyResponse, "root">,
     root: string,
   ) =>
     verify(
       resource,
-      fakeApiCompile({
-        verify: async () => result,
-        importResource: async () => imported(resource, root),
-      }),
+      fakeApiCompile({ verify: async () => ({ ...result, root }) }),
     );
 
   describe("with a debug build", () => {
@@ -174,8 +161,7 @@ describe("verifyResource", () => {
   it("requests an account's debug build", async () => {
     const root = `0x${"01".repeat(32)}`;
     const apiCompile = fakeApiCompile({
-      verify: vi.fn(async () => built(debugBuild)),
-      importResource: async () => imported(ACCOUNT, root),
+      verify: vi.fn(async () => ({ ...built(debugBuild), root })),
     });
 
     expect(await verify(ACCOUNT, apiCompile)).toBe(true);
@@ -191,8 +177,11 @@ describe("verifyResource", () => {
   it("records a note, without a debug build", async () => {
     const root = `0x${"01".repeat(32)}`;
     const apiCompile = fakeApiCompile({
-      verify: vi.fn(async () => ({ ...built(undefined), kind: "note" })),
-      importResource: async () => imported(NOTE, root),
+      verify: vi.fn(async () => ({
+        ...built(undefined),
+        kind: "note" as const,
+        root,
+      })),
     });
 
     expect(await verify(NOTE, apiCompile)).toBe(true);
@@ -241,13 +230,15 @@ describe("verifyResource", () => {
 
   it("records nothing when the package isn't the resource's", async () => {
     const apiCompile = fakeApiCompile({
-      verify: async () => ({ ...built(undefined), verified: false }),
-      importResource: vi.fn(),
+      verify: async () => ({
+        ...built(undefined),
+        verified: false,
+        root: `0x${"01".repeat(32)}`,
+      }),
     });
 
     expect(await verify(ACCOUNT, apiCompile)).toBe(false);
 
-    expect(apiCompile.importResource).not.toHaveBeenCalled();
     expect(await getPackage(COMMITMENT)).toBeUndefined();
     expect(await maspStore.get(COMMITMENT)).toBeNull();
   });
@@ -292,22 +283,9 @@ describe("verifyResource", () => {
     const failure = new ApiCompileError("rpc error: request timed out", 502);
     const apiCompile = fakeApiCompile({
       verify: () => Promise.reject(failure),
-      importResource: vi.fn(),
     });
 
     await expect(verify(ACCOUNT, apiCompile)).rejects.toBe(failure);
-
-    expect(apiCompile.importResource).not.toHaveBeenCalled();
-  });
-
-  it("fails with the import's status, recording nothing", async () => {
-    const failure = new ApiCompileError("rpc error: request timed out", 502);
-    const apiCompile = fakeApiCompile({
-      verify: async () => ({ ...built(undefined), kind: "note" }),
-      importResource: () => Promise.reject(failure),
-    });
-
-    await expect(verify(NOTE, apiCompile)).rejects.toBe(failure);
 
     expect(await getPackage(COMMITMENT)).toBeUndefined();
   });

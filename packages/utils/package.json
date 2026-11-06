@@ -4,6 +4,11 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./api-compile": {
+      "types": "./src/api-compile.ts",
+      "development": "./src/api-compile.ts",
+      "default": "./dist/api-compile.js"
+    },
     "./http-errors": {
       "types": "./src/http-errors.ts",
       "development": "./src/http-errors.ts",

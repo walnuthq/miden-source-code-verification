@@ -1,3 +1,4 @@
+import type { VerifyResponse } from "miden-source-code-verification-utils/api-compile";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import type { Project } from "miden-source-code-verification-utils/project";
 import db, { type Database } from "../db/index.ts";
@@ -9,7 +10,7 @@ import {
   verifiedNoteScriptTable,
 } from "../db/schema.ts";
 import type { MaspStore } from "../storage/masp-store.ts";
-import type { ApiCompile, VerifyResult } from "./api-compile.ts";
+import type { ApiCompile } from "./api-compile.ts";
 import { storeDebugBuild } from "./debug-build.ts";
 
 // The on-chain resource a verification or a lookup is for, named by its id.
@@ -31,8 +32,8 @@ const insertedId = ([row]: { id: string }[]) => {
 // same new package inserted it since the read outside the transaction.
 const insertPackage = async (
   tx: Transaction,
-  { name, files, entrypoint }: Project,
-  build: VerifyResult,
+  { name, entrypoint }: Project,
+  build: VerifyResponse,
 ) => {
   const [inserted] = await tx
     .insert(packagesTable)
@@ -41,7 +42,7 @@ const insertPackage = async (
       type: build.kind,
       // Keeps the lockfile with the sources, so the record pins the
       // dependency versions that produced `commitment`.
-      files: build.files ?? files,
+      files: build.files,
       commitment: build.commitment,
       manifest: build.manifest,
       readOnly: build.readOnly,
@@ -170,11 +171,8 @@ export const verifyResource = async ({
   if (!build.verified) {
     return false;
   }
-  const { code: root } = await apiCompile.importResource({
-    networkId,
-    resourceId,
-  });
-  const { commitment } = build;
+  // The root the verifier read on chain, which the record is keyed on.
+  const { commitment, root } = build;
   const stored = await getPackage(commitment);
   if (!stored) {
     // Stored before the rows, so a package never exists without its

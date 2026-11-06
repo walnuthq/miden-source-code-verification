@@ -48,6 +48,7 @@ describe("POST /compile", () => {
     const res = await api.post("/compile").send({ files });
 
     expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("built", false);
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).not.toHaveProperty("masp");
@@ -67,6 +68,7 @@ describe("POST /compile", () => {
     const res = await api.post("/compile").send({ files });
 
     expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("built", true);
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).toHaveProperty("masp");
@@ -83,6 +85,7 @@ describe("POST /compile", () => {
     const res = await api.post("/compile").send({ files, entrypoint });
 
     expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("built", true);
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).toHaveProperty("masp");
@@ -99,6 +102,7 @@ describe("POST /compile", () => {
     const res = await api.post("/compile").send({ files, entrypoint });
 
     expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("built", true);
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).toHaveProperty("masp");
@@ -115,6 +119,7 @@ describe("POST /compile", () => {
     const res = await api.post("/compile").send({ files, entrypoint });
 
     expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("built", true);
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).toHaveProperty("masp");
@@ -132,6 +137,7 @@ describe("POST /compile", () => {
     const res = await api.post("/compile").send({ files });
 
     expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("built", true);
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).toHaveProperty("masp");
@@ -149,6 +155,7 @@ describe("POST /compile", () => {
     const res = await api.post("/compile").send({ files });
 
     expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("built", true);
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).toHaveProperty("masp");
@@ -164,6 +171,7 @@ describe("POST /compile", () => {
     const res = await api.post("/compile").send({ files });
 
     expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("built", true);
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).toHaveProperty("masp");
@@ -180,6 +188,7 @@ describe("POST /compile", () => {
     const res = await api.post("/compile").send({ files, entrypoint });
 
     expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("built", true);
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).toHaveProperty("masp");
@@ -195,6 +204,7 @@ describe("POST /compile", () => {
     const res = await api.post("/compile").send({ files });
 
     expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("built", true);
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).toHaveProperty("masp");
@@ -211,6 +221,7 @@ describe("POST /compile", () => {
     const res = await api.post("/compile").send({ files, entrypoint });
 
     expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("built", true);
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).toHaveProperty("masp");
@@ -227,6 +238,7 @@ describe("POST /compile", () => {
     const res = await api.post("/compile").send({ files, entrypoint });
 
     expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("built", true);
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).toHaveProperty("masp");
@@ -243,6 +255,7 @@ describe("POST /compile", () => {
     const res = await api.post("/compile").send({ files, entrypoint });
 
     expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("built", true);
     expect(res.body).toHaveProperty("stdout");
     expect(res.body).toHaveProperty("stderr");
     expect(res.body).toHaveProperty("masp");
@@ -305,6 +318,7 @@ describe("POST /compile masm", () => {
     const res = await api.post("/compile").send({ files, masm: true });
 
     expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("built", false);
     expect(res.body).not.toHaveProperty("masp");
     expect(res.body).not.toHaveProperty("masm");
   });
