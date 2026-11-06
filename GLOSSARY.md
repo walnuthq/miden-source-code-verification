@@ -34,6 +34,10 @@ The record that an account root on a network is made of one or more verified pac
 **Verified note**:
 The record that a note root on a network is a verified package.
 
+**Verified record**:
+A verified account or a verified note: what a lookup by resource id or by root answers.
+_Avoid_: entry, row, match
+
 **Debug build**:
 The dev-profile build of a verified package's sources, kept so a simulator can name call-trace frames. It never decides whether anything is verified.
 _Avoid_: dev build, debug package

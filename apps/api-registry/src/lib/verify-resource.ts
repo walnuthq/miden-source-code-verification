@@ -12,7 +12,7 @@ import type { MaspStore } from "../storage/masp-store.ts";
 import type { ApiCompile, VerifyResult } from "./api-compile.ts";
 import { storeDebugBuild } from "./debug-build.ts";
 
-// The on-chain resource a verification is for.
+// The on-chain resource a verification or a lookup is for, named by its id.
 export type Resource =
   | { kind: "account"; accountId: string }
   | { kind: "note"; noteId: string };

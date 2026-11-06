@@ -1,6 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  COUNTER_CONTRACT_ID_1,
   COUNTER_NOTE_ID_1,
   COUNTER_NOTE_ID_2,
   DEPOSIT_NOTE_ID_1,
@@ -12,7 +13,7 @@ import {
 import { procedureExportPaths } from "miden-source-code-verification-utils/manifest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app.ts";
-import { ApiCompileError } from "../src/lib/api-compile.ts";
+import { type ApiCompile, ApiCompileError } from "../src/lib/api-compile.ts";
 import { fakeApiCompile } from "./fake-api-compile.ts";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -512,17 +513,13 @@ describe("GET /:networkId/verified-notes/script/:script with a deposit-note", ()
   });
 });
 
-describe("GET /:networkId/verified-notes/:noteId when the import fails", () => {
-  // In process, with an api-compile whose import fails with `error`: the other
+describe("GET /:networkId/verified-notes/:noteId with a faked import", () => {
+  // In process, with an api-compile whose import answers as set: the other
   // tests query the running registry, whose api-compile is real.
+  const appWhoseImport = (importResource: ApiCompile["importResource"]) =>
+    request(createApp({ apiCompile: fakeApiCompile({ importResource }) }));
   const appWhoseImportFails = (error: ApiCompileError) =>
-    request(
-      createApp({
-        apiCompile: fakeApiCompile({
-          importResource: () => Promise.reject(error),
-        }),
-      }),
-    );
+    appWhoseImport(() => Promise.reject(error));
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -534,6 +531,28 @@ describe("GET /:networkId/verified-notes/:noteId when the import fails", () => {
     );
     const res = await app.get(
       `/v1/${networkId}/verified-notes/${COUNTER_NOTE_ID_1}`,
+    );
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "verified note not found" });
+  });
+
+  it("returns 404 for an account's id, whatever its code", async () => {
+    // The code is a verified note script, so the 404 comes from the import's
+    // kind, not from a miss on the root.
+    const files = await readProjectFiles(counterContractDir);
+    const res1 = await apiV1
+      .post(`/${networkId}/verified-notes`)
+      .send({ noteId: COUNTER_NOTE_ID_1, files, entrypoint: "counter-note" });
+    expect(res1.body).toHaveProperty("verified", true);
+
+    const app = appWhoseImport(async () => ({
+      type: "account",
+      code: NOTE_SCRIPT,
+      standardAccountComponents: [],
+      procedures: [],
+    }));
+    const res = await app.get(
+      `/v1/${networkId}/verified-notes/${COUNTER_CONTRACT_ID_1}`,
     );
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: "verified note not found" });

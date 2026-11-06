@@ -4,8 +4,6 @@ import { join } from "node:path";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getPackage } from "../src/db/packages.ts";
-import { getVerifiedAccountByCode } from "../src/db/verified-accounts.ts";
-import { getVerifiedNoteByScript } from "../src/db/verified-notes.ts";
 import {
   type ApiCompile,
   ApiCompileError,
@@ -13,6 +11,7 @@ import {
   type ImportedResource,
   type VerifyResult,
 } from "../src/lib/api-compile.ts";
+import { findVerifiedRecordByRoot } from "../src/lib/verified-record.ts";
 import { type Resource, verifyResource } from "../src/lib/verify-resource.ts";
 import {
   createFsMaspStore,
@@ -205,7 +204,7 @@ describe("verifyResource", () => {
       debug: false,
     });
     expect(
-      await getVerifiedNoteByScript({ networkId: "mtst", script: root }),
+      await findVerifiedRecordByRoot({ networkId: "mtst", kind: "note", root }),
     ).toMatchObject({
       packageCommitment: COMMITMENT,
       source: "unknown",
@@ -229,11 +228,12 @@ describe("verifyResource", () => {
     const dbPackage = await getPackage(COMMITMENT);
     expect(dbPackage).toBeDefined();
     for (const code of [`0x${"01".repeat(32)}`, `0x${"02".repeat(32)}`]) {
-      const verifiedAccount = await getVerifiedAccountByCode({
+      const verifiedAccount = await findVerifiedRecordByRoot({
         networkId: "mtst",
-        code,
+        kind: "account",
+        root: code,
       });
-      expect(verifiedAccount?.verifiedAccountComponents).toMatchObject([
+      expect(verifiedAccount.verifiedAccountComponents).toMatchObject([
         { packageId: dbPackage?.id },
       ]);
     }
@@ -265,11 +265,12 @@ describe("verifyResource", () => {
       status: 409,
       message: "account component already verified",
     });
-    const verifiedAccount = await getVerifiedAccountByCode({
+    const verifiedAccount = await findVerifiedRecordByRoot({
       networkId: "mtst",
-      code: root,
+      kind: "account",
+      root,
     });
-    expect(verifiedAccount?.verifiedAccountComponents).toHaveLength(1);
+    expect(verifiedAccount.verifiedAccountComponents).toHaveLength(1);
   });
 
   it("answers 409 for a note already verified", async () => {
