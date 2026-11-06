@@ -64,7 +64,7 @@ router.post("/admin/packages/:commitment/debug-build", async (req, res) => {
     res.json({ debugCommitment: dbPackage.debugCommitment });
     return;
   }
-  const files = dbPackage.files as Record<string, string>;
+  const { files } = dbPackage;
   const entrypoint =
     dbPackage.entrypoint ?? inferEntrypoint(files, dbPackage.name);
   if (!entrypoint) {

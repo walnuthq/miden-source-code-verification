@@ -27,6 +27,7 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.2.1",
     "miden-source-code-verification-test-utils": "workspace:*",
+    "miden-source-code-verification-utils": "workspace:*",
     "typescript": "7.0.2",
     "vite": "8.3.6"
   }

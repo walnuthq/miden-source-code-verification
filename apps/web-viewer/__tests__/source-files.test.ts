@@ -4,7 +4,6 @@ import {
   buildFileTree,
   filterSourceFiles,
   findEntryFile,
-  maspFileName,
   packageMaspUrl,
   sourcesArchiveName,
 } from "@/lib/source-files";
@@ -164,34 +163,6 @@ describe("sourcesArchiveName", () => {
   });
 });
 
-describe("maspFileName", () => {
-  it("spells the package name with underscores", () => {
-    expect(maspFileName("counter-contract")).toBe("counter_contract.masp");
-  });
-
-  it("keeps a name without hyphens", () => {
-    expect(maspFileName("counter")).toBe("counter.masp");
-  });
-
-  it("marks the debug build's", () => {
-    expect(maspFileName("counter-contract", { debug: true })).toBe(
-      "counter_contract.debug.masp",
-    );
-  });
-
-  it("collapses other characters and drops leading underscores", () => {
-    expect(maspFileName("miden:basic-wallet/basic-wallet")).toBe(
-      "miden_basic_wallet_basic_wallet.masp",
-    );
-    expect(maspFileName("--my  pkg!v1.2")).toBe("my_pkg_v1.2.masp");
-  });
-
-  it("falls back to package.masp when nothing is left of the name", () => {
-    expect(maspFileName("")).toBe("package.masp");
-    expect(maspFileName("-:/", { debug: true })).toBe("package.debug.masp");
-  });
-});
-
 describe("packageMaspUrl", () => {
   const commitment = `0x${"ab".repeat(32)}`;
 
@@ -202,7 +173,9 @@ describe("packageMaspUrl", () => {
   });
 
   it("points at its .debug.masp for the debug build", () => {
-    expect(packageMaspUrl({ networkId: "mtst", commitment, debug: true })).toBe(
+    expect(
+      packageMaspUrl({ networkId: "mtst", commitment, variant: "debug" }),
+    ).toBe(
       `http://localhost:8081/v1/mtst/packages/masp/${commitment}.debug.masp`,
     );
   });

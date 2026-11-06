@@ -9,6 +9,11 @@
       "development": "./src/api-compile.ts",
       "default": "./dist/api-compile.js"
     },
+    "./api-registry": {
+      "types": "./src/api-registry.ts",
+      "development": "./src/api-registry.ts",
+      "default": "./dist/api-registry.js"
+    },
     "./http-errors": {
       "types": "./src/http-errors.ts",
       "development": "./src/http-errors.ts",

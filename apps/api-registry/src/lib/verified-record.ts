@@ -1,6 +1,19 @@
-import type { StandardAccountComponent } from "miden-source-code-verification-utils/api-compile";
+import type {
+  Package,
+  VerifiedAccount,
+  VerifiedAccountById,
+  VerifiedAccountComponent,
+  VerifiedNote,
+  VerifiedNoteById,
+} from "miden-source-code-verification-utils/api-registry";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import db from "../db/index.ts";
+import type {
+  packagesTable,
+  verifiedAccountCodeTable,
+  verifiedAccountComponentTable,
+  verifiedNoteScriptTable,
+} from "../db/schema.ts";
 import { type ApiCompile, ApiCompileError } from "./api-compile.ts";
 import type { Resource } from "./verify-resource.ts";
 
@@ -15,44 +28,108 @@ const notFound = (kind: Kind) =>
       : "verified note not found",
   );
 
+// The rows a lookup reads, with the relations it loads.
+type PackageRow = typeof packagesTable.$inferSelect;
+type ComponentRow = typeof verifiedAccountComponentTable.$inferSelect & {
+  package: PackageRow;
+};
+type AccountRow = typeof verifiedAccountCodeTable.$inferSelect & {
+  verifiedAccountComponents: ComponentRow[];
+};
+type NoteRow = typeof verifiedNoteScriptTable.$inferSelect & {
+  package: PackageRow;
+};
+
+// What the registry answers for each row, field by field: the wire format is
+// named in `miden-source-code-verification-utils/api-registry`, so a column
+// added to a table reaches the wire only when it is added here too. Timestamps
+// are written as `JSON.stringify` writes a `Date`.
+const toPackage = (row: PackageRow): Package => ({
+  id: row.id,
+  name: row.name,
+  type: row.type,
+  files: row.files,
+  commitment: row.commitment,
+  manifest: row.manifest,
+  entrypoint: row.entrypoint,
+  builtWith: row.builtWith,
+  debugCommitment: row.debugCommitment,
+  debugBuiltWith: row.debugBuiltWith,
+  readOnly: row.readOnly,
+  createdAt: row.createdAt.toISOString(),
+  updatedAt: row.updatedAt.toISOString(),
+});
+
+const toVerifiedAccountComponent = (
+  row: ComponentRow,
+): VerifiedAccountComponent => ({
+  id: row.id,
+  verifiedAccountId: row.verifiedAccountId,
+  packageId: row.packageId,
+  packageCommitment: row.packageCommitment,
+  source: row.source,
+  createdAt: row.createdAt.toISOString(),
+  updatedAt: row.updatedAt.toISOString(),
+  package: toPackage(row.package),
+  // Whether the simulator can name the component's call-trace frames, without
+  // fetching its debug build first.
+  debugPackage: row.package.debugCommitment
+    ? { commitment: row.package.debugCommitment }
+    : null,
+});
+
+const toVerifiedAccount = (row: AccountRow): VerifiedAccount => ({
+  id: row.id,
+  networkId: row.networkId,
+  code: row.code,
+  createdAt: row.createdAt.toISOString(),
+  updatedAt: row.updatedAt.toISOString(),
+  verifiedAccountComponents: row.verifiedAccountComponents.map(
+    toVerifiedAccountComponent,
+  ),
+});
+
+const toVerifiedNote = (row: NoteRow): VerifiedNote => ({
+  id: row.id,
+  networkId: row.networkId,
+  script: row.script,
+  source: row.source,
+  packageId: row.packageId,
+  packageCommitment: row.packageCommitment,
+  createdAt: row.createdAt.toISOString(),
+  updatedAt: row.updatedAt.toISOString(),
+  package: toPackage(row.package),
+});
+
 // The verified account keyed on `code`, with each component and its package.
-const readVerifiedAccount = async (networkId: string, code: string) => {
-  const verifiedAccount = await db.query.verifiedAccountCodeTable.findFirst({
+const readVerifiedAccount = async (
+  networkId: string,
+  code: string,
+): Promise<VerifiedAccount> => {
+  const row = await db.query.verifiedAccountCodeTable.findFirst({
     where: { networkId, code },
     with: { verifiedAccountComponents: { with: { package: true } } },
   });
-  if (!verifiedAccount) {
+  if (!row) {
     throw notFound("account");
   }
-  return {
-    ...verifiedAccount,
-    // Whether the simulator can name a component's call-trace frames, without
-    // fetching its debug build first.
-    verifiedAccountComponents: verifiedAccount.verifiedAccountComponents.map(
-      (component) => ({
-        ...component,
-        debugPackage: component.package.debugCommitment
-          ? { commitment: component.package.debugCommitment }
-          : null,
-      }),
-    ),
-  };
+  return toVerifiedAccount(row);
 };
 
 // The verified note keyed on `script`, with its package.
-const readVerifiedNote = async (networkId: string, script: string) => {
-  const verifiedNote = await db.query.verifiedNoteScriptTable.findFirst({
+const readVerifiedNote = async (
+  networkId: string,
+  script: string,
+): Promise<VerifiedNote> => {
+  const row = await db.query.verifiedNoteScriptTable.findFirst({
     where: { networkId, script },
     with: { package: true },
   });
-  if (!verifiedNote) {
+  if (!row) {
     throw notFound("note");
   }
-  return verifiedNote;
+  return toVerifiedNote(row);
 };
-
-type VerifiedAccount = Awaited<ReturnType<typeof readVerifiedAccount>>;
-type VerifiedNote = Awaited<ReturnType<typeof readVerifiedNote>>;
 
 /**
  * The verified record keyed on `root` for `networkId`: the verified account of
@@ -97,18 +174,12 @@ export function findVerifiedRecord(input: {
   networkId: string;
   resource: Extract<Resource, { kind: "account" }>;
   apiCompile: ApiCompile;
-}): Promise<
-  VerifiedAccount & {
-    accountId: string;
-    standardAccountComponents: StandardAccountComponent[];
-    procedures: string[];
-  }
->;
+}): Promise<VerifiedAccountById>;
 export function findVerifiedRecord(input: {
   networkId: string;
   resource: Extract<Resource, { kind: "note" }>;
   apiCompile: ApiCompile;
-}): Promise<VerifiedNote & { noteId: string }>;
+}): Promise<VerifiedNoteById>;
 export async function findVerifiedRecord({
   networkId,
   resource,
@@ -117,7 +188,7 @@ export async function findVerifiedRecord({
   networkId: string;
   resource: Resource;
   apiCompile: ApiCompile;
-}) {
+}): Promise<VerifiedAccountById | VerifiedNoteById> {
   const resourceId =
     resource.kind === "account" ? resource.accountId : resource.noteId;
   const imported = await apiCompile
