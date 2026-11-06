@@ -3,13 +3,15 @@
 //
 //   REGISTRY_URL=https://… ADMIN_TOKEN=… \
 //     pnpm --filter miden-source-code-verification-api-registry \
-//     exec node --env-file-if-exists=.env scripts/backfill-debug-packages.ts
+//     exec node --conditions development --env-file-if-exists=.env scripts/backfill-debug-packages.ts
 //
 // Packages go one at a time: api-compile builds one at a time anyway. A busy
 // api-compile (503) is retried after its `Retry-After`. A package whose release
 // build the current toolchain no longer reproduces (409), or whose entrypoint
 // can't be told (422), is skipped and keeps no debug build until it is verified
 // again.
+import { fetchWhileBusy } from "miden-source-code-verification-utils/api-registry";
+
 const REGISTRY_URL = process.env.REGISTRY_URL ?? "http://localhost:8081";
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const MAX_RETRIES = 10;
@@ -38,29 +40,31 @@ const errorOf = async (response: Response) => {
 };
 
 const backfill = async ({ commitment }: PendingPackage) => {
-  for (let attempt = 0; ; attempt++) {
-    const response = await fetch(
-      `${REGISTRY_URL}/admin/packages/${commitment}/debug-build`,
-      { method: "POST", headers },
-    );
-    if (response.ok) {
-      const { debugCommitment } = (await response.json()) as {
-        debugCommitment: string;
-      };
-      return { outcome: "stored", detail: debugCommitment } as const;
-    }
-    if (response.status === 503 && attempt < MAX_RETRIES) {
-      const seconds = Number(response.headers.get("Retry-After")) || 30;
-      console.info(`  api-compile busy, retrying in ${seconds}s`);
-      await sleep(seconds * 1000);
-      continue;
-    }
-    const detail = await errorOf(response);
-    if (response.status === 409 || response.status === 422) {
-      return { outcome: "skipped", detail } as const;
-    }
-    return { outcome: "failed", detail } as const;
+  const response = await fetchWhileBusy(
+    () =>
+      fetch(`${REGISTRY_URL}/admin/packages/${commitment}/debug-build`, {
+        method: "POST",
+        headers,
+      }),
+    {
+      maxRetries: MAX_RETRIES,
+      wait: async (seconds) => {
+        console.info(`  api-compile busy, retrying in ${seconds}s`);
+        await sleep(seconds * 1000);
+      },
+    },
+  );
+  if (response.ok) {
+    const { debugCommitment } = (await response.json()) as {
+      debugCommitment: string;
+    };
+    return { outcome: "stored", detail: debugCommitment } as const;
   }
+  const detail = await errorOf(response);
+  if (response.status === 409 || response.status === 422) {
+    return { outcome: "skipped", detail } as const;
+  }
+  return { outcome: "failed", detail } as const;
 };
 
 const pendingResponse = await fetch(
