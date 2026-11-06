@@ -216,6 +216,29 @@ describe("verifyResource", () => {
     ).toBe("release");
   });
 
+  it("records two accounts verified with the same new package at once", async () => {
+    // Both read no package before their transactions, so the second insert
+    // conflicts on the commitment and finds the first's row.
+    expect(
+      await Promise.all([
+        verifyBuilt(ACCOUNT, built(undefined), `0x${"01".repeat(32)}`),
+        verifyBuilt(ACCOUNT, built(undefined), `0x${"02".repeat(32)}`),
+      ]),
+    ).toEqual([true, true]);
+
+    const dbPackage = await getPackage(COMMITMENT);
+    expect(dbPackage).toBeDefined();
+    for (const code of [`0x${"01".repeat(32)}`, `0x${"02".repeat(32)}`]) {
+      const verifiedAccount = await getVerifiedAccountByCode({
+        networkId: "mtst",
+        code,
+      });
+      expect(verifiedAccount?.verifiedAccountComponents).toMatchObject([
+        { packageId: dbPackage?.id },
+      ]);
+    }
+  });
+
   it("records nothing when the package isn't the resource's", async () => {
     const apiCompile = fakeApiCompile({
       verify: async () => ({ ...built(undefined), verified: false }),

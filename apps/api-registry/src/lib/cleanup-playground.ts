@@ -110,19 +110,10 @@ export const cleanupPlaygroundResources = async ({
     return { components, notes, accounts, packages };
   });
 
-  // Artifacts are keyed by commitment, so one stays while another package row
-  // still has it. Deleted after the rows, so a row never outlives its
-  // artifact.
-  const commitments = unique(deleted.packages.map((p) => p.commitment));
-  const kept = commitments.length
-    ? await db
-        .select({ commitment: packagesTable.commitment })
-        .from(packagesTable)
-        .where(inArray(packagesTable.commitment, commitments))
-    : [];
-  const keptCommitments = new Set(kept.map((p) => p.commitment));
-  const orphaned = commitments.filter((c) => !keptCommitments.has(c));
-  for (const commitment of orphaned) {
+  // Artifacts are keyed by commitment, one row per commitment, so a deleted
+  // row's artifacts go with it. Deleted after the rows, so a row never
+  // outlives its artifact.
+  for (const { commitment } of deleted.packages) {
     await maspStore.delete(commitment, "release");
     await maspStore.delete(commitment, "debug");
   }
@@ -132,6 +123,6 @@ export const cleanupPlaygroundResources = async ({
     verifiedAccounts: deleted.accounts.length,
     verifiedNotes: deleted.notes.length,
     packages: deleted.packages.length,
-    masps: orphaned.length,
+    masps: deleted.packages.length,
   };
 };

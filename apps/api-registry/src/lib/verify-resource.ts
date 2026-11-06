@@ -27,28 +27,41 @@ const insertedId = ([row]: { id: string }[]) => {
   return row.id;
 };
 
+// The package's row: inserted, or found when a concurrent verification of the
+// same new package inserted it since the read outside the transaction.
 const insertPackage = async (
   tx: Transaction,
   { name, files, entrypoint }: Project,
   build: VerifyResult,
-) =>
-  insertedId(
-    await tx
-      .insert(packagesTable)
-      .values({
-        name,
-        type: build.kind,
-        // Keeps the lockfile with the sources, so the record pins the
-        // dependency versions that produced `commitment`.
-        files: build.files ?? files,
-        commitment: build.commitment,
-        manifest: build.manifest,
-        readOnly: build.readOnly,
-        entrypoint,
-        builtWith: build.cargoMidenVersion,
-      })
-      .returning({ id: packagesTable.id }),
-  );
+) => {
+  const [inserted] = await tx
+    .insert(packagesTable)
+    .values({
+      name,
+      type: build.kind,
+      // Keeps the lockfile with the sources, so the record pins the
+      // dependency versions that produced `commitment`.
+      files: build.files ?? files,
+      commitment: build.commitment,
+      manifest: build.manifest,
+      readOnly: build.readOnly,
+      entrypoint,
+      builtWith: build.cargoMidenVersion,
+    })
+    .onConflictDoNothing({ target: packagesTable.commitment })
+    .returning({ id: packagesTable.id });
+  if (inserted) {
+    return inserted.id;
+  }
+  const existing = await tx.query.packagesTable.findFirst({
+    columns: { id: true },
+    where: { commitment: build.commitment },
+  });
+  if (!existing) {
+    throw new Error("insert package conflicted, but no row has its commitment");
+  }
+  return existing.id;
+};
 
 // Records the package as a component of the account code, under the verified
 // account the code already has, or a new one.
