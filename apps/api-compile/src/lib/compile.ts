@@ -9,8 +9,6 @@ import type {
 import {
   type Manifest,
   procedureExportPaths,
-  type ReadOnlyProcedures,
-  type TargetType,
 } from "miden-source-code-verification-utils/manifest";
 import type { Project } from "miden-source-code-verification-utils/project";
 import {
@@ -26,8 +24,8 @@ import {
   MAX_DEBUG_MASP_BYTES,
   MAX_MASM_BYTES,
 } from "./constants.ts";
+import { midenPackageMetadata } from "./helper-tools.ts";
 import { createLimiter } from "./limiter.ts";
-import { midenPackageMetadata } from "./miden-package-metadata.ts";
 import { removeDirs } from "./utils.ts";
 
 type CompileArgs = {
@@ -101,15 +99,14 @@ const buildDebug = async ({
     if (size > MAX_DEBUG_MASP_BYTES) {
       return { error: "debug build too large" };
     }
-    const [maspBuffer, { stdout = "", error: midenPackageMetadataError }] =
-      await Promise.all([readFile(maspPath), midenPackageMetadata(maspPath)]);
-    if (midenPackageMetadataError) {
-      return { error: midenPackageMetadataError };
+    const [maspBuffer, metadata] = await Promise.all([
+      readFile(maspPath),
+      midenPackageMetadata(maspPath),
+    ]);
+    if ("error" in metadata) {
+      return { error: metadata.error };
     }
-    const { commitment, manifest } = JSON.parse(stdout) as {
-      commitment: string;
-      manifest: Manifest;
-    };
+    const { commitment, manifest } = metadata.output;
     // The simulator pairs the two builds' procedures by export path.
     const debugPaths = new Set(procedureExportPaths(manifest));
     if (
@@ -193,39 +190,21 @@ const buildProject = async ({
     return { built: false, stdout, stderr: cargoMidenError };
   }
   const maspPath = `${midencTargetDir}/${PROFILE_DIRS.release}/${packageName}.masp`;
-  const [
-    maspBuffer,
-    {
-      stdout: midenPackageMetadataStdout = "",
-      error: midenPackageMetadataError,
-    },
-    cargoLock,
-    builtWith,
-    masmOutput,
-  ] = await Promise.all([
-    readFile(maspPath),
-    midenPackageMetadata(maspPath),
-    readCargoLock({ projectDir, rootDir: tmpDir }),
-    cargoMidenVersion().catch((error) => {
-      console.error(error);
-      return undefined;
-    }),
-    masmDir ? readMasm(`${masmDir}/${packageName}.masm`) : undefined,
-  ]);
-  if (midenPackageMetadataError) {
-    throw new Error(midenPackageMetadataError);
+  const [maspBuffer, metadata, cargoLock, builtWith, masmOutput] =
+    await Promise.all([
+      readFile(maspPath),
+      midenPackageMetadata(maspPath),
+      readCargoLock({ projectDir, rootDir: tmpDir }),
+      cargoMidenVersion().catch((error) => {
+        console.error(error);
+        return undefined;
+      }),
+      masmDir ? readMasm(`${masmDir}/${packageName}.masm`) : undefined,
+    ]);
+  if ("error" in metadata) {
+    throw new Error(metadata.error);
   }
-  const {
-    commitment,
-    kind,
-    manifest,
-    readOnly = {},
-  } = JSON.parse(midenPackageMetadataStdout) as {
-    commitment: string;
-    kind: TargetType;
-    manifest: Manifest;
-    readOnly?: ReadOnlyProcedures;
-  };
+  const { commitment, kind, manifest, readOnly = {} } = metadata.output;
   const drift =
     expectedCommitment !== undefined &&
     expectedCommitment.toLowerCase() !== commitment.toLowerCase();

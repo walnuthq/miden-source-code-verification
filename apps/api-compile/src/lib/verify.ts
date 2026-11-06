@@ -2,13 +2,12 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
-import { MIDEN_TOOL_REJECTED_EXIT_CODE } from "./constants.ts";
-import { midenVerifier } from "./miden-verifier.ts";
+import { midenVerifier } from "./helper-tools.ts";
 
 // A failed `miden-verifier` run, with the status `/verify` answers it with: 400
 // when the request can never verify (the resource isn't on-chain, the ID or the
 // package is invalid), 502 when a retry may pass (the node, the store, a
-// timeout).
+// timeout, a run that printed no result).
 export class VerifierError extends HttpError {
   constructor(message: string, status: 400 | 502) {
     super(status, message);
@@ -22,14 +21,9 @@ export const writeResourceFile = async (resource: string) => {
   return resourcePath;
 };
 
-// `code` is the resource's root: the account code root, or the note script
-// root. The same root `miden-import` reads.
-type MidenVerifierOutput =
-  | { type: "account"; code: string; components: string[] }
-  | { type: "note"; code: string; script: string };
-
 // Whether the package at `maspPath` is the resource's on chain, with the
-// resource's root as the verifier read it.
+// resource's root as the verifier read it: the account code root or the note
+// script root, the same root `miden-import` reads.
 export const verify = async ({
   networkId,
   resourceId,
@@ -43,24 +37,16 @@ export const verify = async ({
   maspPath: string;
   commitment: string;
 }) => {
-  const result = await midenVerifier({
+  const run = await midenVerifier({
     networkId,
     resourceId,
     maspPath,
     resourcePath,
   });
-  if (result.error !== undefined) {
-    throw new VerifierError(
-      result.error,
-      result.exitCode === MIDEN_TOOL_REJECTED_EXIT_CODE ? 400 : 502,
-    );
+  if ("error" in run) {
+    throw new VerifierError(run.error, run.rejected ? 400 : 502);
   }
-  // The tool prints its result whenever it exits 0, so nothing on stdout is a
-  // broken run, not a resource that didn't verify.
-  if (!result.stdout) {
-    throw new VerifierError("miden-verifier printed no result", 502);
-  }
-  const output = JSON.parse(result.stdout) as MidenVerifierOutput;
+  const { output } = run;
   const target = `Custom(${commitment})`;
   const verified =
     output.type === "account"
