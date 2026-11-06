@@ -55,14 +55,6 @@ describe("POST /:networkId/verified-notes", () => {
     expect(res.body).toHaveProperty("error", "missing noteId");
   });
 
-  it("rejects requests with no files object", async () => {
-    const res = await apiV1
-      .post(`/${networkId}/verified-notes`)
-      .send({ noteId: COUNTER_NOTE_ID_1 });
-    expect(res.status).toBe(400);
-    expect(res.body).toHaveProperty("error", "missing files");
-  });
-
   it("rejects requests missing Cargo.toml", async () => {
     const files = await readProjectFiles(counterContractDir);
     const res = await apiV1.post(`/${networkId}/verified-notes`).send({
@@ -74,20 +66,6 @@ describe("POST /:networkId/verified-notes", () => {
     });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "missing Cargo.toml");
-  });
-
-  it("rejects requests missing miden-project.toml", async () => {
-    const files = await readProjectFiles(counterContractDir);
-    const res = await apiV1.post(`/${networkId}/verified-notes`).send({
-      noteId: COUNTER_NOTE_ID_1,
-      files: {
-        "counter-note/src/lib.rs": files["counter-note/src/lib.rs"],
-        "counter-note/Cargo.toml": files["counter-note/Cargo.toml"],
-      },
-      entrypoint: "counter-note",
-    });
-    expect(res.status).toBe(400);
-    expect(res.body).toHaveProperty("error", "missing miden-project.toml");
   });
 
   it("doesn't verify a buggy counter-note", async () => {

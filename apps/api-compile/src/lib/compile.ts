@@ -1,13 +1,13 @@
 import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseCargoToml } from "miden-source-code-verification-utils";
 import {
   type Manifest,
   procedureExportPaths,
   type ReadOnlyProcedures,
   type TargetType,
 } from "miden-source-code-verification-utils/manifest";
+import type { Project } from "miden-source-code-verification-utils/project";
 import {
   cargoMidenBuild,
   cargoMidenVersion,
@@ -26,8 +26,9 @@ import { midenPackageMetadata } from "./miden-package-metadata.ts";
 import { removeDirs } from "./utils.ts";
 
 type CompileArgs = {
-  files: Record<string, string>;
-  entrypoint?: string;
+  // Already opened by the route: its files are clean project-relative paths,
+  // its entrypoint is normalized and names the package.
+  project: Project;
   // Also build the debug variant, right after the release build.
   debug?: boolean;
   // Only build the debug variant when the release build has this commitment,
@@ -139,8 +140,7 @@ const buildDebug = async ({
 };
 
 const build = async ({
-  files,
-  entrypoint = ".",
+  project: { files, entrypoint, name: packageName },
   debug = false,
   expectedCommitment,
   warmLockfile,
@@ -149,18 +149,13 @@ const build = async ({
   tmpDir,
   midencTargetDir,
 }: CompileArgs & { tmpDir: string; midencTargetDir: string }) => {
-  const cargoTomlPath = join(entrypoint, "Cargo.toml");
-  const cargoToml = files[cargoTomlPath] ?? "";
-  const {
-    package: { name: packageName },
-  } = parseCargoToml(cargoToml);
   for (const [path, content] of Object.entries(files)) {
     const fullPath = join(tmpDir, path);
     const dir = fullPath.substring(0, fullPath.lastIndexOf("/"));
     await mkdir(dir, { recursive: true });
     await writeFile(fullPath, content, "utf-8");
   }
-  const projectDir = entrypoint ? `${tmpDir}/${entrypoint}` : tmpDir;
+  const projectDir = join(tmpDir, entrypoint);
   // Under the build's own output directory, so `cleanup` deletes it.
   const masmDir = masm ? `${midencTargetDir}/masm` : undefined;
   if (masmDir) {

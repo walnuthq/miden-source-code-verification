@@ -57,14 +57,6 @@ describe("POST /:networkId/verified-accounts", () => {
     expect(res.body).toHaveProperty("error", "missing accountId");
   });
 
-  it("rejects requests with no files object", async () => {
-    const res = await apiV1
-      .post(`/${networkId}/verified-accounts`)
-      .send({ accountId: COUNTER_CONTRACT_ID_1 });
-    expect(res.status).toBe(400);
-    expect(res.body).toHaveProperty("error", "missing files");
-  });
-
   it("rejects requests missing Cargo.toml", async () => {
     const files = await readProjectFiles(
       `${counterContractDir}/counter-contract`,
@@ -78,20 +70,17 @@ describe("POST /:networkId/verified-accounts", () => {
     expect(res.body).toHaveProperty("error", "missing Cargo.toml");
   });
 
-  it("rejects requests missing miden-project.toml", async () => {
+  it("rejects a file path that would leave the project", async () => {
     const files = await readProjectFiles(
       `${counterContractDir}/counter-contract`,
     );
 
     const res = await apiV1.post(`/${networkId}/verified-accounts`).send({
       accountId: COUNTER_CONTRACT_ID_1,
-      files: {
-        "src/lib.rs": files["src/lib.rs"],
-        "Cargo.toml": files["Cargo.toml"],
-      },
+      files: { ...files, "../evil.rs": "" },
     });
     expect(res.status).toBe(400);
-    expect(res.body).toHaveProperty("error", "missing miden-project.toml");
+    expect(res.body).toHaveProperty("error", "invalid file path: ../evil.rs");
   });
 
   it("doesn't verify a buggy counter-contract", async () => {

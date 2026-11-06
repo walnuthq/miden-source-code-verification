@@ -16,12 +16,6 @@ const bankDir = `${examplesDir}/miden-bank`;
 const api = request(process.env.API_URL ?? "http://localhost:8080");
 
 describe("POST /compile", () => {
-  it("rejects requests with no files object", async () => {
-    const res = await api.post("/compile").send({});
-    expect(res.status).toBe(400);
-    expect(res.body).toHaveProperty("error", "missing files");
-  });
-
   it("rejects requests missing Cargo.toml", async () => {
     const files = await readProjectFiles(
       `${counterContractDir}/counter-contract`,
@@ -33,18 +27,15 @@ describe("POST /compile", () => {
     expect(res.body).toHaveProperty("error", "missing Cargo.toml");
   });
 
-  it("rejects requests missing miden-project.toml", async () => {
+  it("rejects a file path that would leave the project", async () => {
     const files = await readProjectFiles(
       `${counterContractDir}/counter-contract`,
     );
-    const res = await api.post("/compile").send({
-      files: {
-        "src/lib.rs": files["src/lib.rs"],
-        "Cargo.toml": files["Cargo.toml"],
-      },
-    });
+    const res = await api
+      .post("/compile")
+      .send({ files: { ...files, "../evil.rs": "" } });
     expect(res.status).toBe(400);
-    expect(res.body).toHaveProperty("error", "missing miden-project.toml");
+    expect(res.body).toHaveProperty("error", "invalid file path: ../evil.rs");
   });
 
   it("doesn't compile a buggy counter-contract", async () => {

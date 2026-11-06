@@ -1,5 +1,5 @@
-import { join } from "node:path";
 import { Router } from "express";
+import { openProject } from "miden-source-code-verification-utils/project";
 import { getVerifiedNoteByScript } from "../../db/verified-notes.ts";
 import {
   ApiCompileError,
@@ -14,8 +14,8 @@ const router: Router = Router();
 
 type VerifyNoteRequestBody = {
   noteId?: string;
-  files?: Record<string, string>;
-  entrypoint?: string;
+  files?: unknown;
+  entrypoint?: unknown;
   source?: string;
 };
 
@@ -82,8 +82,12 @@ type VerifyNoteRequestBody = {
  *                   type: boolean
  *       "400":
  *         description: >
- *           Invalid request (a body that isn't valid JSON, or missing `noteId`,
- *           `files`, `Cargo.toml` or `miden-project.toml`).
+ *           Invalid request: a body that isn't valid JSON; a missing `noteId`
+ *           or `files`; a file path that isn't project-relative (`..`, a
+ *           leading `/`), or a file whose content isn't a string; an
+ *           `entrypoint` that isn't a relative directory; no `Cargo.toml` or
+ *           `miden-project.toml` at the entrypoint; a `Cargo.toml` that isn't
+ *           valid TOML or has no `[package]` (a workspace root).
  *         content:
  *           application/json:
  *             schema:
@@ -118,35 +122,21 @@ type VerifyNoteRequestBody = {
  */
 router.post("/:networkId/verified-notes", async (req, res) => {
   try {
-    const {
-      noteId,
-      files,
-      entrypoint = ".",
-      source,
-    } = req.body as VerifyNoteRequestBody;
+    const { noteId, files, entrypoint, source } =
+      req.body as VerifyNoteRequestBody;
     if (!noteId) {
       res.status(400).json({ error: "missing noteId" });
       return;
     }
-    if (!files || typeof files !== "object") {
-      res.status(400).json({ error: "missing files" });
-      return;
-    }
-    const cargoTomlPath = join(entrypoint, "Cargo.toml");
-    if (!files[cargoTomlPath]) {
-      res.status(400).json({ error: "missing Cargo.toml" });
-      return;
-    }
-    const midenProjectTomlPath = join(entrypoint, "miden-project.toml");
-    if (!files[midenProjectTomlPath]) {
-      res.status(400).json({ error: "missing miden-project.toml" });
+    const opened = openProject(files, entrypoint);
+    if ("error" in opened) {
+      res.status(400).json({ error: opened.error });
       return;
     }
     const verified = await verifyNote({
       networkId: req.params.networkId,
       noteId,
-      files,
-      entrypoint,
+      project: opened.project,
       source: typeof source === "string" ? source : "unknown",
       maspStore: getMaspStore(req),
     });

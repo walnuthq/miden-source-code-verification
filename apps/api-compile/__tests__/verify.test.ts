@@ -56,14 +56,6 @@ esac
 `;
 
 describe("POST /verify", () => {
-  it("rejects requests with no files object", async () => {
-    const res = await api.post("/verify").send({});
-
-    expect(res.status).toBe(400);
-
-    expect(res.body).toHaveProperty("error", "missing files");
-  });
-
   it("rejects requests missing Cargo.toml", async () => {
     const files = await readProjectFiles(
       `${counterContractDir}/counter-contract`,
@@ -75,22 +67,6 @@ describe("POST /verify", () => {
     expect(res.status).toBe(400);
 
     expect(res.body).toHaveProperty("error", "missing Cargo.toml");
-  });
-
-  it("rejects requests missing miden-project.toml", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
-    const res = await api.post("/verify").send({
-      files: {
-        "src/lib.rs": files["src/lib.rs"],
-        "Cargo.toml": files["Cargo.toml"],
-      },
-    });
-
-    expect(res.status).toBe(400);
-
-    expect(res.body).toHaveProperty("error", "missing miden-project.toml");
   });
 
   it("rejects requests missing network ID", async () => {

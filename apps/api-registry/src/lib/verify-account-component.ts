@@ -1,10 +1,9 @@
-import { join } from "node:path";
-import { parseCargoToml } from "miden-source-code-verification-utils";
 import type {
   Manifest,
   ReadOnlyProcedures,
   TargetType,
 } from "miden-source-code-verification-utils/manifest";
+import type { Project } from "miden-source-code-verification-utils/project";
 import { getPackage, insertPackage } from "../db/packages.ts";
 import {
   getVerifiedAccountComponent,
@@ -22,23 +21,16 @@ import { importResource } from "./import-resource.ts";
 export const verifyAccountComponent = async ({
   networkId,
   accountId,
-  files,
-  entrypoint = ".",
+  project: { files, entrypoint, name },
   source = "unknown",
   maspStore,
 }: {
   networkId: string;
   accountId: string;
-  files: Record<string, string>;
-  entrypoint?: string;
+  project: Project;
   source?: string;
   maspStore: MaspStore;
 }) => {
-  const cargoTomlPath = join(entrypoint, "Cargo.toml");
-  const cargoToml = files[cargoTomlPath] ?? "";
-  const {
-    package: { name },
-  } = parseCargoToml(cargoToml);
   const {
     verified,
     masp,

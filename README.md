@@ -63,7 +63,7 @@ This is a [pnpm](https://pnpm.io) workspace monorepo (`pnpm-workspace.yaml`). Ea
 | `apps/status-page`    | Public service status page                                                                              | `4173` | Vite + React SPA; probed at build time                                     |
 | `apps/*-cloudflare`   | Cloudflare Workers deploy wrappers                                                                      | —      | Opt-in; wrap the matching service                                          |
 | `packages/ui`         | Shared design system (shadcn `base-lyra`)                                                               | —      | Used by `web-verifier`, `web-viewer` and `status-page`                     |
-| `packages/utils`      | Shared utilities (`Cargo.toml` parsing, networks, Resource ID parsing, compiled package manifest types) | —      | Used by the API services, `web-verifier` and `web-viewer`                  |
+| `packages/utils`      | Shared utilities (opening a project, networks, Resource ID parsing, compiled package manifest types)    | —      | Used by the API services, `web-verifier` and `web-viewer`                  |
 | `packages/test-utils` | Shared test helpers                                                                                     | —      | Used by the API test suites                                                |
 
 Every package is named `miden-source-code-verification-<dir>` (e.g. `miden-source-code-verification-web-verifier`) — that's the value `pnpm --filter` expects.

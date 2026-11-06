@@ -81,8 +81,12 @@ describe("findEntryFile", () => {
     expect(findEntryFile(files, "counter-note")).toBe(
       "counter-note/src/lib.rs",
     );
+  });
+
+  it("matches the package name exactly, not up to - and _", () => {
+    const files = filterSourceFiles(noteWithDependency);
     expect(findEntryFile(files, "counter_note")).toBe(
-      "counter-note/src/lib.rs",
+      "counter-contract/src/lib.rs",
     );
   });
 
