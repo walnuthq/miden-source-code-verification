@@ -1,20 +1,16 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { type RequestHandler, Router } from "express";
+import { notFound } from "miden-source-code-verification-utils/http-errors";
 import { inferEntrypoint } from "miden-source-code-verification-utils/project";
 import {
   getPackage,
   getPackagesWithoutDebugBuild,
   updatePackage,
 } from "../db/packages.ts";
-import {
-  ApiCompileError,
-  fetchApiCompile,
-  sendApiCompileUnavailable,
-} from "../lib/api-compile.ts";
+import { fetchApiCompile } from "../lib/api-compile.ts";
 import { cleanupPlaygroundResources } from "../lib/cleanup-playground.ts";
 import { ADMIN_TOKEN } from "../lib/constants.ts";
 import { type DebugBuild, storeDebugBuild } from "../lib/debug-build.ts";
-import { notFound } from "../lib/errors.ts";
 import { parseRoot } from "../lib/roots.ts";
 import { getMaspStore } from "../storage/masp-store.ts";
 
@@ -45,99 +41,71 @@ router.use("/admin", requireAdmin);
 
 // The packages the backfill still has to build.
 router.get("/admin/debug-builds/pending", async (_req, res) => {
-  try {
-    res.json(await getPackagesWithoutDebugBuild());
-  } catch (error) {
-    console.error(error);
-    const message = error instanceof Error ? error.message : "listing failed";
-    res.status(500).json({ error: message });
-  }
+  res.json(await getPackagesWithoutDebugBuild());
 });
 
 // Builds and stores the debug build of one stored package. api-compile first
 // rebuilds the release build and answers 409 when it no longer has the stored
-// commitment (toolchain drift): that package keeps no debug build until it is
-// verified again.
+// commitment (toolchain drift), or 400 when the sources no longer build; both
+// pass through, and that package keeps no debug build until it is verified
+// again.
 router.post("/admin/packages/:commitment/debug-build", async (req, res) => {
-  try {
-    const commitment = parseRoot(req.params.commitment);
-    if (!commitment) {
-      res.status(400).json({ error: "invalid package commitment" });
-      return;
-    }
-    const dbPackage = await getPackage(commitment);
-    if (!dbPackage) {
-      res.status(404).json({ error: "package not found" });
-      return;
-    }
-    if (dbPackage.debugCommitment) {
-      res.json({ debugCommitment: dbPackage.debugCommitment });
-      return;
-    }
-    const files = dbPackage.files as Record<string, string>;
-    const entrypoint =
-      dbPackage.entrypoint ?? inferEntrypoint(files, dbPackage.name);
-    if (!entrypoint) {
-      res.status(422).json({ error: "ambiguous entrypoint" });
-      return;
-    }
-    const { debug } = await fetchApiCompile<{ debug?: DebugBuild }>(
-      "/compile-debug",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          files,
-          entrypoint,
-          expectedCommitment: commitment,
-        }),
-      },
-    );
-    if (!debug || "error" in debug) {
-      res
-        .status(422)
-        .json({ error: debug?.error ?? "api-compile returned no debug build" });
-      return;
-    }
-    await storeDebugBuild({
-      maspStore: getMaspStore(req),
-      packageId: dbPackage.id,
-      commitment,
-      debug,
-    });
-    if (!dbPackage.entrypoint) {
-      // The release build reproduced from it, so it is the right one.
-      await updatePackage(dbPackage.id, { entrypoint });
-    }
-    res.json({ debugCommitment: debug.commitment });
-  } catch (error) {
-    console.error(error);
-    if (sendApiCompileUnavailable(res, error)) {
-      return;
-    }
-    // 409 (toolchain drift) and 400 (the sources no longer build).
-    if (error instanceof ApiCompileError && error.status < 500) {
-      res.status(error.status).json({ error: error.message });
-      return;
-    }
-    const message =
-      error instanceof Error ? error.message : "debug build failed";
-    res.status(500).json({ error: message });
+  const commitment = parseRoot(req.params.commitment);
+  if (!commitment) {
+    res.status(400).json({ error: "invalid package commitment" });
+    return;
   }
+  const dbPackage = await getPackage(commitment);
+  if (!dbPackage) {
+    res.status(404).json({ error: "package not found" });
+    return;
+  }
+  if (dbPackage.debugCommitment) {
+    res.json({ debugCommitment: dbPackage.debugCommitment });
+    return;
+  }
+  const files = dbPackage.files as Record<string, string>;
+  const entrypoint =
+    dbPackage.entrypoint ?? inferEntrypoint(files, dbPackage.name);
+  if (!entrypoint) {
+    res.status(422).json({ error: "ambiguous entrypoint" });
+    return;
+  }
+  const { debug } = await fetchApiCompile<{ debug?: DebugBuild }>(
+    "/compile-debug",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        files,
+        entrypoint,
+        expectedCommitment: commitment,
+      }),
+    },
+  );
+  if (!debug || "error" in debug) {
+    res
+      .status(422)
+      .json({ error: debug?.error ?? "api-compile returned no debug build" });
+    return;
+  }
+  await storeDebugBuild({
+    maspStore: getMaspStore(req),
+    packageId: dbPackage.id,
+    commitment,
+    debug,
+  });
+  if (!dbPackage.entrypoint) {
+    // The release build reproduced from it, so it is the right one.
+    await updatePackage(dbPackage.id, { entrypoint });
+  }
+  res.json({ debugCommitment: debug.commitment });
 });
 
 // Deletes the playground's verifications older than a day, and the packages
 // and artifacts only they used.
 router.post("/admin/playground/cleanup", async (req, res) => {
-  try {
-    res.json(
-      await cleanupPlaygroundResources({ maspStore: getMaspStore(req) }),
-    );
-  } catch (error) {
-    console.error(error);
-    const message = error instanceof Error ? error.message : "cleanup failed";
-    res.status(500).json({ error: message });
-  }
+  res.json(await cleanupPlaygroundResources({ maspStore: getMaspStore(req) }));
 });
 
 export default router;

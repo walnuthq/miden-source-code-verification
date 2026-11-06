@@ -1,5 +1,9 @@
 import cors from "cors";
 import express from "express";
+import {
+  errorHandler,
+  notFound,
+} from "miden-source-code-verification-utils/http-errors";
 import { cargoMidenVersion } from "./lib/cargo-miden.ts";
 import {
   ALLOWED_ORIGINS,
@@ -8,7 +12,6 @@ import {
   PORT,
   SHUTDOWN_TIMEOUT_MS,
 } from "./lib/constants.ts";
-import { errorHandler, notFound } from "./lib/errors.ts";
 import compileRouter from "./routes/compile.ts";
 import compileDebugRouter from "./routes/compile-debug.ts";
 import importRouter from "./routes/import.ts";

@@ -1,10 +1,5 @@
-import type { Response } from "express";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  ApiCompileError,
-  fetchApiCompile,
-  sendApiCompileUnavailable,
-} from "../src/lib/api-compile.ts";
+import { ApiCompileError, fetchApiCompile } from "../src/lib/api-compile.ts";
 import { API_COMPILE_IMPORT_TIMEOUT_MS } from "../src/lib/constants.ts";
 import { importResource } from "../src/lib/import-resource.ts";
 
@@ -45,30 +40,6 @@ const catchError = async (promise: Promise<unknown>) => {
   throw new Error("expected a rejection");
 };
 
-// Records what a route answered.
-const fakeRes = () => {
-  const sent: {
-    status?: number;
-    headers: Record<string, string>;
-    body?: unknown;
-  } = { headers: {} };
-  const res = {
-    set(name: string, value: string) {
-      sent.headers[name] = value;
-      return res;
-    },
-    status(code: number) {
-      sent.status = code;
-      return res;
-    },
-    json(body: unknown) {
-      sent.body = body;
-      return res;
-    },
-  };
-  return { res: res as unknown as Response, sent };
-};
-
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -95,7 +66,7 @@ describe("fetchApiCompile", () => {
     expect(error).toMatchObject({
       status: 503,
       message: "too many requests in progress, retry later",
-      retryAfter: "30",
+      headers: { "Retry-After": "30" },
     });
   });
 
@@ -155,35 +126,5 @@ describe("importResource", () => {
       expect.stringMatching(/\/mtst\/import\/0x01$/),
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
-  });
-});
-
-describe("sendApiCompileUnavailable", () => {
-  it("passes a 503 through with its Retry-After", () => {
-    const { res, sent } = fakeRes();
-    const error = new ApiCompileError("busy", 503, "30");
-    expect(sendApiCompileUnavailable(res, error)).toBe(true);
-    expect(sent).toEqual({
-      status: 503,
-      headers: { "Retry-After": "30" },
-      body: { error: "busy" },
-    });
-  });
-
-  it("passes a 504 through", () => {
-    const { res, sent } = fakeRes();
-    expect(
-      sendApiCompileUnavailable(res, new ApiCompileError("slow", 504)),
-    ).toBe(true);
-    expect(sent.status).toBe(504);
-  });
-
-  it("leaves other failures to the route", () => {
-    const { res, sent } = fakeRes();
-    expect(
-      sendApiCompileUnavailable(res, new ApiCompileError("bad build", 400)),
-    ).toBe(false);
-    expect(sendApiCompileUnavailable(res, new Error("db down"))).toBe(false);
-    expect(sent.status).toBeUndefined();
   });
 });

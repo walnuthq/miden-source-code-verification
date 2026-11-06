@@ -1,4 +1,14 @@
-export class BusyError extends Error {}
+import { HttpError } from "miden-source-code-verification-utils/http-errors";
+
+// Answered 503, with a `Retry-After` of about one build: by then the queue has
+// moved.
+export class BusyError extends HttpError {
+  constructor() {
+    super(503, "too many requests in progress, retry later", {
+      headers: { "Retry-After": "30" },
+    });
+  }
+}
 
 // Runs at most `concurrency` tasks at once, with up to `queueSize` more waiting
 // in order. Past that, `BusyError` is thrown right away. A waiting task whose
@@ -32,7 +42,7 @@ export const createLimiter = ({
         return;
       }
       if (queue.length >= queueSize) {
-        reject(new BusyError("too many requests in progress, retry later"));
+        reject(new BusyError());
         return;
       }
       const onAbort = () => {

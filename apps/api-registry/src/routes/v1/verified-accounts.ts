@@ -1,10 +1,7 @@
 import { Router } from "express";
 import { openProject } from "miden-source-code-verification-utils/project";
 import { getVerifiedAccountByCode } from "../../db/verified-accounts.ts";
-import {
-  ApiCompileError,
-  sendApiCompileUnavailable,
-} from "../../lib/api-compile.ts";
+import { ApiCompileError } from "../../lib/api-compile.ts";
 import { importResource } from "../../lib/import-resource.ts";
 import { parseRoot } from "../../lib/roots.ts";
 import { verifyAccountComponent } from "../../lib/verify-account-component.ts";
@@ -88,7 +85,9 @@ type VerifyAccountRequestBody = {
  *           leading `/`), or a file whose content isn't a string; an
  *           `entrypoint` that isn't a relative directory; no `Cargo.toml` or
  *           `miden-project.toml` at the entrypoint; a `Cargo.toml` that isn't
- *           valid TOML or has no `[package]` (a workspace root).
+ *           valid TOML or has no `[package]` (a workspace root). Also a
+ *           project the compilation service couldn't build, or an account it
+ *           couldn't find on `networkId`, with its message as the error.
  *         content:
  *           application/json:
  *             schema:
@@ -122,35 +121,25 @@ type VerifyAccountRequestBody = {
  *         $ref: '#/components/responses/CompilerUnavailable'
  */
 router.post("/:networkId/verified-accounts", async (req, res) => {
-  try {
-    const { accountId, files, entrypoint, source } =
-      req.body as VerifyAccountRequestBody;
-    if (!accountId) {
-      res.status(400).json({ error: "missing accountId" });
-      return;
-    }
-    const opened = openProject(files, entrypoint);
-    if ("error" in opened) {
-      res.status(400).json({ error: opened.error });
-      return;
-    }
-    const verified = await verifyAccountComponent({
-      networkId: req.params.networkId,
-      accountId,
-      project: opened.project,
-      source: typeof source === "string" ? source : "unknown",
-      maspStore: getMaspStore(req),
-    });
-    res.json({ verified });
-  } catch (error) {
-    console.error(error);
-    if (sendApiCompileUnavailable(res, error)) {
-      return;
-    }
-    const message =
-      error instanceof Error ? error.message : "verification failed";
-    res.status(500).json({ error: message });
+  const { accountId, files, entrypoint, source } =
+    req.body as VerifyAccountRequestBody;
+  if (!accountId) {
+    res.status(400).json({ error: "missing accountId" });
+    return;
   }
+  const opened = openProject(files, entrypoint);
+  if ("error" in opened) {
+    res.status(400).json({ error: opened.error });
+    return;
+  }
+  const verified = await verifyAccountComponent({
+    networkId: req.params.networkId,
+    accountId,
+    project: opened.project,
+    source: typeof source === "string" ? source : "unknown",
+    maspStore: getMaspStore(req),
+  });
+  res.json({ verified });
 });
 
 /**
@@ -246,27 +235,18 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
  *                   type: string
  */
 router.get("/:networkId/verified-accounts/code/:code", async (req, res) => {
-  try {
-    const { networkId } = req.params;
-    const code = parseRoot(req.params.code);
-    if (!code) {
-      res.status(400).json({ error: "invalid code" });
-      return;
-    }
-    const verifiedAccount = await getVerifiedAccountByCode({ networkId, code });
-    if (!verifiedAccount) {
-      res.status(404).json({ error: "verified account not found" });
-      return;
-    }
-    res.json(verifiedAccount);
-  } catch (error) {
-    console.error(error);
-    const message =
-      error instanceof Error
-        ? error.message
-        : "verified account retrieval failed";
-    res.status(500).json({ error: message });
+  const { networkId } = req.params;
+  const code = parseRoot(req.params.code);
+  if (!code) {
+    res.status(400).json({ error: "invalid code" });
+    return;
   }
+  const verifiedAccount = await getVerifiedAccountByCode({ networkId, code });
+  if (!verifiedAccount) {
+    res.status(404).json({ error: "verified account not found" });
+    return;
+  }
+  res.json(verifiedAccount);
 });
 
 /**
@@ -385,52 +365,40 @@ router.get("/:networkId/verified-accounts/code/:code", async (req, res) => {
  *         $ref: '#/components/responses/CompilerUnavailable'
  */
 router.get("/:networkId/verified-accounts/:accountId", async (req, res) => {
+  const { networkId, accountId } = req.params;
+  let resource: Awaited<ReturnType<typeof importResource>>;
   try {
-    const { networkId, accountId } = req.params;
-    let resource: Awaited<ReturnType<typeof importResource>>;
-    try {
-      resource = await importResource({ networkId, resourceId: accountId });
-    } catch (error) {
-      // Only an account api-compile could not find on-chain (unknown/invalid
-      // id) is a 404. Any other failure says nothing about the registry.
-      if (error instanceof ApiCompileError && error.status === 404) {
-        res.status(404).json({ error: "verified account not found" });
-        return;
-      }
-      throw error;
-    }
-    // A note id resolves too, but to a script root no account record carries.
-    if (resource.type !== "account") {
-      res.status(404).json({ error: "verified account not found" });
-      return;
-    }
-    const { code, standardAccountComponents, procedures } = resource;
-    const verifiedAccount = await getVerifiedAccountByCode({ networkId, code });
-    if (!verifiedAccount) {
-      res.status(404).json({ error: "verified account not found" });
-      return;
-    }
-    // `networkId` already comes back on the record, so only `accountId` needs
-    // echoing — the caller can't otherwise tell which account was resolved.
-    // The standard components and procedures come straight from the on-chain
-    // import, which the code-keyed route never performs.
-    res.json({
-      ...verifiedAccount,
-      accountId,
-      standardAccountComponents,
-      procedures,
-    });
+    resource = await importResource({ networkId, resourceId: accountId });
   } catch (error) {
-    console.error(error);
-    if (sendApiCompileUnavailable(res, error)) {
+    // Only an account api-compile could not find on-chain (unknown/invalid
+    // id) is a 404. Any other failure says nothing about the registry.
+    if (error instanceof ApiCompileError && error.status === 404) {
+      res.status(404).json({ error: "verified account not found" });
       return;
     }
-    const message =
-      error instanceof Error
-        ? error.message
-        : "verified account retrieval failed";
-    res.status(500).json({ error: message });
+    throw error;
   }
+  // A note id resolves too, but to a script root no account record carries.
+  if (resource.type !== "account") {
+    res.status(404).json({ error: "verified account not found" });
+    return;
+  }
+  const { code, standardAccountComponents, procedures } = resource;
+  const verifiedAccount = await getVerifiedAccountByCode({ networkId, code });
+  if (!verifiedAccount) {
+    res.status(404).json({ error: "verified account not found" });
+    return;
+  }
+  // `networkId` already comes back on the record, so only `accountId` needs
+  // echoing — the caller can't otherwise tell which account was resolved.
+  // The standard components and procedures come straight from the on-chain
+  // import, which the code-keyed route never performs.
+  res.json({
+    ...verifiedAccount,
+    accountId,
+    standardAccountComponents,
+    procedures,
+  });
 });
 
 export default router;

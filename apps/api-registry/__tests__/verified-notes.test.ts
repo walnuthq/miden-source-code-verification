@@ -83,7 +83,7 @@ describe("POST /:networkId/verified-notes", () => {
       entrypoint,
     });
 
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(400);
   });
 
   it("verifies a counter-note", async () => {
@@ -340,7 +340,7 @@ describe("POST /:networkId/verified-notes with a deposit-note", () => {
       entrypoint,
     });
 
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(400);
   });
 
   it("verifies a deposit-note", async () => {

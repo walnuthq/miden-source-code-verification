@@ -1,6 +1,7 @@
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import { MIDEN_TOOL_REJECTED_EXIT_CODE } from "./constants.ts";
 import { midenVerifier } from "./miden-verifier.ts";
 
@@ -8,12 +9,9 @@ import { midenVerifier } from "./miden-verifier.ts";
 // when the request can never verify (the resource isn't on-chain, the ID or the
 // package is invalid), 502 when a retry may pass (the node, the store, a
 // timeout).
-export class VerifierError extends Error {
-  readonly status: 400 | 502;
-
+export class VerifierError extends HttpError {
   constructor(message: string, status: 400 | 502) {
-    super(message);
-    this.status = status;
+    super(status, message);
   }
 }
 
