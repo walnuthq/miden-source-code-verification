@@ -1,10 +1,9 @@
 import { Router } from "express";
 import { openProject } from "miden-source-code-verification-utils/project";
 import { getVerifiedNoteByScript } from "../../db/verified-notes.ts";
-import { ApiCompileError } from "../../lib/api-compile.ts";
-import { importResource } from "../../lib/import-resource.ts";
+import { ApiCompileError, getApiCompile } from "../../lib/api-compile.ts";
 import { parseRoot } from "../../lib/roots.ts";
-import { verifyNote } from "../../lib/verify-note.ts";
+import { verifyResource } from "../../lib/verify-resource.ts";
 import { getMaspStore } from "../../storage/masp-store.ts";
 
 const router: Router = Router();
@@ -94,6 +93,17 @@ type VerifyNoteRequestBody = {
  *               properties:
  *                 error:
  *                   type: string
+ *       "409":
+ *         description: >
+ *           The note's script root on `networkId` is already verified: nothing
+ *           to record.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
  *       "413":
  *         description: The request body is larger than 1 MB.
  *         content:
@@ -131,12 +141,13 @@ router.post("/:networkId/verified-notes", async (req, res) => {
     res.status(400).json({ error: opened.error });
     return;
   }
-  const verified = await verifyNote({
+  const verified = await verifyResource({
     networkId: req.params.networkId,
-    noteId,
+    resource: { kind: "note", noteId },
     project: opened.project,
     source: typeof source === "string" ? source : "unknown",
     maspStore: getMaspStore(req),
+    apiCompile: getApiCompile(req),
   });
   res.json({ verified });
 });
@@ -356,7 +367,7 @@ router.get("/:networkId/verified-notes/:noteId", async (req, res) => {
   const { networkId, noteId } = req.params;
   let script: string;
   try {
-    ({ code: script } = await importResource({
+    ({ code: script } = await getApiCompile(req).importResource({
       networkId,
       resourceId: noteId,
     }));

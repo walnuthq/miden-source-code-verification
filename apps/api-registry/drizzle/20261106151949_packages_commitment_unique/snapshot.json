@@ -1,0 +1,57 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "d0dd0f9d-c7bf-479c-b8d1-8db70fd1bbc4",
+  "prevIds": [
+    "781ebca2-7126-45bd-9b46-2ea89a95af90"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "packages",
+        "packages_commitment_idx"
+      ],
+      "writes": [
+        "s|idx|public.packages_commitment_idx",
+        "n|idx|public.packages_commitment_idx",
+        "e|idx|public.packages_commitment_idx",
+        "n|rel|public.packages_commitment_idx"
+      ],
+      "reads": [
+        "n|tbl|public.packages",
+        "n|sch|public",
+        "n|col|public.packages.commitment"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "packages",
+        "name": "packages_commitment_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "commitment",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    }
+  ]
+}

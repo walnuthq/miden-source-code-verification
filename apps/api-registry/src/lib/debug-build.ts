@@ -1,18 +1,6 @@
-import type { Manifest } from "miden-source-code-verification-utils/manifest";
 import { updatePackage } from "../db/packages.ts";
 import type { MaspStore } from "../storage/masp-store.ts";
-
-// api-compile's debug build of a package's sources: a dev-profile build whose
-// debug info names call-trace frames. Its failure is an `error`, which never
-// fails the verification it came with.
-export type DebugBuild =
-  | {
-      masp: string;
-      commitment: string;
-      manifest: Manifest;
-      cargoMidenVersion?: string;
-    }
-  | { error: string };
+import type { DebugBuild } from "./api-compile.ts";
 
 // Stores a package's debug build next to its release build, keyed by the
 // release `commitment`, then records it on the row: artifact before row, as

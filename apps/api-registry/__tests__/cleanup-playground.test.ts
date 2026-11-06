@@ -171,21 +171,4 @@ describe("cleanupPlaygroundResources", () => {
     expect(after.notes).toEqual([hex("04")]);
     expect(await maspStore.get(hex("a2"))).not.toBeNull();
   });
-
-  it("keeps an artifact another package row still has", async () => {
-    // Two rows with the same commitment: an old playground one, and one
-    // another client verified.
-    const account = await insertAccount(hex("01"));
-    const playgroundPackage = await insertPackage(maspStore, hex("a1"));
-    await insertComponent(account, playgroundPackage, PLAYGROUND_SOURCE, OLD);
-    const otherAccount = await insertAccount(hex("02"));
-    const otherPackage = await insertPackage(maspStore, hex("a1"));
-    await insertComponent(otherAccount, otherPackage, "miden-verify", OLD);
-
-    const result = await cleanupPlaygroundResources({ maspStore, now: NOW });
-
-    expect(result).toMatchObject({ packages: 1, masps: 0 });
-    expect(await maspStore.get(hex("a1"))).not.toBeNull();
-    expect(await maspStore.get(hex("a1"), "debug")).not.toBeNull();
-  });
 });

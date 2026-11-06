@@ -17,35 +17,45 @@ import {
 // list that types a manifest dependency's `kind`.
 export const packageTypeEnum = pgEnum("package_type", TARGET_TYPES);
 
-export const packagesTable = pgTable("packages", {
-  id: uuid().primaryKey().defaultRandom(),
-  name: varchar({ length: 255 }).notNull().default(""),
-  type: packageTypeEnum().notNull().default("account-component"),
-  files: jsonb().notNull().default({}),
-  commitment: varchar({ length: 66 })
-    .notNull()
-    .default(
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-    ),
-  manifest: jsonb().notNull().default({}),
-  // The project directory within `files` the package was built from (`.` for
-  // the root). Null on rows from before it was recorded.
-  entrypoint: text(),
-  // `cargo miden --version` of the build. Null when unknown.
-  builtWith: varchar("built_with", { length: 64 }),
-  // The debug build of the same sources (a dev-profile build, whose debug info
-  // names call-trace frames), stored as `<commitment>.debug.masp`: its own
-  // commitment, and the cargo-miden that built it. Null until it is built,
-  // which makes the row part of the backfill's work list.
-  debugCommitment: varchar("debug_commitment", { length: 66 }),
-  debugBuiltWith: varchar("debug_built_with", { length: 64 }),
-  // Whether each exported procedure is read-only, by export path, as
-  // api-compile reads it from the package (`ReadOnlyProcedures`). Without a
-  // default, like `networkId`, so an insert that forgets it fails to compile.
-  readOnly: jsonb("read_only").$type<ReadOnlyProcedures>().notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+export const packagesTable = pgTable(
+  "packages",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    name: varchar({ length: 255 }).notNull().default(""),
+    type: packageTypeEnum().notNull().default("account-component"),
+    files: jsonb().notNull().default({}),
+    commitment: varchar({ length: 66 })
+      .notNull()
+      .default(
+        "0x0000000000000000000000000000000000000000000000000000000000000000",
+      ),
+    manifest: jsonb().notNull().default({}),
+    // The project directory within `files` the package was built from (`.` for
+    // the root). Null on rows from before it was recorded.
+    entrypoint: text(),
+    // `cargo miden --version` of the build. Null when unknown.
+    builtWith: varchar("built_with", { length: 64 }),
+    // The debug build of the same sources (a dev-profile build, whose debug info
+    // names call-trace frames), stored as `<commitment>.debug.masp`: its own
+    // commitment, and the cargo-miden that built it. Null until it is built,
+    // which makes the row part of the backfill's work list.
+    debugCommitment: varchar("debug_commitment", { length: 66 }),
+    debugBuiltWith: varchar("debug_built_with", { length: 64 }),
+    // Whether each exported procedure is read-only, by export path, as
+    // api-compile reads it from the package (`ReadOnlyProcedures`). Without a
+    // default, like `networkId`, so an insert that forgets it fails to compile.
+    readOnly: jsonb("read_only").$type<ReadOnlyProcedures>().notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    // One row per package. `verifyResource` reads then inserts, so without it
+    // two concurrent verifications of a new package would each create a row
+    // for the one artifact, keyed by commitment. It also backs every lookup
+    // by commitment: `getPackage` and the artifact routes.
+    uniqueIndex("packages_commitment_idx").on(table.commitment),
+  ],
+);
 
 export const verifiedAccountCodeTable = pgTable(
   "verified_accounts_code",
@@ -65,7 +75,7 @@ export const verifiedAccountCodeTable = pgTable(
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [
-    // The registry's real key. Unique because `verifyAccountComponent` reads
+    // The registry's real key. Unique because `verifyResource` reads
     // then inserts, so without it two concurrent verifications of the same code
     // would each create a row and later lookups would see only one of them.
     // A unique *index* rather than a bare constraint: it doubles as the index
@@ -127,7 +137,7 @@ export const verifiedNoteScriptTable = pgTable(
   },
   (table) => [
     // See the note on `verifiedAccountCodeTable` — same reasoning, and here it
-    // also backs the "note already verified" guard in `verifyNote`.
+    // also backs the "note already verified" guard in `verifyResource`.
     uniqueIndex("verified_notes_script_network_id_script_idx").on(
       table.networkId,
       table.script,

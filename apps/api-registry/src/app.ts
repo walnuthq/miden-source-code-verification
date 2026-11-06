@@ -5,6 +5,7 @@ import {
   notFound,
 } from "miden-source-code-verification-utils/http-errors";
 import { type Database, dbScope } from "./db/context.ts";
+import { type ApiCompile, createHttpApiCompile } from "./lib/api-compile.ts";
 import {
   ALLOWED_ORIGINS,
   API_COMPILE_URL,
@@ -273,14 +274,21 @@ type CreateAppOptions = {
    * Workers) supply their own object storage.
    */
   maspStore?: MaspStore;
+  /**
+   * The api-compile the registry builds and verifies with. Defaults to the one
+   * at `API_COMPILE_URL`; in-process tests pass a fake.
+   */
+  apiCompile?: ApiCompile;
 };
 
 export const createApp = ({
   requestDbFactory,
   maspStore,
+  apiCompile,
 }: CreateAppOptions = {}): Express => {
   const app = express();
   app.locals.maspStore = maspStore ?? createFsMaspStore(MASP_STORAGE_DIR);
+  app.locals.apiCompile = apiCompile ?? createHttpApiCompile(API_COMPILE_URL);
 
   // Must run before the routers so the request-scoped db is set for the whole
   // handler chain. No-op unless a factory is supplied.
