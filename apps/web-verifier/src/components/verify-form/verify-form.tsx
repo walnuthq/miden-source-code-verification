@@ -37,6 +37,7 @@ import { type SyntheticEvent, useState } from "react";
 
 import { ImportSources } from "@/components/verify-form/import-sources";
 import { SettingsDialog } from "@/components/verify-form/settings-dialog";
+import { resourceCollection, verifyResource } from "@/lib/api-registry";
 import type { ProjectFiles } from "@/lib/collect-project-files";
 import { API_REGISTRY_URL, WEB_VIEWER_URL } from "@/lib/constants";
 
@@ -50,27 +51,6 @@ type VerifyResult =
 // Identifies the client that originated a verification request. Overridable via
 // the `source` query param; falls back to this when unset.
 const DEFAULT_SOURCE = "web-verifier";
-
-// A busy verifier answers 503 with `Retry-After`. Wait that long (within
-// bounds) and resubmit, up to MAX_BUSY_RETRIES times.
-const MAX_BUSY_RETRIES = 3;
-const DEFAULT_RETRY_AFTER_SECONDS = 30;
-const MAX_RETRY_AFTER_SECONDS = 120;
-
-const retryAfterSeconds = (header: string | null) => {
-  const seconds = Number(header);
-  if (header === null || !Number.isFinite(seconds) || seconds < 1) {
-    return DEFAULT_RETRY_AFTER_SECONDS;
-  }
-  return Math.min(Math.ceil(seconds), MAX_RETRY_AFTER_SECONDS);
-};
-
-// Messages for failures that aren't about the submitted sources.
-const UNAVAILABLE_MESSAGES: Record<number, string> = {
-  502: "The verifier could not reach the compiler. Please try again later.",
-  503: "The verifier is busy. Please try again in a few minutes.",
-  504: "The verifier took too long to answer. Please try again later.",
-};
 
 // The network is picked in the navbar, so it comes from `App`.
 export function VerifyForm({
@@ -148,54 +128,33 @@ export function VerifyForm({
     event.preventDefault();
     if (!isFormValid || verifying) return;
 
-    const isNote = resource.kind === "note";
-    const endpoint = isNote ? "verified-notes" : "verified-accounts";
-    const idField = isNote ? "noteId" : "accountId";
-    // The API expects `accountId` in canonical hex form, which is what
-    // `parseResourceId` resolves an address to.
-    const idValue = isNote ? resource.noteId : resource.accountId;
-
     setVerifying(true);
     setResult(null);
     try {
-      const request = () =>
-        fetch(`${verifierUrl}/v1/${network}/${endpoint}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            [idField]: idValue,
-            files,
-            entrypoint,
-            source,
-          }),
+      const outcome = await verifyResource({
+        registryUrl: verifierUrl,
+        network,
+        resource,
+        files,
+        entrypoint,
+        source,
+        wait: countdown,
+      });
+      if ("error" in outcome) {
+        setResult({ status: "error", message: outcome.error });
+      } else if (outcome.verified) {
+        // The resource's page on the web-viewer: the same collection, the
+        // canonical id the request carried.
+        const id =
+          resource.kind === "note" ? resource.noteId : resource.accountId;
+        setResult({
+          status: "success",
+          kind,
+          viewerUrl: `${WEB_VIEWER_URL}/${network}/${resourceCollection(kind)}/${id}`,
         });
-      let response = await request();
-      for (
-        let retry = 1;
-        response.status === 503 && retry <= MAX_BUSY_RETRIES;
-        retry++
-      ) {
-        await countdown(retryAfterSeconds(response.headers.get("Retry-After")));
-        response = await request();
+      } else {
+        setResult({ status: "warning", kind });
       }
-      // Error pages from a proxy in front of the verifier are not JSON.
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(
-          UNAVAILABLE_MESSAGES[response.status] ??
-            data?.error ??
-            `Request failed (${response.status})`,
-        );
-      }
-      setResult(
-        data.verified
-          ? {
-              status: "success",
-              kind,
-              viewerUrl: `${WEB_VIEWER_URL}/${network}/${endpoint}/${idValue}`,
-            }
-          : { status: "warning", kind },
-      );
     } catch (error) {
       setResult({
         status: "error",

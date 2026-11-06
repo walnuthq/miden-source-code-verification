@@ -1,12 +1,13 @@
 import type { StandardAccountComponent } from "./api-compile.ts";
 import type { Manifest, ReadOnlyProcedures, TargetType } from "./manifest.ts";
 
-// What api-registry answers, and how it names a package's artifact. The
-// registry's lookups build their answers against these types and its clients
-// (the web-viewer, the status probe) read them: one place names the wire
-// format, so no client mirrors the registry's rows by hand. The OpenAPI block
-// at the top of `apps/api-registry/src/app.ts` spells the same shapes under
-// the same names, for the docs.
+// What api-registry answers, how it names a package's artifact, and how a
+// client waits out its 503. The registry's lookups build their answers against
+// these types and its clients (the web-viewer, the web-verifier, the status
+// probe) read them: one place names the wire format, so no client mirrors the
+// registry's rows by hand. The OpenAPI block at the top of
+// `apps/api-registry/src/app.ts` spells the same shapes under the same names,
+// for the docs.
 
 // ─── Verified records ───────────────────────────────────────────────────────
 
@@ -155,3 +156,43 @@ export const packageMaspPath = (
   commitment: string,
   variant: MaspVariant = "release",
 ) => `/v1/${networkId}/packages/masp/${maspKey(commitment, variant)}`;
+
+// ─── A busy registry ────────────────────────────────────────────────────────
+
+// A registry whose compiler is busy answers 503 and passes its `Retry-After`
+// through: the seconds to wait before sending the same request again. Read
+// within bounds, so a missing or odd header waits half a minute and a long one
+// no more than two.
+const DEFAULT_RETRY_AFTER_SECONDS = 30;
+const MAX_RETRY_AFTER_SECONDS = 120;
+
+export const retryAfterSeconds = (header: string | null) => {
+  const seconds = Number(header);
+  if (header === null || !Number.isFinite(seconds) || seconds < 1) {
+    return DEFAULT_RETRY_AFTER_SECONDS;
+  }
+  return Math.min(Math.ceil(seconds), MAX_RETRY_AFTER_SECONDS);
+};
+
+const sleep = (seconds: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, seconds * 1000));
+
+// Sends `request()` and, while the answer is a 503, waits its `Retry-After`
+// (`retryAfterSeconds`) and sends it again, up to `maxRetries` more times;
+// answers the last response, a 503 included. `wait` is how the caller spends
+// the wait (the web-verifier counts it down, a script logs it) and resolves
+// when it is over; by default it sleeps.
+export async function fetchWhileBusy(
+  request: () => Promise<Response>,
+  {
+    maxRetries,
+    wait = sleep,
+  }: { maxRetries: number; wait?: (seconds: number) => Promise<void> },
+): Promise<Response> {
+  let response = await request();
+  for (let retry = 1; response.status === 503 && retry <= maxRetries; retry++) {
+    await wait(retryAfterSeconds(response.headers.get("Retry-After")));
+    response = await request();
+  }
+  return response;
+}
