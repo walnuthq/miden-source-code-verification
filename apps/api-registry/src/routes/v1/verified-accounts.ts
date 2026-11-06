@@ -1,12 +1,11 @@
 import { Router } from "express";
 import { openProject } from "miden-source-code-verification-utils/project";
-import { getVerifiedAccountByCode } from "../../db/verified-accounts.ts";
-import {
-  ApiCompileError,
-  getApiCompile,
-  type ImportedResource,
-} from "../../lib/api-compile.ts";
+import { getApiCompile } from "../../lib/api-compile.ts";
 import { parseRoot } from "../../lib/roots.ts";
+import {
+  findVerifiedRecord,
+  findVerifiedRecordByRoot,
+} from "../../lib/verified-record.ts";
 import { verifyResource } from "../../lib/verify-resource.ts";
 import { getMaspStore } from "../../storage/masp-store.ts";
 
@@ -256,12 +255,9 @@ router.get("/:networkId/verified-accounts/code/:code", async (req, res) => {
     res.status(400).json({ error: "invalid code" });
     return;
   }
-  const verifiedAccount = await getVerifiedAccountByCode({ networkId, code });
-  if (!verifiedAccount) {
-    res.status(404).json({ error: "verified account not found" });
-    return;
-  }
-  res.json(verifiedAccount);
+  res.json(
+    await findVerifiedRecordByRoot({ networkId, kind: "account", root: code }),
+  );
 });
 
 /**
@@ -381,42 +377,13 @@ router.get("/:networkId/verified-accounts/code/:code", async (req, res) => {
  */
 router.get("/:networkId/verified-accounts/:accountId", async (req, res) => {
   const { networkId, accountId } = req.params;
-  let resource: ImportedResource;
-  try {
-    resource = await getApiCompile(req).importResource({
+  res.json(
+    await findVerifiedRecord({
       networkId,
-      resourceId: accountId,
-    });
-  } catch (error) {
-    // Only an account api-compile could not find on-chain (unknown/invalid
-    // id) is a 404. Any other failure says nothing about the registry.
-    if (error instanceof ApiCompileError && error.status === 404) {
-      res.status(404).json({ error: "verified account not found" });
-      return;
-    }
-    throw error;
-  }
-  // A note id resolves too, but to a script root no account record carries.
-  if (resource.type !== "account") {
-    res.status(404).json({ error: "verified account not found" });
-    return;
-  }
-  const { code, standardAccountComponents, procedures } = resource;
-  const verifiedAccount = await getVerifiedAccountByCode({ networkId, code });
-  if (!verifiedAccount) {
-    res.status(404).json({ error: "verified account not found" });
-    return;
-  }
-  // `networkId` already comes back on the record, so only `accountId` needs
-  // echoing — the caller can't otherwise tell which account was resolved.
-  // The standard components and procedures come straight from the on-chain
-  // import, which the code-keyed route never performs.
-  res.json({
-    ...verifiedAccount,
-    accountId,
-    standardAccountComponents,
-    procedures,
-  });
+      resource: { kind: "account", accountId },
+      apiCompile: getApiCompile(req),
+    }),
+  );
 });
 
 export default router;

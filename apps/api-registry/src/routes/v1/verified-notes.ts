@@ -1,8 +1,11 @@
 import { Router } from "express";
 import { openProject } from "miden-source-code-verification-utils/project";
-import { getVerifiedNoteByScript } from "../../db/verified-notes.ts";
-import { ApiCompileError, getApiCompile } from "../../lib/api-compile.ts";
+import { getApiCompile } from "../../lib/api-compile.ts";
 import { parseRoot } from "../../lib/roots.ts";
+import {
+  findVerifiedRecord,
+  findVerifiedRecordByRoot,
+} from "../../lib/verified-record.ts";
 import { verifyResource } from "../../lib/verify-resource.ts";
 import { getMaspStore } from "../../storage/masp-store.ts";
 
@@ -257,12 +260,9 @@ router.get("/:networkId/verified-notes/script/:script", async (req, res) => {
     res.status(400).json({ error: "invalid script" });
     return;
   }
-  const verifiedNote = await getVerifiedNoteByScript({ networkId, script });
-  if (!verifiedNote) {
-    res.status(404).json({ error: "verified note not found" });
-    return;
-  }
-  res.json(verifiedNote);
+  res.json(
+    await findVerifiedRecordByRoot({ networkId, kind: "note", root: script }),
+  );
 });
 
 /**
@@ -365,29 +365,13 @@ router.get("/:networkId/verified-notes/script/:script", async (req, res) => {
  */
 router.get("/:networkId/verified-notes/:noteId", async (req, res) => {
   const { networkId, noteId } = req.params;
-  let script: string;
-  try {
-    ({ code: script } = await getApiCompile(req).importResource({
+  res.json(
+    await findVerifiedRecord({
       networkId,
-      resourceId: noteId,
-    }));
-  } catch (error) {
-    // Only a note api-compile could not find on-chain (unknown/invalid id)
-    // is a 404. Any other failure says nothing about the registry.
-    if (error instanceof ApiCompileError && error.status === 404) {
-      res.status(404).json({ error: "verified note not found" });
-      return;
-    }
-    throw error;
-  }
-  const verifiedNote = await getVerifiedNoteByScript({ networkId, script });
-  if (!verifiedNote) {
-    res.status(404).json({ error: "verified note not found" });
-    return;
-  }
-  // `networkId` already comes back on the record, so only `noteId` needs
-  // echoing — the caller can't otherwise tell which note was resolved.
-  res.json({ ...verifiedNote, noteId });
+      resource: { kind: "note", noteId },
+      apiCompile: getApiCompile(req),
+    }),
+  );
 });
 
 export default router;
