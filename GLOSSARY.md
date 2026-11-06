@@ -59,3 +59,9 @@ _Avoid_: subdirectory, project dir, package dir
 **Workspace root**:
 A `Cargo.toml` with no `[package]`, which only lists members. It is not a project; one of its members, named as the entrypoint, may be.
 _Avoid_: virtual manifest
+
+### Tooling
+
+**Helper tool**:
+One of the three Rust binaries built from `apps/api-compile/crates` that api-compile runs for what Node can't do: `miden-import` reads a resource's root, and an account's procedures, from its network; `miden-verifier` checks a package against a resource on chain; `miden-package-metadata` reads a package's commitment and manifest. Each prints its result as JSON when it exits 0 and writes the reason to stderr otherwise. `miden-import` and `miden-verifier` exit with 2 when the request can never succeed and with 1 when a retry may pass. cargo-miden is the toolchain, not a helper tool.
+_Avoid_: binary, CLI, subprocess
