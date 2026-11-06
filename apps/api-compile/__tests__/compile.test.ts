@@ -370,12 +370,22 @@ describe("POST /compile returned files", () => {
     expect(res.body.files).toEqual(files);
   });
 
+  // The version a lockfile pins smallvec at, a warm crate every build uses.
+  const smallvecVersion = (cargoLock: string) =>
+    cargoLock.match(/name = "smallvec"\nversion = "([^"]+)"/)?.[1];
+
   // Builds run `--offline` first; a crate the image never downloaded makes that
-  // fail, and the build runs again online.
+  // fail, and the build runs again online. The lockfile stays, so the retry
+  // downloads only the new crate and keeps the warm pins. Resolving fresh
+  // would download a newer release of a warm crate when there is one, and
+  // every offline resolution after it in the container, the re-resolution
+  // below included, would pick that release over the warm one.
   it("builds with a dependency the cache doesn't have", async () => {
-    const { "Cargo.lock": _, ...files } = await readProjectFiles(
+    const files = await readProjectFiles(
       `${counterContractDir}/counter-contract`,
     );
+    const warmSmallvec = smallvecVersion(files["Cargo.lock"]);
+    expect(warmSmallvec).toBeDefined();
     files["Cargo.toml"] = files["Cargo.toml"].replace(
       "[dependencies]\n",
       '[dependencies]\nnohash-hasher = { version = "0.2", default-features = false }\n',
@@ -387,6 +397,7 @@ describe("POST /compile returned files", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("masp");
     expect(res.body.files["Cargo.lock"]).toContain('name = "nohash-hasher"');
+    expect(smallvecVersion(res.body.files["Cargo.lock"])).toBe(warmSmallvec);
   });
 
   // A lockfile pinning another version of a warm crate (here smallvec 1.15.0,
@@ -396,9 +407,7 @@ describe("POST /compile returned files", () => {
     const files = await readProjectFiles(
       `${counterContractDir}/counter-contract`,
     );
-    const warmSmallvec = files["Cargo.lock"].match(
-      /name = "smallvec"\nversion = "([^"]+)"/,
-    )?.[1];
+    const warmSmallvec = smallvecVersion(files["Cargo.lock"]);
     expect(warmSmallvec).toBeDefined();
     files["Cargo.lock"] = files["Cargo.lock"].replace(
       /(name = "smallvec"\nversion = )"[^"]+"(\nsource = "[^"]+"\nchecksum = )"[0-9a-f]+"/,
@@ -411,9 +420,7 @@ describe("POST /compile returned files", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("masp");
     expect(res.body.stderr).not.toContain("Downloaded");
-    expect(res.body.files["Cargo.lock"]).toContain(
-      `name = "smallvec"\nversion = "${warmSmallvec}"`,
-    );
+    expect(smallvecVersion(res.body.files["Cargo.lock"])).toBe(warmSmallvec);
   });
 
   it("keys the lockfile by its path under the entrypoint", async () => {

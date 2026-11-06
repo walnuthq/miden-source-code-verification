@@ -75,10 +75,7 @@ type VerifyNoteRequestBody = {
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 verified:
- *                   type: boolean
+ *               $ref: '#/components/schemas/VerificationResponse'
  *       "400":
  *         description: >
  *           Invalid request: a body that isn't valid JSON; a missing `noteId`
@@ -194,37 +191,7 @@ router.post("/:networkId/verified-notes", async (req, res) => {
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: string
- *                   format: uuid
- *                 networkId:
- *                   type: string
- *                   description: The network the record is keyed on.
- *                 script:
- *                   type: string
- *                   description: The note script root the record is keyed on (32-byte hex).
- *                 source:
- *                   type: string
- *                   description: >
- *                     Identifier of the client that originated the verification
- *                     request. Defaults to `unknown`.
- *                 packageId:
- *                   type: string
- *                   format: uuid
- *                   description: Identifier of the package the note was verified against.
- *                 packageCommitment:
- *                   type: string
- *                   description: Commitment of that package (32-byte hex).
- *                 createdAt:
- *                   type: string
- *                   format: date-time
- *                 updatedAt:
- *                   type: string
- *                   format: date-time
- *                 package:
- *                   $ref: '#/components/schemas/Package'
+ *               $ref: '#/components/schemas/VerifiedNote'
  *       "400":
  *         description: Invalid `script` (not a 32-byte hex root).
  *         content:
@@ -302,40 +269,7 @@ router.get("/:networkId/verified-notes/script/:script", async (req, res) => {
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: string
- *                   format: uuid
- *                 networkId:
- *                   type: string
- *                   description: The network the record is keyed on.
- *                 script:
- *                   type: string
- *                   description: The note script root the record is keyed on (32-byte hex).
- *                 source:
- *                   type: string
- *                   description: >
- *                     Identifier of the client that originated the verification
- *                     request. Defaults to `unknown`.
- *                 packageId:
- *                   type: string
- *                   format: uuid
- *                   description: Identifier of the package the note was verified against.
- *                 packageCommitment:
- *                   type: string
- *                   description: Commitment of that package (32-byte hex).
- *                 createdAt:
- *                   type: string
- *                   format: date-time
- *                 updatedAt:
- *                   type: string
- *                   format: date-time
- *                 package:
- *                   $ref: '#/components/schemas/Package'
- *                 noteId:
- *                   type: string
- *                   description: The queried on-chain note identifier, echoed back.
+ *               $ref: '#/components/schemas/VerifiedNoteById'
  *       "404":
  *         description: >
  *           No verified note found for the given parameters, or no note

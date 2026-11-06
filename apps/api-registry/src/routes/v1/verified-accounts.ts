@@ -76,10 +76,7 @@ type VerifyAccountRequestBody = {
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 verified:
- *                   type: boolean
+ *               $ref: '#/components/schemas/VerificationResponse'
  *       "400":
  *         description: >
  *           Invalid request: a body that isn't valid JSON; a missing `accountId`
@@ -196,30 +193,7 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: string
- *                   format: uuid
- *                 networkId:
- *                   type: string
- *                   description: The network the record is keyed on.
- *                 code:
- *                   type: string
- *                   description: The account code root the record is keyed on (32-byte hex).
- *                 createdAt:
- *                   type: string
- *                   format: date-time
- *                 updatedAt:
- *                   type: string
- *                   format: date-time
- *                 verifiedAccountComponents:
- *                   type: array
- *                   description: >
- *                     The verified account components whose packages together
- *                     make up the account's code.
- *                   items:
- *                     $ref: '#/components/schemas/VerifiedAccountComponent'
+ *               $ref: '#/components/schemas/VerifiedAccount'
  *       "400":
  *         description: Invalid `code` (not a 32-byte hex root).
  *         content:
@@ -298,56 +272,7 @@ router.get("/:networkId/verified-accounts/code/:code", async (req, res) => {
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: string
- *                   format: uuid
- *                 networkId:
- *                   type: string
- *                   description: The network the record is keyed on.
- *                 code:
- *                   type: string
- *                   description: The account code root the record is keyed on (32-byte hex).
- *                 createdAt:
- *                   type: string
- *                   format: date-time
- *                 updatedAt:
- *                   type: string
- *                   format: date-time
- *                 verifiedAccountComponents:
- *                   type: array
- *                   description: >
- *                     The verified account components whose packages together
- *                     make up the account's code.
- *                   items:
- *                     $ref: '#/components/schemas/VerifiedAccountComponent'
- *                 accountId:
- *                   type: string
- *                   description: The queried on-chain account identifier, echoed back.
- *                 standardAccountComponents:
- *                   type: array
- *                   description: >
- *                     The standard components (e.g. `BasicWallet`,
- *                     `AuthSingleSig`) detected in the account's code, each with
- *                     the procedure roots it accounts for. Only this id-keyed
- *                     endpoint returns it, as it comes from the on-chain lookup.
- *                   items:
- *                     type: object
- *                     properties:
- *                       name:
- *                         type: string
- *                       procedures:
- *                         type: array
- *                         items:
- *                           type: string
- *                 procedures:
- *                   type: array
- *                   description: >
- *                     Every procedure root (32-byte hex) in the account's code.
- *                     Only this id-keyed endpoint returns it.
- *                   items:
- *                     type: string
+ *               $ref: '#/components/schemas/VerifiedAccountById'
  *       "404":
  *         description: >
  *           No verified account found for the given parameters, or no account

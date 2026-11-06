@@ -1,7 +1,5 @@
-import type {
-  PackageManifest,
-  StandardAccountComponent,
-} from "@/lib/api-registry.server";
+import type { StandardAccountComponent } from "miden-source-code-verification-utils/api-compile";
+import type { PackageManifest } from "@/lib/api-registry.server";
 
 // How many of an account's procedures are accounted for by a known component.
 export type VerificationStatus = { verified: number; total: number };

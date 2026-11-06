@@ -2,10 +2,10 @@ import rust from "@shikijs/langs/rust";
 import toml from "@shikijs/langs/toml";
 import githubDark from "@shikijs/themes/github-dark";
 import githubLight from "@shikijs/themes/github-light";
+import type { Package } from "miden-source-code-verification-utils/api-registry";
 import { createHighlighterCore, type HighlighterCore } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 
-import type { SourcePackage } from "@/lib/api-registry.server";
 import { packageProcedures } from "@/lib/procedure-signatures";
 import {
   filterSourceFiles,
@@ -37,14 +37,7 @@ function getHighlighter() {
 // app's theme. Shiki escapes the source text, so the HTML is safe to inject even
 // though anyone can submit sources for verification.
 export async function loadPackageSources(
-  {
-    name,
-    commitment,
-    files,
-    manifest,
-    readOnly,
-    debugCommitment,
-  }: SourcePackage,
+  { name, commitment, files, manifest, readOnly, debugCommitment }: Package,
   // The record verifying the package against the resource: an account's
   // component, or the note itself.
   { createdAt, source }: { createdAt: string; source: string },
@@ -55,7 +48,7 @@ export async function loadPackageSources(
   return {
     name,
     commitment,
-    hasDebugBuild: Boolean(debugCommitment),
+    hasDebugBuild: debugCommitment !== null,
     procedures: packageProcedures({
       manifest,
       readOnly,

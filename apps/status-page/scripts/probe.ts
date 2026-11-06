@@ -9,6 +9,12 @@ import {
   readProjectFiles,
 } from "miden-source-code-verification-test-utils";
 import type {
+  Package,
+  VerifiedAccountById,
+  VerifiedAccountComponent,
+  VerifiedNoteById,
+} from "miden-source-code-verification-utils/api-registry";
+import type {
   CheckSummary,
   EndpointStatus,
   ServiceHealth,
@@ -81,9 +87,15 @@ const loadCounterContract = async () => {
   return counterContractFiles;
 };
 
-const asRecord = (value: unknown): Record<string, unknown> =>
+// A payload's fields, each read as an unknown. Keyed on the wire type `T` the
+// endpoint answers (the registry's, from utils), so a field the wire doesn't
+// carry fails to typecheck, while a wrong-shaped payload still reads as
+// missing fields rather than throwing.
+const asRecord = <T = Record<string, unknown>>(
+  value: unknown,
+): Partial<Record<keyof T, unknown>> =>
   typeof value === "object" && value !== null
-    ? (value as Record<string, unknown>)
+    ? (value as Partial<Record<keyof T, unknown>>)
     : {};
 
 const truncateHex = (value: unknown) =>
@@ -160,11 +172,14 @@ const verifiedAccountCheck = ({ byId }: { byId: boolean }): EndpointCheck => {
     method: "GET",
     path,
     summarize: (payload) => {
-      const body = asRecord(payload);
+      const body = asRecord<VerifiedAccountById>(payload);
       const components = Array.isArray(body.verifiedAccountComponents)
         ? body.verifiedAccountComponents
         : [];
-      const pkg = asRecord(asRecord(components[0]).package);
+      // The first component's: the client that verified it is recorded per
+      // component, not on the account.
+      const component = asRecord<VerifiedAccountComponent>(components[0]);
+      const pkg = asRecord<Package>(component.package);
       return {
         ...(byId ? { accountId: String(body.accountId ?? "—") } : {}),
         networkId: String(body.networkId ?? "—"),
@@ -173,11 +188,11 @@ const verifiedAccountCheck = ({ byId }: { byId: boolean }): EndpointCheck => {
         package: String(pkg.name ?? "—"),
         type: String(pkg.type ?? "—"),
         "source files": Object.keys(asRecord(pkg.files)).length,
-        source: String(body.source ?? "—"),
+        source: String(component.source ?? "—"),
       };
     },
     assert: (payload) => {
-      const body = asRecord(payload);
+      const body = asRecord<VerifiedAccountById>(payload);
       if (body.code !== ACCOUNT_CODE) {
         return "returned a record for a different code root";
       }
@@ -212,8 +227,8 @@ const verifiedNoteCheck = ({ byId }: { byId: boolean }): EndpointCheck => {
     method: "GET",
     path,
     summarize: (payload) => {
-      const body = asRecord(payload);
-      const pkg = asRecord(body.package);
+      const body = asRecord<VerifiedNoteById>(payload);
+      const pkg = asRecord<Package>(body.package);
       return {
         ...(byId ? { noteId: truncateHex(body.noteId) } : {}),
         networkId: String(body.networkId ?? "—"),
@@ -225,14 +240,14 @@ const verifiedNoteCheck = ({ byId }: { byId: boolean }): EndpointCheck => {
       };
     },
     assert: (payload) => {
-      const body = asRecord(payload);
+      const body = asRecord<VerifiedNoteById>(payload);
       if (body.script !== NOTE_SCRIPT) {
         return "returned a record for a different script root";
       }
       if (body.networkId !== NETWORK_ID) {
         return "returned a record for a different network";
       }
-      if (asRecord(body.package).type !== "note") {
+      if (asRecord<Package>(body.package).type !== "note") {
         return "record's package is not a note";
       }
       if (byId && body.noteId !== COUNTER_NOTE_ID_1) {
@@ -355,7 +370,7 @@ const apiRegistry: ServiceDefinition = {
   // record lookups are what actually prove the registry can serve. All four are
   // network-scoped; the by-root pair is a pure database read, the by-id pair
   // additionally calls api-compile to resolve the on-chain root first (see
-  // api-registry/src/lib/import-resource.ts), so an api-compile outage
+  // api-registry/src/lib/verified-record.ts), so an api-compile outage
   // degrades this service too.
   endpoints: [
     rootCheck,

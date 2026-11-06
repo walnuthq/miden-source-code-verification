@@ -1,84 +1,39 @@
 import type {
+  VerifiedAccountById,
+  VerifiedNoteById,
+} from "miden-source-code-verification-utils/api-registry";
+import type {
   Dependency,
   FunctionType,
   ProcedureExport,
-  ReadOnlyProcedures,
 } from "miden-source-code-verification-utils/manifest";
 import { data } from "react-router";
 
 import { API_REGISTRY_URL } from "@/lib/constants.server";
 
-// A compiled package in the registry, as far as the pages read it: its name,
-// commitment, the sources it was compiled from, keyed by project-relative path, and
-// the procedures its manifest exports. Its compiled `.masp` is downloaded
-// straight from the registry (see `packageMaspUrl`), and so is its debug
-// build's when `debugCommitment` is set. Records from before debug builds lack
-// the field. `readOnly` tells which of its procedures are read-only, by export
-// path.
-export type SourcePackage = {
-  name: string;
-  commitment: string;
-  files: Record<string, string>;
-  manifest: PackageManifest;
-  readOnly: ReadOnlyProcedures;
-  debugCommitment?: string | null;
-};
+// The records the pages read are the registry's own wire types
+// (`miden-source-code-verification-utils/api-registry`). Only the manifest is
+// narrowed here, to what the pure functions read of it, so their tests can
+// build one without the rest of a `Manifest`.
 
 // Only what the pages read of the shared `Manifest`: each exported procedure's
 // path, digest and calling convention (`abi`), for the verification status and
 // the package's procedures, and the packages it was compiled against. Picked
 // from the shared types so they can't drift from what the registry serves.
 export type PackageManifest = {
-  // `Procedure` is optional as a manifest also exports constants and types.
+  // `Procedure` is optional as a manifest also exports constants and types,
+  // named so the full `Manifest` assigns to the view.
   exports: {
     Procedure?: Pick<ProcedureExport, "path" | "digest"> & {
       signature: Pick<FunctionType, "abi"> | null;
     };
+    Constant?: unknown;
+    Type?: unknown;
   }[];
   dependencies: PackageDependency[];
 };
 
 export type PackageDependency = Pick<Dependency, "name" | "version" | "digest">;
-
-// A standard component detected in an account's code, with the procedure roots
-// it accounts for.
-export type StandardAccountComponent = { name: string; procedures: string[] };
-
-// The registry's verified account record (see the api-docs OpenAPI spec): one
-// component per verified package.
-export type VerifiedAccount = {
-  id: string;
-  networkId: string;
-  code: string;
-  createdAt: string;
-  updatedAt: string;
-  accountId: string;
-  // `createdAt` is when the component was verified against this code, which
-  // can be later than its package was first stored.
-  verifiedAccountComponents: {
-    source: string;
-    createdAt: string;
-    package: SourcePackage;
-  }[];
-  standardAccountComponents: StandardAccountComponent[];
-  // Every procedure root in the account's code.
-  procedures: string[];
-};
-
-// The registry's verified note record (see the api-docs OpenAPI spec), with the
-// package the note was verified against.
-export type VerifiedNote = {
-  id: string;
-  networkId: string;
-  script: string;
-  source: string;
-  packageId: string;
-  packageCommitment: string;
-  createdAt: string;
-  updatedAt: string;
-  noteId: string;
-  package: SourcePackage;
-};
 
 // `null` when the registry answers 404: it has no verified record for the
 // resource, which includes ids that don't resolve on-chain. A 502–504 means it
@@ -109,7 +64,7 @@ export function getVerifiedAccount({
   networkId: string;
   accountId: string;
 }) {
-  return getVerifiedResource<VerifiedAccount>(
+  return getVerifiedResource<VerifiedAccountById>(
     `/v1/${encodeURIComponent(networkId)}/verified-accounts/${encodeURIComponent(accountId)}`,
   );
 }
@@ -121,7 +76,7 @@ export function getVerifiedNote({
   networkId: string;
   noteId: string;
 }) {
-  return getVerifiedResource<VerifiedNote>(
+  return getVerifiedResource<VerifiedNoteById>(
     `/v1/${encodeURIComponent(networkId)}/verified-notes/${encodeURIComponent(noteId)}`,
   );
 }

@@ -11,12 +11,13 @@ import {
   SquareFunction,
 } from "lucide-react";
 import { Badge, buttonVariants } from "miden-source-code-verification-ui";
+import { maspDownloadName } from "miden-source-code-verification-utils/api-registry";
 
 import { CopyButton } from "@/components/copy-button";
 import { type DetailField, DetailsList } from "@/components/details-card";
 import type { PackageDependency } from "@/lib/api-registry.server";
 import type { PackageProcedure } from "@/lib/procedure-signatures";
-import { maspFileName, packageMaspUrl } from "@/lib/source-files";
+import { packageMaspUrl } from "@/lib/source-files";
 
 // A verified package's details: its name, commitment, its compiled MASP (and
 // debug build, when there is one) to download, the procedures it installs, the
@@ -52,7 +53,11 @@ export function PackageHeader({
     {
       label: "Package MASP",
       icon: FileBox,
-      value: <code className="font-mono break-all">{maspFileName(name)}</code>,
+      value: (
+        <code className="font-mono break-all">
+          {maspDownloadName(name, commitment)}
+        </code>
+      ),
       action: (
         <MaspDownloadButton href={packageMaspUrl({ networkId, commitment })} />
       ),
@@ -66,12 +71,12 @@ export function PackageHeader({
       icon: Bug,
       value: (
         <code className="font-mono break-all">
-          {maspFileName(name, { debug: true })}
+          {maspDownloadName(name, commitment, "debug")}
         </code>
       ),
       action: (
         <MaspDownloadButton
-          href={packageMaspUrl({ networkId, commitment, debug: true })}
+          href={packageMaspUrl({ networkId, commitment, variant: "debug" })}
           label="Download debug MASP"
         />
       ),

@@ -9,6 +9,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 import {
+  type Manifest,
   type ReadOnlyProcedures,
   TARGET_TYPES,
 } from "miden-source-code-verification-utils/manifest";
@@ -23,13 +24,16 @@ export const packagesTable = pgTable(
     id: uuid().primaryKey().defaultRandom(),
     name: varchar({ length: 255 }).notNull().default(""),
     type: packageTypeEnum().notNull().default("account-component"),
-    files: jsonb().notNull().default({}),
+    // The sources, keyed by project-relative path, and the manifest, as
+    // api-compile answers them. Typed after the `{}` defaults, which predate
+    // both being required: an insert always supplies them.
+    files: jsonb().notNull().default({}).$type<Record<string, string>>(),
     commitment: varchar({ length: 66 })
       .notNull()
       .default(
         "0x0000000000000000000000000000000000000000000000000000000000000000",
       ),
-    manifest: jsonb().notNull().default({}),
+    manifest: jsonb().notNull().default({}).$type<Manifest>(),
     // The project directory within `files` the package was built from (`.` for
     // the root). Null on rows from before it was recorded.
     entrypoint: text(),

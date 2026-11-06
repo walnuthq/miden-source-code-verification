@@ -239,6 +239,130 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *             commitment:
  *               type: string
  *               description: The debug build's own commitment (32-byte hex).
+ *     VerifiedAccount:
+ *       type: object
+ *       description: >
+ *         The verified account keyed on a network and an account code root,
+ *         with every verified account component whose packages together make
+ *         up the account's code: what
+ *         `GET /v1/{networkId}/verified-accounts/code/{code}` answers.
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         networkId:
+ *           type: string
+ *           description: The network the record is keyed on.
+ *         code:
+ *           type: string
+ *           description: The account code root the record is keyed on (32-byte hex).
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *         verifiedAccountComponents:
+ *           type: array
+ *           description: >
+ *             The verified account components whose packages together make
+ *             up the account's code.
+ *           items:
+ *             $ref: '#/components/schemas/VerifiedAccountComponent'
+ *     StandardAccountComponent:
+ *       type: object
+ *       description: >
+ *         A standard component (e.g. `BasicWallet`, `AuthSingleSig`) detected
+ *         in an account's code, with the procedure roots it accounts for.
+ *       properties:
+ *         name:
+ *           type: string
+ *         procedures:
+ *           type: array
+ *           items:
+ *             type: string
+ *     VerifiedAccountById:
+ *       description: >
+ *         The same record, found through an account's on-chain code: what
+ *         `GET /v1/{networkId}/verified-accounts/{accountId}` answers, with
+ *         the queried id echoed back and what the on-chain lookup read of the
+ *         code. Only the id-keyed endpoint returns those, as they come from
+ *         the on-chain lookup.
+ *       allOf:
+ *         - $ref: '#/components/schemas/VerifiedAccount'
+ *         - type: object
+ *           properties:
+ *             accountId:
+ *               type: string
+ *               description: The queried on-chain account identifier, echoed back.
+ *             standardAccountComponents:
+ *               type: array
+ *               description: The standard components detected in the account's code.
+ *               items:
+ *                 $ref: '#/components/schemas/StandardAccountComponent'
+ *             procedures:
+ *               type: array
+ *               description: Every procedure root (32-byte hex) in the account's code.
+ *               items:
+ *                 type: string
+ *     VerifiedNote:
+ *       type: object
+ *       description: >
+ *         The verified note keyed on a network and a note script root, with
+ *         the compiled package it was verified against: what
+ *         `GET /v1/{networkId}/verified-notes/script/{script}` answers.
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         networkId:
+ *           type: string
+ *           description: The network the record is keyed on.
+ *         script:
+ *           type: string
+ *           description: The note script root the record is keyed on (32-byte hex).
+ *         source:
+ *           type: string
+ *           description: >
+ *             Identifier of the client that originated the verification
+ *             request. Defaults to `unknown`.
+ *         packageId:
+ *           type: string
+ *           format: uuid
+ *           description: Identifier of the package the note was verified against.
+ *         packageCommitment:
+ *           type: string
+ *           description: Commitment of that package (32-byte hex).
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *         package:
+ *           $ref: '#/components/schemas/Package'
+ *     VerifiedNoteById:
+ *       description: >
+ *         The same record, found through a note's on-chain script: what
+ *         `GET /v1/{networkId}/verified-notes/{noteId}` answers, with the
+ *         queried id echoed back.
+ *       allOf:
+ *         - $ref: '#/components/schemas/VerifiedNote'
+ *         - type: object
+ *           properties:
+ *             noteId:
+ *               type: string
+ *               description: The queried on-chain note identifier, echoed back.
+ *     VerificationResponse:
+ *       type: object
+ *       description: >
+ *         Whether the project's package is the resource's on chain. A refused
+ *         request (a project that doesn't build, a resource not on the
+ *         network, a root already verified by it) is an error status, not
+ *         `false`.
+ *       properties:
+ *         verified:
+ *           type: boolean
  *   responses:
  *     CompilerUnavailable:
  *       description: >

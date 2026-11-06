@@ -1,11 +1,10 @@
 import { Router } from "express";
-import { getPackage } from "../../db/packages.ts";
 import {
-  getMaspStore,
-  maspFileName,
-  maspKey,
+  maspDownloadName,
   parseMaspKey,
-} from "../../storage/masp-store.ts";
+} from "miden-source-code-verification-utils/api-registry";
+import { getPackage } from "../../db/packages.ts";
+import { getMaspStore } from "../../storage/masp-store.ts";
 
 const router: Router = Router();
 
@@ -140,10 +139,7 @@ router.get("/:networkId/packages/masp/:file", async (req, res) => {
     // attribute browsers ignore) saves it as e.g. `counter_contract.masp`.
     // A nameless package, or a stored file without a row, keeps the
     // commitment-based name.
-    .attachment(
-      maspFileName(dbPackage?.name ?? "", variant) ??
-        maspKey(commitment, variant),
-    )
+    .attachment(maspDownloadName(dbPackage?.name ?? "", commitment, variant))
     .type("application/octet-stream")
     // Content-addressed: the artifact behind a commitment never changes.
     .set("Cache-Control", "public, max-age=31536000, immutable")

@@ -21,7 +21,7 @@ _Avoid_: code (alone), hash
 ### Verification
 
 **Package**:
-The compiled Miden package a project builds to, identified by its commitment. Its bytes are the `.masp` artifact.
+The compiled Miden package a project builds to, identified by its commitment. Its bytes are the `.masp` artifact, kept under its commitment and downloaded under the package name as Rust spells the crate (`counter_contract.masp`), `.debug.masp` for its debug build.
 _Avoid_: artifact (for the package itself), binary
 
 **Commitment**:

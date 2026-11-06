@@ -1,3 +1,7 @@
+import {
+  type MaspVariant,
+  packageMaspPath,
+} from "miden-source-code-verification-utils/api-registry";
 import { cargoPackageName } from "miden-source-code-verification-utils/project";
 import type { PackageDependency } from "@/lib/api-registry.server";
 import { PUBLIC_API_REGISTRY_URL } from "@/lib/constants";
@@ -44,36 +48,21 @@ export function sourcesArchiveName({
   return `${networkId}-${id.slice(0, 10)}-${packageName}.zip`;
 }
 
-// The MASP file name the page shows, e.g. `counter_contract.masp`: the package
-// name as Rust spells the crate, which is how cargo-miden names the artifact.
-// The debug build's is `counter_contract.debug.masp`, so the two don't
-// overwrite each other in a downloads folder. Each run of characters outside
-// `[A-Za-z0-9.]` becomes `_` and leading `_` are dropped: the rule the
-// registry's `Content-Disposition` (which names the downloaded file) and the
-// simulator's command line follow.
-export function maspFileName(
-  packageName: string,
-  { debug = false }: { debug?: boolean } = {},
-): string {
-  const base =
-    packageName.replace(/[^A-Za-z0-9.]+/g, "_").replace(/^_+/, "") || "package";
-  return `${base}${debug ? ".debug" : ""}.masp`;
-}
-
 // Where the page downloads a package's compiled MASP, or its debug build:
 // straight from the registry, whose `Content-Disposition` names the file
-// `maspFileName` (a cross-origin link's `download` attribute is ignored).
-// `commitment` is the release build's either way.
+// (`maspDownloadName`, which the page shows next to the link, since a
+// cross-origin link's `download` attribute is ignored). `commitment` is the
+// release build's either way.
 export function packageMaspUrl({
   networkId,
   commitment,
-  debug = false,
+  variant = "release",
 }: {
   networkId: string;
   commitment: string;
-  debug?: boolean;
+  variant?: MaspVariant;
 }): string {
-  return `${PUBLIC_API_REGISTRY_URL}/v1/${networkId}/packages/masp/${commitment}${debug ? ".debug" : ""}.masp`;
+  return `${PUBLIC_API_REGISTRY_URL}${packageMaspPath(networkId, commitment, variant)}`;
 }
 
 // A file (no `children`) or folder in the Source Code explorer.

@@ -349,6 +349,9 @@ importers:
       miden-source-code-verification-test-utils:
         specifier: workspace:*
         version: link:../../packages/test-utils
+      miden-source-code-verification-utils:
+        specifier: workspace:*
+        version: link:../../packages/utils
       typescript:
         specifier: 7.0.2
         version: 7.0.2
