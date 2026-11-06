@@ -80,11 +80,10 @@ store.sqlite3
 # Agents. Shared: CLAUDE.md, the guides in docs/claude, the skills in
 # .agents/skills (pinned by skills-lock.json) and their .claude/skills links.
 # Personal: the rest of .claude (settings.local.json, …) and CLAUDE.local.md.
-# The pnpm-drizzle-kit-* skills link into node_modules, so pnpm install brings
-# them.
+# Skills that dependencies ship (drizzle) link into node_modules, so pnpm install
+# brings them; pnpm ignores those links in .claude/skills/.gitignore.
 .claude/*
 !.claude/skills/
-.claude/skills/pnpm-*
 CLAUDE.local.md
 
 # api-registry local MASP store
