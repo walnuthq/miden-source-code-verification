@@ -7,6 +7,7 @@ import type {
   FunctionType,
   ProcedureExport,
 } from "miden-source-code-verification-utils/manifest";
+import type { ResourceId } from "miden-source-code-verification-utils/resource-id";
 import { data } from "react-router";
 
 import { API_REGISTRY_URL } from "@/lib/constants.server";
@@ -57,26 +58,29 @@ async function getVerifiedResource<T>(path: string): Promise<T | null> {
   return response.json();
 }
 
-export function getVerifiedAccount({
+// The verified record for a resource on a network, by its on-chain id: the
+// registry's `GET /v1/{networkId}/verified-accounts/{accountId}` or
+// `…/verified-notes/{noteId}`, whose answer the kind decides.
+export function getVerifiedRecord(lookup: {
+  networkId: string;
+  resource: Extract<ResourceId, { kind: "account" }>;
+}): Promise<VerifiedAccountById | null>;
+export function getVerifiedRecord(lookup: {
+  networkId: string;
+  resource: Extract<ResourceId, { kind: "note" }>;
+}): Promise<VerifiedNoteById | null>;
+export function getVerifiedRecord({
   networkId,
-  accountId,
+  resource,
 }: {
   networkId: string;
-  accountId: string;
-}) {
-  return getVerifiedResource<VerifiedAccountById>(
-    `/v1/${encodeURIComponent(networkId)}/verified-accounts/${encodeURIComponent(accountId)}`,
-  );
-}
-
-export function getVerifiedNote({
-  networkId,
-  noteId,
-}: {
-  networkId: string;
-  noteId: string;
-}) {
-  return getVerifiedResource<VerifiedNoteById>(
-    `/v1/${encodeURIComponent(networkId)}/verified-notes/${encodeURIComponent(noteId)}`,
+  resource: ResourceId;
+}): Promise<VerifiedAccountById | VerifiedNoteById | null> {
+  const collection =
+    resource.kind === "account"
+      ? `verified-accounts/${encodeURIComponent(resource.accountId)}`
+      : `verified-notes/${encodeURIComponent(resource.noteId)}`;
+  return getVerifiedResource(
+    `/v1/${encodeURIComponent(networkId)}/${collection}`,
   );
 }
