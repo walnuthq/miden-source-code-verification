@@ -16,12 +16,16 @@ const run = promisify(execFile);
 const POLL_MS = 15_000;
 const STABLE_MIN_MS = 30_000;
 const SETTLED_MS = 5 * 60_000;
+// A warm rollout lands about 3 minutes after its run ends.
+const ROLLOUT_SETTLED_MS = 15 * 60_000;
 const NO_RUNS_TIMEOUT_MS = 3 * 60_000;
 const RUNS_TIMEOUT_MS = 90 * 60_000;
 const ROLLOUT_TIMEOUT_MS = 60 * 60_000;
 
-const CONTAINER_APP_ID = "a03da77b-dc78-405c-a47b-6613bf068a08";
 const API_COMPILE_WORKFLOW = "Deploy api-compile to Cloudflare";
+const API_COMPILE_DIR = "apps/api-compile-cloudflare";
+// `wrangler containers list --json` in API_COMPILE_DIR gives this id.
+const CONTAINER_APP_ID = "a03da77b-dc78-405c-a47b-6613bf068a08";
 
 type Service = {
   name: string;
@@ -35,7 +39,7 @@ const SERVICES: Service[] = [
   {
     name: "api-compile",
     workflow: API_COMPILE_WORKFLOW,
-    workerDir: "apps/api-compile-cloudflare",
+    workerDir: API_COMPILE_DIR,
   },
   {
     name: "api-registry",
@@ -169,25 +173,18 @@ const failedJobs = async (r: Run) =>
     '[.jobs[] | select(.conclusion != "success" and .conclusion != "skipped") | .name] | join(", ")',
   ]);
 
-const containerInfo = async () =>
+const containers = async <T>(command: "info" | "instances") =>
   JSON.parse(
-    await wrangler("apps/api-compile-cloudflare", [
+    await wrangler(API_COMPILE_DIR, [
       "containers",
-      "info",
+      command,
       CONTAINER_APP_ID,
       "--json",
     ]),
-  ) as ContainerInfo;
+  ) as T;
 
-const containerInstances = async () =>
-  JSON.parse(
-    await wrangler("apps/api-compile-cloudflare", [
-      "containers",
-      "instances",
-      CONTAINER_APP_ID,
-      "--json",
-    ]),
-  ) as ContainerInstance[];
+const containerInfo = () => containers<ContainerInfo>("info");
+const containerInstances = () => containers<ContainerInstance[]>("instances");
 
 // `wrangler deployments status` has no --json; its text prints `Created:` and
 // `Version(s):  (100%) <uuid>`, one percentage line per version.
@@ -201,7 +198,7 @@ const workerDeployment = async (dir: string): Promise<WorkerDeployment> => {
 };
 
 // Runs appear within seconds of the merge, so a set whose first run is
-// minutes old is already complete: no need to wait out the 30 s.
+// minutes old is already complete: no need for the two quiet polls.
 const settled = (runs: Run[]) =>
   runs.length > 0 &&
   Date.now() - Math.min(...runs.map((r) => Date.parse(r.createdAt))) >
@@ -259,11 +256,16 @@ const watchRuns = async (sha: string, onFirstPoll: (runs: Run[]) => void) => {
 };
 
 // The rollout is done once no rollout is active and the app has moved past
-// the run: its version rose above the pre-merge baseline, or, when the run had
-// already finished before the watch began, the app was updated after it.
+// the run: its version rose above the pre-merge baseline. With no baseline
+// (the run had finished before the watch began, or the read failed), the app
+// was updated after the run ended, or the run ended long enough ago that its
+// rollout is over.
 const watchRollout = async (apiCompile: Run, baseline: number | undefined) => {
   const start = Date.now();
   const runEnded = Date.parse(apiCompile.updatedAt);
+  if (baseline === undefined) {
+    log("no baseline version: judging the rollout by the app's updated_at");
+  }
   let lastState = "";
   for (;;) {
     const info = await attempt("containers info", containerInfo);
@@ -271,7 +273,8 @@ const watchRollout = async (apiCompile: Run, baseline: number | undefined) => {
       const moved =
         baseline !== undefined
           ? info.version > baseline
-          : Date.parse(info.updated_at) >= runEnded;
+          : Date.parse(info.updated_at) >= runEnded ||
+            Date.now() - runEnded > ROLLOUT_SETTLED_MS;
       const state = `version ${info.version}, ${
         info.active_rollout_id
           ? `rollout ${info.active_rollout_id} active`
@@ -286,6 +289,26 @@ const watchRollout = async (apiCompile: Run, baseline: number | undefined) => {
     }
     await sleep(POLL_MS);
   }
+};
+
+const reportContainer = async (info: ContainerInfo) => {
+  const instances =
+    (await attempt("containers instances", containerInstances)) ?? [];
+  const health = Object.entries(info.health.instances)
+    .map(([state, count]) => `${state} ${count}`)
+    .join(", ");
+  log(`container app version ${info.version}, updated ${info.updated_at}`);
+  log(`  image ${info.configuration.image.split("@")[1] ?? "?"}`);
+  log(`  health: ${health}`);
+  for (const instance of instances) {
+    log(
+      `  instance ${instance.name}: ${instance.state}, version ${instance.version ?? "none"}`,
+    );
+  }
+  log(
+    "One confirming request to production api-compile wakes the instance on the new version; ask the user before sending it.",
+  );
+  log("The status page refreshes at :07 and :37 past the hour.");
 };
 
 const printTable = (rows: string[][]) => {
@@ -332,29 +355,26 @@ const main = async () => {
 
   const byWorkflow = new Map(runs.map((r) => [r.workflowName, r]));
   const notes = new Map<string, string>();
+  let timedOut = false;
 
   const apiCompile = byWorkflow.get(API_COMPILE_WORKFLOW);
   if (apiCompile?.conclusion === "success") {
     log("waiting for the container rollout");
-    const info = await watchRollout(apiCompile, baseline);
-    const instances =
-      (await attempt("containers instances", containerInstances)) ?? [];
-    const health = Object.entries(info.health.instances)
-      .map(([state, count]) => `${state} ${count}`)
-      .join(", ");
-    log(`container app version ${info.version}, updated ${info.updated_at}`);
-    log(`  image ${info.configuration.image.split("@")[1] ?? "?"}`);
-    log(`  health: ${health}`);
-    for (const instance of instances) {
-      log(
-        `  instance ${instance.name}: ${instance.state}, version ${instance.version ?? "none"}`,
-      );
-    }
-    log(
-      "One confirming request to production api-compile wakes the instance on the new version; ask the user before sending it.",
+    // A timeout still prints the Workers and the table, then exits 2.
+    const info = await watchRollout(apiCompile, baseline).catch(
+      (error: unknown) => {
+        if (!(error instanceof Timeout)) throw error;
+        log(error.message);
+        timedOut = true;
+        return undefined;
+      },
     );
-    log("The status page refreshes at :07 and :37 past the hour.");
-    notes.set("api-compile", `container v${info.version}`);
+    if (info) {
+      await reportContainer(info);
+      notes.set("api-compile", `container v${info.version}`);
+    } else {
+      notes.set("api-compile", "rollout timed out");
+    }
   }
 
   const workers = SERVICES.flatMap((service) => {
@@ -405,7 +425,8 @@ const main = async () => {
     }),
   ]);
 
-  return runs.every((r) => r.conclusion === "success") ? 0 : 1;
+  if (!runs.every((r) => r.conclusion === "success")) return 1;
+  return timedOut ? 2 : 0;
 };
 
 main().then(
