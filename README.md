@@ -189,6 +189,8 @@ GitHub Pages by the single `Deploy Pages` workflow.
 
 The services run anywhere Docker does — see the `Dockerfile` in each `apps/*` service (including `apps/web-verifier`, which builds to a small nginx image).
 
+A merge to `main` deploys the changed services through the `deploy-*.yml` workflows; `pnpm watch-deploy <pr-number | sha>` follows a merge's runs and the api-compile container rollout to the end without touching production.
+
 A [Cloudflare Workers](https://workers.cloudflare.com) deployment path is also provided via dedicated, opt-in packages:
 
 ```bash
