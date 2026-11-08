@@ -61,6 +61,7 @@
         "apps/api-registry/**",
         "apps/api-docs/**",
         "apps/status-page/scripts/**",
+        "scripts/**",
         "packages/utils/**",
         "packages/test-utils/**"
       ],
