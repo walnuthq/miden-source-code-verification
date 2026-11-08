@@ -30,12 +30,22 @@ export const readProjectFiles = async (rootDir: string) => {
     }, {});
 };
 
-// One file of a project read by `readProjectFiles`, typically to edit it before
-// sending the project. Throws if the project has no such file.
+// One file of a project read by `readProjectFiles`. Throws if the project has
+// no such file.
 export const projectFile = (files: Record<string, string>, path: string) => {
   const content = files[path];
   if (content === undefined) {
     throw new Error(`The project has no ${path}`);
   }
   return content;
+};
+
+// Rewrites one file of a project in place, e.g. to make its sources differ
+// before sending it. Throws if the project has no such file.
+export const editProjectFile = (
+  files: Record<string, string>,
+  path: string,
+  edit: (content: string) => string,
+) => {
+  files[path] = edit(projectFile(files, path));
 };

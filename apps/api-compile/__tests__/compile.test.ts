@@ -1,6 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  editProjectFile,
   projectFile,
   readProjectFiles,
   request,
@@ -44,9 +45,8 @@ describe("POST /compile", () => {
       `${counterContractDir}/counter-contract`,
     );
     expect(files["Cargo.toml"]).toBeDefined();
-    files["src/lib.rs"] = projectFile(files, "src/lib.rs").replace(
-      ", Word",
-      "",
+    editProjectFile(files, "src/lib.rs", (content) =>
+      content.replace(", Word", ""),
     );
 
     const res = await api.post("/compile").send({ files });
@@ -317,9 +317,8 @@ describe("POST /compile masm", () => {
     const files = await readProjectFiles(
       `${counterContractDir}/counter-contract`,
     );
-    files["src/lib.rs"] = projectFile(files, "src/lib.rs").replace(
-      ", Word",
-      "",
+    editProjectFile(files, "src/lib.rs", (content) =>
+      content.replace(", Word", ""),
     );
 
     const res = await api.post("/compile").send({ files, masm: true });
@@ -393,9 +392,11 @@ describe("POST /compile returned files", () => {
     );
     const warmSmallvec = smallvecVersion(projectFile(files, "Cargo.lock"));
     expect(warmSmallvec).toBeDefined();
-    files["Cargo.toml"] = projectFile(files, "Cargo.toml").replace(
-      "[dependencies]\n",
-      '[dependencies]\nnohash-hasher = { version = "0.2", default-features = false }\n',
+    editProjectFile(files, "Cargo.toml", (content) =>
+      content.replace(
+        "[dependencies]\n",
+        '[dependencies]\nnohash-hasher = { version = "0.2", default-features = false }\n',
+      ),
     );
     expect(files["Cargo.toml"]).toContain("nohash-hasher");
 
@@ -416,9 +417,11 @@ describe("POST /compile returned files", () => {
     );
     const warmSmallvec = smallvecVersion(projectFile(files, "Cargo.lock"));
     expect(warmSmallvec).toBeDefined();
-    files["Cargo.lock"] = projectFile(files, "Cargo.lock").replace(
-      /(name = "smallvec"\nversion = )"[^"]+"(\nsource = "[^"]+"\nchecksum = )"[0-9a-f]+"/,
-      '$1"1.15.0"$2"8917285742e9f3e1683f0a9c4e6b57960b7314d0b08d30d1ecd426713ee2eee9"',
+    editProjectFile(files, "Cargo.lock", (content) =>
+      content.replace(
+        /(name = "smallvec"\nversion = )"[^"]+"(\nsource = "[^"]+"\nchecksum = )"[0-9a-f]+"/,
+        '$1"1.15.0"$2"8917285742e9f3e1683f0a9c4e6b57960b7314d0b08d30d1ecd426713ee2eee9"',
+      ),
     );
     expect(files["Cargo.lock"]).toContain('version = "1.15.0"');
 
