@@ -16,18 +16,14 @@ Before working in one of these areas, read its file in `docs/claude/`. Their rul
 
 # Rules that bite outside their area
 
-- The Node packages (api-compile, api-registry, api-docs, the status-page scripts, utils, test-utils) run their TypeScript on Node 26 (`engines: >=26 <27`) directly, with no tsx. Import local files by relative path with the `.ts` extension (`../lib/errors.ts`). No `@/` aliases and no `.js` specifiers: Node resolves neither. `tsc` rewrites `.ts` to `.js` on build (`rewriteRelativeImportExtensions`).
-- Only erasable syntax (`erasableSyntaxOnly`): no enums, namespaces or constructor parameter properties.
-- `.env` is loaded by the command, not the module: `node --env-file-if-exists=.env …` in scripts, `process.loadEnvFile()` in vitest setup files. Don't add dotenv. Shell variables win over `.env`.
+- The Node packages run their TypeScript on Node 26 directly, with no tsx, and `tsc` rewrites `.ts` imports to `.js` on build: that is why `CODING_STANDARDS.md` asks for `.ts` relative imports.
 - The api-compile and api-registry suites test whatever listens on `localhost:8080`/`8081`, normally the docker compose stack: rebuild it (`docker compose up -d --build`) before testing a server change, or they test the old images.
 - Check web-viewer and web-verifier changes against their dev servers (`pnpm --filter ./apps/<app> dev`), not by rebuilding the compose images: rebuild a container only when its Rust crate changes.
-- Docker images install a pinned corepack (`npm install -g corepack@…`), since Node 25+ doesn't bundle it. All four Dockerfiles share that base stage: change them together.
 - After a `cargo update` of the examples' lockfiles or a toolchain bump, the Playground's project-template lockfile must be re-synced against the new image and shipped with it, or every Playground build loses the warm cache. `warm-lockfile.md` has the steps.
-- Routes in api-compile and api-registry don't catch. Throw, or let the error propagate: the shared `errorHandler` (`packages/utils/src/http-errors.ts`, mounted last in both apps) answers an error that carries a `status` with that status, its `headers` and its message (`HttpError`, `BusyError`, `VerifierError`, `ApiCompileError`), anything else as a 500 with its message, logs 500s, and stays silent once the client is gone. Validation stays an early `res.status(400).json(…)`; don't add a route-level `try`/`catch` that maps errors to responses (the 2026-11 error-handler refactor removed 15 of them).
-- What api-compile and api-registry answer is typed once, in `packages/utils/src/api-compile.ts` and `api-registry.ts`: the producer builds its answer against those types (api-compile's routes `satisfies` them, the registry's `verified-record.ts` maps its rows to them) and every consumer (the registry's api-compile port, the web-viewer, the status probe) imports them. A new wire field starts in the shared type, then goes in the registry's OpenAPI block in `app.ts`, which spells the same shapes under the same names.
-- The shadcn skill's advice to render a link as `<Button render={<a />} nativeButton={false}>` is wrong here: Base UI forces `role="button"` on the `<a>`. Style links with `buttonVariants` on a plain `<a>`, as `packages/ui/src/components/navbar.tsx` does.
 
 ## Agent skills
+
+Run `/code-review main` before handing a PR to the user; it reviews against `CODING_STANDARDS.md`.
 
 ### Issue tracker
 
@@ -39,4 +35,4 @@ The five default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready
 
 ### Domain docs
 
-Single-context: root `GLOSSARY.md` and `docs/adr/`. See `docs/agents/domain.md`.
+Single-context: root `GLOSSARY.md` and `docs/adr/`. See `docs/agents/domain.md`. Specs live in `spec/`.
