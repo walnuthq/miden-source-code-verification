@@ -12,6 +12,7 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Reads the code; writes nothing.
 permissions:
   contents: read
 
@@ -22,6 +23,8 @@ concurrency:
 
 jobs:
   check:
+    # The status-check name a ruleset would require.
+    name: Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -51,4 +54,4 @@ jobs:
       # The suites that need no server or network; root `pnpm test` would also
       # run the API suites against localhost:8080/8081.
       - name: Test (pure suites)
-        run: pnpm --filter ./packages/utils --filter ./apps/web-viewer --filter ./apps/web-verifier test
+        run: pnpm test:pure

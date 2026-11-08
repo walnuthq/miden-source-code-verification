@@ -158,7 +158,7 @@ pnpm lint         # Biome lint + format check
 pnpm format       # apply Biome fixes
 pnpm typecheck    # type-check every package
 pnpm build        # build every package
-pnpm check        # what CI runs: lint, typecheck, the suites that need no server
+pnpm check        # what CI runs: lint, typecheck, and only the suites that need no server
 ```
 
 > The `api-registry` test suite talks to Postgres, so start it first: `docker compose up -d postgres`.

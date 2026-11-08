@@ -2,8 +2,6 @@
 
 The api-compile and api-registry suites call whatever is listening on `localhost:8080`/`8081` (`API_URL` overrides): normally the docker compose stack. To test a server change, rebuild and restart it first (`docker compose up -d --build`), or the suites test the old images.
 
-CI (`.github/workflows/check.yml`) runs `pnpm check` on every PR and push to main, as three steps: lint, typecheck and the pure suites (utils, web-viewer, web-verifier). The api-compile and api-registry suites stay local.
-
 API tests use `request()` from `miden-source-code-verification-test-utils` (a fetch-based, supertest-like builder), not supertest.
 
 Fixtures (`packages/test-utils`) live on Testnet only. Mainnet (`mm`, Miden's invite-only Partner Mainnet) has none: creating an account there needs an invite code and costs real fees, so don't deploy to it. Mainnet tests only read the public USDCx fee faucet (`0xe69e6ca6e39df1b10c1e5399399feb`). Use `mxx` for a network the binaries don't serve: `mlcl` resolves on the host but not in the container.
@@ -19,3 +17,4 @@ Fixtures (`packages/test-utils`) live on Testnet only. Mainnet (`mm`, Miden's in
 - `apps/api-compile/__tests__/helper-tools.test.ts` mocks `MIDEN_TOOL_TIMEOUT_MS` to 1 s. Under a full parallel `pnpm test`, a cold exec of the fake script under load has exceeded the mocked timeout (at 500 ms, in the import tests it replaced) and failed the first cases, which passed alone. If only these fail, rerun `pnpm exec vitest run __tests__/helper-tools.test.ts` in `apps/api-compile` before blaming a change; if it keeps recurring, raise that mocked timeout.
 - The web-viewer suite (`apps/web-viewer/__tests__`, vitest) is pure: the pure functions, and the page-data module `lib/resource-page.server.ts` with `fetch` stubbed by `vi.stubGlobal`, so it never reaches a registry. It runs the real Shiki highlighter, which works in Node.
 - The web-verifier suite (`apps/web-verifier/__tests__`, vitest) is pure too: it tests the registry client `lib/api-registry.ts` with `fetch` stubbed by `vi.stubGlobal` and the busy wait replaced, so it never reaches a registry and never sleeps.
+- CI (`.github/workflows/check.yml`) runs what `pnpm check` runs: lint, typecheck and `pnpm test:pure`, the suites that need no server. The api-compile and api-registry suites stay local, since they need the compose stack and Testnet. Add a new pure suite to `test:pure`.
