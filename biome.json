@@ -54,6 +54,30 @@
           "trailingCommas": "all"
         }
       }
+    },
+    {
+      "includes": [
+        "apps/api-compile/**",
+        "apps/api-registry/**",
+        "apps/api-docs/**",
+        "apps/status-page/scripts/**",
+        "packages/utils/**",
+        "packages/test-utils/**"
+      ],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "useImportExtensions": "error"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "apps/api-compile/src/routes/**",
+        "apps/api-registry/src/routes/**"
+      ],
+      "plugins": ["./biome/no-route-catch.grit"]
     }
   ]
 }
