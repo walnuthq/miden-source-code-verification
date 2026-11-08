@@ -1,0 +1,8 @@
+language js
+
+or {
+  `try { $body } catch ($err) { $handler }`,
+  `try { $body } catch { $handler }`
+} as $stmt where {
+  register_diagnostic(span=$stmt, message="Routes do not catch: throw, or let the error propagate to the shared errorHandler (see Routes throw, the error handler answers, in CODING_STANDARDS.md).")
+}

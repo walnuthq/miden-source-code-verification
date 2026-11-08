@@ -16,7 +16,7 @@ Before working in one of these areas, read its file in `docs/claude/`. Their rul
 
 # Rules that bite outside their area
 
-- The Node packages run their TypeScript on Node 26 directly, with no tsx, and `tsc` rewrites `.ts` imports to `.js` on build: that is why `CODING_STANDARDS.md` asks for `.ts` relative imports.
+- The Node packages run their TypeScript on Node 26 directly, with no tsx, and `tsc` rewrites `.ts` imports to `.js` on build, so their relative imports end in `.ts`, which biome requires (`useImportExtensions`, scoped in `biome.json`).
 - The api-compile and api-registry suites test whatever listens on `localhost:8080`/`8081`, normally the docker compose stack: rebuild it (`docker compose up -d --build`) before testing a server change, or they test the old images.
 - Check web-viewer and web-verifier changes against their dev servers (`pnpm --filter ./apps/<app> dev`), not by rebuilding the compose images: rebuild a container only when its Rust crate changes.
 - After a `cargo update` of the examples' lockfiles or a toolchain bump, the Playground's project-template lockfile must be re-synced against the new image and shipped with it, or every Playground build loses the warm cache. `warm-lockfile.md` has the steps.
