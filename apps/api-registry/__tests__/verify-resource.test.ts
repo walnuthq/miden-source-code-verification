@@ -1,13 +1,19 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { and, eq } from "drizzle-orm";
 import type {
   DebugBuild,
   VerifyResponse,
 } from "miden-source-code-verification-utils/api-compile";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import db, { createDb, dbScope } from "../src/db/index.ts";
 import { getPackage } from "../src/db/packages.ts";
+import {
+  verifiedAccountCodeTable,
+  verifiedNoteScriptTable,
+} from "../src/db/schema.ts";
 import { type ApiCompile, ApiCompileError } from "../src/lib/api-compile.ts";
 import { findVerifiedRecordByRoot } from "../src/lib/verified-record.ts";
 import { type Resource, verifyResource } from "../src/lib/verify-resource.ts";
@@ -88,6 +94,17 @@ describe("verifyResource", () => {
       resource,
       fakeApiCompile({ verify: async () => ({ ...result, root }) }),
     );
+
+  // Each on its own connection, as each request is on Cloudflare: the shared
+  // pool has one, which would run the two transactions one after the other.
+  const onOwnConnection = async <T>(run: () => Promise<T>) => {
+    const own = createDb();
+    try {
+      return await dbScope.run(own, run);
+    } finally {
+      await own.$client.end();
+    }
+  };
 
   describe("with a debug build", () => {
     it("stores it next to the release build", async () => {
@@ -228,6 +245,45 @@ describe("verifyResource", () => {
     }
   });
 
+  it("records two components verified into one new account at once", async () => {
+    // Both read no verified account in their transactions, so the second
+    // insert conflicts on (networkId, code) and uses the first's row.
+    const root = `0x${"01".repeat(32)}`;
+    const other = `0x${"dd".repeat(32)}`;
+    expect(
+      await Promise.all([
+        onOwnConnection(() => verifyBuilt(ACCOUNT, built(undefined), root)),
+        onOwnConnection(() =>
+          verifyBuilt(
+            ACCOUNT,
+            { ...built(undefined), commitment: other },
+            root,
+          ),
+        ),
+      ]),
+    ).toEqual([true, true]);
+
+    expect(
+      await db.$count(
+        verifiedAccountCodeTable,
+        and(
+          eq(verifiedAccountCodeTable.networkId, "mtst"),
+          eq(verifiedAccountCodeTable.code, root),
+        ),
+      ),
+    ).toBe(1);
+    const verifiedAccount = await findVerifiedRecordByRoot({
+      networkId: "mtst",
+      kind: "account",
+      root,
+    });
+    expect(
+      verifiedAccount.verifiedAccountComponents
+        .map(({ packageCommitment }) => packageCommitment)
+        .sort(),
+    ).toEqual([COMMITMENT, other]);
+  });
+
   it("records nothing when the package isn't the resource's", async () => {
     const apiCompile = fakeApiCompile({
       verify: async () => ({
@@ -277,6 +333,47 @@ describe("verifyResource", () => {
       status: 409,
       message: "note already verified",
     });
+  });
+
+  it("answers 409 for a note verified twice at once", async () => {
+    const root = `0x${"01".repeat(32)}`;
+    // The package already stored, verified on another network: neither
+    // verification inserts it, which would make the second wait on the first's
+    // commit and see its note.
+    await verifyResource({
+      networkId: "mdev",
+      resource: NOTE,
+      project,
+      maspStore,
+      apiCompile: fakeApiCompile({
+        verify: async () => ({ ...built(undefined), root }),
+      }),
+    });
+
+    const results = await Promise.allSettled([
+      onOwnConnection(() => verifyBuilt(NOTE, built(undefined), root)),
+      onOwnConnection(() => verifyBuilt(NOTE, built(undefined), root)),
+    ]);
+
+    expect(
+      results.filter(({ status }) => status === "fulfilled"),
+    ).toMatchObject([{ value: true }]);
+    const rejected = results.find(({ status }) => status === "rejected");
+    expect(rejected?.status === "rejected" && rejected.reason).toBeInstanceOf(
+      HttpError,
+    );
+    expect(rejected).toMatchObject({
+      reason: { status: 409, message: "note already verified" },
+    });
+    expect(
+      await db.$count(
+        verifiedNoteScriptTable,
+        and(
+          eq(verifiedNoteScriptTable.networkId, "mtst"),
+          eq(verifiedNoteScriptTable.script, root),
+        ),
+      ),
+    ).toBe(1);
   });
 
   it("fails with the status of a /verify that may pass on a retry", async () => {

@@ -20,14 +20,6 @@ export type Resource =
 
 type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
-// Postgres returns every row it inserted, so no row means a broken insert.
-const insertedId = ([row]: { id: string }[]) => {
-  if (!row) {
-    throw new Error("insert returned no row");
-  }
-  return row.id;
-};
-
 // The package's row: inserted, or found when a concurrent verification of the
 // same new package inserted it since the read outside the transaction.
 const insertPackage = async (
@@ -64,6 +56,39 @@ const insertPackage = async (
   return existing.id;
 };
 
+// The account code's verified account: inserted, or found when it exists,
+// whether from an earlier verification or a concurrent one that inserted it
+// since this one started.
+const insertVerifiedAccount = async (
+  tx: Transaction,
+  networkId: string,
+  code: string,
+) => {
+  const [inserted] = await tx
+    .insert(verifiedAccountCodeTable)
+    .values({ networkId, code })
+    .onConflictDoNothing({
+      target: [
+        verifiedAccountCodeTable.networkId,
+        verifiedAccountCodeTable.code,
+      ],
+    })
+    .returning({ id: verifiedAccountCodeTable.id });
+  if (inserted) {
+    return inserted.id;
+  }
+  const existing = await tx.query.verifiedAccountCodeTable.findFirst({
+    columns: { id: true },
+    where: { networkId, code },
+  });
+  if (!existing) {
+    throw new Error(
+      "insert verified account conflicted, but no row has its code",
+    );
+  }
+  return existing.id;
+};
+
 // Records the package as a component of the account code, under the verified
 // account the code already has, or a new one.
 const insertAccountComponent = async (
@@ -82,18 +107,7 @@ const insertAccountComponent = async (
     source: string;
   },
 ) => {
-  const verifiedAccount = await tx.query.verifiedAccountCodeTable.findFirst({
-    columns: { id: true },
-    where: { networkId, code },
-  });
-  const verifiedAccountId =
-    verifiedAccount?.id ??
-    insertedId(
-      await tx
-        .insert(verifiedAccountCodeTable)
-        .values({ networkId, code })
-        .returning({ id: verifiedAccountCodeTable.id }),
-    );
+  const verifiedAccountId = await insertVerifiedAccount(tx, networkId, code);
   const component = await tx.query.verifiedAccountComponentTable.findFirst({
     columns: { id: true },
     where: { verifiedAccountId, packageCommitment },
@@ -122,16 +136,21 @@ const insertNote = async (
     source: string;
   },
 ) => {
-  const verifiedNote = await tx.query.verifiedNoteScriptTable.findFirst({
-    columns: { id: true },
-    where: { networkId, script },
-  });
-  if (verifiedNote) {
+  // A conflict is a note verified before, or by a concurrent verification
+  // that committed first: either way already verified.
+  const [inserted] = await tx
+    .insert(verifiedNoteScriptTable)
+    .values({ networkId, script, source, packageId, packageCommitment })
+    .onConflictDoNothing({
+      target: [
+        verifiedNoteScriptTable.networkId,
+        verifiedNoteScriptTable.script,
+      ],
+    })
+    .returning({ id: verifiedNoteScriptTable.id });
+  if (!inserted) {
     throw new HttpError(409, "note already verified");
   }
-  await tx
-    .insert(verifiedNoteScriptTable)
-    .values({ networkId, script, source, packageId, packageCommitment });
 };
 
 /**

@@ -79,9 +79,9 @@ export const verifiedAccountCodeTable = pgTable(
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [
-    // The registry's real key. Unique because `verifyResource` reads
-    // then inserts, so without it two concurrent verifications of the same code
-    // would each create a row and later lookups would see only one of them.
+    // The registry's real key. Unique so that two concurrent verifications of
+    // the same code share one row: `verifyResource` inserts on conflict do
+    // nothing and then reads the row that won.
     // A unique *index* rather than a bare constraint: it doubles as the index
     // for the `(networkId, code)` lookup both read routes perform.
     uniqueIndex("verified_accounts_code_network_id_code_idx").on(
@@ -140,8 +140,8 @@ export const verifiedNoteScriptTable = pgTable(
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [
-    // See the note on `verifiedAccountCodeTable` — same reasoning, and here it
-    // also backs the "note already verified" guard in `verifyResource`.
+    // See the note on `verifiedAccountCodeTable`. Here a conflict on it is the
+    // "note already verified" guard in `verifyResource`, concurrent or not.
     uniqueIndex("verified_notes_script_network_id_script_idx").on(
       table.networkId,
       table.script,
