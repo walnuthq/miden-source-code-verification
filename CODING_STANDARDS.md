@@ -12,7 +12,7 @@ Why: one place decides how an error becomes a response, so every route answers t
 
 ### Expected outcomes are values, exceptions are for the unexpected
 
-An outcome the caller is meant to handle is part of the return type: `ProjectResult = { project } | { error }` (`packages/utils/src/project.ts`), `Build`, built or failed (`apps/api-compile/src/lib/compile.ts`), which `POST /compile` answers 200 either way. An outcome that ends the request is an `HttpError` subclass carrying its status and headers: `BusyError`, 503 with `Retry-After` (`apps/api-compile/src/lib/limiter.ts`), the 409 for an already verified resource (`apps/api-registry/src/lib/verify-resource.ts`).
+An outcome the caller is meant to handle is part of the return type: `ProjectResult = { project } | { error }` (`packages/utils/src/project.ts`), `Build`, built or failed (`apps/api-compile/src/lib/compile.ts`), which `POST /compile` answers 200 either way ([ADR 0001](docs/adr/0001-a-failed-build-is-a-200.md) says why). An outcome that ends the request is an `HttpError` subclass carrying its status and headers: `BusyError`, 503 with `Retry-After` (`apps/api-compile/src/lib/limiter.ts`), the 409 for an already verified resource (`apps/api-registry/src/lib/verify-resource.ts`).
 
 Why: the type tells the caller which outcomes it must handle, and only an outcome that ends the request goes through the error handler.
 
@@ -20,7 +20,7 @@ Why: the type tells the caller which outcomes it must handle, and only an outcom
 
 The `error` strings the APIs answer are part of their contract: a refactor keeps them byte-identical (`missing Cargo.toml`, `invalid entrypoint` and the rest listed in `packages/utils/src/project.ts`). A new 400 reason gets its mention in the OpenAPI block and one test (`apps/api-compile/__tests__/compile.test.ts`).
 
-Why: clients, the web apps and the status probe match on these strings.
+Why: clients, the web apps and the status probe match on these strings, and the Playground shows a failed build's `stderr` to its users ([ADR 0005](docs/adr/0005-cargo-miden-stays-off-the-helper-tool-runner.md)).
 
 ### Logging belongs to the error handler
 
