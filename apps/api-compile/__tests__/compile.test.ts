@@ -1,6 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  projectFile,
   readProjectFiles,
   request,
 } from "miden-source-code-verification-test-utils";
@@ -43,7 +44,10 @@ describe("POST /compile", () => {
       `${counterContractDir}/counter-contract`,
     );
     expect(files["Cargo.toml"]).toBeDefined();
-    files["src/lib.rs"] = files["src/lib.rs"].replace(", Word", "");
+    files["src/lib.rs"] = projectFile(files, "src/lib.rs").replace(
+      ", Word",
+      "",
+    );
 
     const res = await api.post("/compile").send({ files });
 
@@ -313,7 +317,10 @@ describe("POST /compile masm", () => {
     const files = await readProjectFiles(
       `${counterContractDir}/counter-contract`,
     );
-    files["src/lib.rs"] = files["src/lib.rs"].replace(", Word", "");
+    files["src/lib.rs"] = projectFile(files, "src/lib.rs").replace(
+      ", Word",
+      "",
+    );
 
     const res = await api.post("/compile").send({ files, masm: true });
 
@@ -384,9 +391,9 @@ describe("POST /compile returned files", () => {
     const files = await readProjectFiles(
       `${counterContractDir}/counter-contract`,
     );
-    const warmSmallvec = smallvecVersion(files["Cargo.lock"]);
+    const warmSmallvec = smallvecVersion(projectFile(files, "Cargo.lock"));
     expect(warmSmallvec).toBeDefined();
-    files["Cargo.toml"] = files["Cargo.toml"].replace(
+    files["Cargo.toml"] = projectFile(files, "Cargo.toml").replace(
       "[dependencies]\n",
       '[dependencies]\nnohash-hasher = { version = "0.2", default-features = false }\n',
     );
@@ -407,9 +414,9 @@ describe("POST /compile returned files", () => {
     const files = await readProjectFiles(
       `${counterContractDir}/counter-contract`,
     );
-    const warmSmallvec = smallvecVersion(files["Cargo.lock"]);
+    const warmSmallvec = smallvecVersion(projectFile(files, "Cargo.lock"));
     expect(warmSmallvec).toBeDefined();
-    files["Cargo.lock"] = files["Cargo.lock"].replace(
+    files["Cargo.lock"] = projectFile(files, "Cargo.lock").replace(
       /(name = "smallvec"\nversion = )"[^"]+"(\nsource = "[^"]+"\nchecksum = )"[0-9a-f]+"/,
       '$1"1.15.0"$2"8917285742e9f3e1683f0a9c4e6b57960b7314d0b08d30d1ecd426713ee2eee9"',
     );

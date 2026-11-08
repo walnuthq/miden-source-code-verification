@@ -8,6 +8,7 @@ import {
   COUNTER_CONTRACT_ID_1,
   COUNTER_CONTRACT_ID_2,
   COUNTER_NOTE_ID_1,
+  projectFile,
   readProjectFiles,
   request,
 } from "miden-source-code-verification-test-utils";
@@ -85,7 +86,10 @@ describe("POST /:networkId/verified-accounts", () => {
       `${counterContractDir}/counter-contract`,
     );
     expect(files["Cargo.toml"]).toBeDefined();
-    files["src/lib.rs"] = files["src/lib.rs"].replace(", Word", "");
+    files["src/lib.rs"] = projectFile(files, "src/lib.rs").replace(
+      ", Word",
+      "",
+    );
 
     const res = await apiV1
       .post(`/${networkId}/verified-accounts`)
@@ -139,7 +143,7 @@ describe("POST /:networkId/verified-accounts", () => {
       `${counterContractDir}/counter-contract`,
     );
     expect(files["Cargo.toml"]).toBeDefined();
-    files["src/lib.rs"] = files["src/lib.rs"].replaceAll("+", "-");
+    files["src/lib.rs"] = projectFile(files, "src/lib.rs").replaceAll("+", "-");
 
     const res = await apiV1
       .post(`/${networkId}/verified-accounts`)
@@ -456,7 +460,7 @@ describe("POST /:networkId/verified-accounts with a bank-account", () => {
   it("doesn't verify a buggy bank-account", async () => {
     const files = await readProjectFiles(bankAccountDir);
     expect(files["Cargo.toml"]).toBeDefined();
-    files["src/lib.rs"] = files["src/lib.rs"].replace(
+    files["src/lib.rs"] = projectFile(files, "src/lib.rs").replace(
       "self.initialized.set(initialized_word);",
       "self.initialized.set(initialized_word, 1);",
     );
@@ -507,7 +511,7 @@ describe("POST /:networkId/verified-accounts with a bank-account", () => {
   it("doesn't verify a bank-account if sources don't match", async () => {
     const files = await readProjectFiles(bankAccountDir);
     expect(files["Cargo.toml"]).toBeDefined();
-    files["src/lib.rs"] = files["src/lib.rs"].replace(
+    files["src/lib.rs"] = projectFile(files, "src/lib.rs").replace(
       "MAX_DEPOSIT_AMOUNT: u64 = 1_000_000",
       "MAX_DEPOSIT_AMOUNT: u64 = 2_000_000",
     );

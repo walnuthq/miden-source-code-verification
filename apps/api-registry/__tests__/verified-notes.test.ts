@@ -7,6 +7,7 @@ import {
   DEPOSIT_NOTE_ID_1,
   DEPOSIT_NOTE_ID_2,
   notes,
+  projectFile,
   readProjectFiles,
   request,
 } from "miden-source-code-verification-test-utils";
@@ -70,9 +71,10 @@ describe("POST /:networkId/verified-notes", () => {
     const entrypoint = "counter-note";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
 
-    files[`${entrypoint}/src/lib.rs`] = files[
-      `${entrypoint}/src/lib.rs`
-    ].replace("CounterAccount", "Counter");
+    files[`${entrypoint}/src/lib.rs`] = projectFile(
+      files,
+      `${entrypoint}/src/lib.rs`,
+    ).replace("CounterAccount", "Counter");
 
     const res = await apiV1.post(`/${networkId}/verified-notes`).send({
       noteId: COUNTER_NOTE_ID_1,
@@ -124,9 +126,10 @@ describe("POST /:networkId/verified-notes", () => {
     const files = await readProjectFiles(counterContractDir);
     const entrypoint = "counter-note";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
-    files[`${entrypoint}/src/lib.rs`] = files[
-      `${entrypoint}/src/lib.rs`
-    ].replace("felt!", "Felt::from_u32");
+    files[`${entrypoint}/src/lib.rs`] = projectFile(
+      files,
+      `${entrypoint}/src/lib.rs`,
+    ).replace("felt!", "Felt::from_u32");
 
     const res = await apiV1.post(`/${networkId}/verified-notes`).send({
       noteId: COUNTER_NOTE_ID_1,
@@ -327,9 +330,10 @@ describe("POST /:networkId/verified-notes with a deposit-note", () => {
     const entrypoint = "deposit-note";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
 
-    files[`${entrypoint}/src/lib.rs`] = files[
-      `${entrypoint}/src/lib.rs`
-    ].replace("account: &mut Wallet", "account: &mut Bank");
+    files[`${entrypoint}/src/lib.rs`] = projectFile(
+      files,
+      `${entrypoint}/src/lib.rs`,
+    ).replace("account: &mut Wallet", "account: &mut Bank");
 
     const res = await apiV1.post(`/${networkId}/verified-notes`).send({
       noteId: DEPOSIT_NOTE_ID_1,
@@ -381,9 +385,10 @@ describe("POST /:networkId/verified-notes with a deposit-note", () => {
     const files = await readProjectFiles(bankDir);
     const entrypoint = "deposit-note";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
-    files[`${entrypoint}/src/lib.rs`] = files[
-      `${entrypoint}/src/lib.rs`
-    ].replace(
+    files[`${entrypoint}/src/lib.rs`] = projectFile(
+      files,
+      `${entrypoint}/src/lib.rs`,
+    ).replace(
       "account.deposit(depositor, asset);",
       "account.deposit(depositor, asset);\n            account.deposit(depositor, asset);",
     );

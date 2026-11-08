@@ -1,7 +1,10 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ReadOnlyProcedures } from "miden-source-code-verification-utils/manifest";
+import type {
+  CallConv,
+  ReadOnlyProcedures,
+} from "miden-source-code-verification-utils/manifest";
 import { describe, expect, it } from "vitest";
 
 import type { PackageManifest } from "@/lib/api-registry.server";
@@ -23,8 +26,8 @@ const readExample = (relativePath: string) =>
 const exported = (
   ...exports: [
     path: string,
-    digest: string,
-    abi: number,
+    digest: `0x${string}`,
+    abi: CallConv,
     readOnly?: boolean | null,
   ][]
 ): { manifest: PackageManifest; readOnly: ReadOnlyProcedures } => ({

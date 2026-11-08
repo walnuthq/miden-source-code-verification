@@ -29,3 +29,13 @@ export const readProjectFiles = async (rootDir: string) => {
       return previousValue;
     }, {});
 };
+
+// One file of a project read by `readProjectFiles`, typically to edit it before
+// sending the project. Throws if the project has no such file.
+export const projectFile = (files: Record<string, string>, path: string) => {
+  const content = files[path];
+  if (content === undefined) {
+    throw new Error(`The project has no ${path}`);
+  }
+  return content;
+};

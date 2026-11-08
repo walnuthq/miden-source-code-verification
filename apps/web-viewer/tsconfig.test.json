@@ -1,0 +1,11 @@
+/* The tests, with Node's types. `typecheck` (tsc -b) checks this project;
+   `build` names only the app and node projects, since the Docker build context
+   has no __tests__ (see the root .dockerignore). */
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    "types": ["node", "vite/client"]
+  },
+  "include": ["__tests__"]
+}
