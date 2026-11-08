@@ -12,7 +12,8 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "test": "pnpm -r test",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "check": "pnpm lint && pnpm typecheck && pnpm --filter ./packages/utils --filter ./apps/web-viewer --filter ./apps/web-verifier test"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.6",
