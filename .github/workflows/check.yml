@@ -1,0 +1,57 @@
+name: Check
+
+# Lint, typecheck and the pure test suites on every PR and every push to main.
+# The api-compile and api-registry suites need the docker compose stack and
+# Testnet, so they stay local (docs/claude/testing.md).
+
+on:
+  # No paths: filter. A required status check that never runs leaves the PR
+  # unmergeable, and the whole job takes a few minutes.
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Reads the code; writes nothing.
+permissions:
+  contents: read
+
+# A newer push to the same ref supersedes the check in flight.
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    # The status-check name a ruleset would require.
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Before setup-node, whose pnpm cache needs pnpm installed. Reads the
+      # version from packageManager.
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Three steps rather than `pnpm check`, so a failure names its axis.
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # The suites that need no server or network; root `pnpm test` would also
+      # run the API suites against localhost:8080/8081.
+      - name: Test (pure suites)
+        run: pnpm test:pure
