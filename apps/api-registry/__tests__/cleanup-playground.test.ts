@@ -40,8 +40,10 @@ const insertPackage = async (maspStore: MaspStore, commitment: string) => {
     .insert(packagesTable)
     .values({ commitment, debugCommitment: hex("ff"), readOnly: {} })
     .returning({ id: packagesTable.id });
-  return firstId(rows);
+  return { id: firstId(rows), commitment };
 };
+
+type StoredPackage = Awaited<ReturnType<typeof insertPackage>>;
 
 const insertAccount = async (code: string) => {
   const rows = await db
@@ -53,31 +55,23 @@ const insertAccount = async (code: string) => {
 
 // With the package's commitment, since an account code has one component per
 // package commitment.
-const insertComponent = async (
+const insertComponent = (
   verifiedAccountId: string,
-  packageId: string,
+  { id: packageId, commitment: packageCommitment }: StoredPackage,
   source: string,
   createdAt: Date,
-) => {
-  const dbPackage = await db.query.packagesTable.findFirst({
-    columns: { commitment: true },
-    where: { id: packageId },
-  });
-  if (!dbPackage) {
-    throw new Error("no package with that id");
-  }
-  await db.insert(verifiedAccountComponentTable).values({
+) =>
+  db.insert(verifiedAccountComponentTable).values({
     verifiedAccountId,
     packageId,
-    packageCommitment: dbPackage.commitment,
+    packageCommitment,
     source,
     createdAt,
   });
-};
 
 const insertNote = (
   script: string,
-  packageId: string,
+  { id: packageId, commitment: packageCommitment }: StoredPackage,
   source: string,
   createdAt: Date,
 ) =>
@@ -85,6 +79,7 @@ const insertNote = (
     networkId: "mtst",
     script,
     packageId,
+    packageCommitment,
     source,
     createdAt,
   });
