@@ -40,8 +40,10 @@ const insertPackage = async (maspStore: MaspStore, commitment: string) => {
     .insert(packagesTable)
     .values({ commitment, debugCommitment: hex("ff"), readOnly: {} })
     .returning({ id: packagesTable.id });
-  return firstId(rows);
+  return { id: firstId(rows), commitment };
 };
+
+type StoredPackage = Awaited<ReturnType<typeof insertPackage>>;
 
 const insertAccount = async (code: string) => {
   const rows = await db
@@ -51,22 +53,25 @@ const insertAccount = async (code: string) => {
   return firstId(rows);
 };
 
+// With the package's commitment, since an account code has one component per
+// package commitment.
 const insertComponent = (
   verifiedAccountId: string,
-  packageId: string,
+  { id: packageId, commitment: packageCommitment }: StoredPackage,
   source: string,
   createdAt: Date,
 ) =>
   db.insert(verifiedAccountComponentTable).values({
     verifiedAccountId,
     packageId,
+    packageCommitment,
     source,
     createdAt,
   });
 
 const insertNote = (
   script: string,
-  packageId: string,
+  { id: packageId, commitment: packageCommitment }: StoredPackage,
   source: string,
   createdAt: Date,
 ) =>
@@ -74,6 +79,7 @@ const insertNote = (
     networkId: "mtst",
     script,
     packageId,
+    packageCommitment,
     source,
     createdAt,
   });

@@ -320,6 +320,55 @@ describe("verifyResource", () => {
     expect(verifiedAccount.verifiedAccountComponents).toHaveLength(1);
   });
 
+  it("answers 409 for an account component verified twice at once", async () => {
+    const root = `0x${"01".repeat(32)}`;
+    const other = `0x${"dd".repeat(32)}`;
+    // The account code already verified with another component, and the
+    // package already stored, verified on another network: neither
+    // verification inserts the verified account or the package, which would
+    // make the second wait on the first's commit and see its component.
+    await verifyBuilt(
+      ACCOUNT,
+      { ...built(undefined), commitment: other },
+      root,
+    );
+    await verifyResource({
+      networkId: "mdev",
+      resource: ACCOUNT,
+      project,
+      maspStore,
+      apiCompile: fakeApiCompile({
+        verify: async () => ({ ...built(undefined), root }),
+      }),
+    });
+
+    const results = await Promise.allSettled([
+      onOwnConnection(() => verifyBuilt(ACCOUNT, built(undefined), root)),
+      onOwnConnection(() => verifyBuilt(ACCOUNT, built(undefined), root)),
+    ]);
+
+    expect(
+      results.filter(({ status }) => status === "fulfilled"),
+    ).toMatchObject([{ value: true }]);
+    const rejected = results.find(({ status }) => status === "rejected");
+    expect(rejected?.status === "rejected" && rejected.reason).toBeInstanceOf(
+      HttpError,
+    );
+    expect(rejected).toMatchObject({
+      reason: { status: 409, message: "account component already verified" },
+    });
+    const verifiedAccount = await findVerifiedRecordByRoot({
+      networkId: "mtst",
+      kind: "account",
+      root,
+    });
+    expect(
+      verifiedAccount.verifiedAccountComponents
+        .map(({ packageCommitment }) => packageCommitment)
+        .sort(),
+    ).toEqual([COMMITMENT, other]);
+  });
+
   it("answers 409 for a note already verified", async () => {
     const root = `0x${"01".repeat(32)}`;
     await verifyBuilt(NOTE, built(undefined), root);
