@@ -1,0 +1,65 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "cb7cbc06-2ad7-4b0b-b20b-96fdec08c29e",
+  "prevIds": [
+    "d0dd0f9d-c7bf-479c-b8d1-8db70fd1bbc4"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "verified_account_components",
+        "verified_account_components_account_commitment_idx"
+      ],
+      "writes": [
+        "s|idx|public.verified_account_components_account_commitment_idx",
+        "n|idx|public.verified_account_components_account_commitment_idx",
+        "e|idx|public.verified_account_components_account_commitment_idx",
+        "n|rel|public.verified_account_components_account_commitment_idx"
+      ],
+      "reads": [
+        "n|tbl|public.verified_account_components",
+        "n|sch|public",
+        "n|col|public.verified_account_components.verified_account_id",
+        "n|col|public.verified_account_components.packageCommitment"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "verified_account_components",
+        "name": "verified_account_components_account_commitment_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "verified_account_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "packageCommitment",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    }
+  ]
+}

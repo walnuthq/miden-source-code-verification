@@ -108,16 +108,22 @@ const insertAccountComponent = async (
   },
 ) => {
   const verifiedAccountId = await insertVerifiedAccount(tx, networkId, code);
-  const component = await tx.query.verifiedAccountComponentTable.findFirst({
-    columns: { id: true },
-    where: { verifiedAccountId, packageCommitment },
-  });
-  if (component) {
+  // A conflict is the package verified into the code before, or by a
+  // concurrent verification that committed first: either way already
+  // verified.
+  const [inserted] = await tx
+    .insert(verifiedAccountComponentTable)
+    .values({ verifiedAccountId, packageId, packageCommitment, source })
+    .onConflictDoNothing({
+      target: [
+        verifiedAccountComponentTable.verifiedAccountId,
+        verifiedAccountComponentTable.packageCommitment,
+      ],
+    })
+    .returning({ id: verifiedAccountComponentTable.id });
+  if (!inserted) {
     throw new HttpError(409, "account component already verified");
   }
-  await tx
-    .insert(verifiedAccountComponentTable)
-    .values({ verifiedAccountId, packageId, packageCommitment, source });
 };
 
 const insertNote = async (

@@ -51,18 +51,29 @@ const insertAccount = async (code: string) => {
   return firstId(rows);
 };
 
-const insertComponent = (
+// With the package's commitment, since an account code has one component per
+// package commitment.
+const insertComponent = async (
   verifiedAccountId: string,
   packageId: string,
   source: string,
   createdAt: Date,
-) =>
-  db.insert(verifiedAccountComponentTable).values({
+) => {
+  const dbPackage = await db.query.packagesTable.findFirst({
+    columns: { commitment: true },
+    where: { id: packageId },
+  });
+  if (!dbPackage) {
+    throw new Error("no package with that id");
+  }
+  await db.insert(verifiedAccountComponentTable).values({
     verifiedAccountId,
     packageId,
+    packageCommitment: dbPackage.commitment,
     source,
     createdAt,
   });
+};
 
 const insertNote = (
   script: string,

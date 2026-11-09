@@ -114,6 +114,15 @@ export const verifiedAccountComponentTable = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
+  (table) => [
+    // One component per package in an account code. A conflict on it is the
+    // "account component already verified" guard in `verifyResource`,
+    // concurrent or not.
+    uniqueIndex("verified_account_components_account_commitment_idx").on(
+      table.verifiedAccountId,
+      table.packageCommitment,
+    ),
+  ],
 );
 
 export const verifiedNoteScriptTable = pgTable(
