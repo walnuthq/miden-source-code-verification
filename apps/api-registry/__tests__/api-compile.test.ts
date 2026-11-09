@@ -40,7 +40,7 @@ const rejectWith = (error: unknown) =>
 // Never answers: rejects once the request's signal aborts, as fetch does.
 const hang = () => {
   const fetch = vi.fn(
-    (_input: RequestInfo | URL, init?: RequestInit) =>
+    (_input: Parameters<typeof globalThis.fetch>[0], init?: RequestInit) =>
       new Promise<globalThis.Response>((_resolve, reject) => {
         init?.signal?.addEventListener("abort", () =>
           reject(init.signal?.reason),

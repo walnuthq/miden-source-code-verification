@@ -130,15 +130,20 @@ describe("errorHandler", () => {
     gone = undefined;
     const req = get(`${url}/gone`);
     req.on("error", () => {});
-    await vi.waitFor(() => expect(gone).toBeDefined());
-    const closed = new Promise((resolve) => gone?.once("close", resolve));
+    // Read back through the callback: after `gone = undefined` above, TS
+    // narrows the variable itself to undefined for the rest of the test.
+    const res = await vi.waitFor(() => {
+      expect(gone).toBeDefined();
+      return gone;
+    });
+    const closed = new Promise((resolve) => res?.once("close", resolve));
     req.destroy();
     await closed;
     // The rejection reaches the handler a tick after the close.
     await new Promise((resolve) => setImmediate(resolve));
 
-    expect(gone?.headersSent).toBe(false);
-    expect(gone?.writableEnded).toBe(false);
+    expect(res?.headersSent).toBe(false);
+    expect(res?.writableEnded).toBe(false);
     expect(error).not.toHaveBeenCalled();
   });
 

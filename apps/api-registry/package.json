@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node --env-file-if-exists=.env --watch --conditions development src/server.ts",
-    "build": "tsc",
-    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc",
     "start": "node --env-file-if-exists=.env dist/src/server.js",
     "test": "vitest run",
     "db:push": "drizzle-kit push",

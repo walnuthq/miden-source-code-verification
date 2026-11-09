@@ -1,15 +1,21 @@
+import type { Word } from "miden-source-code-verification-utils/manifest";
 import { describe, expect, it } from "vitest";
 
 import type { PackageManifest } from "@/lib/api-registry.server";
 import { getVerificationStatus } from "@/lib/verification-status";
 
-const digest = (n: number) => `0x${n.toString(16).padStart(64, "0")}`;
+const digest = (n: number): Word => `0x${n.toString(16).padStart(64, "0")}`;
 
 // A package exporting `digests` as account procedures (abi 3).
-const manifest = (...digests: string[]): PackageManifest => ({
-  exports: digests.map((d) => ({
-    Procedure: { digest: d, signature: { abi: 3 } },
+const manifest = (...digests: Word[]): PackageManifest => ({
+  exports: digests.map((d, i) => ({
+    Procedure: {
+      path: `::component::procedure${i}`,
+      digest: d,
+      signature: { abi: 3 },
+    },
   })),
+  dependencies: [],
 });
 
 const wallet = { name: "BasicWallet", procedures: [digest(1), digest(2)] };
@@ -53,11 +59,30 @@ describe("getVerificationStatus", () => {
         manifests: [
           {
             exports: [
-              { Procedure: { digest: digest(1), signature: { abi: 3 } } },
-              { Procedure: { digest: digest(2), signature: { abi: 0 } } },
-              { Procedure: { digest: digest(2), signature: null } },
+              {
+                Procedure: {
+                  path: "::component::procedure0",
+                  digest: digest(1),
+                  signature: { abi: 3 },
+                },
+              },
+              {
+                Procedure: {
+                  path: "::component::procedure1",
+                  digest: digest(2),
+                  signature: { abi: 0 },
+                },
+              },
+              {
+                Procedure: {
+                  path: "::component::procedure2",
+                  digest: digest(2),
+                  signature: null,
+                },
+              },
               {},
             ],
+            dependencies: [],
           },
         ],
       }),
@@ -79,7 +104,7 @@ describe("getVerificationStatus", () => {
       getVerificationStatus({
         procedures: [digest(0xab)],
         standardAccountComponents: [],
-        manifests: [manifest(digest(0xab).toUpperCase().replace("0X", "0x"))],
+        manifests: [manifest(`0x${digest(0xab).slice(2).toUpperCase()}`)],
       }),
     ).toEqual({ verified: 1, total: 1 });
   });

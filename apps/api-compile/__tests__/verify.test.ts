@@ -8,6 +8,7 @@ import {
   COUNTER_CONTRACT_ID_1,
   COUNTER_NOTE_ID_1,
   DEPOSIT_NOTE_ID_1,
+  editProjectFile,
   notes,
   readProjectFiles,
   request,
@@ -168,7 +169,9 @@ describe("POST /verify", () => {
       `${counterContractDir}/counter-contract`,
     );
     expect(files["Cargo.toml"]).toBeDefined();
-    files["src/lib.rs"] = files["src/lib.rs"].replaceAll("+", "-");
+    editProjectFile(files, "src/lib.rs", (content) =>
+      content.replaceAll("+", "-"),
+    );
 
     const resourceId = COUNTER_CONTRACT_ID_1;
     const { resource } = accounts[resourceId];
@@ -294,9 +297,9 @@ describe("POST /verify", () => {
     const files = await readProjectFiles(counterContractDir);
     const entrypoint = "counter-note";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
-    files[`${entrypoint}/src/lib.rs`] = files[
-      `${entrypoint}/src/lib.rs`
-    ].replace("felt!", "Felt::from_u32");
+    editProjectFile(files, `${entrypoint}/src/lib.rs`, (content) =>
+      content.replace("felt!", "Felt::from_u32"),
+    );
 
     const resourceId = COUNTER_NOTE_ID_1;
     const { resource } = notes[resourceId];
@@ -443,9 +446,11 @@ describe("POST /verify", () => {
   it("doesn't verify a bank-account if sources don't match", async () => {
     const files = await readProjectFiles(`${bankDir}/bank-account`);
     expect(files["Cargo.toml"]).toBeDefined();
-    files["src/lib.rs"] = files["src/lib.rs"].replace(
-      "MAX_DEPOSIT_AMOUNT: u64 = 1_000_000",
-      "MAX_DEPOSIT_AMOUNT: u64 = 2_000_000",
+    editProjectFile(files, "src/lib.rs", (content) =>
+      content.replace(
+        "MAX_DEPOSIT_AMOUNT: u64 = 1_000_000",
+        "MAX_DEPOSIT_AMOUNT: u64 = 2_000_000",
+      ),
     );
 
     const resourceId = BANK_ACCOUNT_ID_1;
@@ -517,11 +522,11 @@ describe("POST /verify", () => {
     const files = await readProjectFiles(bankDir);
     const entrypoint = "deposit-note";
     expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
-    files[`${entrypoint}/src/lib.rs`] = files[
-      `${entrypoint}/src/lib.rs`
-    ].replace(
-      "account.deposit(depositor, asset);",
-      "account.deposit(depositor, asset);\n            account.deposit(depositor, asset);",
+    editProjectFile(files, `${entrypoint}/src/lib.rs`, (content) =>
+      content.replace(
+        "account.deposit(depositor, asset);",
+        "account.deposit(depositor, asset);\n            account.deposit(depositor, asset);",
+      ),
     );
 
     const resourceId = DEPOSIT_NOTE_ID_1;

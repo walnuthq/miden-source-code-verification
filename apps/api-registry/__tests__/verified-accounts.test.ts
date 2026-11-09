@@ -8,6 +8,7 @@ import {
   COUNTER_CONTRACT_ID_1,
   COUNTER_CONTRACT_ID_2,
   COUNTER_NOTE_ID_1,
+  editProjectFile,
   readProjectFiles,
   request,
 } from "miden-source-code-verification-test-utils";
@@ -85,7 +86,9 @@ describe("POST /:networkId/verified-accounts", () => {
       `${counterContractDir}/counter-contract`,
     );
     expect(files["Cargo.toml"]).toBeDefined();
-    files["src/lib.rs"] = files["src/lib.rs"].replace(", Word", "");
+    editProjectFile(files, "src/lib.rs", (content) =>
+      content.replace(", Word", ""),
+    );
 
     const res = await apiV1
       .post(`/${networkId}/verified-accounts`)
@@ -139,7 +142,9 @@ describe("POST /:networkId/verified-accounts", () => {
       `${counterContractDir}/counter-contract`,
     );
     expect(files["Cargo.toml"]).toBeDefined();
-    files["src/lib.rs"] = files["src/lib.rs"].replaceAll("+", "-");
+    editProjectFile(files, "src/lib.rs", (content) =>
+      content.replaceAll("+", "-"),
+    );
 
     const res = await apiV1
       .post(`/${networkId}/verified-accounts`)
@@ -456,9 +461,11 @@ describe("POST /:networkId/verified-accounts with a bank-account", () => {
   it("doesn't verify a buggy bank-account", async () => {
     const files = await readProjectFiles(bankAccountDir);
     expect(files["Cargo.toml"]).toBeDefined();
-    files["src/lib.rs"] = files["src/lib.rs"].replace(
-      "self.initialized.set(initialized_word);",
-      "self.initialized.set(initialized_word, 1);",
+    editProjectFile(files, "src/lib.rs", (content) =>
+      content.replace(
+        "self.initialized.set(initialized_word);",
+        "self.initialized.set(initialized_word, 1);",
+      ),
     );
 
     const res = await apiV1
@@ -507,9 +514,11 @@ describe("POST /:networkId/verified-accounts with a bank-account", () => {
   it("doesn't verify a bank-account if sources don't match", async () => {
     const files = await readProjectFiles(bankAccountDir);
     expect(files["Cargo.toml"]).toBeDefined();
-    files["src/lib.rs"] = files["src/lib.rs"].replace(
-      "MAX_DEPOSIT_AMOUNT: u64 = 1_000_000",
-      "MAX_DEPOSIT_AMOUNT: u64 = 2_000_000",
+    editProjectFile(files, "src/lib.rs", (content) =>
+      content.replace(
+        "MAX_DEPOSIT_AMOUNT: u64 = 1_000_000",
+        "MAX_DEPOSIT_AMOUNT: u64 = 2_000_000",
+      ),
     );
 
     const res = await apiV1
