@@ -23,7 +23,7 @@
     "@shikijs/langs": "4.6.0",
     "@shikijs/themes": "4.6.0",
     "fflate": "0.8.3",
-    "isbot": "5.2.2",
+    "isbot": "5.2.3",
     "lucide-react": "1.70.0",
     "miden-source-code-verification-ui": "workspace:*",
     "miden-source-code-verification-utils": "workspace:*",
@@ -40,7 +40,7 @@
     "@types/react-dom": "19.3.0",
     "tailwindcss": "4.3.5",
     "typescript": "7.0.2",
-    "vite": "8.3.6",
+    "vite": "8.3.7",
     "vitest": "5.1.0"
   }
 }

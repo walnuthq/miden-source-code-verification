@@ -29,6 +29,6 @@
     "miden-source-code-verification-test-utils": "workspace:*",
     "miden-source-code-verification-utils": "workspace:*",
     "typescript": "7.0.2",
-    "vite": "8.3.6"
+    "vite": "8.3.7"
   }
 }
