@@ -6,7 +6,10 @@ import type {
 } from "miden-source-code-verification-utils/api-compile";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import type { Project } from "miden-source-code-verification-utils/project";
-import { API_COMPILE_IMPORT_TIMEOUT_MS } from "./constants.ts";
+import {
+  API_COMPILE_BUILD_TIMEOUT_MS,
+  API_COMPILE_IMPORT_TIMEOUT_MS,
+} from "./constants.ts";
 
 // A failed call to api-compile, answered with the status it answered and its
 // `Retry-After`, so a client can tell a temporary outage (502–504) from a
@@ -42,6 +45,8 @@ export type ApiCompile = {
     resourceId: string;
     /** Whether to build the debug variant too. */
     debug: boolean;
+    /** Aborts the call, as when the registry's own client went away. */
+    signal?: AbortSignal;
   }): Promise<VerifyResponse>;
   /** Fetches the on-chain code of a resource. */
   importResource(input: {
@@ -57,6 +62,8 @@ export type ApiCompile = {
     files: Record<string, string>;
     entrypoint: string;
     expectedCommitment: string;
+    /** Aborts the call, as when the registry's own client went away. */
+    signal?: AbortSignal;
   }): Promise<CompileDebugResponse>;
 };
 
@@ -89,12 +96,17 @@ const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
   return data as T;
 };
 
-const postJson = <T>(url: string, body: unknown) =>
-  fetchJson<T>(url, {
+// Posts to one of api-compile's build routes, giving up after
+// `API_COMPILE_BUILD_TIMEOUT_MS`, or when `signal` aborts.
+const postBuild = <T>(url: string, body: unknown, signal?: AbortSignal) => {
+  const timeout = AbortSignal.timeout(API_COMPILE_BUILD_TIMEOUT_MS);
+  return fetchJson<T>(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    signal: signal ? AbortSignal.any([timeout, signal]) : timeout,
   });
+};
 
 /** The {@link ApiCompile} served at `baseUrl`. */
 export const createHttpApiCompile = (baseUrl: string): ApiCompile => ({
@@ -103,14 +115,13 @@ export const createHttpApiCompile = (baseUrl: string): ApiCompile => ({
     networkId,
     resourceId,
     debug,
+    signal,
   }) => {
-    const response = await postJson<VerifyResponse>(`${baseUrl}/verify`, {
-      files,
-      entrypoint,
-      networkId,
-      resourceId,
-      debug,
-    });
+    const response = await postBuild<VerifyResponse>(
+      `${baseUrl}/verify`,
+      { files, entrypoint, networkId, resourceId, debug },
+      signal,
+    );
     // An api-compile from before `root` was answered, as the one still
     // serving during its rollout: without the root there is nothing to key a
     // record on, and the next request may reach the new one.
@@ -127,8 +138,8 @@ export const createHttpApiCompile = (baseUrl: string): ApiCompile => ({
       `${baseUrl}/${networkId}/import/${resourceId}`,
       { signal: AbortSignal.timeout(API_COMPILE_IMPORT_TIMEOUT_MS) },
     ),
-  compileDebug: (input) =>
-    postJson<CompileDebugResponse>(`${baseUrl}/compile-debug`, input),
+  compileDebug: ({ signal, ...input }) =>
+    postBuild<CompileDebugResponse>(`${baseUrl}/compile-debug`, input, signal),
 });
 
 /** The api-compile `createApp` attached to the app handling `req`. */

@@ -3,7 +3,10 @@ import {
   ApiCompileError,
   createHttpApiCompile,
 } from "../src/lib/api-compile.ts";
-import { API_COMPILE_IMPORT_TIMEOUT_MS } from "../src/lib/constants.ts";
+import {
+  API_COMPILE_BUILD_TIMEOUT_MS,
+  API_COMPILE_IMPORT_TIMEOUT_MS,
+} from "../src/lib/constants.ts";
 
 const apiCompile = createHttpApiCompile("http://api-compile");
 const project = {
@@ -51,6 +54,12 @@ const hang = () => {
   return fetch;
 };
 
+// Fake timers don't drive `AbortSignal.timeout`: shorten it instead.
+const shortenTimeouts = () => {
+  const timeout = AbortSignal.timeout.bind(AbortSignal);
+  return vi.spyOn(AbortSignal, "timeout").mockImplementation(() => timeout(10));
+};
+
 const catchError = async (promise: Promise<unknown>) => {
   try {
     await promise;
@@ -87,6 +96,33 @@ describe("createHttpApiCompile", () => {
       networkId: "mtst",
       resourceId: "0x01",
       debug: true,
+    });
+  });
+
+  it("keeps the abort signal out of the JSON bodies it posts", async () => {
+    const controller = new AbortController();
+    const fetch = respondWith(Response.json({ verified: false, root: "0x01" }));
+    await apiCompile.verify({
+      project,
+      networkId: "mtst",
+      resourceId: "0x01",
+      debug: true,
+      signal: controller.signal,
+    });
+    expect(
+      JSON.parse(String(fetch.mock.calls[0]?.[1]?.body)),
+    ).not.toHaveProperty("signal");
+    fetch.mockImplementation(() => Promise.resolve(Response.json({})));
+    await apiCompile.compileDebug({
+      files: {},
+      entrypoint: ".",
+      expectedCommitment: "0x01",
+      signal: controller.signal,
+    });
+    expect(JSON.parse(String(fetch.mock.calls[1]?.[1]?.body))).toEqual({
+      files: {},
+      entrypoint: ".",
+      expectedCommitment: "0x01",
     });
   });
 
@@ -148,11 +184,7 @@ describe("createHttpApiCompile", () => {
   });
 
   it("gives up on an import after the timeout, with a 504", async () => {
-    const timeout = AbortSignal.timeout.bind(AbortSignal);
-    // Fake timers don't drive `AbortSignal.timeout`: shorten it instead.
-    const spy = vi
-      .spyOn(AbortSignal, "timeout")
-      .mockImplementation(() => timeout(10));
+    const spy = shortenTimeouts();
     const fetch = hang();
     const error = await catchError(importResource());
     expect(error).toBeInstanceOf(ApiCompileError);
@@ -165,5 +197,55 @@ describe("createHttpApiCompile", () => {
       "http://api-compile/mtst/import/0x01",
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
+  });
+
+  it("gives up on a verification after the timeout, with a 504", async () => {
+    const spy = shortenTimeouts();
+    hang();
+    const error = await catchError(verify());
+    expect(error).toBeInstanceOf(ApiCompileError);
+    expect(error).toMatchObject({
+      status: 504,
+      message: "api-compile did not answer in time",
+    });
+    expect(spy).toHaveBeenCalledWith(API_COMPILE_BUILD_TIMEOUT_MS);
+  });
+
+  it("gives up on a debug build after the timeout, with a 504", async () => {
+    const spy = shortenTimeouts();
+    hang();
+    const error = await catchError(
+      apiCompile.compileDebug({
+        files: {},
+        entrypoint: ".",
+        expectedCommitment: "0x01",
+      }),
+    );
+    expect(error).toBeInstanceOf(ApiCompileError);
+    expect(error).toMatchObject({
+      status: 504,
+      message: "api-compile did not answer in time",
+    });
+    expect(spy).toHaveBeenCalledWith(API_COMPILE_BUILD_TIMEOUT_MS);
+  });
+
+  it("stops a verification when its signal aborts", async () => {
+    hang();
+    const controller = new AbortController();
+    const pending = catchError(
+      apiCompile.verify({
+        project,
+        networkId: "mtst",
+        resourceId: "0x01",
+        debug: true,
+        signal: controller.signal,
+      }),
+    );
+    controller.abort();
+    const error = await pending;
+    expect(error).toBeInstanceOf(ApiCompileError);
+    // Nobody receives this 502: the client that aborted is gone, and the error
+    // handler answers nothing once `res.closed`.
+    expect(error).toMatchObject({ status: 502 });
   });
 });

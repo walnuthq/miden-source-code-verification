@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { openProject } from "miden-source-code-verification-utils/project";
+import { abortOnClose } from "../../lib/abort-on-close.ts";
 import { getApiCompile } from "../../lib/api-compile.ts";
 import { parseRoot } from "../../lib/roots.ts";
 import {
@@ -149,6 +150,7 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
     source: typeof source === "string" ? source : "unknown",
     maspStore: getMaspStore(req),
     apiCompile: getApiCompile(req),
+    signal: abortOnClose(res),
   });
   res.json({ verified });
 });
