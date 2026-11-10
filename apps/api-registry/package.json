@@ -9,6 +9,7 @@
     "typecheck": "tsc",
     "start": "node --env-file-if-exists=.env dist/src/server.js",
     "test": "vitest run",
+    "test:pure": "vitest run --config vitest.pure.config.ts",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

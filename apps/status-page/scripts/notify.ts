@@ -5,6 +5,7 @@ import type {
   ServiceStatus,
   StatusSnapshot,
 } from "../src/lib/types.ts";
+import { formatDuration, type Reason, reasonToPost } from "./lib/alerts.ts";
 import { statusPageUrl } from "./status-page-url.ts";
 
 // Posts to Slack when a service's health changes. Runs after scripts/probe.ts
@@ -22,7 +23,6 @@ import { statusPageUrl } from "./status-page-url.ts";
 const WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL ?? "";
 const DRY_RUN = process.argv.includes("--dry-run");
 
-const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
 const SLACK_TIMEOUT_MS = 10_000;
 
 // Slack's own palette, so the attachment stripe reads the same as every other
@@ -39,16 +39,6 @@ const icons: Record<ServiceHealth, string> = {
   unhealthy: "🔴",
 };
 
-/** "1h 30m", "45m", "6h" — outage durations, not precise timings. */
-const formatDuration = (ms: number) => {
-  const minutes = Math.max(0, Math.round(ms / 60_000));
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  if (hours === 0) return `${remainder}m`;
-  if (remainder === 0) return `${hours}h`;
-  return `${hours}h ${remainder}m`;
-};
-
 const CODE_FENCE = "```";
 
 /** Slack rejects a section whose text exceeds 3000 characters. */
@@ -63,57 +53,6 @@ const formatTimestamp = (iso: string) =>
     timeStyle: "short",
     timeZone: "UTC",
   }).format(new Date(iso))} UTC`;
-
-type Reason =
-  | { kind: "changed" }
-  | { kind: "first-sighting" }
-  | { kind: "reminder"; downFor: string };
-
-/**
- * The state machine, expressed as a pure function so every branch is reachable
- * from a hand-written snapshot in testing.
- *
- * Reminders are *derived* rather than stored: crossing a 6-hour boundary
- * measured from `since` is what makes one due. Nothing is persisted, so a lost
- * or failed deploy cannot desynchronise the cadence — the next run recomputes
- * it from the same two timestamps.
- */
-const reasonToPost = (
-  service: ServiceStatus,
-  snapshot: StatusSnapshot,
-): Reason | null => {
-  const { health, previousHealth, since } = service;
-
-  if (previousHealth === null) {
-    // No previous snapshot: the first deploy, or a fetch that failed. Announce
-    // a bad state (it is news to the channel) and stay quiet about a good one.
-    return health === "healthy" ? null : { kind: "first-sighting" };
-  }
-
-  if (previousHealth !== health) return { kind: "changed" };
-  if (health === "healthy") return null;
-
-  // Unchanged and still bad — a reminder is due only when this run is the first
-  // one past a 6-hour multiple of the outage.
-  const { checkedAt, previousCheckedAt } = snapshot;
-  if (!previousCheckedAt) return null;
-  const start = new Date(since).getTime();
-  const now = new Date(checkedAt).getTime();
-  const before = new Date(previousCheckedAt).getTime();
-  if (
-    !Number.isFinite(start) ||
-    !Number.isFinite(now) ||
-    !Number.isFinite(before)
-  ) {
-    return null;
-  }
-  const crossed =
-    Math.floor((now - start) / SIX_HOURS_MS) >
-    Math.floor((before - start) / SIX_HOURS_MS);
-  return crossed
-    ? { kind: "reminder", downFor: formatDuration(now - start) }
-    : null;
-};
 
 /** Present tense, without the word "down", for each non-healthy state. */
 const states: Record<Exclude<ServiceHealth, "healthy">, string> = {
