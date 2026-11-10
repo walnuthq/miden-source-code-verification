@@ -45,11 +45,14 @@ describe("selectProjectFiles", () => {
   });
 
   it("prunes hidden directories but not .cargo", () => {
-    const { includedPaths } = selectProjectFiles([
-      "counter/.git/config",
+    // Paths that would be kept anywhere else, so only the pruning drops them.
+    const { includedPaths, entrypoints } = selectProjectFiles([
+      "counter/.git/src/lib.rs",
+      "counter/.hidden/Cargo.toml",
       "counter/.cargo/config.toml",
     ]);
     expect(includedPaths).toEqual([".cargo/config.toml"]);
+    expect(entrypoints).toEqual([]);
   });
 
   it("lists the directories directly holding a Cargo.toml as sorted entrypoints, root excluded", () => {
