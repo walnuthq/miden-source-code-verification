@@ -137,6 +137,13 @@ desynchronise: a failed deploy or a lost snapshot cannot double-fire or silence
 the cadence, since the next run recomputes it from the same two timestamps. A
 delayed cron that skips eight hours produces one reminder, not sixteen.
 
+The one rule this needs: post only about a snapshot that was published. The
+workflow therefore runs `notify.ts` in its deploy job, after `deploy-pages`. A run
+whose deploy is cancelled (a newer run superseding it) or fails posts nothing, and
+the next run reports from the last published state. When notify ran before the
+deploy, a superseded run once posted "api-compile is degraded" and the recovery
+never came: the next probe compared against the older, healthy snapshot.
+
 `since` also feeds the page itself — a service that is not healthy shows "Down
 since 13 Aug 2026, 09:12 UTC" rather than only the time of the last check.
 

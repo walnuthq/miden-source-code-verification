@@ -8,10 +8,11 @@ import type {
 import { formatDuration, type Reason, reasonToPost } from "./lib/alerts.ts";
 import { statusPageUrl } from "./status-page-url.ts";
 
-// Posts to Slack when a service's health changes. Runs after scripts/probe.ts
-// (see .github/workflows/deploy-pages.yml) and is a **pure reader** of
-// public/status.json — it writes nothing, which is why it can run after
-// `vite build` without the deployed snapshot and the notification disagreeing.
+// Posts to Slack when a service's health changes. A **pure reader** of the
+// public/status.json scripts/probe.ts wrote: it writes nothing. The workflow
+// (.github/workflows/deploy-pages.yml) runs it only after that snapshot is
+// published, since the published copy is the next probe's memory: a post about
+// a snapshot that never went live gets no follow-up.
 //
 // The whole design goal is silence. A 30-minute cron with no memory would post
 // 48 identical "api-compile is down" messages a day, so this only speaks when
