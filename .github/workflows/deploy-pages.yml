@@ -96,10 +96,8 @@ jobs:
           # unset, so a fork reads its own state.
           STATUS_PAGE_URL: ${{ vars.STATUS_PAGE_URL }}
 
-      # The snapshot the deploy job's Slack step reads. Notifying here, before the
-      # site is published, would post about a state the next run can't see: a
-      # cancelled deploy (a newer run superseding this one) left an alert with no
-      # recovery, since the next probe compared against the older snapshot.
+      # For the deploy job, which notifies Slack only once this snapshot is
+      # published (apps/status-page/README.md, "How it remembers").
       - name: Upload status snapshot
         uses: actions/upload-artifact@v7
         with:
@@ -151,10 +149,10 @@ jobs:
 
       - name: Notify Slack
         working-directory: apps/status-page
-        # Runs only once the snapshot is published, so every post matches what
-        # the next probe reads as its previous state. Posts only when a service's
-        # health changed, plus a reminder every 6h while it is still down. Without
-        # the secret it logs and exits 0, so forks stay silent.
+        # After the deploy, so a post is always about the published snapshot.
+        # Posts only when a service's health changed, plus a reminder every 6h
+        # while it is still down. Without the secret it logs and exits 0, so forks
+        # stay silent. `node` rather than `pnpm notify`: this job installs no pnpm.
         run: node scripts/notify.ts
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

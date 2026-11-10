@@ -9,7 +9,7 @@ import { formatDuration, type Reason, reasonToPost } from "./lib/alerts.ts";
 import { statusPageUrl } from "./status-page-url.ts";
 
 // Posts to Slack when a service's health changes. A **pure reader** of the
-// public/status.json scripts/probe.ts wrote: it writes nothing. The workflow
+// public/status.json that scripts/probe.ts wrote: it writes nothing. The workflow
 // (.github/workflows/deploy-pages.yml) runs it only after that snapshot is
 // published, since the published copy is the next probe's memory: a post about
 // a snapshot that never went live gets no follow-up.
