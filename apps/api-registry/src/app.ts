@@ -12,6 +12,7 @@ import {
   MASP_STORAGE_DIR,
   PORT,
 } from "./lib/constants.ts";
+import { hideQueryErrors } from "./lib/query-errors.ts";
 import adminRouter from "./routes/admin.ts";
 import packagesRouterV1 from "./routes/v1/packages.ts";
 import verifiedAccountsRouterV1 from "./routes/v1/verified-accounts.ts";
@@ -453,6 +454,7 @@ export const createApp = ({
   app.use("/v1", packagesRouterV1);
   app.use(adminRouter);
   app.use(notFound);
+  app.use(hideQueryErrors);
   app.use(errorHandler);
 
   return app;
