@@ -1,8 +1,7 @@
 name: Check
 
-# Lint, typecheck and the pure test suites on every PR and every push to main.
-# The api-compile and api-registry suites need the docker compose stack and
-# Testnet, so they stay local (docs/claude/testing.md).
+# Lint, typecheck and the server-free tests (`pnpm test:pure`) on every PR and
+# every push to main. docs/claude/testing.md says which tests those are.
 
 on:
   # No paths: filter. A required status check that never runs leaves the PR
