@@ -1,7 +1,9 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { DrizzleQueryError } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { DATABASE_URL } from "../lib/constants.ts";
+import { DatabaseConnectionError } from "../lib/query-errors.ts";
 import { relations } from "./relations.ts";
 
 /**
@@ -13,8 +15,33 @@ import { relations } from "./relations.ts";
  * that opened it — call this per request instead and run their handlers inside
  * {@link dbScope}. `max: 1` keeps each such request to a single connection.
  */
-export const createDb = (connectionString: string = DATABASE_URL) =>
-  drizzle({ client: new Pool({ connectionString, max: 1 }), relations });
+export const createDb = (connectionString: string = DATABASE_URL) => {
+  const db = drizzle({
+    client: new Pool({ connectionString, max: 1 }),
+    relations,
+  });
+  // Drizzle's node-postgres `transaction` takes a pool client before its own
+  // `try`, so a failed connection rejects with the driver's error (`connect
+  // ECONNREFUSED <host>:<port>`), not a DrizzleQueryError. Whatever rejects
+  // before the callback starts, other than a failed `begin` (a
+  // DrizzleQueryError), is that failure.
+  const transaction = db.transaction.bind(db);
+  db.transaction = async (callback, config) => {
+    let started = false;
+    try {
+      return await transaction((tx) => {
+        started = true;
+        return callback(tx);
+      }, config);
+    } catch (error) {
+      if (started || error instanceof DrizzleQueryError) {
+        throw error;
+      }
+      throw new DatabaseConnectionError({ cause: error });
+    }
+  };
+  return db;
+};
 
 export type Database = ReturnType<typeof createDb>;
 

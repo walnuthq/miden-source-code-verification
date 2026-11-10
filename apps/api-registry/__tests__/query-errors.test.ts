@@ -1,12 +1,16 @@
-import { DrizzleQueryError } from "drizzle-orm";
+import { DrizzleQueryError, sql } from "drizzle-orm";
 import express from "express";
 import { request } from "miden-source-code-verification-test-utils";
 import {
   errorHandler,
   HttpError,
 } from "miden-source-code-verification-utils/http-errors";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { hideQueryErrors } from "../src/lib/query-errors.ts";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import { createDb } from "../src/db/context.ts";
+import {
+  DatabaseConnectionError,
+  hideQueryErrors,
+} from "../src/lib/query-errors.ts";
 
 const queryError = new DrizzleQueryError(
   "select * from packages where id = $1",
@@ -61,5 +65,66 @@ describe("hideQueryErrors", () => {
 
     expect(res.status).toBe(409);
     expect(res.body).toEqual({ error: "note already verified" });
+  });
+});
+
+// Port 1 is closed: the connection is refused at once, with no Postgres needed.
+const unreachable = () =>
+  createDb("postgres://registry:registry@127.0.0.1:1/registry");
+
+describe("a failed database connection", () => {
+  const db = unreachable();
+  const connectionApp = express();
+  connectionApp.get("/transaction", async () => {
+    await db.transaction(async () => {});
+  });
+  connectionApp.get("/select", async () => {
+    await db.execute(sql`select 1`);
+  });
+  connectionApp.use(hideQueryErrors);
+  connectionApp.use(errorHandler);
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  afterAll(async () => {
+    await db.$client.end();
+  });
+
+  it("rejects a transaction with a DatabaseConnectionError", async () => {
+    const callback = vi.fn(async () => {});
+
+    const error = await db.transaction(callback).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(DatabaseConnectionError);
+    expect((error as DatabaseConnectionError).cause).toMatchObject({
+      code: "ECONNREFUSED",
+    });
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it("answers a transaction's failure without the database address", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const res = await request(connectionApp).get("/transaction");
+
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: "database query failed" });
+    const text = JSON.stringify(res.body);
+    expect(text).not.toContain("127.0.0.1");
+    expect(text).not.toContain("ECONNREFUSED");
+    expect(consoleError).toHaveBeenCalledWith(
+      expect.objectContaining({ cause: expect.any(DatabaseConnectionError) }),
+    );
+  });
+
+  it("hides a plain query's failure too", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await request(connectionApp).get("/select");
+
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: "database query failed" });
   });
 });
