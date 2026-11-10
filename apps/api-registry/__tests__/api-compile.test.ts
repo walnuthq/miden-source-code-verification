@@ -3,7 +3,10 @@ import {
   ApiCompileError,
   createHttpApiCompile,
 } from "../src/lib/api-compile.ts";
-import { API_COMPILE_IMPORT_TIMEOUT_MS } from "../src/lib/constants.ts";
+import {
+  API_COMPILE_BUILD_TIMEOUT_MS,
+  API_COMPILE_IMPORT_TIMEOUT_MS,
+} from "../src/lib/constants.ts";
 
 const apiCompile = createHttpApiCompile("http://api-compile");
 const project = {
@@ -90,6 +93,33 @@ describe("createHttpApiCompile", () => {
     });
   });
 
+  it("keeps the abort signal out of the JSON bodies it posts", async () => {
+    const controller = new AbortController();
+    const fetch = respondWith(Response.json({ verified: false, root: "0x01" }));
+    await apiCompile.verify({
+      project,
+      networkId: "mtst",
+      resourceId: "0x01",
+      debug: true,
+      signal: controller.signal,
+    });
+    expect(
+      JSON.parse(String(fetch.mock.calls[0]?.[1]?.body)),
+    ).not.toHaveProperty("signal");
+    fetch.mockImplementation(() => Promise.resolve(Response.json({})));
+    await apiCompile.compileDebug({
+      files: {},
+      entrypoint: ".",
+      expectedCommitment: "0x01",
+      signal: controller.signal,
+    });
+    expect(JSON.parse(String(fetch.mock.calls[1]?.[1]?.body))).toEqual({
+      files: {},
+      entrypoint: ".",
+      expectedCommitment: "0x01",
+    });
+  });
+
   it("returns what /verify answers", async () => {
     respondWith(Response.json({ verified: true, root: "0x01" }));
     await expect(verify()).resolves.toEqual({ verified: true, root: "0x01" });
@@ -165,5 +195,57 @@ describe("createHttpApiCompile", () => {
       "http://api-compile/mtst/import/0x01",
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
+  });
+
+  it("gives up on a verification after the timeout, with a 504", async () => {
+    const timeout = AbortSignal.timeout.bind(AbortSignal);
+    const spy = vi
+      .spyOn(AbortSignal, "timeout")
+      .mockImplementation(() => timeout(10));
+    hang();
+    const error = await catchError(verify());
+    expect(error).toBeInstanceOf(ApiCompileError);
+    expect(error).toMatchObject({
+      status: 504,
+      message: "api-compile did not answer in time",
+    });
+    expect(spy).toHaveBeenCalledWith(API_COMPILE_BUILD_TIMEOUT_MS);
+  });
+
+  it("gives up on a debug build after the timeout, with a 504", async () => {
+    const timeout = AbortSignal.timeout.bind(AbortSignal);
+    const spy = vi
+      .spyOn(AbortSignal, "timeout")
+      .mockImplementation(() => timeout(10));
+    hang();
+    const error = await catchError(
+      apiCompile.compileDebug({
+        files: {},
+        entrypoint: ".",
+        expectedCommitment: "0x01",
+      }),
+    );
+    expect(error).toBeInstanceOf(ApiCompileError);
+    expect(error).toMatchObject({
+      status: 504,
+      message: "api-compile did not answer in time",
+    });
+    expect(spy).toHaveBeenCalledWith(API_COMPILE_BUILD_TIMEOUT_MS);
+  });
+
+  it("stops a verification when its signal aborts", async () => {
+    hang();
+    const controller = new AbortController();
+    const pending = catchError(
+      apiCompile.verify({
+        project,
+        networkId: "mtst",
+        resourceId: "0x01",
+        debug: true,
+        signal: controller.signal,
+      }),
+    );
+    controller.abort();
+    expect(await pending).toBeInstanceOf(ApiCompileError);
   });
 });

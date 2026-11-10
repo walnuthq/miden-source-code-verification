@@ -175,6 +175,7 @@ export const verifyResource = async ({
   source = "unknown",
   maspStore,
   apiCompile,
+  signal,
 }: {
   networkId: string;
   resource: Resource;
@@ -182,6 +183,8 @@ export const verifyResource = async ({
   source?: string;
   maspStore: MaspStore;
   apiCompile: ApiCompile;
+  /** Aborts the build, as when the client went away. */
+  signal?: AbortSignal;
 }) => {
   const resourceId =
     resource.kind === "account" ? resource.accountId : resource.noteId;
@@ -192,6 +195,7 @@ export const verifyResource = async ({
     // The debug build names call-trace frames in the simulator, which only
     // runs account procedures.
     debug: resource.kind === "account",
+    signal,
   });
   if (!build.verified) {
     return false;

@@ -7,6 +7,11 @@ export const API_COMPILE_URL =
 // api-compile allows imports, so a cold start still answers; past it, a lookup
 // answers 504 rather than hang.
 export const API_COMPILE_IMPORT_TIMEOUT_MS = 120_000;
+// A verification or a debug build is a build in api-compile's queue. Just over
+// the 420 s the Cloudflare Worker in front of api-compile allows one, so its
+// own 504 normally arrives first; this one is for an api-compile that stops
+// answering altogether.
+export const API_COMPILE_BUILD_TIMEOUT_MS = 450_000;
 export const DATABASE_URL =
   process.env.DATABASE_URL ??
   "postgres://miden-source-code-verification:miden_source_code_verification_dev_password@localhost:5432/miden-source-code-verification";
