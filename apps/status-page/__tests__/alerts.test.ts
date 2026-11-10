@@ -74,7 +74,7 @@ describe("reasonToPost", () => {
     ).toBeNull();
   });
 
-  it("stays quiet when an outage does not cross a 6-hour multiple", () => {
+  it("stays quiet before an outage reaches its first 6 hours", () => {
     expect(
       reasonToPost(
         service("unhealthy", "unhealthy"),
@@ -90,6 +90,15 @@ describe("reasonToPost", () => {
         snapshot(hoursAfterSince(6, 20), hoursAfterSince(5, 50)),
       ),
     ).toEqual({ kind: "reminder", downFor: "6h 20m" });
+  });
+
+  it("stays quiet between reminders once an outage is past 6 hours", () => {
+    expect(
+      reasonToPost(
+        service("unhealthy", "unhealthy"),
+        snapshot(hoursAfterSince(7), hoursAfterSince(6, 30)),
+      ),
+    ).toBeNull();
   });
 
   it("stays quiet about an ongoing outage with no previous check time", () => {
