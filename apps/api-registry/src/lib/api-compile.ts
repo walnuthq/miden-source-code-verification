@@ -96,7 +96,9 @@ const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
   return data as T;
 };
 
-const postJson = <T>(url: string, body: unknown, signal?: AbortSignal) => {
+// Posts to one of api-compile's build routes, giving up after
+// `API_COMPILE_BUILD_TIMEOUT_MS`, or when `signal` aborts.
+const postBuild = <T>(url: string, body: unknown, signal?: AbortSignal) => {
   const timeout = AbortSignal.timeout(API_COMPILE_BUILD_TIMEOUT_MS);
   return fetchJson<T>(url, {
     method: "POST",
@@ -115,7 +117,7 @@ export const createHttpApiCompile = (baseUrl: string): ApiCompile => ({
     debug,
     signal,
   }) => {
-    const response = await postJson<VerifyResponse>(
+    const response = await postBuild<VerifyResponse>(
       `${baseUrl}/verify`,
       { files, entrypoint, networkId, resourceId, debug },
       signal,
@@ -137,7 +139,7 @@ export const createHttpApiCompile = (baseUrl: string): ApiCompile => ({
       { signal: AbortSignal.timeout(API_COMPILE_IMPORT_TIMEOUT_MS) },
     ),
   compileDebug: ({ signal, ...input }) =>
-    postJson<CompileDebugResponse>(`${baseUrl}/compile-debug`, input, signal),
+    postBuild<CompileDebugResponse>(`${baseUrl}/compile-debug`, input, signal),
 });
 
 /** The api-compile `createApp` attached to the app handling `req`. */

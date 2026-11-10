@@ -54,6 +54,12 @@ const hang = () => {
   return fetch;
 };
 
+// Fake timers don't drive `AbortSignal.timeout`: shorten it instead.
+const shortenTimeouts = () => {
+  const timeout = AbortSignal.timeout.bind(AbortSignal);
+  return vi.spyOn(AbortSignal, "timeout").mockImplementation(() => timeout(10));
+};
+
 const catchError = async (promise: Promise<unknown>) => {
   try {
     await promise;
@@ -178,11 +184,7 @@ describe("createHttpApiCompile", () => {
   });
 
   it("gives up on an import after the timeout, with a 504", async () => {
-    const timeout = AbortSignal.timeout.bind(AbortSignal);
-    // Fake timers don't drive `AbortSignal.timeout`: shorten it instead.
-    const spy = vi
-      .spyOn(AbortSignal, "timeout")
-      .mockImplementation(() => timeout(10));
+    const spy = shortenTimeouts();
     const fetch = hang();
     const error = await catchError(importResource());
     expect(error).toBeInstanceOf(ApiCompileError);
@@ -198,10 +200,7 @@ describe("createHttpApiCompile", () => {
   });
 
   it("gives up on a verification after the timeout, with a 504", async () => {
-    const timeout = AbortSignal.timeout.bind(AbortSignal);
-    const spy = vi
-      .spyOn(AbortSignal, "timeout")
-      .mockImplementation(() => timeout(10));
+    const spy = shortenTimeouts();
     hang();
     const error = await catchError(verify());
     expect(error).toBeInstanceOf(ApiCompileError);
@@ -213,10 +212,7 @@ describe("createHttpApiCompile", () => {
   });
 
   it("gives up on a debug build after the timeout, with a 504", async () => {
-    const timeout = AbortSignal.timeout.bind(AbortSignal);
-    const spy = vi
-      .spyOn(AbortSignal, "timeout")
-      .mockImplementation(() => timeout(10));
+    const spy = shortenTimeouts();
     hang();
     const error = await catchError(
       apiCompile.compileDebug({
@@ -246,6 +242,10 @@ describe("createHttpApiCompile", () => {
       }),
     );
     controller.abort();
-    expect(await pending).toBeInstanceOf(ApiCompileError);
+    const error = await pending;
+    expect(error).toBeInstanceOf(ApiCompileError);
+    // Nobody receives this 502: the client that aborted is gone, and the error
+    // handler answers nothing once `res.closed`.
+    expect(error).toMatchObject({ status: 502 });
   });
 });
