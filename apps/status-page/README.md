@@ -137,6 +137,13 @@ desynchronise: a failed deploy or a lost snapshot cannot double-fire or silence
 the cadence, since the next run recomputes it from the same two timestamps. A
 delayed cron that skips eight hours produces one reminder, not sixteen.
 
+The one rule this needs: post only about a snapshot that was published. The
+workflow therefore runs `notify.ts` in its deploy job, after `deploy-pages`. A run
+whose deploy is cancelled (a newer run superseding it) or fails posts nothing, and
+the next run reports from the last published state. When notify ran before the
+deploy, a superseded run once posted "api-compile is degraded" and the recovery
+never came: the next probe compared against the older, healthy snapshot.
+
 `since` also feeds the page itself — a service that is not healthy shows "Down
 since 13 Aug 2026, 09:12 UTC" rather than only the time of the last check.
 
@@ -181,9 +188,10 @@ real from your machine, put the webhook in `apps/status-page/.env` and drop
 
 ### Limits
 
-- **The memory is the last successful deploy.** If a deploy fails, the next run
-  sees no previous state and may repeat an "is down" message. It can repeat
-  itself, never miss an outage.
+- **The memory is the last successful deploy.** A run whose deploy fails or is
+  cancelled posts nothing, and the next run compares against the last published
+  snapshot, so the channel and the page never disagree. A change that lasts only
+  that one run goes unreported; one that persists is posted by the next run.
 - **`STATUS_PAGE_URL` is unset locally on purpose.** A local run that read the
   published snapshot could post a duplicate outage to the real channel.
 - **One channel**, fixed when the webhook is created. Per-service routing would
@@ -214,8 +222,9 @@ pnpm --filter miden-source-code-verification-status-page preview
 ## Deployment
 
 `.github/workflows/deploy-pages.yml` builds this app **and** `api-docs` into a
-single Pages artifact — docs at the site root, this page under `/status/` — then
-runs the Slack notify step against the snapshot the build just wrote. That
+single Pages artifact — docs at the site root, this page under `/status/` — and,
+once `deploy-pages` has published it, runs the Slack notify step against that
+snapshot. That
 workflow is the only one allowed to deploy Pages: a repository has exactly one
 Pages deployment, and a second workflow would overwrite the first on every run.
 
