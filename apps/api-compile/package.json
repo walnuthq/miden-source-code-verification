@@ -9,6 +9,7 @@
     "typecheck": "tsc",
     "start": "node --env-file-if-exists=.env dist/src/server.js",
     "test": "vitest run",
+    "test:pure": "vitest run __tests__/limiter.test.ts __tests__/helper-tools.test.ts __tests__/busy.test.ts",
     "lint": "biome check .",
     "format": "biome check --write ."
   },

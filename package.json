@@ -13,7 +13,7 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "test": "pnpm -r test",
-    "test:pure": "pnpm --filter ./packages/utils --filter ./apps/web-viewer --filter ./apps/web-verifier test",
+    "test:pure": "pnpm --filter ./packages/utils --filter ./apps/web-viewer --filter ./apps/web-verifier test && pnpm --filter ./apps/api-compile --filter ./apps/api-registry --filter ./apps/status-page test:pure",
     "typecheck": "tsc -p tsconfig.json && pnpm -r typecheck",
     "check": "pnpm lint && pnpm typecheck && pnpm test:pure",
     "watch-deploy": "node scripts/watch-deploy.ts"

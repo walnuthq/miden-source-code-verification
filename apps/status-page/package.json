@@ -10,6 +10,8 @@
     "dev": "pnpm probe && vite",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit",
+    "test": "vitest run",
+    "test:pure": "vitest run",
     "lint": "biome check .",
     "format": "biome check --write ."
   },
@@ -29,6 +31,7 @@
     "miden-source-code-verification-test-utils": "workspace:*",
     "miden-source-code-verification-utils": "workspace:*",
     "typescript": "7.0.2",
-    "vite": "8.3.7"
+    "vite": "8.3.7",
+    "vitest": "5.1.0"
   }
 }
