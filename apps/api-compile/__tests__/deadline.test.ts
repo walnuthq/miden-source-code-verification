@@ -43,3 +43,36 @@ describe("POST /compile when the build outlasts the deadline", () => {
     });
   }, 15_000);
 });
+
+describe("POST /compile when the tools after the build outlast the deadline", () => {
+  // The build succeeds at once and leaves the .masp where buildProject reads
+  // it; the version answers; anything else (locate-project) hangs.
+  useFakeTool(
+    "cargo",
+    `#!/bin/sh
+case "$1 $2" in
+  "miden build") mkdir -p "$MIDENC_TARGET_DIR/release" && : > "$MIDENC_TARGET_DIR/release/counter-contract.masp" ;;
+  "miden --version") echo "cargo-miden 0.0.0" ;;
+  *) sleep 30 ;;
+esac
+`,
+  );
+  useFakeTool("miden-package-metadata", "#!/bin/sh\nsleep 30\n");
+  const app = express()
+    .use(express.json({ limit: "1mb" }))
+    .use(compileRouter)
+    .use(errorHandler);
+
+  it("answers 504 within the deadline when the tools after the build hang", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const files = await readProjectFiles(counterContractDir);
+    const start = Date.now();
+    const res = await request(app).post("/compile").send({ files });
+
+    expect(res.status).toBe(504);
+    expect(res.body).toEqual({
+      error: "the build did not finish within 1s",
+    });
+    expect(Date.now() - start).toBeLessThan(10_000);
+  }, 45_000);
+});

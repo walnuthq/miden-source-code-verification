@@ -49,7 +49,7 @@ const stderrOf = (error: unknown) =>
 const run = async <T>(
   name: string,
   args: string[],
-  cwd?: string,
+  { cwd, signal }: { cwd?: string; signal?: AbortSignal } = {},
 ): Promise<ToolRun<T>> => {
   console.info([name, ...args].join(" "));
   let stdout: string;
@@ -57,6 +57,7 @@ const run = async <T>(
     ({ stdout } = await execFile(name, args, {
       cwd,
       timeout: MIDEN_TOOL_TIMEOUT_MS,
+      signal,
     }));
   } catch (error) {
     // On a non-zero exit the reason is on stderr. A timeout or a spawn
@@ -119,7 +120,7 @@ export const midenImport = ({
   run<ImportedResource>(
     "miden-import",
     ["--network-id", networkId, "--resource-id", resourceId],
-    MIDEN_CLIENT_CACHE_DIR,
+    { cwd: MIDEN_CLIENT_CACHE_DIR },
   );
 
 // The resource's root and what its code is made of, given the package at
@@ -147,9 +148,9 @@ export const midenVerifier = ({
       maspPath,
       ...(resourcePath ? ["--resource-path", resourcePath] : []),
     ],
-    MIDEN_CLIENT_CACHE_DIR,
+    { cwd: MIDEN_CLIENT_CACHE_DIR },
   );
 
 // The package at `maspPath`, read.
-export const midenPackageMetadata = (maspPath: string) =>
-  run<PackageMetadata>("miden-package-metadata", [maspPath]);
+export const midenPackageMetadata = (maspPath: string, signal?: AbortSignal) =>
+  run<PackageMetadata>("miden-package-metadata", [maspPath], { signal });
