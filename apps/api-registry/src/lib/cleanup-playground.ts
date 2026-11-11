@@ -7,11 +7,7 @@ import {
   verifiedNoteScriptTable,
 } from "../db/schema.ts";
 import type { MaspStore } from "../storage/masp-store.ts";
-
-// The `source` the Miden playground verifies with. Its verifications are
-// throwaway deploys, so they only live for a day.
-export const PLAYGROUND_SOURCE = "miden-playground";
-export const PLAYGROUND_TTL_MS = 24 * 60 * 60 * 1000;
+import { PLAYGROUND_SOURCE, PLAYGROUND_TTL_MS } from "./playground.ts";
 
 const unique = <T>(values: T[]) => [...new Set(values)];
 

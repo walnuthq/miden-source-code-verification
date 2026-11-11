@@ -9,10 +9,8 @@ import {
   verifiedAccountComponentTable,
   verifiedNoteScriptTable,
 } from "../src/db/schema.ts";
-import {
-  cleanupPlaygroundResources,
-  PLAYGROUND_SOURCE,
-} from "../src/lib/cleanup-playground.ts";
+import { cleanupPlaygroundResources } from "../src/lib/cleanup-playground.ts";
+import { PLAYGROUND_SOURCE } from "../src/lib/playground.ts";
 import {
   createFsMaspStore,
   type MaspStore,

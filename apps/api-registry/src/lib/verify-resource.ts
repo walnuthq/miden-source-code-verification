@@ -1,4 +1,5 @@
-import { eq } from "drizzle-orm";
+import { eq, type SQL } from "drizzle-orm";
+import type { PgColumn } from "drizzle-orm/pg-core";
 import type { VerifyResponse } from "miden-source-code-verification-utils/api-compile";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import type { Project } from "miden-source-code-verification-utils/project";
@@ -12,8 +13,8 @@ import {
 } from "../db/schema.ts";
 import type { MaspStore } from "../storage/masp-store.ts";
 import type { ApiCompile } from "./api-compile.ts";
-import { PLAYGROUND_SOURCE } from "./cleanup-playground.ts";
 import { storeDebugBuild } from "./debug-build.ts";
+import { PLAYGROUND_SOURCE } from "./playground.ts";
 
 // The on-chain resource a verification or a lookup is for, named by its id.
 export type Resource =
@@ -21,6 +22,40 @@ export type Resource =
   | { kind: "note"; noteId: string };
 
 type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
+
+// The conflict clause of a verified record's insert: a conflict is the root
+// verified before, or by a concurrent verification that committed first. A
+// verification from any other source takes over a playground record with
+// `set` (see "Source" in GLOSSARY.md). Any other conflict changes nothing and
+// returns no row: already verified.
+const onConflictTakeOverPlayground = <TSet, TInsert>(
+  insert: {
+    onConflictDoNothing(config: { target: PgColumn[] }): TInsert;
+    onConflictDoUpdate(config: {
+      target: PgColumn[];
+      set: TSet;
+      setWhere: SQL;
+    }): TInsert;
+  },
+  {
+    source,
+    target,
+    sourceColumn,
+    set,
+  }: {
+    source: string;
+    target: PgColumn[];
+    sourceColumn: PgColumn;
+    set: TSet;
+  },
+) =>
+  source === PLAYGROUND_SOURCE
+    ? insert.onConflictDoNothing({ target })
+    : insert.onConflictDoUpdate({
+        target,
+        set,
+        setWhere: eq(sourceColumn, PLAYGROUND_SOURCE),
+      });
 
 // The package's row: inserted, or found when a concurrent verification of the
 // same new package inserted it since the read outside the transaction.
@@ -110,28 +145,22 @@ const insertAccountComponent = async (
   },
 ) => {
   const verifiedAccountId = await insertVerifiedAccount(tx, networkId, code);
-  // A conflict is the package verified into the code before, or by a
-  // concurrent verification that committed first. One with a playground
-  // record is taken over by a verification from another source; any other is
-  // already verified.
-  const target = [
-    verifiedAccountComponentTable.verifiedAccountId,
-    verifiedAccountComponentTable.packageCommitment,
-  ];
+  // Keyed on the package within the code: the root is verified by this very
+  // package.
   const now = new Date();
-  const insert = tx
-    .insert(verifiedAccountComponentTable)
-    .values({ verifiedAccountId, packageId, packageCommitment, source });
-  const [inserted] = await (source === PLAYGROUND_SOURCE
-    ? insert.onConflictDoNothing({ target })
-    : insert.onConflictDoUpdate({
-        target,
-        // Only a record the playground made, which cleanup would delete
-        // within a day: this verification replaces it, so the root stays
-        // verified.
-        set: { source, packageId, createdAt: now, updatedAt: now },
-        setWhere: eq(verifiedAccountComponentTable.source, PLAYGROUND_SOURCE),
-      })
+  const [inserted] = await onConflictTakeOverPlayground(
+    tx
+      .insert(verifiedAccountComponentTable)
+      .values({ verifiedAccountId, packageId, packageCommitment, source }),
+    {
+      source,
+      target: [
+        verifiedAccountComponentTable.verifiedAccountId,
+        verifiedAccountComponentTable.packageCommitment,
+      ],
+      sourceColumn: verifiedAccountComponentTable.source,
+      set: { source, packageId, createdAt: now, updatedAt: now },
+    },
   ).returning({ id: verifiedAccountComponentTable.id });
   if (!inserted) {
     throw new HttpError(409, "account component already verified");
@@ -154,33 +183,28 @@ const insertNote = async (
     source: string;
   },
 ) => {
-  // A conflict is a note verified before, or by a concurrent verification
-  // that committed first. One with a playground record is taken over by a
-  // verification from another source; any other is already verified.
-  const target = [
-    verifiedNoteScriptTable.networkId,
-    verifiedNoteScriptTable.script,
-  ];
+  // Keyed on the script root alone, so a taken-over record also takes this
+  // verification's package.
   const now = new Date();
-  const insert = tx
-    .insert(verifiedNoteScriptTable)
-    .values({ networkId, script, source, packageId, packageCommitment });
-  const [inserted] = await (source === PLAYGROUND_SOURCE
-    ? insert.onConflictDoNothing({ target })
-    : insert.onConflictDoUpdate({
-        target,
-        // Only a record the playground made, which cleanup would delete
-        // within a day: this verification replaces it, so the root stays
-        // verified.
-        set: {
-          source,
-          packageId,
-          packageCommitment,
-          createdAt: now,
-          updatedAt: now,
-        },
-        setWhere: eq(verifiedNoteScriptTable.source, PLAYGROUND_SOURCE),
-      })
+  const [inserted] = await onConflictTakeOverPlayground(
+    tx
+      .insert(verifiedNoteScriptTable)
+      .values({ networkId, script, source, packageId, packageCommitment }),
+    {
+      source,
+      target: [
+        verifiedNoteScriptTable.networkId,
+        verifiedNoteScriptTable.script,
+      ],
+      sourceColumn: verifiedNoteScriptTable.source,
+      set: {
+        source,
+        packageId,
+        packageCommitment,
+        createdAt: now,
+        updatedAt: now,
+      },
+    },
   ).returning({ id: verifiedNoteScriptTable.id });
   if (!inserted) {
     throw new HttpError(409, "note already verified");
