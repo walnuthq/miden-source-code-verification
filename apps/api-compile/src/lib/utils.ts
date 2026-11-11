@@ -21,7 +21,9 @@ export const removeDirs = async (dirs: string[]) => {
 // started: a signal to the subprocess alone leaves its children holding its
 // output pipes and the call would never settle. The wrapper builds Node's
 // execFile error itself because execFile can't start a process group, and
-// ADR 0005 needs that error unchanged.
+// ADR 0005 needs that error unchanged. The size-limit error is the wrapper's
+// own (it names the tool and the limit); only the error of a subprocess that
+// fails on its own is Node's, unchanged.
 export const execFile = (
   file: string,
   args: string[],
@@ -103,7 +105,7 @@ export const execFile = (
               reject(
                 Object.assign(
                   new Error(
-                    `${file} printed more than ${SUBPROCESS_MAX_OUTPUT_BYTES / 1024 / 1024} MiB`,
+                    `${file} printed more than ${maxBuffer / 1024 / 1024} MiB`,
                   ),
                   {
                     code: "ERR_CHILD_PROCESS_STDIO_MAXBUFFER",

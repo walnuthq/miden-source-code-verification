@@ -177,21 +177,21 @@ describe("execFile", () => {
 
   it("fails, saying so, when the subprocess prints more than the limit", async () => {
     const big = await script(
-      "big-4k.sh",
-      "head -c 4096 /dev/zero | tr '\\0' x",
+      "big-2m.sh",
+      "head -c 2097152 /dev/zero | tr '\\0' x",
     );
-    // The message names the configured default (16 MiB); the test only shrinks
-    // the buffer to reach the limit cheaply.
+    // The test lowers the limit to 1 MiB, so the default is not needed to reach
+    // it.
     const error = await execFile(big, [], {
       timeout: 10_000,
-      maxBuffer: 1024,
+      maxBuffer: 1024 * 1024,
     }).then(
       () => null,
       (e: unknown) => e,
     );
     expect(error).toMatchObject({
       code: "ERR_CHILD_PROCESS_STDIO_MAXBUFFER",
-      message: `${big} printed more than 16 MiB`,
+      message: `${big} printed more than 1 MiB`,
     });
   }, 15_000);
 });
