@@ -135,13 +135,11 @@ fn parse_resource_id(resource_id: &str) -> Result<Resource> {
 
 fn verify_account_component(account: Account, package: Package) -> Result<Value> {
     // `AccountInterface::from_account` would be the obvious call here, but it
-    // asserts that exactly one of the account's components is a *standard* auth
-    // component and panics when that does not hold. Every account this API
-    // exists to verify authenticates with a Rust-compiled component (see
-    // `examples/counter-contract/auth-component-no-auth`), which classifies as
-    // `CustomAuth` rather than one of the `Auth*` variants, so the assertion never
-    // holds. Classifying the procedures directly yields the same component list
-    // without going through that constructor.
+    // asserts that the account has exactly one auth component and panics when
+    // that does not hold. The account may be the caller's own bytes, and a
+    // panic here would answer them with a 502. Classifying the procedures
+    // directly yields the same component list without going through that
+    // constructor.
     let interface = AccountComponentInterface::from_procedures(account.code().procedures());
     let mut components = Vec::new();
     let mut has_custom_code = false;

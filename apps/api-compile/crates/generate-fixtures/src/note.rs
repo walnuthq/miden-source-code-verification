@@ -124,9 +124,8 @@ pub async fn emit_notes(
 ///   reads as a custom component and no such script exists for it.
 /// - `NoAuth` pays the transaction fee out of the account's vault, which is the
 ///   whole reason the factory can transact on a fee-charging chain at all: no
-///   component compiled by midenc can create a fee note, since midenc links
-///   neither `miden::standards::fee` nor a Rust binding for the kernel's fee
-///   procedures. It also bumps the nonce for an account at nonce 0 even when
+///   auth component under `examples/` creates a fee note (see `crate::fee`).
+///   It also bumps the nonce for an account at nonce 0 even when
 ///   nothing else moved, which matters because emitting asset-less notes touches
 ///   neither vault nor storage — and an account left at nonce 0 is one the kernel
 ///   rejects outright for an account-creating transaction.

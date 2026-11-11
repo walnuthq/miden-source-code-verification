@@ -126,8 +126,9 @@ fn faucet_url(network_id: &NetworkId) -> Result<String> {
 /// Builds a client backed by a throwaway store and keystore under `workdir`, so
 /// every run deploys genuinely new resources and no state can leak in from a
 /// previous one. Nothing is ever signed here — every account deployed by this
-/// tool authenticates without a signature — but the client still wants an
-/// authenticator, so the keystore is built and handed to it all the same.
+/// tool authenticates without a signature — and the client would build without
+/// an authenticator. The keystore is handed to it all the same, so the client
+/// has the type the other helper tools use.
 async fn connect(network_id: &NetworkId, workdir: &Path) -> Result<Client<FilesystemKeyStore>> {
     let rpc_client = Arc::new(GrpcClient::new(&endpoint(network_id)?, RPC_TIMEOUT_MS));
     let keystore = Arc::new(
