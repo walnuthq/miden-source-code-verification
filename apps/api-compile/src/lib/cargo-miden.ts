@@ -33,15 +33,17 @@ export const cargoMidenVersion = () => {
 export const readCargoLock = async ({
   projectDir,
   rootDir,
+  signal,
 }: {
   projectDir: string;
   rootDir: string;
+  signal?: AbortSignal;
 }) => {
   try {
     const { stdout } = await execFile(
       "cargo",
       ["locate-project", "--workspace", "--message-format", "plain"],
-      { cwd: projectDir, timeout: MIDEN_TOOL_TIMEOUT_MS },
+      { cwd: projectDir, timeout: MIDEN_TOOL_TIMEOUT_MS, signal },
     );
     const lockPath = join(dirname(stdout.trim()), "Cargo.lock");
     // cargo answers with the canonical path (macOS's tmpdir is a symlink).

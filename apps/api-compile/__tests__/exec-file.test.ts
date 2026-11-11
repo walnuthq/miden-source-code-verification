@@ -166,18 +166,32 @@ describe("execFile", () => {
     });
   }, 10_000);
 
-  it("fails, without blaming a timeout, when the subprocess prints more than 1 MiB", async () => {
+  it("answers the output of a subprocess that prints 2 MiB", async () => {
     const big = await script(
       "big.sh",
-      "head -c 2000000 /dev/zero | tr '\\0' x",
+      "head -c 2097152 /dev/zero | tr '\\0' x",
     );
-    const error = await execFile(big, [], { timeout: 10_000 }).then(
+    const { stdout } = await execFile(big, [], { timeout: 10_000 });
+    expect(stdout.length).toBe(2097152);
+  }, 15_000);
+
+  it("fails, saying so, when the subprocess prints more than the limit", async () => {
+    const big = await script(
+      "big-2m.sh",
+      "head -c 2097152 /dev/zero | tr '\\0' x",
+    );
+    // The test lowers the limit to 1 MiB, so the default is not needed to reach
+    // it.
+    const error = await execFile(big, [], {
+      timeout: 10_000,
+      maxBuffer: 1024 * 1024,
+    }).then(
       () => null,
       (e: unknown) => e,
     );
     expect(error).toMatchObject({
       code: "ERR_CHILD_PROCESS_STDIO_MAXBUFFER",
-      message: "stdout maxBuffer length exceeded",
+      message: `${big} printed more than 1 MiB`,
     });
-  }, 10_000);
+  }, 15_000);
 });

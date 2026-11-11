@@ -41,3 +41,8 @@ export const MAX_DEBUG_MASP_BYTES = 16 * 1024 * 1024;
 // the counter, most of it Wasm glue. Larger ones are left out of the response,
 // which the registry holds in a Worker's memory.
 export const MAX_MASM_BYTES = 4 * 1024 * 1024;
+
+// The most a subprocess may print on stdout or on stderr. Node stops at 1 MiB
+// when nothing is set, which a build with many warnings exceeds; past this
+// limit the subprocess is ended and the call fails.
+export const SUBPROCESS_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;

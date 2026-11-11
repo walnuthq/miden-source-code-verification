@@ -103,7 +103,7 @@ const buildDebug = async ({
     }
     const [maspBuffer, metadata] = await Promise.all([
       readFile(maspPath),
-      midenPackageMetadata(maspPath),
+      midenPackageMetadata(maspPath, signal),
     ]);
     if ("error" in metadata) {
       return { error: metadata.error };
@@ -195,8 +195,9 @@ const buildProject = async ({
   const [maspBuffer, metadata, cargoLock, builtWith, masmOutput] =
     await Promise.all([
       readFile(maspPath),
-      midenPackageMetadata(maspPath),
-      readCargoLock({ projectDir, rootDir: tmpDir }),
+      midenPackageMetadata(maspPath, signal),
+      readCargoLock({ projectDir, rootDir: tmpDir, signal }),
+      // No signal: the version is asked once per process and shared.
       cargoMidenVersion().catch((error) => {
         console.error(error);
         return undefined;
