@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { rm } from "node:fs/promises";
 import type { Response } from "express";
+import { SUBPROCESS_MAX_OUTPUT_BYTES } from "./constants.ts";
 
 // Best effort: a failed cleanup is logged, never turned into a failed request.
 export const removeDirs = async (dirs: string[]) => {
@@ -29,7 +30,7 @@ export const execFile = (
     cwd,
     env,
     signal,
-    maxBuffer = 1024 * 1024,
+    maxBuffer = SUBPROCESS_MAX_OUTPUT_BYTES,
   }: {
     timeout: number;
     cwd?: string;
@@ -101,7 +102,9 @@ export const execFile = (
             () =>
               reject(
                 Object.assign(
-                  new Error(`${stream} maxBuffer length exceeded`),
+                  new Error(
+                    `${file} printed more than ${SUBPROCESS_MAX_OUTPUT_BYTES / 1024 / 1024} MiB`,
+                  ),
                   {
                     code: "ERR_CHILD_PROCESS_STDIO_MAXBUFFER",
                     cmd,
