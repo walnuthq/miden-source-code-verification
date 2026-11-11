@@ -13,7 +13,8 @@ export type ProjectFiles = {
 };
 
 // The registry takes at most 1 MB of JSON; the rest of the request and JSON
-// escaping need some of it.
+// escaping need some of it. The "1 MB" in the size error message must change
+// with this.
 export const MAX_PROJECT_BYTES = 1_000_000;
 
 // `error` is why the folder can't be submitted, worded for the user.
@@ -120,20 +121,18 @@ export async function collectProjectFiles(
   if (totalBytes > MAX_PROJECT_BYTES) {
     return {
       error:
-        "The selected sources are larger than 1 MB, the most the verifier accepts.",
+        "The selected project is larger than 1 MB, the most the verifier accepts.",
     };
   }
 
   const entries = await Promise.all(
     kept.map(async ({ rel, file }) => [rel, await readFileText(file)] as const),
   );
-  const binary = entries.find(([, text]) => text === null);
-  if (binary) {
-    return { error: `${binary[0]} is not a UTF-8 text file.` };
+  const projectFiles: Record<string, string> = {};
+  for (const [rel, text] of entries) {
+    if (text === null) return { error: `${rel} is not a UTF-8 text file.` };
+    projectFiles[rel] = text;
   }
 
-  return {
-    files: Object.fromEntries(entries) as Record<string, string>,
-    entrypoints,
-  };
+  return { files: projectFiles, entrypoints };
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   collectProjectFiles,
+  MAX_PROJECT_BYTES,
   selectProjectFiles,
 } from "@/lib/collect-project-files";
 
@@ -84,11 +85,15 @@ describe("collectProjectFiles", () => {
   it("refuses a folder larger than the verifier accepts", async () => {
     const result = await collectProjectFiles([
       new File(["[package]"], "counter/Cargo.toml"),
-      new File([new Uint8Array(1_000_001)], "counter/src/lib.rs"),
+      // Not UTF-8: if it were read first, the result would be the not-text error.
+      new File(
+        [new Uint8Array(MAX_PROJECT_BYTES + 1).fill(0xff)],
+        "counter/src/lib.rs",
+      ),
     ]);
     expect(result).toEqual({
       error:
-        "The selected sources are larger than 1 MB, the most the verifier accepts.",
+        "The selected project is larger than 1 MB, the most the verifier accepts.",
     });
   });
 

@@ -40,7 +40,7 @@ export function ImportSources({
 }: ImportSourcesProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
-  const latest = useRef(0);
+  const latestPick = useRef(0);
   const fileCount = Object.keys(files).length;
 
   return (
@@ -71,14 +71,14 @@ export function ImportSources({
             input.value = "";
             if (!picked) return;
             // A folder picked while another is still being read wins.
-            const run = ++latest.current;
+            const pick = ++latestPick.current;
             let result: ProjectFilesResult;
             try {
               result = await collectProjectFiles(picked);
             } catch {
               result = { error: "The selected folder could not be read." };
             }
-            if (run !== latest.current) return;
+            if (pick !== latestPick.current) return;
             if ("error" in result) {
               setError(result.error);
               return;
