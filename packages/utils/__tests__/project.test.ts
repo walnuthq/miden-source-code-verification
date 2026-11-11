@@ -108,6 +108,14 @@ describe("openProject", () => {
     expect(openProject({ ...rootProject, src: "", "src/lib.rs": "" })).toEqual({
       error: "invalid file path: src",
     });
+    const multiByte = `src/${"é".repeat(128)}`;
+    expect(openProject({ ...rootProject, [multiByte]: "" })).toEqual({
+      error: `invalid file path: ${multiByte}`,
+    });
+    // The clash key comes first in key order, so it wins over the bad content.
+    expect(openProject({ ...rootProject, src: "", "src/other.rs": 1 })).toEqual(
+      { error: "invalid file path: src" },
+    );
     expect(
       openProject({ ...rootProject, [`src/${"a".repeat(255)}`]: "" }),
     ).toHaveProperty("project");

@@ -21,19 +21,19 @@ export type ProjectResult = { project: Project } | { error: string };
 const CARGO_TOML = "Cargo.toml";
 const MIDEN_PROJECT_TOML = "miden-project.toml";
 
+const MAX_SEGMENT_BYTES = 255;
+const textEncoder = new TextEncoder();
+const hasControlCharacter = (path: string) =>
+  [...path].some((character) => {
+    const code = character.charCodeAt(0);
+    return code <= 31 || code === 127;
+  });
+
 // A clean project-relative path: `/`-separated segments, none of them empty,
 // `.` or `..`, or longer than 255 bytes, and no backslash or control
 // character. Every such path written under a directory stays under it, which
 // is what keeps one request's files out of another's, and can be created as a
 // file under any directory.
-const MAX_SEGMENT_BYTES = 255;
-const hasControlCharacter = (path: string) =>
-  [...path].some((character) => {
-    const codePoint = character.codePointAt(0) ?? 0;
-    return codePoint <= 31 || codePoint === 127;
-  });
-const textEncoder = new TextEncoder();
-
 const isProjectRelativePath = (path: string) =>
   path.length > 0 &&
   !path.includes("\\") &&
@@ -48,9 +48,10 @@ const isProjectRelativePath = (path: string) =>
         textEncoder.encode(segment).length <= MAX_SEGMENT_BYTES,
     );
 
-// The first key that is also the directory of another key, which can't be
-// written to disk as both a file and a directory.
-const findFileThatIsADirectory = (paths: string[]) => {
+// Every directory some key lives under (for `a/b/c`: `a` and `a/b`). A key
+// that is also in this set can't be written to disk as both a file and a
+// directory.
+const directoriesOf = (paths: string[]) => {
   const directories = new Set<string>();
   for (const path of paths) {
     const segments = path.split("/");
@@ -58,7 +59,7 @@ const findFileThatIsADirectory = (paths: string[]) => {
       directories.add(segments.slice(0, length).join("/"));
     }
   }
-  return paths.find((path) => directories.has(path));
+  return directories;
 };
 
 // The entrypoint as callers send it: absent, `` or `.` for the root, else a
@@ -128,17 +129,14 @@ export const openProject = (
   if (typeof files !== "object" || files === null || Array.isArray(files)) {
     return { error: "missing files" };
   }
+  const directories = directoriesOf(Object.keys(files));
   for (const [path, content] of Object.entries(files)) {
-    if (!isProjectRelativePath(path)) {
+    if (!isProjectRelativePath(path) || directories.has(path)) {
       return { error: `invalid file path: ${path}` };
     }
     if (typeof content !== "string") {
       return { error: `invalid file content: ${path}` };
     }
-  }
-  const fileThatIsADirectory = findFileThatIsADirectory(Object.keys(files));
-  if (fileThatIsADirectory !== undefined) {
-    return { error: `invalid file path: ${fileThatIsADirectory}` };
   }
   const projectFiles = files as Record<string, string>;
   const dir = normalizeEntrypoint(entrypoint);
