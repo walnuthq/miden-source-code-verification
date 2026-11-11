@@ -6,6 +6,7 @@ import type {
   DebugBuild,
   MasmOutput,
 } from "miden-source-code-verification-utils/api-compile";
+import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import {
   type Manifest,
   procedureExportPaths,
@@ -20,6 +21,7 @@ import {
 import {
   CARGO_TARGET_DIR,
   COMPILE_CONCURRENCY,
+  COMPILE_DEADLINE_MS,
   COMPILE_QUEUE_SIZE,
   MAX_DEBUG_MASP_BYTES,
   MAX_MASM_BYTES,
@@ -243,6 +245,12 @@ const buildProject = async ({
   };
 };
 
+const deadlineError = () =>
+  new HttpError(
+    504,
+    `the build did not finish within ${COMPILE_DEADLINE_MS / 1000}s`,
+  );
+
 // Builds in a fresh copy of the project, into its own output directory. Both
 // are deleted by `cleanup`, or right away if the build throws: nothing reuses
 // them, and left behind they'd fill the disk.
@@ -253,14 +261,27 @@ const compile = async (args: CompileArgs) => {
   const outputName = (tmpDir.split("/").at(-1) ?? "").replaceAll("-", "_");
   const midencTargetDir = `${CARGO_TARGET_DIR}/${outputName}`;
   const cleanup = () => removeDirs([tmpDir, midencTargetDir]);
+  // Started once the slot is taken: time spent queued doesn't count.
+  const deadline = AbortSignal.timeout(COMPILE_DEADLINE_MS);
+  const signal = args.signal
+    ? AbortSignal.any([args.signal, deadline])
+    : deadline;
   try {
-    return {
-      build: await buildProject({ ...args, tmpDir, midencTargetDir }),
-      cleanup,
-    };
+    const build = await buildProject({
+      ...args,
+      signal,
+      tmpDir,
+      midencTargetDir,
+    });
+    // A build the deadline ended comes back as a failed build, or throws from
+    // a tool it cut short: either way the answer is the deadline, not that.
+    if (deadline.aborted) {
+      throw deadlineError();
+    }
+    return { build, cleanup };
   } catch (error) {
     await cleanup();
-    throw error;
+    throw deadline.aborted ? deadlineError() : error;
   }
 };
 

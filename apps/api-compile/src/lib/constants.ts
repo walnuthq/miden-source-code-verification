@@ -15,6 +15,12 @@ export const MIDEN_CLIENT_CACHE_DIR =
 export const CARGO_MIDEN_BUILD_TIMEOUT_MS = 240_000;
 export const MIDEN_TOOL_TIMEOUT_MS = 60_000;
 
+// How long one request may hold the build slot, all its subprocesses together:
+// the offline build, its online retry, the debug build and the tools after
+// them. Below the 420 s the Cloudflare Worker in front of the container allows,
+// so the caller gets this 504 rather than the Worker's.
+export const COMPILE_DEADLINE_MS = 400_000;
+
 // Builds share CARGO_TARGET_DIR, whose lock makes cargo run them one at a time
 // anyway. Queue a few more and turn the rest away with a 503, rather than pile
 // up waiting builds until the container stops answering.
