@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
@@ -17,7 +17,12 @@ export class VerifierError extends HttpError {
 export const writeResourceFile = async (resource: string) => {
   const tmpDir = await mkdtemp(join(tmpdir(), "miden-resource-"));
   const resourcePath = join(tmpDir, "resource.txt");
-  await writeFile(resourcePath, resource);
+  try {
+    await writeFile(resourcePath, resource);
+  } catch (error) {
+    await rm(tmpDir, { recursive: true, force: true });
+    throw error;
+  }
   return resourcePath;
 };
 

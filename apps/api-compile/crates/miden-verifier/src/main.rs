@@ -308,7 +308,9 @@ async fn run() -> Result<()> {
         "mdev" => Endpoint::devnet(),
         "mm" => Endpoint::mainnet(),
         "mlcl" => Endpoint::localhost(),
-        other => rejected!("unsupported network ID `{other}`; expected `mtst`, `mdev`, `mm` or `mlcl`"),
+        other => {
+            rejected!("unsupported network ID `{other}`; expected `mtst`, `mdev`, `mm` or `mlcl`")
+        }
     };
     let timeout_ms = 10_000;
     let rpc_client = Arc::new(GrpcClient::new(&endpoint, timeout_ms));
@@ -354,7 +356,13 @@ async fn run() -> Result<()> {
             let account = if let Some(resource_path) = args.resource_path {
                 let resource = fs::read_to_string(&resource_path)?;
                 let resource_bytes = BASE64_STANDARD.decode(resource).map_err(rejected)?;
-                Account::read_from_bytes(&resource_bytes).map_err(rejected)?
+                let account = Account::read_from_bytes(&resource_bytes).map_err(rejected)?;
+                // The bytes are the caller's: they must be the account the
+                // request names, or the answer is about another one.
+                if account.id() != account_id {
+                    rejected!("resource is not account '{}'", args.resource_id);
+                }
+                account
             } else {
                 client
                     .import_account_by_id(account_id)
@@ -373,6 +381,9 @@ async fn run() -> Result<()> {
                 let resource = fs::read_to_string(&resource_path)?;
                 let resource_bytes = BASE64_STANDARD.decode(resource).map_err(rejected)?;
                 let note = Note::read_from_bytes(&resource_bytes).map_err(rejected)?;
+                if note.id() != note_id {
+                    rejected!("resource is not note '{}'", args.resource_id);
+                }
                 note.script().clone()
             } else {
                 client
