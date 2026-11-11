@@ -15,11 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "miden-source-code-verification-ui";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 import {
   collectProjectFiles,
   type ProjectFiles,
+  type ProjectFilesResult,
 } from "@/lib/collect-project-files";
 
 type ImportSourcesProps = {
@@ -38,6 +39,8 @@ export function ImportSources({
   onEntrypointChange,
 }: ImportSourcesProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const latestPick = useRef(0);
   const fileCount = Object.keys(files).length;
 
   return (
@@ -63,13 +66,32 @@ export function ImportSources({
           className="hidden"
           onChange={async (event) => {
             const input = event.currentTarget;
-            if (input.files?.length) {
-              onImport(await collectProjectFiles(input.files));
-            }
+            const picked = input.files?.length ? Array.from(input.files) : null;
             // Reset so re-selecting the same folder fires onChange again.
             input.value = "";
+            if (!picked) return;
+            // A folder picked while another is still being read wins.
+            const pick = ++latestPick.current;
+            let result: ProjectFilesResult;
+            try {
+              result = await collectProjectFiles(picked);
+            } catch {
+              result = { error: "The selected folder could not be read." };
+            }
+            if (pick !== latestPick.current) return;
+            if ("error" in result) {
+              setError(result.error);
+              return;
+            }
+            setError(null);
+            onImport(result);
           }}
         />
+        {error && (
+          <p role="alert" className="text-destructive">
+            {error}
+          </p>
+        )}
         {fileCount > 0 && (
           <p className="text-muted-foreground">
             {fileCount} {fileCount === 1 ? "file" : "files"} imported

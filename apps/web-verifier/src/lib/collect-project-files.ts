@@ -12,6 +12,14 @@ export type ProjectFiles = {
   entrypoints: string[];
 };
 
+// The registry takes at most 1 MB of JSON; the rest of the request and JSON
+// escaping need some of it. The "1 MB" in the size error message must change
+// with this.
+export const MAX_PROJECT_BYTES = 1_000_000;
+
+// `error` is why the folder can't be submitted, worded for the user.
+export type ProjectFilesResult = ProjectFiles | { error: string };
+
 // The browser prefixes every `webkitRelativePath` with the picked folder's own
 // name; drop it so keys are relative to the selected folder.
 function stripRoot(path: string): string {
@@ -74,16 +82,16 @@ export function selectProjectFiles(webkitRelativePaths: string[]): {
   return { includedPaths, entrypoints: [...entrypoints].sort() };
 }
 
-// Reads a file's text content, per spec, via FileReader.readAsArrayBuffer.
-function readFileText(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      resolve(new TextDecoder("utf-8").decode(reader.result as ArrayBuffer));
-    };
-    reader.onerror = () => reject(reader.error);
-    reader.readAsArrayBuffer(file);
-  });
+// Reads a file's text content; `null` when its bytes aren't UTF-8.
+async function readFileText(file: File): Promise<string | null> {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(
+      await file.arrayBuffer(),
+    );
+  } catch (error) {
+    if (error instanceof TypeError) return null; // not UTF-8
+    throw error;
+  }
 }
 
 /**
@@ -92,7 +100,7 @@ function readFileText(file: File): Promise<string> {
  */
 export async function collectProjectFiles(
   fileList: FileList | File[],
-): Promise<ProjectFiles> {
+): Promise<ProjectFilesResult> {
   const files = Array.from(fileList);
 
   // Pass the raw paths — selectProjectFiles strips the root itself.
@@ -101,15 +109,30 @@ export async function collectProjectFiles(
   );
   const included = new Set(includedPaths);
 
-  const entries = await Promise.all(
-    files
-      .map((file) => ({
-        rel: stripRoot(file.webkitRelativePath || file.name),
-        file,
-      }))
-      .filter(({ rel }) => included.has(rel))
-      .map(async ({ rel, file }) => [rel, await readFileText(file)] as const),
-  );
+  const kept = files
+    .map((file) => ({
+      rel: stripRoot(file.webkitRelativePath || file.name),
+      file,
+    }))
+    .filter(({ rel }) => included.has(rel))
+    .sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0));
 
-  return { files: Object.fromEntries(entries), entrypoints };
+  const totalBytes = kept.reduce((sum, { file }) => sum + file.size, 0);
+  if (totalBytes > MAX_PROJECT_BYTES) {
+    return {
+      error:
+        "The selected project is larger than 1 MB, the most the verifier accepts.",
+    };
+  }
+
+  const entries = await Promise.all(
+    kept.map(async ({ rel, file }) => [rel, await readFileText(file)] as const),
+  );
+  const projectFiles: Record<string, string> = {};
+  for (const [rel, text] of entries) {
+    if (text === null) return { error: `${rel} is not a UTF-8 text file.` };
+    projectFiles[rel] = text;
+  }
+
+  return { files: projectFiles, entrypoints };
 }
