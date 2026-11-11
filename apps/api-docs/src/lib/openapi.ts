@@ -5,7 +5,7 @@ import { API_REGISTRY_URL } from "./constants.ts";
 
 // Walk up from this file until we find the monorepo root (the directory that
 // holds `pnpm-workspace.yaml`). This keeps the source globs below valid whether
-// the server is run from source (tsx) or from a built `dist/` directory.
+// this runs from source or from a built `dist/` directory.
 const findRepoRoot = (start: string): string => {
   let dir = start;
   while (true) {
