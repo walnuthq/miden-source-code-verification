@@ -128,7 +128,7 @@ fn faucet_url(network_id: &NetworkId) -> Result<String> {
 /// previous one. Nothing is ever signed here — every account deployed by this
 /// tool authenticates without a signature — and the client would build without
 /// an authenticator. The keystore is handed to it all the same, so the client
-/// has the type the other helper tools use.
+/// has the type `miden-import` and `miden-verifier` use.
 async fn connect(network_id: &NetworkId, workdir: &Path) -> Result<Client<FilesystemKeyStore>> {
     let rpc_client = Arc::new(GrpcClient::new(&endpoint(network_id)?, RPC_TIMEOUT_MS));
     let keystore = Arc::new(
