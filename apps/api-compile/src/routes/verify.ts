@@ -11,8 +11,8 @@ const router = Router();
 type VerifyRequestBody = {
   files?: unknown;
   entrypoint?: unknown;
-  networkId?: string;
-  resourceId?: string;
+  networkId?: unknown;
+  resourceId?: unknown;
   resource?: unknown;
   debug?: boolean;
 };
@@ -25,11 +25,11 @@ router.post("/verify", async (req, res) => {
     res.status(400).json({ error: opened.error });
     return;
   }
-  if (!networkId) {
+  if (typeof networkId !== "string" || !networkId) {
     res.status(400).json({ error: "missing networkId" });
     return;
   }
-  if (!resourceId) {
+  if (typeof resourceId !== "string" || !resourceId) {
     res.status(400).json({ error: "missing resourceId" });
     return;
   }

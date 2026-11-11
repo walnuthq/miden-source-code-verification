@@ -95,6 +95,32 @@ describe("openProject", () => {
     }
   });
 
+  it("refuses a file path that can't be written", () => {
+    for (const path of [
+      "src/a\u0000.rs",
+      "src/a\n.rs",
+      `src/${"a".repeat(256)}.rs`,
+    ]) {
+      expect(openProject({ ...rootProject, [path]: "" })).toEqual({
+        error: `invalid file path: ${path}`,
+      });
+    }
+    expect(openProject({ ...rootProject, src: "", "src/lib.rs": "" })).toEqual({
+      error: "invalid file path: src",
+    });
+    const multiByte = `src/${"é".repeat(128)}`;
+    expect(openProject({ ...rootProject, [multiByte]: "" })).toEqual({
+      error: `invalid file path: ${multiByte}`,
+    });
+    // The clash key comes first in key order, so it wins over the bad content.
+    expect(openProject({ ...rootProject, src: "", "src/other.rs": 1 })).toEqual(
+      { error: "invalid file path: src" },
+    );
+    expect(
+      openProject({ ...rootProject, [`src/${"a".repeat(255)}`]: "" }),
+    ).toHaveProperty("project");
+  });
+
   it("refuses a file whose content isn't text", () => {
     expect(openProject({ ...rootProject, "src/lib.rs": 1 })).toEqual({
       error: "invalid file content: src/lib.rs",

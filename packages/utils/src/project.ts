@@ -21,15 +21,46 @@ export type ProjectResult = { project: Project } | { error: string };
 const CARGO_TOML = "Cargo.toml";
 const MIDEN_PROJECT_TOML = "miden-project.toml";
 
+const MAX_SEGMENT_BYTES = 255;
+const textEncoder = new TextEncoder();
+const hasControlCharacter = (path: string) =>
+  [...path].some((character) => {
+    const code = character.charCodeAt(0);
+    return code <= 31 || code === 127;
+  });
+
 // A clean project-relative path: `/`-separated segments, none of them empty,
-// `.` or `..`, and no backslash. Every such path written under a directory
-// stays under it, which is what keeps one request's files out of another's.
+// `.` or `..`, or longer than 255 bytes, and no backslash or control
+// character. Every such path written under a directory stays under it, which
+// is what keeps one request's files out of another's, and can be created as a
+// file under any directory.
 const isProjectRelativePath = (path: string) =>
   path.length > 0 &&
   !path.includes("\\") &&
+  !hasControlCharacter(path) &&
   path
     .split("/")
-    .every((segment) => segment !== "" && segment !== "." && segment !== "..");
+    .every(
+      (segment) =>
+        segment !== "" &&
+        segment !== "." &&
+        segment !== ".." &&
+        textEncoder.encode(segment).length <= MAX_SEGMENT_BYTES,
+    );
+
+// Every directory some key lives under (for `a/b/c`: `a` and `a/b`). A key
+// that is also in this set can't be written to disk as both a file and a
+// directory.
+const directoriesOf = (paths: string[]) => {
+  const directories = new Set<string>();
+  for (const path of paths) {
+    const segments = path.split("/");
+    for (let length = 1; length < segments.length; length += 1) {
+      directories.add(segments.slice(0, length).join("/"));
+    }
+  }
+  return directories;
+};
 
 // The entrypoint as callers send it: absent, `` or `.` for the root, else a
 // relative directory, which may carry a leading `./` or a trailing `/`. Null
@@ -98,8 +129,9 @@ export const openProject = (
   if (typeof files !== "object" || files === null || Array.isArray(files)) {
     return { error: "missing files" };
   }
+  const directories = directoriesOf(Object.keys(files));
   for (const [path, content] of Object.entries(files)) {
-    if (!isProjectRelativePath(path)) {
+    if (!isProjectRelativePath(path) || directories.has(path)) {
       return { error: `invalid file path: ${path}` };
     }
     if (typeof content !== "string") {
