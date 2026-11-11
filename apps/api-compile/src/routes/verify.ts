@@ -13,7 +13,7 @@ type VerifyRequestBody = {
   entrypoint?: unknown;
   networkId?: string;
   resourceId?: string;
-  resource?: string;
+  resource?: unknown;
   debug?: boolean;
 };
 
@@ -31,6 +31,10 @@ router.post("/verify", async (req, res) => {
   }
   if (!resourceId) {
     res.status(400).json({ error: "missing resourceId" });
+    return;
+  }
+  if (resource !== undefined && typeof resource !== "string") {
+    res.status(400).json({ error: "invalid resource" });
     return;
   }
   // Verifying reads the built package from disk, so it runs before the

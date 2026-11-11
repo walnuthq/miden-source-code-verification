@@ -257,6 +257,56 @@ describe("POST /verify", () => {
     expect(res.body).toHaveProperty("manifest");
   });
 
+  it("doesn't verify account bytes sent under another account's ID", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+    const { resource } = accounts[COUNTER_CONTRACT_ID_1];
+
+    const res = await api.post("/verify").send({
+      files,
+      networkId,
+      resourceId: BANK_ACCOUNT_ID_1,
+      resource,
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("resource is not account");
+  });
+
+  it("doesn't verify note bytes sent under another note's ID", async () => {
+    const files = await readProjectFiles(counterContractDir);
+    const entrypoint = "counter-note";
+    const { resource } = notes[COUNTER_NOTE_ID_1];
+
+    const res = await api.post("/verify").send({
+      files,
+      entrypoint,
+      networkId,
+      resourceId: MISSING_NOTE_ID,
+      resource,
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("resource is not note");
+  });
+
+  it("rejects a resource that isn't a string", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+
+    const res = await api.post("/verify").send({
+      files,
+      networkId,
+      resourceId: COUNTER_CONTRACT_ID_1,
+      resource: 42,
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "invalid resource" });
+  });
+
   it("verifies an on-chain counter-note", async () => {
     const files = await readProjectFiles(counterContractDir);
     const entrypoint = "counter-note";
