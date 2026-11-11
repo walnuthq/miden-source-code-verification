@@ -27,6 +27,12 @@ export const COMPILE_DEADLINE_MS = 400_000;
 export const COMPILE_CONCURRENCY = Number(process.env.COMPILE_CONCURRENCY ?? 1);
 export const COMPILE_QUEUE_SIZE = Number(process.env.COMPILE_QUEUE_SIZE ?? 8);
 
+// An import is a `miden-import` run: a second or so, a connection to the node
+// and a write to the network's client store. A few at once are fine; a burst
+// of them would start one process each on a single container.
+export const IMPORT_CONCURRENCY = Number(process.env.IMPORT_CONCURRENCY ?? 4);
+export const IMPORT_QUEUE_SIZE = Number(process.env.IMPORT_QUEUE_SIZE ?? 16);
+
 // How long in-flight requests get to finish on SIGTERM. It must stay below the
 // 15 minutes Cloudflare waits during a rollout before it kills the container.
 export const SHUTDOWN_TIMEOUT_MS = 600_000;
