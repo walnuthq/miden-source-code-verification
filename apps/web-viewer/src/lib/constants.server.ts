@@ -6,5 +6,7 @@ export const API_REGISTRY_URL =
 
 // The registry's lookup by id waits on api-compile for up to 120 s (a cold
 // container takes about 50 s to start) before answering 504 itself. Just past
-// that, so its own answer normally arrives first.
+// that, so its own answer normally arrives first. Follows
+// `API_COMPILE_IMPORT_TIMEOUT_MS` (apps/api-registry/src/lib/constants.ts, used
+// by apps/api-registry/src/lib/api-compile.ts).
 export const API_REGISTRY_TIMEOUT_MS = 125_000;

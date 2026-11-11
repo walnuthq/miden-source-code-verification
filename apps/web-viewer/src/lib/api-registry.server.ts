@@ -46,6 +46,13 @@ const unavailable = (status: number) =>
       "The verification status could not be checked right now. Please try again in a minute.",
   });
 
+// A timeout, whether while waiting for the answer or while reading its body,
+// is a 504; any other failure to get the answer is a 502.
+const unavailableAfter = (error: unknown) =>
+  unavailable(
+    error instanceof Error && error.name === "TimeoutError" ? 504 : 502,
+  );
+
 // `null` when the registry answers 404: it has no verified record for the
 // resource, which includes ids that don't resolve on-chain. A 502–504 means it
 // couldn't look the resource up (its compiler, or the node, failed), which the
@@ -59,9 +66,7 @@ async function getVerifiedResource<T>(path: string): Promise<T | null> {
       signal: AbortSignal.timeout(API_REGISTRY_TIMEOUT_MS),
     });
   } catch (error) {
-    throw unavailable(
-      error instanceof Error && error.name === "TimeoutError" ? 504 : 502,
-    );
+    throw unavailableAfter(error);
   }
   if (response.status === 404) {
     return null;
@@ -72,8 +77,8 @@ async function getVerifiedResource<T>(path: string): Promise<T | null> {
   if (!response.ok) {
     throw new Error(`api-registry responded ${response.status} for ${path}`);
   }
-  return response.json().catch(() => {
-    throw unavailable(502);
+  return response.json().catch((error: unknown) => {
+    throw unavailableAfter(error);
   });
 }
 
