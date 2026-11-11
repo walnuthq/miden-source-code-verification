@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import type { VerifyResponse } from "miden-source-code-verification-utils/api-compile";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import type { Project } from "miden-source-code-verification-utils/project";
@@ -11,6 +12,7 @@ import {
 } from "../db/schema.ts";
 import type { MaspStore } from "../storage/masp-store.ts";
 import type { ApiCompile } from "./api-compile.ts";
+import { PLAYGROUND_SOURCE } from "./cleanup-playground.ts";
 import { storeDebugBuild } from "./debug-build.ts";
 
 // The on-chain resource a verification or a lookup is for, named by its id.
@@ -109,18 +111,28 @@ const insertAccountComponent = async (
 ) => {
   const verifiedAccountId = await insertVerifiedAccount(tx, networkId, code);
   // A conflict is the package verified into the code before, or by a
-  // concurrent verification that committed first: either way already
-  // verified.
-  const [inserted] = await tx
+  // concurrent verification that committed first. One with a playground
+  // record is taken over by a verification from another source; any other is
+  // already verified.
+  const target = [
+    verifiedAccountComponentTable.verifiedAccountId,
+    verifiedAccountComponentTable.packageCommitment,
+  ];
+  const now = new Date();
+  const insert = tx
     .insert(verifiedAccountComponentTable)
-    .values({ verifiedAccountId, packageId, packageCommitment, source })
-    .onConflictDoNothing({
-      target: [
-        verifiedAccountComponentTable.verifiedAccountId,
-        verifiedAccountComponentTable.packageCommitment,
-      ],
-    })
-    .returning({ id: verifiedAccountComponentTable.id });
+    .values({ verifiedAccountId, packageId, packageCommitment, source });
+  const [inserted] = await (source === PLAYGROUND_SOURCE
+    ? insert.onConflictDoNothing({ target })
+    : insert.onConflictDoUpdate({
+        target,
+        // Only a record the playground made, which cleanup would delete
+        // within a day: this verification replaces it, so the root stays
+        // verified.
+        set: { source, packageId, createdAt: now, updatedAt: now },
+        setWhere: eq(verifiedAccountComponentTable.source, PLAYGROUND_SOURCE),
+      })
+  ).returning({ id: verifiedAccountComponentTable.id });
   if (!inserted) {
     throw new HttpError(409, "account component already verified");
   }
@@ -143,17 +155,33 @@ const insertNote = async (
   },
 ) => {
   // A conflict is a note verified before, or by a concurrent verification
-  // that committed first: either way already verified.
-  const [inserted] = await tx
+  // that committed first. One with a playground record is taken over by a
+  // verification from another source; any other is already verified.
+  const target = [
+    verifiedNoteScriptTable.networkId,
+    verifiedNoteScriptTable.script,
+  ];
+  const now = new Date();
+  const insert = tx
     .insert(verifiedNoteScriptTable)
-    .values({ networkId, script, source, packageId, packageCommitment })
-    .onConflictDoNothing({
-      target: [
-        verifiedNoteScriptTable.networkId,
-        verifiedNoteScriptTable.script,
-      ],
-    })
-    .returning({ id: verifiedNoteScriptTable.id });
+    .values({ networkId, script, source, packageId, packageCommitment });
+  const [inserted] = await (source === PLAYGROUND_SOURCE
+    ? insert.onConflictDoNothing({ target })
+    : insert.onConflictDoUpdate({
+        target,
+        // Only a record the playground made, which cleanup would delete
+        // within a day: this verification replaces it, so the root stays
+        // verified.
+        set: {
+          source,
+          packageId,
+          packageCommitment,
+          createdAt: now,
+          updatedAt: now,
+        },
+        setWhere: eq(verifiedNoteScriptTable.source, PLAYGROUND_SOURCE),
+      })
+  ).returning({ id: verifiedNoteScriptTable.id });
   if (!inserted) {
     throw new HttpError(409, "note already verified");
   }
@@ -166,7 +194,8 @@ const insertNote = async (
  * Returns whether it verified. Throws a 409 `HttpError` when the root is
  * already verified: for an account, by this very package, since an account
  * code is made of several; for a note, at all, since a note's script root is
- * its package's commitment.
+ * its package's commitment. A record whose source is the playground's is
+ * taken over by a verification from any other source instead.
  */
 export const verifyResource = async ({
   networkId,

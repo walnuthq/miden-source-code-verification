@@ -98,6 +98,9 @@ type VerifyNoteRequestBody = {
  *         description: >
  *           The note's script root on `networkId` is already verified: nothing
  *           to record.
+ *           A record verified by the Miden Playground (`source:
+ *           miden-playground`) is not a conflict for another source: that
+ *           verification replaces it and answers `verified: true`.
  *         content:
  *           application/json:
  *             schema:
