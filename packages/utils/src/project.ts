@@ -22,14 +22,44 @@ const CARGO_TOML = "Cargo.toml";
 const MIDEN_PROJECT_TOML = "miden-project.toml";
 
 // A clean project-relative path: `/`-separated segments, none of them empty,
-// `.` or `..`, and no backslash. Every such path written under a directory
-// stays under it, which is what keeps one request's files out of another's.
+// `.` or `..`, or longer than 255 bytes, and no backslash or control
+// character. Every such path written under a directory stays under it, which
+// is what keeps one request's files out of another's, and can be created as a
+// file under any directory.
+const MAX_SEGMENT_BYTES = 255;
+const hasControlCharacter = (path: string) =>
+  [...path].some((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return codePoint <= 31 || codePoint === 127;
+  });
+const textEncoder = new TextEncoder();
+
 const isProjectRelativePath = (path: string) =>
   path.length > 0 &&
   !path.includes("\\") &&
+  !hasControlCharacter(path) &&
   path
     .split("/")
-    .every((segment) => segment !== "" && segment !== "." && segment !== "..");
+    .every(
+      (segment) =>
+        segment !== "" &&
+        segment !== "." &&
+        segment !== ".." &&
+        textEncoder.encode(segment).length <= MAX_SEGMENT_BYTES,
+    );
+
+// The first key that is also the directory of another key, which can't be
+// written to disk as both a file and a directory.
+const findFileThatIsADirectory = (paths: string[]) => {
+  const directories = new Set<string>();
+  for (const path of paths) {
+    const segments = path.split("/");
+    for (let length = 1; length < segments.length; length += 1) {
+      directories.add(segments.slice(0, length).join("/"));
+    }
+  }
+  return paths.find((path) => directories.has(path));
+};
 
 // The entrypoint as callers send it: absent, `` or `.` for the root, else a
 // relative directory, which may carry a leading `./` or a trailing `/`. Null
@@ -105,6 +135,10 @@ export const openProject = (
     if (typeof content !== "string") {
       return { error: `invalid file content: ${path}` };
     }
+  }
+  const fileThatIsADirectory = findFileThatIsADirectory(Object.keys(files));
+  if (fileThatIsADirectory !== undefined) {
+    return { error: `invalid file path: ${fileThatIsADirectory}` };
   }
   const projectFiles = files as Record<string, string>;
   const dir = normalizeEntrypoint(entrypoint);

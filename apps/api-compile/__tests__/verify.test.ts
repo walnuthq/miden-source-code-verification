@@ -74,6 +74,24 @@ describe("POST /verify", () => {
     expect(res.body).toHaveProperty("error", "missing networkId");
   });
 
+  it("rejects a network ID or a resource ID that isn't a string", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+
+    const badNetwork = await api
+      .post("/verify")
+      .send({ files, networkId: ["mtst"], resourceId: "0x1" });
+    expect(badNetwork.status).toBe(400);
+    expect(badNetwork.body).toHaveProperty("error", "missing networkId");
+
+    const badResource = await api
+      .post("/verify")
+      .send({ files, networkId, resourceId: { id: "0x1" } });
+    expect(badResource.status).toBe(400);
+    expect(badResource.body).toHaveProperty("error", "missing resourceId");
+  });
+
   it("rejects requests missing resource ID", async () => {
     const files = await readProjectFiles(
       `${counterContractDir}/counter-contract`,
