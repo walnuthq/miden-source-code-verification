@@ -39,7 +39,7 @@ A verified account or a verified note: what a lookup by resource id or by root a
 _Avoid_: entry, row, match
 
 **Source**:
-Who a verification says it comes from (`miden-verify`, `web-verifier`, `miden-playground`), as the client states it: nothing authenticates it. A verified record keeps the source that recorded it. The Miden Playground's records (`miden-playground`) are throwaway deploys: cleanup deletes them after a day, and a verification of the same root from any other source takes one over.
+Who a verification says it comes from (`miden-verify`, `web-verifier`, `miden-playground`), as the client states it: nothing authenticates it, and a request without one records `unknown`. The web-verifier sends `web-verifier` unless its `?source=` query param names another. A verified record keeps the source that recorded it. The Miden Playground's records (`miden-playground`) are throwaway deploys: cleanup deletes them after a day, and a verification of the same root from any other source takes one over.
 _Avoid_: origin, client
 
 **Build**:

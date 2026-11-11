@@ -25,10 +25,9 @@ type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 // The conflict clause of a verified record's insert: a conflict is the root
 // verified before, or by a concurrent verification that committed first. A
-// record the playground made is a throwaway deploy cleanup deletes within a
-// day, so a verification from any other source takes it over with `set` and
-// the root stays verified. Any other conflict changes nothing and returns no
-// row: already verified.
+// verification from any other source takes over a playground record with
+// `set` (see "Source" in GLOSSARY.md). Any other conflict changes nothing and
+// returns no row: already verified.
 const onConflictTakeOverPlayground = <TSet, TInsert>(
   insert: {
     onConflictDoNothing(config: { target: PgColumn[] }): TInsert;
