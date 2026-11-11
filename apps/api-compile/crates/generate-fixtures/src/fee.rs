@@ -5,10 +5,15 @@
 //! once the chain's `verification_base_fee` is non-zero — see
 //! `ensure_transaction_has_fee` in the node's block producer. That note is
 //! normally created by the account's authentication procedure out of its own
-//! vault, which is not something the counter contracts can do: they authenticate
-//! with `examples/counter-contract/auth-component-no-auth`, and midenc links
-//! neither `miden::standards::fee` nor any Rust binding for the kernel's fee
-//! procedures, so a Rust-compiled auth component cannot pay a fee at all.
+//! vault, which is not something the counter contracts do: they authenticate
+//! with `examples/counter-contract/auth-component-no-auth`, which creates no
+//! fee note. The Rust SDK has no binding for `miden::standards::fee::pay_fee`,
+//! what the standard auth components call. It does bind the kernel procedures
+//! that one is built on (`tx::compute_fee`, `tx::get_fee_asset_id`,
+//! `output_note::create`, `output_note::add_asset`,
+//! `native_account::remove_asset`), but not the standards helpers it also
+//! calls, and no example auth component pays its fee by hand. Whether one can
+//! is untested.
 //!
 //! The protocol does not require the auth procedure to be the note's *creator*,
 //! though — only that the transaction contains one. So [`FeeContext::fee_note`]
@@ -143,7 +148,7 @@ impl FeeContext {
 /// public faucet mint to. Unlike everything else deployed by this tool, that
 /// wallet is assembled from the components `miden-standards` ships: `NoAuth` pays
 /// its own fee out of the faucet note it consumes in the very same transaction,
-/// which is exactly what none of the `examples/` components can do.
+/// which is exactly what none of the `examples/` components does.
 pub async fn fund(
     client: &mut Client<FilesystemKeyStore>,
     fees: &FeeContext,

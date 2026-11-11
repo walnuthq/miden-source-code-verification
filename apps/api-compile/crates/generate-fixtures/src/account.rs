@@ -126,9 +126,8 @@ pub fn assemble(
 /// `increment_count`. The increment does not ride on a transaction script,
 /// because on a fee-charging chain the transaction script slot is taken: the
 /// account's auth component is `examples/counter-contract/auth-component-no-auth`,
-/// which cannot create a fee note (midenc links neither `miden::standards::fee`
-/// nor a Rust binding for the kernel's fee procedures), so the only thing left
-/// that can is the send-notes script the client derives from `own_output_notes` —
+/// which creates no fee note (see `crate::fee`), so the only thing left that
+/// can is the send-notes script the client derives from `own_output_notes` —
 /// and `TransactionRequestBuilder` rejects that together with a custom script.
 /// A note script runs independently of the transaction script, so putting the
 /// increment in a note leaves the script free to carry the fee.
@@ -192,7 +191,7 @@ pub async fn deploy_counter_contract(
 /// `NoAuth` rather than `examples/counter-contract/auth-component-no-auth`. The
 /// standard one creates the fee note itself, so the transaction script slot
 /// stays free for the real init script and no `own_output_notes` is needed;
-/// the example's can't (see `crate::fee`), and the client won't pair its fee
+/// the example's doesn't (see `crate::fee`), and the client won't pair its fee
 /// script with a custom one. `funding` is consumed first so the vault holds the
 /// fee by the time the auth procedure draws on it.
 ///
