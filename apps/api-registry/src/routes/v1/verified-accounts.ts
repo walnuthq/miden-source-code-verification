@@ -99,6 +99,9 @@ type VerifyAccountRequestBody = {
  *         description: >
  *           The account's code root on `networkId` is already verified by this
  *           very package: nothing to record.
+ *           A record verified by the Miden Playground (`source:
+ *           miden-playground`) is not a conflict for another source: that
+ *           verification replaces it and answers `verified: true`.
  *         content:
  *           application/json:
  *             schema:

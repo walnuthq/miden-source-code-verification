@@ -239,7 +239,7 @@ curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
   https://miden-source-code-verification-api-registry.walnut.dev/admin/playground/cleanup
 ```
 
-It deletes their verified account components and notes, then the account codes left with no component and the packages nothing references any more. Last come those packages' `.masp` and `.debug.masp`, unless another package row has the same commitment. A package or account code that another source also verified stays. It answers with the counts: `{ verifiedAccountComponents, verifiedAccounts, verifiedNotes, packages, masps }`.
+It deletes their verified account components and notes, then the account codes left with no component and the packages nothing references any more. Last come those packages' `.masp` and `.debug.masp`, unless another package row has the same commitment. A package or account code that another source also verified stays. A playground record that another source verifies again becomes that source's, so it stays too. It answers with the counts: `{ verifiedAccountComponents, verifiedAccounts, verifiedNotes, packages, masps }`.
 
 ### Front-end URLs on Cloudflare
 

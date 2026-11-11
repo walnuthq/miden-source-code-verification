@@ -75,11 +75,16 @@ describe("verifyResource", () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  const verify = (resource: Resource, apiCompile: ApiCompile) =>
+  const verify = (
+    resource: Resource,
+    apiCompile: ApiCompile,
+    source?: string,
+  ) =>
     verifyResource({
       networkId: "mtst",
       resource,
       project,
+      source,
       maspStore,
       apiCompile,
     });
@@ -89,10 +94,12 @@ describe("verifyResource", () => {
     resource: Resource,
     result: Omit<VerifyResponse, "root">,
     root: string,
+    source?: string,
   ) =>
     verify(
       resource,
       fakeApiCompile({ verify: async () => ({ ...result, root }) }),
+      source,
     );
 
   // Each on its own connection, as each request is on Cloudflare: the shared
@@ -381,6 +388,92 @@ describe("verifyResource", () => {
     expect(error).toMatchObject({
       status: 409,
       message: "note already verified",
+    });
+  });
+
+  describe("a record the playground verified", () => {
+    const root = `0x${"01".repeat(32)}`;
+    const rejection = (promise: Promise<boolean>) =>
+      promise.catch((error: unknown) => error);
+
+    it("takes over an account component the playground verified", async () => {
+      await verifyBuilt(ACCOUNT, built(undefined), root, "miden-playground");
+
+      expect(
+        await verifyBuilt(ACCOUNT, built(undefined), root, "miden-verify"),
+      ).toBe(true);
+
+      const { verifiedAccountComponents } = await findVerifiedRecordByRoot({
+        networkId: "mtst",
+        kind: "account",
+        root,
+      });
+      expect(verifiedAccountComponents).toHaveLength(1);
+      expect(verifiedAccountComponents[0]).toMatchObject({
+        source: "miden-verify",
+      });
+    });
+
+    it("takes over a note the playground verified", async () => {
+      await verifyBuilt(NOTE, built(undefined), root, "miden-playground");
+
+      expect(
+        await verifyBuilt(NOTE, built(undefined), root, "miden-verify"),
+      ).toBe(true);
+
+      expect(
+        await findVerifiedRecordByRoot({
+          networkId: "mtst",
+          kind: "note",
+          root,
+        }),
+      ).toMatchObject({ source: "miden-verify" });
+    });
+
+    it("answers 409 when the playground verifies its own record again", async () => {
+      await verifyBuilt(NOTE, built(undefined), root, "miden-playground");
+
+      const error = await rejection(
+        verifyBuilt(NOTE, built(undefined), root, "miden-playground"),
+      );
+
+      expect(error).toBeInstanceOf(HttpError);
+      expect(error).toMatchObject({ status: 409 });
+    });
+
+    it("answers 409 when the record is another source's", async () => {
+      await verifyBuilt(NOTE, built(undefined), root, "miden-verify");
+
+      const error = await rejection(
+        verifyBuilt(NOTE, built(undefined), root, "web-verifier"),
+      );
+
+      expect(error).toBeInstanceOf(HttpError);
+      expect(error).toMatchObject({ status: 409 });
+      expect(
+        await findVerifiedRecordByRoot({
+          networkId: "mtst",
+          kind: "note",
+          root,
+        }),
+      ).toMatchObject({ source: "miden-verify" });
+    });
+
+    it("leaves a record another source verified alone when the playground comes after", async () => {
+      await verifyBuilt(NOTE, built(undefined), root, "miden-verify");
+
+      const error = await rejection(
+        verifyBuilt(NOTE, built(undefined), root, "miden-playground"),
+      );
+
+      expect(error).toMatchObject({ status: 409 });
+      expect(
+        await findVerifiedRecordByRoot({
+          networkId: "mtst",
+          kind: "note",
+          root,
+        }),
+      ).toMatchObject({ source: "miden-verify" });
     });
   });
 
