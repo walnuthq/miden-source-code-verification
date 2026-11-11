@@ -21,7 +21,7 @@ const localHosts = new Set(["localhost", "127.0.0.1", "::1", "postgres"]);
 if (!localHosts.has(hostname)) {
   throw new Error(
     `Refusing to run destructive test setup against non-local database host "${hostname}". ` +
-      "Point TEST_DATABASE_URL at a local/throwaway database to run these tests.",
+      "Point DATABASE_URL at a local/throwaway database to run these tests.",
   );
 }
 

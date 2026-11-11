@@ -75,7 +75,7 @@ Every package is named `miden-source-code-verification-<dir>` (e.g. `miden-sourc
 ### Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) with Compose v2 (`docker compose`, BuildKit enabled by default).
-- For host-side development (optional): [Node.js](https://nodejs.org) 24+ and [pnpm](https://pnpm.io) (`corepack enable`).
+- For host-side development (optional): [Node.js](https://nodejs.org) 26 and [pnpm](https://pnpm.io). Node 26 doesn't bundle corepack, so install it first: `npm install -g corepack@0.36.0 && corepack enable`.
 
 ### Run the full stack
 
@@ -161,7 +161,7 @@ pnpm build        # build every package
 pnpm check        # what CI runs: lint, typecheck, and only the suites that need no server
 ```
 
-> The `api-registry` test suite talks to Postgres, so start it first: `docker compose up -d postgres`.
+> `pnpm test` also runs the `api-compile` and `api-registry` suites, which call the services on `localhost:8080` and `localhost:8081` and read fixtures on Miden Testnet: start the whole stack first (`docker compose up -d --build`). `pnpm check` needs nothing running.
 
 ## API documentation
 
@@ -177,7 +177,7 @@ pnpm --filter miden-source-code-verification-api-docs dev   # serves the docs at
 
 ## Status page
 
-Liveness and the `/` payloads of the three deployed services are published at:
+Liveness of the four deployed services, and the `/` payloads of the two APIs, are published at:
 
 **https://walnuthq.github.io/miden-source-code-verification/status/**
 
