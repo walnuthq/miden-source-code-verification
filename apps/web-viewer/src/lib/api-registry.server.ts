@@ -10,7 +10,10 @@ import type {
 import type { ResourceId } from "miden-source-code-verification-utils/resource-id";
 import { data } from "react-router";
 
-import { API_REGISTRY_URL } from "@/lib/constants.server";
+import {
+  API_REGISTRY_TIMEOUT_MS,
+  API_REGISTRY_URL,
+} from "@/lib/constants.server";
 
 // The records the pages read are the registry's own wire types
 // (`miden-source-code-verification-utils/api-registry`). Only the manifest is
@@ -36,26 +39,47 @@ export type PackageManifest = {
 
 export type PackageDependency = Pick<Dependency, "name" | "version" | "digest">;
 
+const unavailable = (status: number) =>
+  data(null, {
+    status,
+    statusText:
+      "The verification status could not be checked right now. Please try again in a minute.",
+  });
+
+// A timeout, whether while waiting for the answer or while reading its body,
+// is a 504; any other failure to get the answer is a 502.
+const unavailableAfter = (error: unknown) =>
+  unavailable(
+    error instanceof Error && error.name === "TimeoutError" ? 504 : 502,
+  );
+
 // `null` when the registry answers 404: it has no verified record for the
 // resource, which includes ids that don't resolve on-chain. A 502–504 means it
 // couldn't look the resource up (its compiler, or the node, failed), which the
-// error page reports as temporary rather than as an unexpected error.
+// error page reports as temporary rather than as an unexpected error. A
+// registry that can't be reached, takes too long or answers something that
+// isn't JSON is reported the same way.
 async function getVerifiedResource<T>(path: string): Promise<T | null> {
-  const response = await fetch(`${API_REGISTRY_URL}${path}`);
+  let response: Response;
+  try {
+    response = await fetch(`${API_REGISTRY_URL}${path}`, {
+      signal: AbortSignal.timeout(API_REGISTRY_TIMEOUT_MS),
+    });
+  } catch (error) {
+    throw unavailableAfter(error);
+  }
   if (response.status === 404) {
     return null;
   }
   if (response.status >= 502 && response.status <= 504) {
-    throw data(null, {
-      status: response.status,
-      statusText:
-        "The verification status could not be checked right now. Please try again in a minute.",
-    });
+    throw unavailable(response.status);
   }
   if (!response.ok) {
     throw new Error(`api-registry responded ${response.status} for ${path}`);
   }
-  return response.json();
+  return response.json().catch((error: unknown) => {
+    throw unavailableAfter(error);
+  });
 }
 
 // The verified record for a resource on a network, by its on-chain id: the

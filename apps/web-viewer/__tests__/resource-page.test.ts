@@ -6,6 +6,7 @@ import type {
 } from "miden-source-code-verification-utils/api-registry";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { API_REGISTRY_TIMEOUT_MS } from "@/lib/constants.server";
 import { loadResourcePage } from "@/lib/resource-page.server";
 
 const ACCOUNT_ID = "0x7db388f2c58f4251104a1aa6a7c2d4";
@@ -121,6 +122,7 @@ const json = (body: unknown, status = 200) =>
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("loadResourcePage", () => {
@@ -157,6 +159,91 @@ describe("loadResourcePage", () => {
     });
   });
 
+  it("reports a registry it can't reach as temporary", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new TypeError("fetch failed"))),
+    );
+    await expect(
+      loadResourcePage({
+        networkId: "mtst",
+        resource: { kind: "account", accountId: ACCOUNT_ID },
+      }),
+    ).rejects.toMatchObject({
+      init: { status: 502, statusText: UNAVAILABLE },
+    });
+  });
+
+  it("gives up on a registry that doesn't answer", async () => {
+    const timeout = AbortSignal.timeout.bind(AbortSignal);
+    // Fake timers don't drive AbortSignal.timeout: shorten it instead.
+    vi.spyOn(AbortSignal, "timeout").mockImplementation(() => timeout(10));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_input: Parameters<typeof globalThis.fetch>[0], init?: RequestInit) =>
+          new Promise<globalThis.Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () =>
+              reject(init.signal?.reason),
+            );
+          }),
+      ),
+    );
+    await expect(
+      loadResourcePage({
+        networkId: "mtst",
+        resource: { kind: "account", accountId: ACCOUNT_ID },
+      }),
+    ).rejects.toMatchObject({
+      init: { status: 504, statusText: UNAVAILABLE },
+    });
+    expect(AbortSignal.timeout).toHaveBeenCalledWith(API_REGISTRY_TIMEOUT_MS);
+  });
+
+  it("gives up on a registry that stops sending its answer", async () => {
+    const timeout = AbortSignal.timeout.bind(AbortSignal);
+    // Fake timers don't drive AbortSignal.timeout: shorten it instead.
+    vi.spyOn(AbortSignal, "timeout").mockImplementation(() => timeout(10));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_input: Parameters<typeof globalThis.fetch>[0], init?: RequestInit) =>
+          Promise.resolve(
+            new Response(
+              new ReadableStream({
+                start(controller) {
+                  init?.signal?.addEventListener("abort", () =>
+                    controller.error(init.signal?.reason),
+                  );
+                },
+              }),
+              { status: 200 },
+            ),
+          ),
+      ),
+    );
+    await expect(
+      loadResourcePage({
+        networkId: "mtst",
+        resource: { kind: "account", accountId: ACCOUNT_ID },
+      }),
+    ).rejects.toMatchObject({
+      init: { status: 504, statusText: UNAVAILABLE },
+    });
+  });
+
+  it("reports an answer that isn't JSON as temporary", async () => {
+    registry(() => new Response("<html>bad gateway</html>", { status: 200 }));
+    await expect(
+      loadResourcePage({
+        networkId: "mtst",
+        resource: { kind: "account", accountId: ACCOUNT_ID },
+      }),
+    ).rejects.toMatchObject({
+      init: { status: 502, statusText: UNAVAILABLE },
+    });
+  });
+
   it("loads an account's page: a package per component, the status their manifests give", async () => {
     const fetch = registry(() => json(account));
     const page = await loadResourcePage({
@@ -165,6 +252,7 @@ describe("loadResourcePage", () => {
     });
     expect(fetch).toHaveBeenCalledWith(
       expect.stringMatching(`/v1/mtst/verified-accounts/${ACCOUNT_ID}$`),
+      { signal: expect.any(AbortSignal) },
     );
     expect(page.networkName).toBe("Testnet");
     expect(page.verificationStatus).toEqual({ verified: 3, total: 4 });
@@ -202,6 +290,7 @@ describe("loadResourcePage", () => {
     });
     expect(fetch).toHaveBeenCalledWith(
       expect.stringMatching(`/v1/mtst/verified-notes/${NOTE_ID}$`),
+      { signal: expect.any(AbortSignal) },
     );
     expect(page.networkName).toBe("Testnet");
     expect(page.verificationStatus).toEqual({ verified: 1, total: 1 });
