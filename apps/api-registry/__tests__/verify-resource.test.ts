@@ -393,7 +393,8 @@ describe("verifyResource", () => {
 
   describe("a record the playground verified", () => {
     const root = `0x${"01".repeat(32)}`;
-    const rejection = (promise: Promise<boolean>) =>
+    // What the verification rejected with, to assert on.
+    const caught = (promise: Promise<boolean>) =>
       promise.catch((error: unknown) => error);
 
     it("takes over an account component the playground verified", async () => {
@@ -430,50 +431,65 @@ describe("verifyResource", () => {
       ).toMatchObject({ source: "miden-verify" });
     });
 
-    it("answers 409 when the playground verifies its own record again", async () => {
-      await verifyBuilt(NOTE, built(undefined), root, "miden-playground");
-
-      const error = await rejection(
-        verifyBuilt(NOTE, built(undefined), root, "miden-playground"),
-      );
-
-      expect(error).toBeInstanceOf(HttpError);
-      expect(error).toMatchObject({ status: 409 });
-    });
-
-    it("answers 409 when the record is another source's", async () => {
-      await verifyBuilt(NOTE, built(undefined), root, "miden-verify");
-
-      const error = await rejection(
-        verifyBuilt(NOTE, built(undefined), root, "web-verifier"),
-      );
-
-      expect(error).toBeInstanceOf(HttpError);
-      expect(error).toMatchObject({ status: 409 });
-      expect(
-        await findVerifiedRecordByRoot({
+    // The source of the root's one record: the account's one component, or
+    // the note.
+    const recordSource = async (resource: Resource) => {
+      if (resource.kind === "account") {
+        const { verifiedAccountComponents } = await findVerifiedRecordByRoot({
           networkId: "mtst",
-          kind: "note",
+          kind: "account",
           root,
-        }),
-      ).toMatchObject({ source: "miden-verify" });
-    });
+        });
+        expect(verifiedAccountComponents).toHaveLength(1);
+        return verifiedAccountComponents[0]?.source;
+      }
+      const note = await findVerifiedRecordByRoot({
+        networkId: "mtst",
+        kind: "note",
+        root,
+      });
+      return note?.source;
+    };
 
-    it("leaves a record another source verified alone when the playground comes after", async () => {
-      await verifyBuilt(NOTE, built(undefined), root, "miden-verify");
+    describe.each([
+      ["an account component", ACCOUNT],
+      ["a note", NOTE],
+    ])("for %s", (_, resource) => {
+      it("answers 409 when the playground verifies its own record again", async () => {
+        await verifyBuilt(resource, built(undefined), root, "miden-playground");
 
-      const error = await rejection(
-        verifyBuilt(NOTE, built(undefined), root, "miden-playground"),
-      );
+        const error = await caught(
+          verifyBuilt(resource, built(undefined), root, "miden-playground"),
+        );
 
-      expect(error).toMatchObject({ status: 409 });
-      expect(
-        await findVerifiedRecordByRoot({
-          networkId: "mtst",
-          kind: "note",
-          root,
-        }),
-      ).toMatchObject({ source: "miden-verify" });
+        expect(error).toBeInstanceOf(HttpError);
+        expect(error).toMatchObject({ status: 409 });
+        expect(await recordSource(resource)).toBe("miden-playground");
+      });
+
+      it("answers 409 when the record is another source's", async () => {
+        await verifyBuilt(resource, built(undefined), root, "miden-verify");
+
+        const error = await caught(
+          verifyBuilt(resource, built(undefined), root, "web-verifier"),
+        );
+
+        expect(error).toBeInstanceOf(HttpError);
+        expect(error).toMatchObject({ status: 409 });
+        expect(await recordSource(resource)).toBe("miden-verify");
+      });
+
+      it("leaves a record another source verified alone when the playground comes after", async () => {
+        await verifyBuilt(resource, built(undefined), root, "miden-verify");
+
+        const error = await caught(
+          verifyBuilt(resource, built(undefined), root, "miden-playground"),
+        );
+
+        expect(error).toBeInstanceOf(HttpError);
+        expect(error).toMatchObject({ status: 409 });
+        expect(await recordSource(resource)).toBe("miden-verify");
+      });
     });
   });
 
