@@ -4,7 +4,11 @@ import type {
   ReadOnlyProcedures,
   TargetType,
 } from "miden-source-code-verification-utils/manifest";
-import { MIDEN_CLIENT_CACHE_DIR, MIDEN_TOOL_TIMEOUT_MS } from "./constants.ts";
+import {
+  API_USER,
+  MIDEN_CLIENT_CACHE_DIR,
+  MIDEN_TOOL_TIMEOUT_MS,
+} from "./constants.ts";
 import { execFile } from "./utils.ts";
 
 // The helper tools: the three Rust binaries built from `apps/api-compile/crates`
@@ -55,6 +59,14 @@ const run = async <T>(
   let stdout: string;
   try {
     ({ stdout } = await execFile(name, args, {
+      // Not the user that runs cargo: these read what it built, and own the
+      // client stores it can't write.
+      ...API_USER,
+      env: {
+        PATH: process.env.PATH,
+        HOME: API_USER ? "/home/api" : process.env.HOME,
+        RUST_LOG: process.env.RUST_LOG,
+      },
       cwd,
       timeout: MIDEN_TOOL_TIMEOUT_MS,
       signal,

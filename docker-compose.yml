@@ -30,7 +30,7 @@ services:
       - PORT=8080
       - ALLOWED_ORIGINS=*
       - CARGO_TARGET_DIR=/cache/target
-      - MIDEN_CLIENT_CACHE_DIR=/cache
+      - MIDEN_CLIENT_CACHE_DIR=/cache/stores
     image: miden-source-code-verification-api-compile
     container_name: miden-source-code-verification-api-compile
     ports:

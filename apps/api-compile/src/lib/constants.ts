@@ -1,3 +1,5 @@
+import { tmpdir } from "node:os";
+
 export const PORT = process.env.PORT ?? "8080";
 export const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ?? "*";
 export const CARGO_TARGET_DIR = process.env.CARGO_TARGET_DIR ?? "/cache/target";
@@ -23,7 +25,8 @@ export const COMPILE_DEADLINE_MS = 400_000;
 
 // Builds share CARGO_TARGET_DIR, whose lock makes cargo run them one at a time
 // anyway. Queue a few more and turn the rest away with a 503, rather than pile
-// up waiting builds until the container stops answering.
+// up waiting builds until the container stops answering. It must stay 1 when
+// builds run as BUILD_USER: compile.ts refuses to start otherwise.
 export const COMPILE_CONCURRENCY = Number(process.env.COMPILE_CONCURRENCY ?? 1);
 export const COMPILE_QUEUE_SIZE = Number(process.env.COMPILE_QUEUE_SIZE ?? 8);
 
@@ -52,3 +55,23 @@ export const MAX_MASM_BYTES = 4 * 1024 * 1024;
 // when nothing is set, which a build with many warnings exceeds; past this
 // limit the subprocess is ended and the call fails.
 export const SUBPROCESS_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
+
+// Build isolation. Compiling a project runs its own code (`build.rs`,
+// procedural macros), so the server, which stays root, starts cargo as
+// `BUILD_USER` and the helper tools as `API_USER` (both unset: no switching,
+// for running on the host). What build code can write is then its own project
+// directory and CARGO_TARGET_DIR / CARGO_HOME, nothing the helper tools or the
+// toolchain are made of. See docs/adr/0006-build-isolation.md.
+const idsFrom = (prefix: string) =>
+  process.env[`${prefix}_UID`] !== undefined &&
+  process.env[`${prefix}_GID`] !== undefined
+    ? {
+        uid: Number(process.env[`${prefix}_UID`]),
+        gid: Number(process.env[`${prefix}_GID`]),
+      }
+    : undefined;
+export const BUILD_USER = idsFrom("BUILD");
+export const API_USER = idsFrom("API");
+// Where each request's directories go. Build code can write only the project
+// directory under it that the server hands to `BUILD_USER`, not the parent.
+export const WORK_DIR = process.env.WORK_DIR ?? tmpdir();

@@ -5,7 +5,7 @@ interface __BaseEnv_Env {
 	PORT: "8080";
 	ALLOWED_ORIGINS: "*";
 	CARGO_TARGET_DIR: "/cache/target";
-	MIDEN_CLIENT_CACHE_DIR: "/cache";
+	MIDEN_CLIENT_CACHE_DIR: "/cache/stores";
 	COMPILER: DurableObjectNamespace<import("./src/server").Compiler>;
 }
 declare namespace Cloudflare {
