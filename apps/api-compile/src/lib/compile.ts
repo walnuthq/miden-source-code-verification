@@ -110,7 +110,15 @@ const buildDebug = async ({
       return { error: cargoMidenError };
     }
     const maspPath = `${midencTargetDir}/${PROFILE_DIRS.debug}/${packageName}.masp`;
-    await checkBuildOutput(maspPath, midencTargetDir);
+    // Answers the generic failure: a new message would be a new contract.
+    if (
+      !(await checkBuildOutput(maspPath, midencTargetDir).then(
+        () => true,
+        () => false,
+      ))
+    ) {
+      return { error: "debug build failed" };
+    }
     // Checked before reading it: the registry holds the whole response in
     // memory, base64-encoded.
     const { size } = await stat(maspPath);
@@ -253,6 +261,16 @@ const buildProject = async ({
           signal,
         })
       : undefined;
+  // The debug build ran build code again, which could have replaced the release
+  // package after it was read: the verifier reads `maspPath`, so it must still
+  // be the package this answer returns. No build user process is left to
+  // change it after this check.
+  if (debugBuild) {
+    await checkBuildOutput(maspPath, midencTargetDir);
+    if (!(await readFile(maspPath)).equals(maspBuffer)) {
+      throw new Error("build output changed after it was read");
+    }
+  }
   return {
     built: true,
     stdout,

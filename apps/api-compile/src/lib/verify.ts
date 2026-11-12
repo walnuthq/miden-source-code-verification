@@ -1,8 +1,9 @@
-import { chown, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import { API_USER, WORK_DIR } from "./constants.ts";
 import { midenVerifier } from "./helper-tools.ts";
+import { chownTree } from "./utils.ts";
 
 // A failed `miden-verifier` run, with the status `/verify` answers it with: 400
 // when the request can never verify (the resource isn't on-chain, the ID or the
@@ -21,10 +22,7 @@ export const writeResourceFile = async (resource: string) => {
   try {
     await writeFile(resourcePath, resource);
     // The verifier reads it as another user than the server.
-    if (API_USER) {
-      await chown(tmpDir, API_USER.uid, API_USER.gid);
-      await chown(resourcePath, API_USER.uid, API_USER.gid);
-    }
+    await chownTree(tmpDir, API_USER);
   } catch (error) {
     await rm(tmpDir, { recursive: true, force: true });
     throw error;
