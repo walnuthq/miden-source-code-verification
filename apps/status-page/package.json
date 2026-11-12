@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "4.3.5",
-    "lucide-react": "1.71.0",
+    "lucide-react": "1.72.0",
     "miden-source-code-verification-ui": "workspace:*",
     "react": "19.3.1",
     "react-dom": "19.3.1",
@@ -31,7 +31,7 @@
     "miden-source-code-verification-test-utils": "workspace:*",
     "miden-source-code-verification-utils": "workspace:*",
     "typescript": "7.0.2",
-    "vite": "8.3.7",
+    "vite": "8.3.8",
     "vitest": "5.1.0"
   }
 }
