@@ -42,7 +42,8 @@ router.post("/verify", async (req, res) => {
   // with its status.
   const result = await queueCompile(
     // The debug variant is built whether or not the release build verifies,
-    // in the same queue slot: verifying runs after the slot is released.
+    // in the same queue slot: verifying runs in that slot too, before the next
+    // build replaces the cache the package lives in.
     {
       project: opened.project,
       debug: debug === true,

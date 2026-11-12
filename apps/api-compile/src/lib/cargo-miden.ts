@@ -6,6 +6,7 @@ import {
   CARGO_MIDEN_BUILD_TIMEOUT_MS,
   CARGO_TARGET_DIR,
   MIDEN_TOOL_TIMEOUT_MS,
+  WARM_CACHE_DIR,
 } from "./constants.ts";
 import { execFile } from "./utils.ts";
 
@@ -37,8 +38,17 @@ const cargoOptions = ({
 });
 
 const readCargoMidenVersion = async () => {
+  const options = cargoOptions();
   const { stdout } = await execFile("cargo", ["miden", "--version"], {
-    ...cargoOptions(),
+    ...options,
+    // Runs outside builds, when the build's copy of the cache may not exist
+    // (or is being replaced), so it reads the image's read-only cargo home.
+    env: {
+      ...options.env,
+      CARGO_HOME: WARM_CACHE_DIR
+        ? join(WARM_CACHE_DIR, "cargo-home")
+        : process.env.CARGO_HOME,
+    },
     // The server's own directory isn't readable by the build user.
     cwd: "/",
     timeout: MIDEN_TOOL_TIMEOUT_MS,

@@ -111,8 +111,9 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 FROM base AS runtime
 
 # CARGO_HOME is not the toolchain's directory: cargo writes its registry cache
-# and a lock file under it, which `builder` (below) must be able to do, while
-# /usr/local/cargo (the toolchain and the helper tools) stays root's.
+# and a lock file under it during a build, so it is the build's own fresh copy
+# of the image's warm cache (see constants.ts), not the image's. The toolchain
+# and the helper tools in /usr/local/cargo stay root's.
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/cache/cargo-home \
     PATH=/usr/local/cargo/bin:$PATH \
@@ -130,19 +131,20 @@ COPY --from=cargo-miden-builder /usr/local/cargo /usr/local/cargo
 # Two unprivileged users. The server stays root so it can start each subprocess
 # as one of them (execFile's uid/gid): `builder` runs cargo, so everything build
 # code can write is `builder`'s; `api` runs the helper tools, which own the
-# client stores. Build code can write only /cache/target, /cache/cargo-home, its
-# project directory and its home; /work is root's and traversable only, so no
+# client stores. Build code can write only its project directory, its home and
+# the build's copies of /cache/target and /cache/cargo-home, which the server
+# replaces before every build; /work is root's and traversable only, so no
 # directory it can write is a parent of another request's project.
 RUN groupadd --system --gid 10001 api \
  && useradd --system --uid 10001 --gid api --create-home --home-dir /home/api api \
  && groupadd --system --gid 10002 builder \
  && useradd --system --uid 10002 --gid builder --create-home --home-dir /home/builder builder \
- && mkdir -p /work/projects /work/resources /cache/stores /cache/target /cache/cargo-home \
+ && mkdir -p /work/projects /work/resources /cache/stores \
  && chmod 0711 /work /work/projects /work/resources \
- && chown api:api /cache/stores \
- && chown builder:builder /cache/target /cache/cargo-home
+ && chown api:api /cache/stores
 ENV BUILD_UID=10002 BUILD_GID=10002 API_UID=10001 API_GID=10001 \
     WORK_DIR=/work \
+    WARM_CACHE_DIR=/cache/image \
     MIDEN_CLIENT_CACHE_DIR=/cache/stores
 
 # Copy project template
@@ -156,19 +158,21 @@ COPY apps/api-compile/examples .
 # downloaded crates are what user builds resolve against (they run
 # `--offline` first), so they must be exactly the ones the lockfile pins.
 WORKDIR /cache/examples/counter-contract/counter-contract
-# Run as `builder`, in a copy of the example (the macros write a `target/`
-# inside the project, which `builder` can't do in the root-owned template), so
-# the warm cache is created with the ownership requests need and no later layer
-# has to chown (and so duplicate) it.
-USER builder
-ENV HOME=/home/builder
-RUN cp -r /cache/examples/counter-contract/counter-contract /home/builder/warm \
- && cd /home/builder/warm \
+# Built as root, in a scratch copy of the example, at the paths builds use:
+# cargo records the CARGO_HOME path in its dependency fingerprints, so a cache
+# copied to another path would recompile every dependency. The result then
+# moves, in this same RUN (a later layer would duplicate it), to a read-only
+# /cache/image; the server copies it back to the original paths before each
+# build, so nothing build code changes reaches a later build. The chmod makes
+# the warm-up's root-only files (lock files) readable for that copy.
+RUN cp -r /cache/examples/counter-contract/counter-contract /tmp/warm \
+ && cd /tmp/warm \
  && CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release --locked \
  && CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --locked \
- && cd / && rm -rf /home/builder/warm
-USER root
-ENV HOME=/root
+ && cd / && rm -rf /tmp/warm \
+ && mkdir /cache/image \
+ && mv /cache/target /cache/cargo-home /cache/image/ \
+ && chmod -R go+rX,go-w /cache/image
 # Each build gets a HOME of its own, deleted after it (see cargo-miden.ts):
 # nothing may persist in the build user's home between builds.
 RUN chown root:root /home/builder && chmod 0755 /home/builder
