@@ -1,8 +1,24 @@
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 export const PORT = process.env.PORT ?? "8080";
 export const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ?? "*";
 export const CARGO_TARGET_DIR = process.env.CARGO_TARGET_DIR ?? "/cache/target";
+export const CARGO_HOME = process.env.CARGO_HOME;
+// The image's warm cache, read-only to the build user: `target` and
+// `cargo-home`, built at CARGO_TARGET_DIR and CARGO_HOME, then moved here.
+// Each build gets a fresh copy of both back at those paths (compile.ts), so
+// nothing a build changes reaches a later one. Unset on the host, where builds
+// use CARGO_TARGET_DIR and CARGO_HOME directly.
+export const WARM_CACHE_DIR = process.env.WARM_CACHE_DIR;
+// The two directories in it, so their names live in one place. An empty
+// WARM_CACHE_DIR counts as unset.
+export const WARM_TARGET_DIR = WARM_CACHE_DIR
+  ? join(WARM_CACHE_DIR, "target")
+  : undefined;
+export const WARM_CARGO_HOME = WARM_CACHE_DIR
+  ? join(WARM_CACHE_DIR, "cargo-home")
+  : undefined;
 // The lockfile the image warmed cargo's cache with (see the Dockerfile): the
 // crate versions an offline build finds. `GET /lockfile` serves it, so clients
 // that send their own lockfile can keep it in step.
@@ -23,10 +39,12 @@ export const MIDEN_TOOL_TIMEOUT_MS = 60_000;
 // so the caller gets this 504 rather than the Worker's.
 export const COMPILE_DEADLINE_MS = 400_000;
 
-// Builds share CARGO_TARGET_DIR, whose lock makes cargo run them one at a time
-// anyway. Queue a few more and turn the rest away with a 503, rather than pile
-// up waiting builds until the container stops answering. It must stay 1 when
-// builds run as BUILD_USER: compile.ts refuses to start otherwise.
+// In the image, every build replaces the one copy of the warm cache at fixed
+// paths, so builds must run one at a time (the host's CARGO_TARGET_DIR lock
+// also serializes them). Queue a few more and turn the rest away with a 503,
+// rather than pile up waiting builds until the container stops answering. It
+// must stay 1 when builds run as BUILD_USER: compile.ts refuses to start
+// otherwise.
 export const COMPILE_CONCURRENCY = Number(process.env.COMPILE_CONCURRENCY ?? 1);
 export const COMPILE_QUEUE_SIZE = Number(process.env.COMPILE_QUEUE_SIZE ?? 8);
 
@@ -60,8 +78,9 @@ export const SUBPROCESS_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 // procedural macros), so the server, which stays root, starts cargo as
 // `BUILD_USER` and the helper tools as `API_USER` (both unset: no switching,
 // for running on the host). What build code can write is then its own project
-// directory and CARGO_TARGET_DIR / CARGO_HOME, nothing the helper tools or the
-// toolchain are made of. See docs/adr/0006-build-isolation.md.
+// directory and the build's copies of CARGO_TARGET_DIR / CARGO_HOME, which are
+// replaced before each build, nothing the helper tools or the toolchain are
+// made of. See docs/adr/0006-build-isolation.md.
 const idsFrom = (prefix: string) =>
   process.env[`${prefix}_UID`] !== undefined &&
   process.env[`${prefix}_GID`] !== undefined

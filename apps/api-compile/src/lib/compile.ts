@@ -1,8 +1,10 @@
 import {
   chmod,
+  chown,
   mkdir,
   mkdtemp,
   readFile,
+  rm,
   stat,
   writeFile,
 } from "node:fs/promises";
@@ -27,17 +29,21 @@ import {
 } from "./cargo-miden.ts";
 import {
   BUILD_USER,
+  CARGO_HOME,
   CARGO_TARGET_DIR,
   COMPILE_CONCURRENCY,
   COMPILE_DEADLINE_MS,
   COMPILE_QUEUE_SIZE,
   MAX_DEBUG_MASP_BYTES,
   MAX_MASM_BYTES,
+  MIDEN_TOOL_TIMEOUT_MS,
+  WARM_CARGO_HOME,
+  WARM_TARGET_DIR,
   WORK_DIR,
 } from "./constants.ts";
 import { midenPackageMetadata } from "./helper-tools.ts";
 import { createLimiter } from "./limiter.ts";
-import { chownTree, removeDirs } from "./utils.ts";
+import { chownTree, execFile, removeDirs } from "./utils.ts";
 
 type CompileArgs = {
   // Already opened by the route: its files are clean project-relative paths,
@@ -299,12 +305,68 @@ const deadlineError = () =>
     `the build did not finish within ${COMPILE_DEADLINE_MS / 1000}s`,
   );
 
+// The build's copies of the image's warm cache, at the paths cargo uses (its
+// fingerprints record them). Undefined on the host, which builds against
+// CARGO_TARGET_DIR and CARGO_HOME directly.
+const warmCache = (() => {
+  if (WARM_TARGET_DIR === undefined || WARM_CARGO_HOME === undefined) {
+    return undefined;
+  }
+  if (BUILD_USER === undefined || CARGO_HOME === undefined) {
+    throw new Error(
+      "WARM_CACHE_DIR needs BUILD_UID/BUILD_GID and CARGO_HOME: the cache is copied for the build user, at the paths cargo uses",
+    );
+  }
+  return {
+    buildUser: BUILD_USER,
+    copies: [
+      [WARM_TARGET_DIR, CARGO_TARGET_DIR],
+      [WARM_CARGO_HOME, CARGO_HOME],
+    ] as const,
+  };
+})();
+
+// Replaces the build's cache directories with fresh copies of the image's
+// read-only warm cache, at the same paths (cargo's fingerprints record them).
+// The copy runs as the build user, so it owns the result with no chown pass,
+// and `cp -a` keeps the modes and timestamps the fingerprints need. Nothing
+// happens on the host, which builds against CARGO_TARGET_DIR directly.
+const copyWarmCache = async () => {
+  if (warmCache === undefined) {
+    return;
+  }
+  const { buildUser, copies } = warmCache;
+  const start = performance.now();
+  try {
+    for (const [source, destination] of copies) {
+      await rm(destination, { recursive: true, force: true });
+      await mkdir(destination);
+      await chown(destination, buildUser.uid, buildUser.gid);
+      await execFile("cp", ["-a", `${source}/.`, destination], {
+        ...buildUser,
+        cwd: "/",
+        env: { PATH: process.env.PATH },
+        timeout: MIDEN_TOOL_TIMEOUT_MS,
+      });
+    }
+  } catch (error) {
+    // A partial copy of 1.8 GB mustn't stay on disk until the next request.
+    await removeDirs(copies.map(([, destination]) => destination));
+    throw error;
+  }
+  console.info(
+    `build cache copied in ${Math.round(performance.now() - start)} ms`,
+  );
+};
+
 // Builds in a fresh copy of the project, into its own output directory. Both
 // are deleted by `cleanup`, or right away if the build throws: nothing reuses
 // them, and left behind they'd fill the disk.
 const compile = async (args: CompileArgs) => {
   // Whatever an earlier `cargo` call left running or lying in /tmp goes first.
   await killBuildUserProcesses();
+  // A failed copy fails the request: never build against a partial cache.
+  await copyWarmCache();
   await mkdir(join(WORK_DIR, "projects"), { recursive: true });
   const tmpDir = await mkdtemp(join(WORK_DIR, "projects", "miden-project-"));
   // Only the build user may enter its project: no other request's files, and
@@ -314,7 +376,15 @@ const compile = async (args: CompileArgs) => {
   // mixed-case, so keep it as is: lowercasing it could make two names clash).
   const outputName = (tmpDir.split("/").at(-1) ?? "").replaceAll("-", "_");
   const midencTargetDir = `${CARGO_TARGET_DIR}/${outputName}`;
-  const cleanup = () => removeDirs([tmpDir, midencTargetDir]);
+  // With a warm cache copy, the copies go, so they don't sit on disk between
+  // requests; `midencTargetDir` sits inside CARGO_TARGET_DIR, so it goes with
+  // them. On the host CARGO_TARGET_DIR is the shared cache: never delete it.
+  const cleanup = () =>
+    removeDirs(
+      warmCache === undefined
+        ? [tmpDir, midencTargetDir]
+        : [tmpDir, ...warmCache.copies.map(([, destination]) => destination)],
+    );
   // Started once the slot is taken: time spent queued doesn't count.
   const deadline = AbortSignal.timeout(COMPILE_DEADLINE_MS);
   const signal = args.signal
@@ -341,7 +411,8 @@ const compile = async (args: CompileArgs) => {
 
 // One build at a time is what isolates builds from each other: after each
 // build every process of the one build user is killed and its temp files
-// deleted, which would hit a concurrent build too.
+// deleted, which would hit a concurrent build too. In the image, builds also
+// replace the one copy of the warm cache at fixed paths.
 if (BUILD_USER !== undefined && COMPILE_CONCURRENCY > 1) {
   throw new Error(
     "COMPILE_CONCURRENCY must be 1 when builds run as BUILD_UID: one build user can't be isolated from itself",
@@ -354,16 +425,19 @@ const limit = createLimiter({
 });
 
 // Compiles once a slot is free (throws `BusyError` when the queue is full),
-// passes the build to `use`, then deletes its files. `use` has to be done
-// with `maspPath` when it returns.
+// passes the build to `use`, then deletes its files, all in the slot: each
+// build replaces the cache copy the previous build's package lives in, so the
+// next build may start only once this one's package has been used and deleted.
+// `use` has to be done with `maspPath` when it returns.
 export const queueCompile = async <T>(
   args: CompileArgs,
   use: (build: Build) => Promise<T> | T,
-) => {
-  const { build, cleanup } = await limit(() => compile(args), args.signal);
-  try {
-    return await use(build);
-  } finally {
-    await cleanup();
-  }
-};
+) =>
+  limit(async () => {
+    const { build, cleanup } = await compile(args);
+    try {
+      return await use(build);
+    } finally {
+      await cleanup();
+    }
+  }, args.signal);
