@@ -37,7 +37,8 @@ import {
   MAX_DEBUG_MASP_BYTES,
   MAX_MASM_BYTES,
   MIDEN_TOOL_TIMEOUT_MS,
-  WARM_CACHE_DIR,
+  WARM_CARGO_HOME,
+  WARM_TARGET_DIR,
   WORK_DIR,
 } from "./constants.ts";
 import { midenPackageMetadata } from "./helper-tools.ts";
@@ -304,33 +305,54 @@ const deadlineError = () =>
     `the build did not finish within ${COMPILE_DEADLINE_MS / 1000}s`,
   );
 
+// The build's copies of the image's warm cache, at the paths cargo uses (its
+// fingerprints record them). Undefined on the host, which builds against
+// CARGO_TARGET_DIR and CARGO_HOME directly.
+const warmCache = (() => {
+  if (WARM_TARGET_DIR === undefined || WARM_CARGO_HOME === undefined) {
+    return undefined;
+  }
+  if (BUILD_USER === undefined || CARGO_HOME === undefined) {
+    throw new Error(
+      "WARM_CACHE_DIR needs BUILD_UID/BUILD_GID and CARGO_HOME: the cache is copied for the build user, at the paths cargo uses",
+    );
+  }
+  return {
+    buildUser: BUILD_USER,
+    copies: [
+      [WARM_TARGET_DIR, CARGO_TARGET_DIR],
+      [WARM_CARGO_HOME, CARGO_HOME],
+    ] as const,
+  };
+})();
+
 // Replaces the build's cache directories with fresh copies of the image's
 // read-only warm cache, at the same paths (cargo's fingerprints record them).
 // The copy runs as the build user, so it owns the result with no chown pass,
 // and `cp -a` keeps the modes and timestamps the fingerprints need. Nothing
 // happens on the host, which builds against CARGO_TARGET_DIR directly.
 const copyWarmCache = async () => {
-  if (WARM_CACHE_DIR === undefined || BUILD_USER === undefined) {
+  if (warmCache === undefined) {
     return;
   }
+  const { buildUser, copies } = warmCache;
   const start = performance.now();
-  const pairs = [
-    [join(WARM_CACHE_DIR, "target"), CARGO_TARGET_DIR],
-    [join(WARM_CACHE_DIR, "cargo-home"), CARGO_HOME],
-  ] as const;
-  for (const [source, destination] of pairs) {
-    if (destination === undefined) {
-      continue;
+  try {
+    for (const [source, destination] of copies) {
+      await rm(destination, { recursive: true, force: true });
+      await mkdir(destination);
+      await chown(destination, buildUser.uid, buildUser.gid);
+      await execFile("cp", ["-a", `${source}/.`, destination], {
+        ...buildUser,
+        cwd: "/",
+        env: { PATH: process.env.PATH },
+        timeout: MIDEN_TOOL_TIMEOUT_MS,
+      });
     }
-    await rm(destination, { recursive: true, force: true });
-    await mkdir(destination);
-    await chown(destination, BUILD_USER.uid, BUILD_USER.gid);
-    await execFile("cp", ["-a", `${source}/.`, destination], {
-      ...BUILD_USER,
-      cwd: "/",
-      env: { PATH: process.env.PATH },
-      timeout: MIDEN_TOOL_TIMEOUT_MS,
-    });
+  } catch (error) {
+    // A partial copy of 1.8 GB mustn't stay on disk until the next request.
+    await removeDirs(copies.map(([, destination]) => destination));
+    throw error;
   }
   console.info(
     `build cache copied in ${Math.round(performance.now() - start)} ms`,
@@ -354,20 +376,15 @@ const compile = async (args: CompileArgs) => {
   // mixed-case, so keep it as is: lowercasing it could make two names clash).
   const outputName = (tmpDir.split("/").at(-1) ?? "").replaceAll("-", "_");
   const midencTargetDir = `${CARGO_TARGET_DIR}/${outputName}`;
-  // With a warm cache copy, the copies go too, so they don't sit on disk
-  // between requests. On the host CARGO_TARGET_DIR is the shared cache: never
-  // delete it.
+  // With a warm cache copy, the copies go, so they don't sit on disk between
+  // requests; `midencTargetDir` sits inside CARGO_TARGET_DIR, so it goes with
+  // them. On the host CARGO_TARGET_DIR is the shared cache: never delete it.
   const cleanup = () =>
-    removeDirs([
-      tmpDir,
-      midencTargetDir,
-      ...(WARM_CACHE_DIR === undefined
-        ? []
-        : [
-            CARGO_TARGET_DIR,
-            ...(CARGO_HOME === undefined ? [] : [CARGO_HOME]),
-          ]),
-    ]);
+    removeDirs(
+      warmCache === undefined
+        ? [tmpDir, midencTargetDir]
+        : [tmpDir, ...warmCache.copies.map(([, destination]) => destination)],
+    );
   // Started once the slot is taken: time spent queued doesn't count.
   const deadline = AbortSignal.timeout(COMPILE_DEADLINE_MS);
   const signal = args.signal
@@ -392,19 +409,10 @@ const compile = async (args: CompileArgs) => {
   }
 };
 
-// The cache is copied for the build user, at the paths cargo uses.
-if (
-  WARM_CACHE_DIR !== undefined &&
-  (BUILD_USER === undefined || CARGO_HOME === undefined)
-) {
-  throw new Error(
-    "WARM_CACHE_DIR needs BUILD_UID/BUILD_GID and CARGO_HOME: the cache is copied for the build user, at the paths cargo uses",
-  );
-}
-
 // One build at a time is what isolates builds from each other: after each
 // build every process of the one build user is killed and its temp files
-// deleted, which would hit a concurrent build too.
+// deleted, which would hit a concurrent build too. In the image, builds also
+// replace the one copy of the warm cache at fixed paths.
 if (BUILD_USER !== undefined && COMPILE_CONCURRENCY > 1) {
   throw new Error(
     "COMPILE_CONCURRENCY must be 1 when builds run as BUILD_UID: one build user can't be isolated from itself",

@@ -1,4 +1,5 @@
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 export const PORT = process.env.PORT ?? "8080";
 export const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ?? "*";
@@ -10,6 +11,10 @@ export const CARGO_HOME = process.env.CARGO_HOME;
 // nothing a build changes reaches a later one. Unset on the host, where builds
 // use CARGO_TARGET_DIR and CARGO_HOME directly.
 export const WARM_CACHE_DIR = process.env.WARM_CACHE_DIR;
+// The two directories in it, so their names live in one place.
+export const WARM_TARGET_DIR = WARM_CACHE_DIR && join(WARM_CACHE_DIR, "target");
+export const WARM_CARGO_HOME =
+  WARM_CACHE_DIR && join(WARM_CACHE_DIR, "cargo-home");
 // The lockfile the image warmed cargo's cache with (see the Dockerfile): the
 // crate versions an offline build finds. `GET /lockfile` serves it, so clients
 // that send their own lockfile can keep it in step.
@@ -30,8 +35,9 @@ export const MIDEN_TOOL_TIMEOUT_MS = 60_000;
 // so the caller gets this 504 rather than the Worker's.
 export const COMPILE_DEADLINE_MS = 400_000;
 
-// Builds share CARGO_TARGET_DIR, whose lock makes cargo run them one at a time
-// anyway. Queue a few more and turn the rest away with a 503, rather than pile
+// In the image, every build replaces the one copy of the warm cache at fixed
+// paths, so builds must run one at a time (the host's CARGO_TARGET_DIR lock
+// also serializes them). Queue a few more and turn the rest away with a 503, rather than pile
 // up waiting builds until the container stops answering. It must stay 1 when
 // builds run as BUILD_USER: compile.ts refuses to start otherwise.
 export const COMPILE_CONCURRENCY = Number(process.env.COMPILE_CONCURRENCY ?? 1);
