@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
-import { rm } from "node:fs/promises";
+import { lchown, readdir, rm } from "node:fs/promises";
+import { join } from "node:path";
 import type { Response } from "express";
 import { SUBPROCESS_MAX_OUTPUT_BYTES } from "./constants.ts";
 
@@ -11,6 +12,26 @@ export const removeDirs = async (dirs: string[]) => {
     );
   } catch (error) {
     console.error(error);
+  }
+};
+
+// Hands `path` and everything under it to `owner`, when there is one: the
+// server wrote it as root, and the process that works in it is `owner`.
+export const chownTree = async (
+  path: string,
+  owner: { uid: number; gid: number } | undefined,
+) => {
+  if (!owner) {
+    return;
+  }
+  await lchown(path, owner.uid, owner.gid);
+  for (const entry of await readdir(path, { withFileTypes: true })) {
+    const child = join(path, entry.name);
+    if (entry.isDirectory()) {
+      await chownTree(child, owner);
+    } else {
+      await lchown(child, owner.uid, owner.gid);
+    }
   }
 };
 
@@ -33,12 +54,17 @@ export const execFile = (
     env,
     signal,
     maxBuffer = SUBPROCESS_MAX_OUTPUT_BYTES,
+    uid,
+    gid,
   }: {
     timeout: number;
     cwd?: string;
     env?: NodeJS.ProcessEnv;
     signal?: AbortSignal;
     maxBuffer?: number;
+    // The user the subprocess runs as (ADR 0006); the server's own when unset.
+    uid?: number;
+    gid?: number;
   },
 ) =>
   new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
@@ -46,7 +72,7 @@ export const execFile = (
       reject(new Error(`${file} was cancelled`));
       return;
     }
-    const child = spawn(file, args, { cwd, env, detached: true });
+    const child = spawn(file, args, { cwd, env, uid, gid, detached: true });
     const cmd = [file, ...args].join(" ");
     const chunks = { stdout: [] as Buffer[], stderr: [] as Buffer[] };
     const sizes = { stdout: 0, stderr: 0 };

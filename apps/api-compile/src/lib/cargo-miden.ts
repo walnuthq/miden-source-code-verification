@@ -1,14 +1,46 @@
-import { readFile, realpath } from "node:fs/promises";
+import { realpath } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
+import { readBuildOutput } from "./build-output.ts";
 import {
+  BUILD_USER,
   CARGO_MIDEN_BUILD_TIMEOUT_MS,
   CARGO_TARGET_DIR,
   MIDEN_TOOL_TIMEOUT_MS,
 } from "./constants.ts";
 import { execFile } from "./utils.ts";
 
+// Cargo runs the project's own code, so it gets as little of the server's as
+// possible: the user it runs as (`BUILD_USER`) and an explicit environment,
+// not the server's whole one. `home` is the build's HOME and TMPDIR, a
+// directory of the build that is deleted with it; calls that run no project
+// code (no build scripts) get none. On the host, with no build user, cargo
+// keeps the server's HOME and the default TMPDIR.
+const cargoOptions = ({
+  home,
+  env = {},
+}: {
+  home?: string;
+  env?: Record<string, string>;
+} = {}) => ({
+  ...BUILD_USER,
+  env: {
+    PATH: process.env.PATH,
+    ...(BUILD_USER
+      ? { HOME: home ?? "/nonexistent", TMPDIR: home ?? "/nonexistent" }
+      : { HOME: process.env.HOME }),
+    CARGO_HOME: process.env.CARGO_HOME,
+    RUSTUP_HOME: process.env.RUSTUP_HOME,
+    RUSTUP_AUTO_INSTALL: process.env.RUSTUP_AUTO_INSTALL,
+    CARGO_TARGET_DIR,
+    ...env,
+  },
+});
+
 const readCargoMidenVersion = async () => {
   const { stdout } = await execFile("cargo", ["miden", "--version"], {
+    ...cargoOptions(),
+    // The server's own directory isn't readable by the build user.
+    cwd: "/",
     timeout: MIDEN_TOOL_TIMEOUT_MS,
   });
   const [, version = ""] = stdout.split(" ").map((part) => part.trim());
@@ -43,15 +75,24 @@ export const readCargoLock = async ({
     const { stdout } = await execFile(
       "cargo",
       ["locate-project", "--workspace", "--message-format", "plain"],
-      { cwd: projectDir, timeout: MIDEN_TOOL_TIMEOUT_MS, signal },
+      {
+        ...cargoOptions(),
+        cwd: projectDir,
+        timeout: MIDEN_TOOL_TIMEOUT_MS,
+        signal,
+      },
     );
     const lockPath = join(dirname(stdout.trim()), "Cargo.lock");
     // cargo answers with the canonical path (macOS's tmpdir is a symlink).
-    const path = relative(await realpath(rootDir), lockPath);
+    const realRoot = await realpath(rootDir);
+    const path = relative(realRoot, lockPath);
     if (path.startsWith("..")) {
       return undefined;
     }
-    return { path, content: await readFile(lockPath, "utf-8") };
+    return {
+      path,
+      content: await readBuildOutput(lockPath, realRoot, "utf-8"),
+    };
   } catch (error) {
     console.error(error);
     return undefined;
@@ -118,6 +159,7 @@ export const cargoMidenBuild = async ({
   masmDir?: string;
   signal?: AbortSignal;
 }) => {
+  const home = join(midencTargetDir, "home");
   const run = (offline: boolean) =>
     execFile(
       "cargo",
@@ -129,12 +171,8 @@ export const cargoMidenBuild = async ({
         ...(masmDir ? ["--emit", `masm=${masmDir}`] : []),
       ],
       {
+        ...cargoOptions({ home, env: { MIDENC_TARGET_DIR: midencTargetDir } }),
         cwd: projectDir,
-        env: {
-          ...process.env,
-          CARGO_TARGET_DIR,
-          MIDENC_TARGET_DIR: midencTargetDir,
-        },
         timeout: CARGO_MIDEN_BUILD_TIMEOUT_MS,
         signal,
       },
@@ -144,6 +182,7 @@ export const cargoMidenBuild = async ({
   const runWarm = async () => {
     try {
       await execFile("cargo", ["update", "--offline"], {
+        ...cargoOptions({ home }),
         cwd: projectDir,
         timeout: MIDEN_TOOL_TIMEOUT_MS,
         signal,

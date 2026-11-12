@@ -110,8 +110,11 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 # Final runtime image — slim, no build tools
 FROM base AS runtime
 
+# CARGO_HOME is not the toolchain's directory: cargo writes its registry cache
+# and a lock file under it, which `builder` (below) must be able to do, while
+# /usr/local/cargo (the toolchain and the helper tools) stays root's.
 ENV RUSTUP_HOME=/usr/local/rustup \
-    CARGO_HOME=/usr/local/cargo \
+    CARGO_HOME=/cache/cargo-home \
     PATH=/usr/local/cargo/bin:$PATH \
     RUSTUP_AUTO_INSTALL=0
 
@@ -124,6 +127,24 @@ ENV RUSTUP_HOME=/usr/local/rustup \
 COPY --from=cargo-miden-builder /usr/local/rustup /usr/local/rustup
 COPY --from=cargo-miden-builder /usr/local/cargo /usr/local/cargo
 
+# Two unprivileged users. The server stays root so it can start each subprocess
+# as one of them (execFile's uid/gid): `builder` runs cargo, so everything build
+# code can write is `builder`'s; `api` runs the helper tools, which own the
+# client stores. Build code can write only /cache/target, /cache/cargo-home, its
+# project directory and its home; /work is root's and traversable only, so no
+# directory it can write is a parent of another request's project.
+RUN groupadd --system --gid 10001 api \
+ && useradd --system --uid 10001 --gid api --create-home --home-dir /home/api api \
+ && groupadd --system --gid 10002 builder \
+ && useradd --system --uid 10002 --gid builder --create-home --home-dir /home/builder builder \
+ && mkdir -p /work/projects /work/resources /cache/stores /cache/target /cache/cargo-home \
+ && chmod 0711 /work /work/projects /work/resources \
+ && chown api:api /cache/stores \
+ && chown builder:builder /cache/target /cache/cargo-home
+ENV BUILD_UID=10002 BUILD_GID=10002 API_UID=10001 API_GID=10001 \
+    WORK_DIR=/work \
+    MIDEN_CLIENT_CACHE_DIR=/cache/stores
+
 # Copy project template
 WORKDIR /cache/examples
 COPY apps/api-compile/examples .
@@ -135,8 +156,22 @@ COPY apps/api-compile/examples .
 # downloaded crates are what user builds resolve against (they run
 # `--offline` first), so they must be exactly the ones the lockfile pins.
 WORKDIR /cache/examples/counter-contract/counter-contract
-RUN CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release --locked \
- && CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --locked
+# Run as `builder`, in a copy of the example (the macros write a `target/`
+# inside the project, which `builder` can't do in the root-owned template), so
+# the warm cache is created with the ownership requests need and no later layer
+# has to chown (and so duplicate) it.
+USER builder
+ENV HOME=/home/builder
+RUN cp -r /cache/examples/counter-contract/counter-contract /home/builder/warm \
+ && cd /home/builder/warm \
+ && CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release --locked \
+ && CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --locked \
+ && cd / && rm -rf /home/builder/warm
+USER root
+ENV HOME=/root
+# Each build gets a HOME of its own, deleted after it (see cargo-miden.ts):
+# nothing may persist in the build user's home between builds.
+RUN chown root:root /home/builder && chmod 0755 /home/builder
 
 # The API's helper binaries, copied after the warm-up builds, which don't use
 # them: a change to one of these crates then doesn't redo the warm-up.
@@ -152,5 +187,12 @@ COPY --from=api-builder /prod/api-compile/package.json .
 COPY --from=api-builder /prod/api-compile/node_modules node_modules
 COPY --from=api-builder /prod/api-compile/dist dist
 
+# Build code runs as `builder`; a setuid binary is its shortest way back to
+# root, and the server, already root, needs none of them.
+RUN find / -xdev -perm /6000 -type f -exec chmod a-s {} +
+
 EXPOSE 8080
-CMD ["node", "dist/src/server.js"]
+# RLIMIT_NPROC, inherited by every subprocess and counted per user: a fork
+# bomb in build code stops at 4096 tasks instead of taking the container down.
+# prlimit execs node, which stays PID 1 and gets SIGTERM directly.
+CMD ["prlimit", "--nproc=4096", "node", "dist/src/server.js"]

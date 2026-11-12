@@ -1,5 +1,11 @@
-import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
 import type {
   BuiltPackage,
@@ -12,6 +18,7 @@ import {
   procedureExportPaths,
 } from "miden-source-code-verification-utils/manifest";
 import type { Project } from "miden-source-code-verification-utils/project";
+import { checkBuildOutput, killBuildUserProcesses } from "./build-output.ts";
 import {
   cargoMidenBuild,
   cargoMidenVersion,
@@ -19,16 +26,18 @@ import {
   readCargoLock,
 } from "./cargo-miden.ts";
 import {
+  BUILD_USER,
   CARGO_TARGET_DIR,
   COMPILE_CONCURRENCY,
   COMPILE_DEADLINE_MS,
   COMPILE_QUEUE_SIZE,
   MAX_DEBUG_MASP_BYTES,
   MAX_MASM_BYTES,
+  WORK_DIR,
 } from "./constants.ts";
 import { midenPackageMetadata } from "./helper-tools.ts";
 import { createLimiter } from "./limiter.ts";
-import { removeDirs } from "./utils.ts";
+import { chownTree, removeDirs } from "./utils.ts";
 
 type CompileArgs = {
   // Already opened by the route: its files are clean project-relative paths,
@@ -53,8 +62,12 @@ const errorMessage = (error: unknown, fallback: string) =>
 
 // The release build's Miden Assembly, as a `MasmOutput`: a failure never fails
 // the request it's part of.
-const readMasm = async (masmPath: string): Promise<MasmOutput> => {
+const readMasm = async (
+  masmPath: string,
+  rootDir: string,
+): Promise<MasmOutput> => {
   try {
+    await checkBuildOutput(masmPath, rootDir);
     const { size } = await stat(masmPath);
     if (size > MAX_MASM_BYTES) {
       return { error: "masm too large" };
@@ -91,10 +104,21 @@ const buildDebug = async ({
       profile: "debug",
       signal,
     });
+    // Before anything reads its outputs: see `buildProject`.
+    await killBuildUserProcesses();
     if (cargoMidenError) {
       return { error: cargoMidenError };
     }
     const maspPath = `${midencTargetDir}/${PROFILE_DIRS.debug}/${packageName}.masp`;
+    // Answers the generic failure: a new message would be a new contract.
+    if (
+      !(await checkBuildOutput(maspPath, midencTargetDir).then(
+        () => true,
+        () => false,
+      ))
+    ) {
+      return { error: "debug build failed" };
+    }
     // Checked before reading it: the registry holds the whole response in
     // memory, base64-encoded.
     const { size } = await stat(maspPath);
@@ -171,12 +195,18 @@ const buildProject = async ({
     await mkdir(dir, { recursive: true });
     await writeFile(fullPath, content, "utf-8");
   }
+  // The files were written by the server, the build runs as another user.
+  await chownTree(tmpDir, BUILD_USER);
   const projectDir = join(tmpDir, entrypoint);
   // Under the build's own output directory, so `cleanup` deletes it.
   const masmDir = masm ? `${midencTargetDir}/masm` : undefined;
   if (masmDir) {
     await mkdir(masmDir, { recursive: true });
   }
+  // The build's HOME and TMPDIR (see `cargoOptions`): deleted with the rest of
+  // its output, so nothing it writes there reaches the next build.
+  await mkdir(join(midencTargetDir, "home"), { recursive: true });
+  await chownTree(midencTargetDir, BUILD_USER);
   const {
     stdout = "",
     stderr = "",
@@ -188,10 +218,15 @@ const buildProject = async ({
     masmDir,
     signal,
   });
+  // A process the build left running could rewrite the outputs after they're
+  // checked, or reach the next build: none survives the build.
+  await killBuildUserProcesses();
   if (cargoMidenError) {
     return { built: false, stdout, stderr: cargoMidenError };
   }
   const maspPath = `${midencTargetDir}/${PROFILE_DIRS.release}/${packageName}.masp`;
+  // `midenPackageMetadata`, and `miden-verifier` after it, read the same file.
+  await checkBuildOutput(maspPath, midencTargetDir);
   const [maspBuffer, metadata, cargoLock, builtWith, masmOutput] =
     await Promise.all([
       readFile(maspPath),
@@ -202,7 +237,9 @@ const buildProject = async ({
         console.error(error);
         return undefined;
       }),
-      masmDir ? readMasm(`${masmDir}/${packageName}.masm`) : undefined,
+      masmDir
+        ? readMasm(`${masmDir}/${packageName}.masm`, midencTargetDir)
+        : undefined,
     ]);
   if ("error" in metadata) {
     throw new Error(metadata.error);
@@ -224,6 +261,16 @@ const buildProject = async ({
           signal,
         })
       : undefined;
+  // The debug build ran build code again, which could have replaced the release
+  // package after it was read: the verifier reads `maspPath`, so it must still
+  // be the package this answer returns. No build user process is left to
+  // change it after this check.
+  if (debugBuild) {
+    await checkBuildOutput(maspPath, midencTargetDir);
+    if (!(await readFile(maspPath)).equals(maspBuffer)) {
+      throw new Error("build output changed after it was read");
+    }
+  }
   return {
     built: true,
     stdout,
@@ -256,7 +303,13 @@ const deadlineError = () =>
 // are deleted by `cleanup`, or right away if the build throws: nothing reuses
 // them, and left behind they'd fill the disk.
 const compile = async (args: CompileArgs) => {
-  const tmpDir = await mkdtemp(join(tmpdir(), "miden-project-"));
+  // Whatever an earlier `cargo` call left running or lying in /tmp goes first.
+  await killBuildUserProcesses();
+  await mkdir(join(WORK_DIR, "projects"), { recursive: true });
+  const tmpDir = await mkdtemp(join(WORK_DIR, "projects", "miden-project-"));
+  // Only the build user may enter its project: no other request's files, and
+  // no shared parent, are in reach of the code it runs.
+  await chmod(tmpDir, 0o700);
   // One target dir per request, named after the temp dir (mkdtemp's suffix is
   // mixed-case, so keep it as is: lowercasing it could make two names clash).
   const outputName = (tmpDir.split("/").at(-1) ?? "").replaceAll("-", "_");
@@ -285,6 +338,15 @@ const compile = async (args: CompileArgs) => {
     throw deadline.aborted ? deadlineError() : error;
   }
 };
+
+// One build at a time is what isolates builds from each other: after each
+// build every process of the one build user is killed and its temp files
+// deleted, which would hit a concurrent build too.
+if (BUILD_USER !== undefined && COMPILE_CONCURRENCY > 1) {
+  throw new Error(
+    "COMPILE_CONCURRENCY must be 1 when builds run as BUILD_UID: one build user can't be isolated from itself",
+  );
+}
 
 const limit = createLimiter({
   concurrency: COMPILE_CONCURRENCY,

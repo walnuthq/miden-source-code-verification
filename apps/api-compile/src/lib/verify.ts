@@ -1,8 +1,9 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
+import { API_USER, WORK_DIR } from "./constants.ts";
 import { midenVerifier } from "./helper-tools.ts";
+import { chownTree } from "./utils.ts";
 
 // A failed `miden-verifier` run, with the status `/verify` answers it with: 400
 // when the request can never verify (the resource isn't on-chain, the ID or the
@@ -15,10 +16,13 @@ export class VerifierError extends HttpError {
 }
 
 export const writeResourceFile = async (resource: string) => {
-  const tmpDir = await mkdtemp(join(tmpdir(), "miden-resource-"));
+  await mkdir(join(WORK_DIR, "resources"), { recursive: true });
+  const tmpDir = await mkdtemp(join(WORK_DIR, "resources", "miden-resource-"));
   const resourcePath = join(tmpDir, "resource.txt");
   try {
     await writeFile(resourcePath, resource);
+    // The verifier reads it as another user than the server.
+    await chownTree(tmpDir, API_USER);
   } catch (error) {
     await rm(tmpDir, { recursive: true, force: true });
     throw error;
