@@ -221,12 +221,20 @@ async fn run() -> Result<()> {
 
     let store_path = network_dir.join("store.sqlite3");
 
+    // Building the client creates the store on a network's first run, and two
+    // runs creating it at once fail ("database is locked", "table settings
+    // already exists"). Runs take turns on this lock while they build; past
+    // that, the store handles concurrent runs itself. `miden-verifier` takes
+    // the same lock: both tools share the network's store.
+    let store_lock = std::fs::File::create(network_dir.join("store.lock"))?;
+    store_lock.lock()?;
     let mut client = ClientBuilder::new()
         .rpc(rpc_client)
         .sqlite_store(store_path)
         .authenticator(keystore.clone())
         .build()
         .await?;
+    drop(store_lock);
 
     let output = match parse_resource_id(&args.resource_id)? {
         Resource::Account {
