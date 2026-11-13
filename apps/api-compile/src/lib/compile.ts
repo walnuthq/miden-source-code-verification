@@ -61,9 +61,11 @@ type CompileArgs = {
   warmLockfile?: boolean;
   // Also return the release build's Miden Assembly, as text.
   masm?: boolean;
-  // Filled with how long each part took: `layout` (the build's view of the
-  // warm cache), `cargo` (the release build), `tools` (reading the package),
-  // `debug` (the whole debug variant) and `cleanup`.
+  // Filled with how long each part took: `layout` (waiting for the build's
+  // view of the warm cache), `cargo` (the release build), `tools` (reading the
+  // package), `debug` (the whole debug variant) and `cleanup`. `prepare` is
+  // not part of the request: how long the view this build took had taken to
+  // make, after the build before it.
   timings?: Timings;
   signal?: AbortSignal;
 };
@@ -548,14 +550,66 @@ const prepareWarmCache = async () => {
   );
 };
 
+// The view of the warm cache the next build takes, made since the last build
+// ended: how long it took, or undefined when it failed. Unset until a build
+// has ended, and once a build has taken it: a view serves one build.
+let nextLayout: Promise<number | undefined> | undefined;
+
+// Settles once the work started after the last build is over, so a server
+// that is shutting down doesn't exit with that build's project still on disk.
+export const nextLayoutSettled = async () => {
+  await nextLayout;
+};
+
+// After a build, off its response path: deletes the build's project, then
+// replaces the view of the warm cache it built in (its package included) with
+// the next build's. The next build waits for it, so on a server that had a
+// moment to itself a build starts at once. Whatever the build left running or
+// lying in /tmp goes first. That sweep kills every process of the build user
+// but itself, another sweep included, so only one runs at a time. If it fails,
+// a survivor would have the view to itself until the next build: none is
+// left, and that build sweeps again and makes its own.
+const prepareNextLayout = (projectDir: string, viewDirs: string[]) => {
+  const start = performance.now();
+  nextLayout = (async () => {
+    await removeDirs([projectDir]);
+    if (!(await killBuildUserProcesses())) {
+      await removeDirs(viewDirs);
+      return undefined;
+    }
+    await prepareWarmCache();
+    return performance.now() - start;
+  })().catch((error) => {
+    // The build that finds no view makes its own, and answers for a failure.
+    console.error(error);
+    return undefined;
+  });
+};
+
+// Gives the build its view of the warm cache: the one made after the last
+// build, or a new one when there is none (the first build, or a failure).
+// A failure here fails the request: never build against a partial cache. A
+// request whose client left while it waited takes nothing: the view stays for
+// the next build.
+const takeLayout = async ({ timings, signal }: CompileArgs) => {
+  const prepared = await nextLayout;
+  signal?.throwIfAborted();
+  nextLayout = undefined;
+  if (prepared === undefined) {
+    // Whatever an earlier `cargo` call left running or lying in /tmp goes
+    // first.
+    await killBuildUserProcesses();
+    await prepareWarmCache();
+  } else if (timings) {
+    timings.prepare = prepared;
+  }
+};
+
 // Builds in a fresh copy of the project, into its own output directory. Both
 // are deleted by `cleanup`, or right away if the build throws: nothing reuses
 // them, and left behind they'd fill the disk.
 const compile = async (args: CompileArgs) => {
-  // Whatever an earlier `cargo` call left running or lying in /tmp goes first.
-  await killBuildUserProcesses();
-  // A failure here fails the request: never build against a partial cache.
-  await timed(args.timings, "layout", prepareWarmCache);
+  await timed(args.timings, "layout", () => takeLayout(args));
   await mkdir(join(WORK_DIR, "projects"), { recursive: true });
   const tmpDir = await mkdtemp(join(WORK_DIR, "projects", "miden-project-"));
   // Only the build user may enter its project: no other request's files, and
@@ -565,15 +619,19 @@ const compile = async (args: CompileArgs) => {
   // mixed-case, so keep it as is: lowercasing it could make two names clash).
   const outputName = (tmpDir.split("/").at(-1) ?? "").replaceAll("-", "_");
   const midencTargetDir = `${CARGO_TARGET_DIR}/${outputName}`;
-  // With a warm cache, the build's view of it goes, so it doesn't sit on disk
-  // between requests; `midencTargetDir` sits inside CARGO_TARGET_DIR, so it
-  // goes too. On the host CARGO_TARGET_DIR is the shared cache: never delete it.
-  const cleanup = () =>
-    removeDirs(
-      warmCache === undefined
-        ? [tmpDir, midencTargetDir]
-        : [tmpDir, ...warmCache.trees.map(({ destination }) => destination)],
-    );
+  // With a warm cache, the build's view of it is replaced by the next build's
+  // in the background; `midencTargetDir` sits inside it, so it goes too. On
+  // the host CARGO_TARGET_DIR is the shared cache: never delete it.
+  const cleanup = async () => {
+    if (warmCache === undefined) {
+      await removeDirs([tmpDir, midencTargetDir]);
+    } else {
+      prepareNextLayout(
+        tmpDir,
+        warmCache.trees.map(({ destination }) => destination),
+      );
+    }
+  };
   // Started once the slot is taken: time spent queued doesn't count.
   const deadline = AbortSignal.timeout(COMPILE_DEADLINE_MS);
   const signal = args.signal
@@ -613,11 +671,12 @@ const limit = createLimiter({
   queueSize: COMPILE_QUEUE_SIZE,
 });
 
-// Compiles once a slot is free (throws `BusyError` when the queue is full),
-// passes the build to `use`, then deletes its files, all in the slot: each
-// build replaces the cache copy the previous build's package lives in, so the
-// next build may start only once this one's package has been used and deleted.
-// `use` has to be done with `maspPath` when it returns.
+// Compiles once a slot is free (throws `BusyError` when the queue is full) and
+// passes the build to `use`, in the slot. Its files are then deleted: on the
+// host before the slot is given back, in the image while the next view of the
+// warm cache is made, which the next build waits for. Either way the next
+// build starts only once this one's package has been used and deleted. `use`
+// has to be done with `maspPath` when it returns.
 export const queueCompile = async <T>(
   args: CompileArgs,
   use: (build: Build) => Promise<T> | T,

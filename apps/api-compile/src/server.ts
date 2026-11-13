@@ -5,6 +5,7 @@ import {
   notFound,
 } from "miden-source-code-verification-utils/http-errors";
 import { cargoMidenVersion } from "./lib/cargo-miden.ts";
+import { nextLayoutSettled } from "./lib/compile.ts";
 import {
   ALLOWED_ORIGINS,
   CARGO_TARGET_DIR,
@@ -85,7 +86,10 @@ const shutdown = (signal: NodeJS.Signals) => {
   }
   shuttingDown = true;
   console.log(`${signal} received, finishing in-flight requests`);
-  server.close(() => process.exit(0));
+  // The last build's files are deleted after its answer: wait for that too.
+  server.close(() => {
+    void nextLayoutSettled().finally(() => process.exit(0));
+  });
   server.closeIdleConnections();
   setTimeout(() => {
     console.error("In-flight requests did not finish in time, exiting");
