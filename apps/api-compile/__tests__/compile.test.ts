@@ -437,6 +437,60 @@ describe("POST /compile readOnly", () => {
   });
 });
 
+describe("POST /compile accountProcedures", () => {
+  // The digests the counter-contract component exports, by procedure name:
+  // what an account's code holds once it has the component.
+  const counterDigests = async () => {
+    const res = await api.post("/compile").send({
+      files: await readProjectFiles(`${counterContractDir}/counter-contract`),
+    });
+    expect(res.status).toBe(200);
+    // An account component runs as the account: it calls none.
+    expect(res.body).not.toHaveProperty("accountProcedures");
+    const component = '::"miden:counter-contract/counter-contract@0.1.0"';
+    const digest = (name: string) =>
+      res.body.manifest.exports.find(
+        (packageExport: { Procedure?: { path: string } }) =>
+          packageExport.Procedure?.path === `${component}::"${name}"`,
+      )?.Procedure.digest;
+    return {
+      getCount: digest("get-count"),
+      incrementCount: digest("increment-count"),
+    };
+  };
+
+  it("returns the counter procedures the counter note calls", async () => {
+    const { getCount, incrementCount } = await counterDigests();
+    expect(getCount).toBeDefined();
+    expect(incrementCount).toBeDefined();
+
+    const res = await api.post("/compile").send({
+      files: await readProjectFiles(counterContractDir),
+      entrypoint: "counter-note",
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("kind", "note");
+    expect(res.body.accountProcedures).toEqual(
+      [getCount, incrementCount].sort(),
+    );
+  });
+
+  it("returns only increment-count for the counter script", async () => {
+    const { incrementCount } = await counterDigests();
+    expect(incrementCount).toBeDefined();
+
+    const res = await api.post("/compile").send({
+      files: await readProjectFiles(counterContractDir),
+      entrypoint: "counter-script",
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("kind", "transaction-script");
+    expect(res.body.accountProcedures).toEqual([incrementCount]);
+  });
+});
+
 describe("POST /compile schemas", () => {
   it("returns an account component's map slot", async () => {
     const files = await readProjectFiles(
