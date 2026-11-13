@@ -111,7 +111,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 FROM base AS runtime
 
 # CARGO_HOME is not the toolchain's directory: cargo writes its registry cache
-# and a lock file under it during a build, so it is the build's own fresh copy
+# and a lock file under it during a build, so it is the build's own fresh view
 # of the image's warm cache (see constants.ts), not the image's. The toolchain
 # and the helper tools in /usr/local/cargo stay root's.
 ENV RUSTUP_HOME=/usr/local/rustup \
@@ -132,8 +132,8 @@ COPY --from=cargo-miden-builder /usr/local/cargo /usr/local/cargo
 # as one of them (execFile's uid/gid): `builder` runs cargo, so everything build
 # code can write is `builder`'s; `api` runs the helper tools, which own the
 # client stores. Build code can write only its project directory, its home and
-# the build's copies of /cache/target and /cache/cargo-home, which the server
-# replaces before every build; /work is root's and traversable only, so no
+# the build's own /cache/target and /cache/cargo-home, which the server lays
+# out again before every build; /work is root's and traversable only, so no
 # directory it can write is a parent of another request's project.
 RUN groupadd --system --gid 10001 api \
  && useradd --system --uid 10001 --gid api --create-home --home-dir /home/api api \
@@ -162,9 +162,12 @@ WORKDIR /cache/examples/counter-contract/counter-contract
 # cargo records the CARGO_HOME path in its dependency fingerprints, so a cache
 # copied to another path would recompile every dependency. The result then
 # moves, in this same RUN (a later layer would duplicate it), to a read-only
-# /cache/image; the server copies it back to the original paths before each
-# build, so nothing build code changes reaches a later build. The chmod makes
-# the warm-up's root-only files (lock files) readable for that copy.
+# /cache/image; before each build the server lays it out again at the original
+# paths, as hard links to the compiled dependencies and crate sources and
+# copies of the rest, so nothing build code changes reaches a later build. The
+# links are safe only because these files are root's and no one else may write
+# them, which the chmod also ensures; it makes the warm-up's root-only files
+# (lock files) readable too.
 RUN cp -r /cache/examples/counter-contract/counter-contract /tmp/warm \
  && cd /tmp/warm \
  && CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release --locked \
