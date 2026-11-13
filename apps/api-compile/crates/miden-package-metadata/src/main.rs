@@ -13,6 +13,7 @@ use serde_json::{Map, Value, json};
 use std::path::PathBuf;
 
 mod read_only;
+mod schemas;
 
 /// Extracts and prints metadata from a Miden package (.masp) file as JSON.
 #[derive(Parser)]
@@ -41,7 +42,7 @@ fn main() -> Result<()> {
         )
     })?;
 
-    let metadata = json!({
+    let mut metadata = json!({
         // The package's identity: its code (exported interface and MAST
         // forest), name, version, kind, manifest and account component
         // metadata. Unlike `mast_forest_commitment()`, two packages that compile
@@ -70,6 +71,15 @@ fn main() -> Result<()> {
             .map(|(path, access)| (path, json!(access.read_only())))
             .collect::<Map<_, _>>(),
     });
+    // An account component's storage slots and a note's storage (its inputs),
+    // from the schemas the toolchain embeds. Absent, not `null`, when the
+    // package has none or the tool can't read it: `schemas.rs` says why.
+    if let Some(storage) = schemas::storage(&package) {
+        metadata["storage"] = storage;
+    }
+    if let Some(note_storage) = schemas::note_storage(&package) {
+        metadata["noteStorage"] = note_storage;
+    }
 
     println!("{}", serde_json::to_string(&metadata)?);
 

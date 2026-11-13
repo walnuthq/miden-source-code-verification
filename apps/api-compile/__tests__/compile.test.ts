@@ -437,6 +437,101 @@ describe("POST /compile readOnly", () => {
   });
 });
 
+describe("POST /compile schemas", () => {
+  it("returns an account component's map slot", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+
+    const res = await api.post("/compile").send({ files });
+
+    expect(res.status).toBe(200);
+    expect(res.body.storage).toEqual({
+      slots: [
+        {
+          name: "counter_contract::counter_contract::count_map",
+          description: "counter contract storage map",
+          type: "map",
+          keyType: "word",
+          valueType: "felt",
+        },
+      ],
+    });
+    expect(res.body).not.toHaveProperty("noteStorage");
+  });
+
+  it("returns an account component's value and map slots", async () => {
+    const files = await readProjectFiles(`${bankDir}/bank-account`);
+
+    const res = await api.post("/compile").send({ files });
+
+    expect(res.status).toBe(200);
+    // In the metadata's order, which is the slots' ids, not their declaration.
+    expect(res.body.storage).toEqual({
+      slots: [
+        {
+          name: "bank_account::bank::initialized",
+          description: "initialized",
+          type: "value",
+          valueType: "word",
+        },
+        {
+          name: "bank_account::bank::balances",
+          description: "balances",
+          type: "map",
+          keyType: "word",
+          valueType: "felt",
+        },
+      ],
+    });
+  });
+
+  it("returns a note's storage fields", async () => {
+    const files = await readProjectFiles(counterContractDir);
+    const entrypoint = "counter-note";
+    // The P2ID note's storage: the one account that may consume it.
+    editProjectFile(files, `${entrypoint}/src/lib.rs`, (content) =>
+      content.replace(
+        "struct CounterNote;",
+        "struct CounterNote {\n    /// The account that may consume the note.\n    target_account_id: AccountId,\n}",
+      ),
+    );
+    expect(files[`${entrypoint}/src/lib.rs`]).toContain(
+      "target_account_id: AccountId",
+    );
+
+    const res = await api.post("/compile").send({ files, entrypoint });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("built", true);
+    expect(res.body.noteStorage).toEqual({
+      name: "counter-note",
+      fields: [
+        {
+          name: "target-account-id",
+          type: "account-id",
+          width: 2,
+          description: "The account that may consume the note.",
+        },
+      ],
+    });
+    expect(res.body).not.toHaveProperty("storage");
+  });
+
+  it("returns neither for a transaction script", async () => {
+    const files = await readProjectFiles(bankDir);
+
+    const res = await api
+      .post("/compile")
+      .send({ files, entrypoint: "init-tx-script" });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("kind", "transaction-script");
+    expect(res.body).not.toHaveProperty("storage");
+    expect(res.body).not.toHaveProperty("noteStorage");
+  });
+});
+
 describe("POST /compile returned files", () => {
   it("echoes the sources with the lockfile it created", async () => {
     const { "Cargo.lock": _, ...files } = await readProjectFiles(

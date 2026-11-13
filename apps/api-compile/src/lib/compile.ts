@@ -267,7 +267,14 @@ const buildProject = async ({
   if ("error" in metadata) {
     throw new Error(metadata.error);
   }
-  const { commitment, kind, manifest, readOnly = {} } = metadata.output;
+  const {
+    commitment,
+    kind,
+    manifest,
+    readOnly = {},
+    storage,
+    noteStorage,
+  } = metadata.output;
   const drift =
     expectedCommitment !== undefined &&
     expectedCommitment.toLowerCase() !== commitment.toLowerCase();
@@ -306,6 +313,8 @@ const buildProject = async ({
     kind,
     manifest,
     readOnly,
+    storage,
+    noteStorage,
     cargoMidenVersion: builtWith,
     drift,
     debug: debugBuild,
