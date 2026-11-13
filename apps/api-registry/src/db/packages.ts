@@ -41,9 +41,9 @@ export const getPackagesWithoutSchemas = () =>
     orderBy: { createdAt: "asc" },
   });
 
-// The `schemas` column of a package api-compile read: only the schemas it
-// has, so `{}` for one with none.
-export const packageSchemas = ({
+// The `schemas` column of what api-compile read of a package: only the
+// schemas it has, so `{}` for one with none (no keys set to `undefined`).
+export const schemasOf = ({
   storage,
   noteStorage,
 }: PackageSchemas): PackageSchemas => ({

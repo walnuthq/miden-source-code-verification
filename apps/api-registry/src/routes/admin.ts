@@ -1,12 +1,15 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { type RequestHandler, Router } from "express";
-import { notFound } from "miden-source-code-verification-utils/http-errors";
+import {
+  HttpError,
+  notFound,
+} from "miden-source-code-verification-utils/http-errors";
 import { inferEntrypoint } from "miden-source-code-verification-utils/project";
 import {
   getPackage,
   getPackagesWithoutDebugBuild,
   getPackagesWithoutSchemas,
-  packageSchemas,
+  schemasOf,
   updatePackage,
 } from "../db/packages.ts";
 import { getApiCompile } from "../lib/api-compile.ts";
@@ -114,8 +117,7 @@ router.post("/admin/packages/:commitment/schemas", async (req, res) => {
   }
   const dbPackage = await getPackage(commitment);
   if (!dbPackage) {
-    res.status(404).json({ error: "package not found" });
-    return;
+    throw new HttpError(404, "package not found");
   }
   if (dbPackage.schemas) {
     res.json({ schemas: dbPackage.schemas });
@@ -123,17 +125,16 @@ router.post("/admin/packages/:commitment/schemas", async (req, res) => {
   }
   const masp = await getMaspStore(req).get(commitment);
   if (!masp) {
-    res.status(404).json({ error: "package masp not found" });
-    return;
+    throw new HttpError(404, "package masp not found");
   }
   const metadata = await getApiCompile(req).packageMetadata(masp);
   if (metadata.commitment.toLowerCase() !== commitment.toLowerCase()) {
-    res
-      .status(409)
-      .json({ error: `stored masp has commitment ${metadata.commitment}` });
-    return;
+    throw new HttpError(
+      409,
+      `stored masp has commitment ${metadata.commitment}`,
+    );
   }
-  const schemas = packageSchemas(metadata);
+  const schemas = schemasOf(metadata);
   await updatePackage(dbPackage.id, { schemas });
   res.json({ schemas });
 });

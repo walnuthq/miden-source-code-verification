@@ -19,8 +19,8 @@ export type SourceFile = { path: string; html: string };
 // renders: the displayed files, sorted by path, and the one opened first.
 // `rawFiles` is every file the registry kept for the package, including those
 // the explorer hides, for the Download Sources archive. The name, commitment,
-// procedures, storage schemas, dependencies, verification time and source head the package's
-// card.
+// procedures, storage schemas, dependencies, verification time and source
+// head the package's card.
 export type PackageSources = {
   name: string;
   commitment: string;

@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import express, { Router } from "express";
+import type { PackageMetadataResponse } from "miden-source-code-verification-utils/api-compile";
 import { API_USER, WORK_DIR } from "../lib/constants.ts";
 import { midenPackageMetadata } from "../lib/helper-tools.ts";
 import { chownTree, removeDirs } from "../lib/utils.ts";
@@ -38,7 +39,9 @@ router.post(
         res.status(400).json({ error: metadata.error });
         return;
       }
-      res.json(metadata.output);
+      // As `/compile` reads it.
+      const { readOnly = {}, ...output } = metadata.output;
+      res.json({ ...output, readOnly } satisfies PackageMetadataResponse);
     } finally {
       await removeDirs([dir]);
     }

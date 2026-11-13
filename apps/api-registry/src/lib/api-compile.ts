@@ -147,7 +147,9 @@ export const createHttpApiCompile = (baseUrl: string): ApiCompile => ({
     ),
   compileDebug: ({ signal, ...input }) =>
     postBuild<CompileDebugResponse>(`${baseUrl}/compile-debug`, input, signal),
-  // Quick, but it may wake the container: the import's allowance.
+  // Reads one file without building anything, but it may wake the container:
+  // the import's allowance, above the Worker's own (the health probe's), so a
+  // slow wake-up comes back as the Worker's 504, which the backfill retries.
   packageMetadata: (masp) =>
     fetchJson<PackageMetadataResponse>(`${baseUrl}/package-metadata`, {
       method: "POST",

@@ -35,7 +35,7 @@ const errorOf = async (response: Response) => {
 };
 
 // What was stored, e.g. `2 storage slots` or `1 note storage field`.
-const describe = ({ storage, noteStorage }: PackageSchemas) => {
+const summarize = ({ storage, noteStorage }: PackageSchemas) => {
   const parts = [
     storage && `${storage.slots.length} storage slot(s)`,
     noteStorage && `${noteStorage.fields.length} note storage field(s)`,
@@ -53,7 +53,7 @@ const backfill = async ({ commitment }: PendingPackage) => {
       const { schemas } = (await response.json()) as {
         schemas: PackageSchemas;
       };
-      return { stored: true, detail: describe(schemas) } as const;
+      return { stored: true, detail: summarize(schemas) } as const;
     }
     if (
       response.status >= 502 &&

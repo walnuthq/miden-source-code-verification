@@ -9,7 +9,7 @@ import type {
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import db, { createDb, dbScope } from "../src/db/index.ts";
-import { getPackage } from "../src/db/packages.ts";
+import { getPackage, updatePackage } from "../src/db/packages.ts";
 import {
   verifiedAccountCodeTable,
   verifiedNoteScriptTable,
@@ -543,5 +543,40 @@ describe("verifyResource", () => {
     await expect(verify(ACCOUNT, apiCompile)).rejects.toBe(failure);
 
     expect(await getPackage(COMMITMENT)).toBeUndefined();
+  });
+
+  describe("storage schemas", () => {
+    const storage = {
+      slots: [
+        {
+          name: "counter_contract::counter_contract::count_map",
+          type: "map" as const,
+          keyType: "word",
+          valueType: "felt",
+        },
+      ],
+    };
+
+    it("stores the schemas the build read, `{}` for none", async () => {
+      await verifyBuilt(ACCOUNT, built(), `0x${"41".repeat(32)}`);
+      expect(await getPackage(COMMITMENT)).toHaveProperty("schemas", {});
+    });
+
+    it("fills them in on a package stored before it kept them", async () => {
+      await verifyBuilt(ACCOUNT, built(), `0x${"42".repeat(32)}`);
+      const stored = await getPackage(COMMITMENT);
+      // As an older registry stored it.
+      await updatePackage(stored?.id ?? "", { schemas: null });
+
+      await verifyBuilt(
+        ACCOUNT,
+        { ...built(), storage },
+        `0x${"43".repeat(32)}`,
+      );
+
+      expect(await getPackage(COMMITMENT)).toHaveProperty("schemas", {
+        storage,
+      });
+    });
   });
 });
