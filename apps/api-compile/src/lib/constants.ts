@@ -14,13 +14,23 @@ export const CARGO_HOME = process.env.CARGO_HOME;
 // reaches a later one. Unset on the host, where builds use CARGO_TARGET_DIR
 // and CARGO_HOME directly.
 export const WARM_CACHE_DIR = process.env.WARM_CACHE_DIR;
-// The two directories in it, so their names live in one place. An empty
+// The two directories in it (the layout script names them too). An empty
 // WARM_CACHE_DIR counts as unset.
 export const WARM_TARGET_DIR = WARM_CACHE_DIR
   ? join(WARM_CACHE_DIR, "target")
   : undefined;
 export const WARM_CARGO_HOME = WARM_CACHE_DIR
   ? join(WARM_CACHE_DIR, "cargo-home")
+  : undefined;
+// What lays a view out (scripts/lay-out-warm-cache.sh): the image installs it,
+// and runs it once itself for the view it ships.
+export const WARM_CACHE_LAYOUT =
+  process.env.WARM_CACHE_LAYOUT ?? "/usr/local/bin/lay-out-warm-cache";
+// Present while the view the image ships hasn't been claimed by a server (see
+// `claimShippedView` in compile.ts); it holds the view's two paths and its
+// owner. In the warm cache's directory, which only root can write.
+export const SHIPPED_VIEW_MARKER = WARM_CACHE_DIR
+  ? join(WARM_CACHE_DIR, "shipped-view")
   : undefined;
 // The lockfile the image warmed cargo's cache with (see the Dockerfile): the
 // crate versions an offline build finds. `GET /lockfile` serves it, so clients

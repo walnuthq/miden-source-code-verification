@@ -147,6 +147,11 @@ ENV BUILD_UID=10002 BUILD_GID=10002 API_UID=10001 API_GID=10001 \
     WARM_CACHE_DIR=/cache/image \
     MIDEN_CLIENT_CACHE_DIR=/cache/stores
 
+# What lays a view of the warm cache out for a build (see the script): the
+# warm-up below runs it once, the server after each build. Copied before the
+# warm-up, so a change to it redoes the warm-up.
+COPY --chmod=755 apps/api-compile/scripts/lay-out-warm-cache.sh /usr/local/bin/lay-out-warm-cache
+
 # Copy project template
 WORKDIR /cache/examples
 COPY apps/api-compile/examples .
@@ -168,6 +173,14 @@ WORKDIR /cache/examples/counter-contract/counter-contract
 # build code changes reaches a later build. The links are safe only because
 # these files are root's and no one else may write them, which the chmod also
 # ensures; it makes the warm-up's root-only files (lock files) readable too.
+# The first view is laid out here, in the same RUN: its hard links are links
+# only within one layer. The first build after a start then has nothing to
+# wait for. `shipped-view` marks it as unused, with where it is and whose; the
+# server deletes the mark when it claims the view, so a server restarted on the
+# same disk makes its own. The `test` before it is the check the server makes
+# before it lays a view out itself: build code reaches the crate sources in
+# /cache/image through symbolic links, so nothing there may be writable by
+# anyone but root.
 RUN cp -r /cache/examples/counter-contract/counter-contract /tmp/warm \
  && cd /tmp/warm \
  && CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release --locked \
@@ -175,7 +188,10 @@ RUN cp -r /cache/examples/counter-contract/counter-contract /tmp/warm \
  && cd / && rm -rf /tmp/warm \
  && mkdir /cache/image \
  && mv /cache/target /cache/cargo-home /cache/image/ \
- && chmod -R go+rX,go-w /cache/image
+ && chmod -R go+rX,go-w /cache/image \
+ && test -z "$(find /cache/image \( ! -user 0 -o -perm /022 \) ! -type l -print -quit)" \
+ && lay-out-warm-cache /cache/image /cache/target /cache/cargo-home "$BUILD_UID:$BUILD_GID" \
+ && echo "/cache/target /cache/cargo-home $BUILD_UID:$BUILD_GID" > /cache/image/shipped-view
 # Each build gets a HOME of its own, deleted after it (see cargo-miden.ts):
 # nothing may persist in the build user's home between builds.
 RUN chown root:root /home/builder && chmod 0755 /home/builder

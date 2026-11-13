@@ -37,6 +37,9 @@ import {
   MAX_DEBUG_MASP_BYTES,
   MAX_MASM_BYTES,
   MIDEN_TOOL_TIMEOUT_MS,
+  SHIPPED_VIEW_MARKER,
+  WARM_CACHE_DIR,
+  WARM_CACHE_LAYOUT,
   WARM_CARGO_HOME,
   WARM_TARGET_DIR,
   WORK_DIR,
@@ -321,31 +324,15 @@ const deadlineError = () =>
     `the build did not finish within ${COMPILE_DEADLINE_MS / 1000}s`,
   );
 
-// What a build shares with the image's warm cache through hard links instead
-// of copying, as `find` tests: compiled dependencies under the target
-// directory, and the downloaded crates under CARGO_HOME. Those are most of the
-// cache's bytes, and a build never changes one in place: rustc and the linker
-// replace an output they rebuild, which the build user may do in its own
-// directories. Everything else (lock files, fingerprints, build script output,
-// the registry index) cargo opens for writing, so it is copied.
-const LINK_TEST_IN_TARGET = [
-  ...["-name", "*.rlib", "-o"],
-  ...["-name", "*.rmeta", "-o"],
-  ...["-name", "*.so", "-o"],
-  ...["-name", "build_script_build"],
-];
-const LINK_TEST_IN_CARGO_HOME = ["-path", "./registry/cache/*"];
-// The crate sources, relative to CARGO_HOME: one directory per registry, one
-// directory per crate in it. They are four fifths of the cache's entries and a
-// build only reads them, so each crate's directory is shared whole, through
-// one symbolic link, instead of entry by entry.
-const CRATE_SOURCES = "registry/src";
-
 // The build's own view of the image's warm cache, at the paths cargo uses (its
 // fingerprints record them). Undefined on the host, which builds against
 // CARGO_TARGET_DIR and CARGO_HOME directly.
 const warmCache = (() => {
-  if (WARM_TARGET_DIR === undefined || WARM_CARGO_HOME === undefined) {
+  if (
+    WARM_CACHE_DIR === undefined ||
+    WARM_TARGET_DIR === undefined ||
+    WARM_CARGO_HOME === undefined
+  ) {
     return undefined;
   }
   if (BUILD_USER === undefined || CARGO_HOME === undefined) {
@@ -354,75 +341,24 @@ const warmCache = (() => {
     );
   }
   return {
+    dir: WARM_CACHE_DIR,
     buildUser: BUILD_USER,
-    trees: [
-      {
-        source: WARM_TARGET_DIR,
-        destination: CARGO_TARGET_DIR,
-        linkTest: LINK_TEST_IN_TARGET,
-        symlinkedIn: undefined,
-      },
-      {
-        source: WARM_CARGO_HOME,
-        destination: CARGO_HOME,
-        linkTest: LINK_TEST_IN_CARGO_HOME,
-        symlinkedIn: CRATE_SOURCES,
-      },
-    ],
+    target: { source: WARM_TARGET_DIR, destination: CARGO_TARGET_DIR },
+    cargoHome: { source: WARM_CARGO_HOME, destination: CARGO_HOME },
   };
 })();
 
-// Lays `$1` out at `$2` for the build user `$3` (uid:gid). `$4` is a `find`
-// path pattern for the directories whose entries are each shared whole, through
-// a symbolic link (empty: none); the remaining arguments are the `find` test
-// for the files to hard-link. Run as root:
-// 1. hard-link the tree, which also creates the directories with their modes
-//    and timestamps. With directories to symlink, the directories outside them
-//    are made first and `cp` gets the files there one by one instead of the
-//    whole tree; each directory to symlink is made the build user's, holding
-//    one link per entry: cargo unpacks a crate it downloads next to them;
-// 2. replace every link that isn't to stay one with a copy (`cp -a` keeps the
-//    timestamps cargo's fingerprints need). The link goes first, symbolic
-//    links included: `cp` won't copy a file over a link to itself, and a
-//    shared symbolic link would get its owner changed in the image's cache;
-// 3. give the build user the directories and the copies.
-// A linked file stays root's: the build user can read it and replace it in its
-// own directory, never write it, so the image's cache can't change. Only a
-// file that is root's and that no one else may write is linked, whatever the
-// test says: a link to anything else would be a way into the image's cache.
-// `linkWarmCache` checks the same of a tree the symbolic links lead into.
-const LINK_TREE_SCRIPT = `
-set -euo pipefail
-source=$1 destination=$2 owner=$3 symlink_parents=$4
-shift 4
-linked=(-type f -user 0 ! -perm /022 "(" "$@" ")")
-copied=(! -type d ! "(" "\${linked[@]}" ")")
-outside=(-path "$symlink_parents" -type d -prune -o)
-cd "$source"
-if [[ -z $symlink_parents ]]; then
-  cp -al . "$destination"
-else
-  find . "\${outside[@]}" -type d -print0 |
-    (cd "$destination" && xargs -0 -r mkdir -p)
-  find . "\${outside[@]}" ! -type d -print0 |
-    xargs -0 -r cp -al --parents -t "$destination"
-  find . -path "$symlink_parents" -type d -prune -printf "%P\\0" |
-    while IFS= read -r -d "" dir; do
-      mkdir -p "$destination/$dir"
-      chown "$owner" "$destination/$dir"
-      find "$source/$dir" -mindepth 1 -maxdepth 1 -print0 |
-        xargs -0 -r ln -s -t "$destination/$dir"
-    done
-fi
-find . "\${outside[@]}" "\${copied[@]}" -print0 |
-  (cd "$destination" && xargs -0 -r rm -f)
-find . "\${outside[@]}" "\${copied[@]}" -print0 |
-  xargs -0 -r cp -a --parents -t "$destination"
-find . "\${outside[@]}" ! "(" "\${linked[@]}" ")" -print0 |
-  (cd "$destination" && xargs -0 -r chown -h "$owner")
-`;
-
 type WarmCache = NonNullable<typeof warmCache>;
+
+const trees = ({ target, cargoHome }: WarmCache) => [target, cargoHome];
+
+// What the layout script is called with, and what the image's mark of the
+// view it ships holds: where the view is and whose it is.
+const viewOf = ({ target, cargoHome, buildUser }: WarmCache) => [
+  target.destination,
+  cargoHome.destination,
+  `${buildUser.uid}:${buildUser.gid}`,
+];
 
 // The first entry under `dir` that isn't root's or that someone else may
 // write, if any. Symbolic links are skipped: their mode means nothing, and the
@@ -459,46 +395,31 @@ const findWritableOnce = (dir: string) => {
   return found;
 };
 
-const linkWarmCache = async ({ buildUser, trees }: WarmCache) => {
-  for (const { source, destination, linkTest, symlinkedIn } of trees) {
-    // Build code reaches the image's files themselves through a symbolic
-    // link, by path: the whole tree has to be root's alone to write, the
-    // directories above the links included.
-    if (symlinkedIn !== undefined) {
-      const writable = await findWritableOnce(source);
-      if (writable !== undefined) {
-        throw new Error(`${writable} is not root's alone to write`);
-      }
-    }
-    await rm(destination, { recursive: true, force: true });
-    await mkdir(destination);
-    await execFile(
-      "bash",
-      [
-        "-c",
-        LINK_TREE_SCRIPT,
-        "bash",
-        source,
-        destination,
-        `${buildUser.uid}:${buildUser.gid}`,
-        // Each registry's directory under it, as `find` sees it from `source`.
-        symlinkedIn === undefined ? "" : `./${symlinkedIn}/*`,
-        ...linkTest,
-      ],
-      {
-        cwd: "/",
-        env: { PATH: process.env.PATH },
-        timeout: MIDEN_TOOL_TIMEOUT_MS,
-      },
-    );
+// The view as links to what a build only reads and copies of the rest: the
+// script says which is which, and the image's Dockerfile runs the same one for
+// the view the image ships.
+const linkWarmCache = async (cache: WarmCache) => {
+  // Build code reaches the image's crate sources themselves through symbolic
+  // links, by path: the whole tree they are in has to be root's alone to
+  // write, the directories above the links included. The image's build checks
+  // the same before it ships a view.
+  const writable = await findWritableOnce(cache.cargoHome.source);
+  if (writable !== undefined) {
+    throw new Error(`${writable} is not root's alone to write`);
   }
+  await execFile(WARM_CACHE_LAYOUT, [cache.dir, ...viewOf(cache)], {
+    cwd: "/",
+    env: { PATH: process.env.PATH },
+    timeout: MIDEN_TOOL_TIMEOUT_MS,
+  });
 };
 
 // The whole cache as copies, for a filesystem that can't link it (the image's
 // cache on another device than the build's paths). The copy runs as the build
 // user, so it owns the result with no chown pass.
-const copyWarmCache = async ({ buildUser, trees }: WarmCache) => {
-  for (const { source, destination } of trees) {
+const copyWarmCache = async (cache: WarmCache) => {
+  const { buildUser } = cache;
+  for (const { source, destination } of trees(cache)) {
     await rm(destination, { recursive: true, force: true });
     await mkdir(destination);
     await chown(destination, buildUser.uid, buildUser.gid);
@@ -520,7 +441,7 @@ const prepareWarmCache = async () => {
   if (warmCache === undefined) {
     return;
   }
-  const destinations = warmCache.trees.map(({ destination }) => destination);
+  const destinations = trees(warmCache).map(({ destination }) => destination);
   const start = performance.now();
   let outcome = "linked";
   try {
@@ -550,10 +471,32 @@ const prepareWarmCache = async () => {
   );
 };
 
-// The view of the warm cache the next build takes, made since the last build
-// ended: how long it took, or undefined when it failed. Unset until a build
-// has ended, and once a build has taken it: a view serves one build.
-let nextLayout: Promise<number | undefined> | undefined;
+// The view the image ships at the build's paths, so that the first build after
+// a start doesn't wait for one: 0, the time it took this process to make, or
+// undefined when there is none. The image marks it with a file only root can
+// make, deleted here before any build runs: a view counts as unused once per
+// disk. A process restarted on the same disk (docker compose) finds no mark
+// and lays out its own; Cloudflare starts every container on a fresh disk.
+// The mark says where the view is and whose: one made for other paths or
+// another user than this server builds with isn't taken.
+const claimShippedView = async () => {
+  if (warmCache === undefined || SHIPPED_VIEW_MARKER === undefined) {
+    return undefined;
+  }
+  try {
+    const shipped = (await readFile(SHIPPED_VIEW_MARKER, "utf-8")).trim();
+    await rm(SHIPPED_VIEW_MARKER);
+    return shipped === viewOf(warmCache).join(" ") ? 0 : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+// The view of the warm cache the next build takes: the one the image ships,
+// then the one made since the last build ended. How long it took, or undefined
+// when there is none or making it failed. Unset once a build has taken it: a
+// view serves one build.
+let nextLayout: Promise<number | undefined> | undefined = claimShippedView();
 
 // Settles once the work started after the last build is over, so a server
 // that is shutting down doesn't exit with that build's project still on disk.
@@ -628,7 +571,7 @@ const compile = async (args: CompileArgs) => {
     } else {
       prepareNextLayout(
         tmpDir,
-        warmCache.trees.map(({ destination }) => destination),
+        trees(warmCache).map(({ destination }) => destination),
       );
     }
   };
