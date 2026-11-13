@@ -2,7 +2,13 @@
 // them hands an empty record to the code it calls and answers with what came
 // back as a `Server-Timing` header: the container's log can't be read from
 // the CLI, a response header can.
-export type Part = "layout" | "cargo" | "tools" | "debug" | "cleanup";
+export type Part =
+  | "layout"
+  | "prepare"
+  | "cargo"
+  | "tools"
+  | "debug"
+  | "cleanup";
 export type Timings = Partial<Record<Part, number>>;
 
 // Runs `run` and adds its duration to `timings[name]`, when there is a record
