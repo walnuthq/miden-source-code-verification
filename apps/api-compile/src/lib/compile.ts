@@ -343,17 +343,22 @@ const warmCache = (() => {
   return {
     dir: WARM_CACHE_DIR,
     buildUser: BUILD_USER,
-    targetDir: CARGO_TARGET_DIR,
-    cargoHome: CARGO_HOME,
-    warmCargoHome: WARM_CARGO_HOME,
-    trees: [
-      { source: WARM_TARGET_DIR, destination: CARGO_TARGET_DIR },
-      { source: WARM_CARGO_HOME, destination: CARGO_HOME },
-    ],
+    target: { source: WARM_TARGET_DIR, destination: CARGO_TARGET_DIR },
+    cargoHome: { source: WARM_CARGO_HOME, destination: CARGO_HOME },
   };
 })();
 
 type WarmCache = NonNullable<typeof warmCache>;
+
+const trees = ({ target, cargoHome }: WarmCache) => [target, cargoHome];
+
+// What the layout script is called with, and what the image's mark of the
+// view it ships holds: where the view is and whose it is.
+const viewOf = ({ target, cargoHome, buildUser }: WarmCache) => [
+  target.destination,
+  cargoHome.destination,
+  `${buildUser.uid}:${buildUser.gid}`,
+];
 
 // The first entry under `dir` that isn't root's or that someone else may
 // write, if any. Symbolic links are skipped: their mode means nothing, and the
@@ -393,36 +398,28 @@ const findWritableOnce = (dir: string) => {
 // The view as links to what a build only reads and copies of the rest: the
 // script says which is which, and the image's Dockerfile runs the same one for
 // the view the image ships.
-const linkWarmCache = async ({
-  dir,
-  buildUser,
-  targetDir,
-  cargoHome,
-  warmCargoHome,
-}: WarmCache) => {
+const linkWarmCache = async (cache: WarmCache) => {
   // Build code reaches the image's crate sources themselves through symbolic
   // links, by path: the whole tree they are in has to be root's alone to
-  // write, the directories above the links included.
-  const writable = await findWritableOnce(warmCargoHome);
+  // write, the directories above the links included. The image's build checks
+  // the same before it ships a view.
+  const writable = await findWritableOnce(cache.cargoHome.source);
   if (writable !== undefined) {
     throw new Error(`${writable} is not root's alone to write`);
   }
-  await execFile(
-    WARM_CACHE_LAYOUT,
-    [dir, targetDir, cargoHome, `${buildUser.uid}:${buildUser.gid}`],
-    {
-      cwd: "/",
-      env: { PATH: process.env.PATH },
-      timeout: MIDEN_TOOL_TIMEOUT_MS,
-    },
-  );
+  await execFile(WARM_CACHE_LAYOUT, [cache.dir, ...viewOf(cache)], {
+    cwd: "/",
+    env: { PATH: process.env.PATH },
+    timeout: MIDEN_TOOL_TIMEOUT_MS,
+  });
 };
 
 // The whole cache as copies, for a filesystem that can't link it (the image's
 // cache on another device than the build's paths). The copy runs as the build
 // user, so it owns the result with no chown pass.
-const copyWarmCache = async ({ buildUser, trees }: WarmCache) => {
-  for (const { source, destination } of trees) {
+const copyWarmCache = async (cache: WarmCache) => {
+  const { buildUser } = cache;
+  for (const { source, destination } of trees(cache)) {
     await rm(destination, { recursive: true, force: true });
     await mkdir(destination);
     await chown(destination, buildUser.uid, buildUser.gid);
@@ -444,7 +441,7 @@ const prepareWarmCache = async () => {
   if (warmCache === undefined) {
     return;
   }
-  const destinations = warmCache.trees.map(({ destination }) => destination);
+  const destinations = trees(warmCache).map(({ destination }) => destination);
   const start = performance.now();
   let outcome = "linked";
   try {
@@ -480,13 +477,16 @@ const prepareWarmCache = async () => {
 // make, deleted here before any build runs: a view counts as unused once per
 // disk. A process restarted on the same disk (docker compose) finds no mark
 // and lays out its own; Cloudflare starts every container on a fresh disk.
+// The mark says where the view is and whose: one made for other paths or
+// another user than this server builds with isn't taken.
 const claimShippedView = async () => {
   if (warmCache === undefined || SHIPPED_VIEW_MARKER === undefined) {
     return undefined;
   }
   try {
+    const shipped = (await readFile(SHIPPED_VIEW_MARKER, "utf-8")).trim();
     await rm(SHIPPED_VIEW_MARKER);
-    return 0;
+    return shipped === viewOf(warmCache).join(" ") ? 0 : undefined;
   } catch {
     return undefined;
   }
@@ -571,7 +571,7 @@ const compile = async (args: CompileArgs) => {
     } else {
       prepareNextLayout(
         tmpDir,
-        warmCache.trees.map(({ destination }) => destination),
+        trees(warmCache).map(({ destination }) => destination),
       );
     }
   };

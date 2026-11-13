@@ -175,8 +175,12 @@ WORKDIR /cache/examples/counter-contract/counter-contract
 # ensures; it makes the warm-up's root-only files (lock files) readable too.
 # The first view is laid out here, in the same RUN: its hard links are links
 # only within one layer. The first build after a start then has nothing to
-# wait for. `shipped-view` marks it as unused; the server deletes the mark when
-# it claims the view, so a server restarted on the same disk makes its own.
+# wait for. `shipped-view` marks it as unused, with where it is and whose; the
+# server deletes the mark when it claims the view, so a server restarted on the
+# same disk makes its own. The `test` before it is the check the server makes
+# before it lays a view out itself: build code reaches the crate sources in
+# /cache/image through symbolic links, so nothing there may be writable by
+# anyone but root.
 RUN cp -r /cache/examples/counter-contract/counter-contract /tmp/warm \
  && cd /tmp/warm \
  && CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release --locked \
@@ -185,8 +189,9 @@ RUN cp -r /cache/examples/counter-contract/counter-contract /tmp/warm \
  && mkdir /cache/image \
  && mv /cache/target /cache/cargo-home /cache/image/ \
  && chmod -R go+rX,go-w /cache/image \
+ && test -z "$(find /cache/image \( ! -user 0 -o -perm /022 \) ! -type l -print -quit)" \
  && lay-out-warm-cache /cache/image /cache/target /cache/cargo-home "$BUILD_UID:$BUILD_GID" \
- && touch /cache/image/shipped-view
+ && echo "/cache/target /cache/cargo-home $BUILD_UID:$BUILD_GID" > /cache/image/shipped-view
 # Each build gets a HOME of its own, deleted after it (see cargo-miden.ts):
 # nothing may persist in the build user's home between builds.
 RUN chown root:root /home/builder && chmod 0755 /home/builder
