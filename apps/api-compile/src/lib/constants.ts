@@ -8,8 +8,9 @@ export const CARGO_HOME = process.env.CARGO_HOME;
 // The image's warm cache, read-only to the build user: `target` and
 // `cargo-home`, built at CARGO_TARGET_DIR and CARGO_HOME, then moved here.
 // Each build gets a fresh view of both back at those paths (compile.ts): hard
-// links to the compiled dependencies and crate sources, which stay root's, and
-// copies of the files cargo writes. Nothing a build changes reaches a later
+// links to the compiled dependencies and downloaded crates, a symbolic link to
+// each crate's sources, all of which stay root's, and copies of the files
+// cargo writes. Nothing a build changes reaches a later
 // one. Unset on the host, where builds use CARGO_TARGET_DIR and CARGO_HOME
 // directly.
 export const WARM_CACHE_DIR = process.env.WARM_CACHE_DIR;

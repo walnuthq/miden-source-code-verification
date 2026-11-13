@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { CompileResponse } from "miden-source-code-verification-utils/api-compile";
 import { openProject } from "miden-source-code-verification-utils/project";
 import { queueCompile } from "../lib/compile.ts";
+import { serverTiming, type Timings } from "../lib/timings.ts";
 import { abortOnClose } from "../lib/utils.ts";
 
 const router = Router();
@@ -22,16 +23,20 @@ router.post("/compile", async (req, res) => {
     res.status(400).json({ error: opened.error });
     return;
   }
+  const timings: Timings = {};
   const build = await queueCompile(
     {
       project: opened.project,
       debug: debug === true,
       warmLockfile: warmLockfile === true,
       masm: masm === true,
+      timings,
       signal: abortOnClose(res),
     },
     (build) => build,
   );
+  // Where the request's time went, for whoever measures it from outside.
+  res.set("Server-Timing", serverTiming(timings));
   // A failed build is an answer, with cargo-miden's diagnostics.
   if (!build.built) {
     res.json({
