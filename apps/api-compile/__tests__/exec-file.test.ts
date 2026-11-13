@@ -75,9 +75,12 @@ describe("execFile", () => {
   it("kills what the subprocess started when it times out", async () => {
     const pidFile = newPidFile();
     const start = performance.now();
+    // Long enough for the spawner to start its child and write its pid even
+    // under a full parallel run: a kill before that leaves no pid to check
+    // (the cancel case below waits for the file instead).
     await expect(
-      execFile(spawner, [pidFile], { timeout: 500 }),
-    ).rejects.toThrow(`${spawner} timed out after 0.5s`);
+      execFile(spawner, [pidFile], { timeout: 2_000 }),
+    ).rejects.toThrow(`${spawner} timed out after 2s`);
     expect(performance.now() - start).toBeLessThan(5_000);
     expect(await waitUntilGone(await readPid(pidFile))).toBe(true);
   }, 10_000);
