@@ -11,8 +11,8 @@ export const CARGO_HOME = process.env.CARGO_HOME;
 // links to the compiled dependencies and downloaded crates, a symbolic link to
 // each crate's sources, all of which stay root's, and copies of the files
 // cargo writes, made after the build before it. Nothing a build changes
-// reaches a later one. Unset on the host, where builds use CARGO_TARGET_DIR and CARGO_HOME
-// directly.
+// reaches a later one. Unset on the host, where builds use CARGO_TARGET_DIR
+// and CARGO_HOME directly.
 export const WARM_CACHE_DIR = process.env.WARM_CACHE_DIR;
 // The two directories in it, so their names live in one place. An empty
 // WARM_CACHE_DIR counts as unset.

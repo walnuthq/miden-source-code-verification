@@ -555,24 +555,29 @@ const prepareWarmCache = async () => {
 // has ended, and once a build has taken it: a view serves one build.
 let nextLayout: Promise<number | undefined> | undefined;
 
-// A view of the warm cache for a build to start in. Whatever an earlier
-// `cargo` call left running or lying in /tmp goes first: no build user process
-// may be alive while the view exists. One sweep at a time: it kills every
-// process of the build user but itself, another sweep included.
-const sweepAndLayOut = async () => {
-  await killBuildUserProcesses();
-  await prepareWarmCache();
+// Settles once the work started after the last build is over, so a server
+// that is shutting down doesn't exit with that build's project still on disk.
+export const nextLayoutSettled = async () => {
+  await nextLayout;
 };
 
 // After a build, off its response path: deletes the build's project, then
 // replaces the view of the warm cache it built in (its package included) with
 // the next build's. The next build waits for it, so on a server that had a
-// moment to itself a build starts at once.
-const prepareNextLayout = (projectDir: string) => {
+// moment to itself a build starts at once. Whatever the build left running or
+// lying in /tmp goes first. That sweep kills every process of the build user
+// but itself, another sweep included, so only one runs at a time. If it fails,
+// a survivor would have the view to itself until the next build: none is
+// left, and that build sweeps again and makes its own.
+const prepareNextLayout = (projectDir: string, viewDirs: string[]) => {
   const start = performance.now();
   nextLayout = (async () => {
     await removeDirs([projectDir]);
-    await sweepAndLayOut();
+    if (!(await killBuildUserProcesses())) {
+      await removeDirs(viewDirs);
+      return undefined;
+    }
+    await prepareWarmCache();
     return performance.now() - start;
   })().catch((error) => {
     // The build that finds no view makes its own, and answers for a failure.
@@ -583,12 +588,18 @@ const prepareNextLayout = (projectDir: string) => {
 
 // Gives the build its view of the warm cache: the one made after the last
 // build, or a new one when there is none (the first build, or a failure).
-// A failure here fails the request: never build against a partial cache.
-const takeLayout = async (timings: Timings | undefined) => {
+// A failure here fails the request: never build against a partial cache. A
+// request whose client left while it waited takes nothing: the view stays for
+// the next build.
+const takeLayout = async ({ timings, signal }: CompileArgs) => {
   const prepared = await nextLayout;
+  signal?.throwIfAborted();
   nextLayout = undefined;
   if (prepared === undefined) {
-    await sweepAndLayOut();
+    // Whatever an earlier `cargo` call left running or lying in /tmp goes
+    // first.
+    await killBuildUserProcesses();
+    await prepareWarmCache();
   } else if (timings) {
     timings.prepare = prepared;
   }
@@ -598,7 +609,7 @@ const takeLayout = async (timings: Timings | undefined) => {
 // are deleted by `cleanup`, or right away if the build throws: nothing reuses
 // them, and left behind they'd fill the disk.
 const compile = async (args: CompileArgs) => {
-  await timed(args.timings, "layout", () => takeLayout(args.timings));
+  await timed(args.timings, "layout", () => takeLayout(args));
   await mkdir(join(WORK_DIR, "projects"), { recursive: true });
   const tmpDir = await mkdtemp(join(WORK_DIR, "projects", "miden-project-"));
   // Only the build user may enter its project: no other request's files, and
@@ -615,7 +626,10 @@ const compile = async (args: CompileArgs) => {
     if (warmCache === undefined) {
       await removeDirs([tmpDir, midencTargetDir]);
     } else {
-      prepareNextLayout(tmpDir);
+      prepareNextLayout(
+        tmpDir,
+        warmCache.trees.map(({ destination }) => destination),
+      );
     }
   };
   // Started once the slot is taken: time spent queued doesn't count.

@@ -79,9 +79,10 @@ for (const dir of ["/tmp", "/var/tmp", "/dev/shm"]) {
 // (COMPILE_CONCURRENCY must be 1, see compile.ts), so none of them belongs to
 // another request. A daemonised child of `build.rs` would otherwise outlive
 // its build, free to rewrite the outputs just checked or poison the next build.
+// Answers whether the sweep ran: a failure is logged, not thrown.
 export const killBuildUserProcesses = async () => {
   if (!BUILD_USER) {
-    return;
+    return true;
   }
   try {
     await execFile(
@@ -94,7 +95,9 @@ export const killBuildUserProcesses = async () => {
         timeout: MIDEN_TOOL_TIMEOUT_MS,
       },
     );
+    return true;
   } catch (error) {
     console.error(error);
+    return false;
   }
 };
