@@ -53,7 +53,7 @@ A verified package's release build carries no debug info, so a transaction simul
 
 ### Account procedures
 
-For a note or a transaction script, `miden-package-metadata` also lists the account procedures it calls, by walking its MAST from its entry procedure (see `account_procedures.rs`): the MAST roots of the procedures it reaches with a `call` that isn't a `syscall`, which the code of an account it runs against must have. `null` when that can't be told, because a dynamic call is reachable. `POST /compile` and `POST /verify` return it as `accountProcedures`, absent for other kinds of package. The Playground uses it to offer only the accounts a script can run against. The registry doesn't store it.
+For a note or a transaction script, `miden-package-metadata` also lists the account procedures it calls, by walking its MAST from its entry procedure (see `account_procedures.rs`): the digests of the procedures it reaches with a `call` that isn't a `syscall`, which the code of an account it runs against must have. `null` when that can't be told, mostly because a dynamic call is reachable. `POST /compile` and `POST /verify` return it as `accountProcedures`, absent for other kinds of package. The Playground uses it to offer only the accounts a script can run against. The registry doesn't store it.
 
 ### Miden toolchain
 

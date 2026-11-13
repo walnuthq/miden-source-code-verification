@@ -6,6 +6,7 @@ import {
   readProjectFiles,
   request,
 } from "miden-source-code-verification-test-utils";
+import type { Manifest } from "miden-source-code-verification-utils/manifest";
 import { describe, expect, it } from "vitest";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -438,26 +439,37 @@ describe("POST /compile readOnly", () => {
 });
 
 describe("POST /compile accountProcedures", () => {
-  // The digests the counter-contract component exports, by procedure name:
-  // what an account's code holds once it has the component.
-  const counterDigests = async () => {
+  const counterComponent = async () => {
     const res = await api.post("/compile").send({
       files: await readProjectFiles(`${counterContractDir}/counter-contract`),
     });
     expect(res.status).toBe(200);
-    // An account component runs as the account: it calls none.
-    expect(res.body).not.toHaveProperty("accountProcedures");
+    return res;
+  };
+
+  // The digests the counter-contract component exports, by procedure name:
+  // what an account's code holds once it has the component.
+  const counterDigests = async () => {
+    const { manifest }: { manifest: Manifest } = (await counterComponent())
+      .body;
     const component = '::"miden:counter-contract/counter-contract@0.1.0"';
+    const procedures = manifest.exports.flatMap((packageExport) =>
+      "Procedure" in packageExport ? [packageExport.Procedure] : [],
+    );
     const digest = (name: string) =>
-      res.body.manifest.exports.find(
-        (packageExport: { Procedure?: { path: string } }) =>
-          packageExport.Procedure?.path === `${component}::"${name}"`,
-      )?.Procedure.digest;
+      procedures.find(({ path }) => path === `${component}::"${name}"`)?.digest;
     return {
       getCount: digest("get-count"),
       incrementCount: digest("increment-count"),
     };
   };
+
+  it("has none for an account component", async () => {
+    // An account component runs as the account: it calls none.
+    expect((await counterComponent()).body).not.toHaveProperty(
+      "accountProcedures",
+    );
+  });
 
   it("returns the counter procedures the counter note calls", async () => {
     const { getCount, incrementCount } = await counterDigests();

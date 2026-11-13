@@ -3,7 +3,7 @@
 //!
 //! A script runs outside the account's context and reaches the account with
 //! `call`, which switches context: an account procedure is the callee of a
-//! `call` that isn't a `syscall`. The walk records its MAST root and stops
+//! `call` that isn't a `syscall`. The walk records its digest and stops
 //! there, since its body runs in the account. A `syscall` reaches the kernel,
 //! not the account. An `exec` stays in the script's context, so the walk
 //! follows it, into the core, protocol and standards libraries too: a library
@@ -11,8 +11,9 @@
 //! the basic wallet's `receive_asset` from a library wrapper). An `exec` of a
 //! procedure from any other library can't be followed, and is skipped: being
 //! an `exec`, it doesn't switch to the account's context. A dynamic call
-//! (`dynexec` or `dyncall`) targets a root only known at run time, so the
-//! answer is `None`: the calls can't be told.
+//! (`dynexec` or `dyncall`) targets a procedure only known at run time, so
+//! the answer is `None`: the calls can't be told. So is an entry procedure
+//! whose body isn't in the package's forest.
 
 use std::collections::HashSet;
 

@@ -73,10 +73,11 @@ fn main() -> Result<()> {
             .map(|(path, access)| (path, json!(access.read_only())))
             .collect::<Map<_, _>>(),
     });
-    // A note's or transaction script's account procedures: the MAST roots of
-    // the procedures it `call`s on the account it runs against, sorted and
+    // A note's or transaction script's account procedures: the digests of the
+    // procedures it `call`s on the account it runs against, sorted and
     // deduplicated, which that account's code must have. `null` when they
-    // can't be told (a dynamic call is reachable). Absent for other kinds,
+    // can't be told (a dynamic call is reachable, or an entry procedure isn't
+    // in the package's forest). Absent for other kinds,
     // which don't run against an account. `account_procedures.rs` reads them
     // from the MAST.
     if matches!(package.kind.as_str(), "note" | "transaction-script") {
