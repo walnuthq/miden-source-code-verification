@@ -51,6 +51,10 @@ A verified package's release build carries no debug info, so a transaction simul
 
 `miden-package-metadata` also reads the storage schemas the toolchain embeds in a package (see `schemas.rs`): an account component's storage slots, from its account component metadata, and a note's storage fields (its inputs), from its WIT storage schema. `POST /compile` and `POST /verify` return them as `storage` and `noteStorage`, each absent when the package has none (`manifest.ts` documents their shape and limits). The registry stores both in the package's `schemas` when it is verified, and doesn't recompute them when `schemas.rs` changes. The web-viewer lists them on the account and note pages.
 
+### Account procedures
+
+For a note or a transaction script, `miden-package-metadata` also lists the account procedures it calls, by walking its MAST from its entry procedure (see `account_procedures.rs`): the digests of the procedures it reaches with a `call` that isn't a `syscall`, which the code of an account it runs against must have. `null` when that can't be told, mostly because a dynamic call is reachable. `POST /compile` and `POST /verify` return it as `accountProcedures`, absent for other kinds of package. The Playground uses it to offer only the accounts a script can run against. The registry doesn't store it.
+
 ### Miden toolchain
 
 api-compile targets the Miden **0.17** toolchain: it builds projects with `cargo-miden 0.11.0` and reads the network with `miden-client 0.17.5`. Projects to verify should use the matching SDK, `miden = "0.15"`, as the examples in `apps/api-compile/examples` do. Verification compares the procedure roots a project compiles to with the on-chain code, and another compiler version can produce different roots, so code deployed with another toolchain may not verify.

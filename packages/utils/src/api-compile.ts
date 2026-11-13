@@ -1,4 +1,5 @@
 import type {
+  AccountProcedures,
   Manifest,
   NoteStorageSchema,
   ReadOnlyProcedures,
@@ -20,6 +21,10 @@ export type BuiltPackage = {
   manifest: Manifest;
   // Whether each exported procedure is read-only, by export path.
   readOnly: ReadOnlyProcedures;
+  // The digests of the account procedures a note or transaction script calls,
+  // which the account it runs against must have. `null` when they can't be
+  // told, absent for other packages: see `manifest.ts`.
+  accountProcedures?: AccountProcedures;
   // An account component's storage slots. Absent for other packages, and when
   // the schema couldn't be read.
   storage?: StorageSchema;

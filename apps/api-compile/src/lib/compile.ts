@@ -272,6 +272,7 @@ const buildProject = async ({
     kind,
     manifest,
     readOnly = {},
+    accountProcedures,
     storage,
     noteStorage,
   } = metadata.output;
@@ -313,6 +314,7 @@ const buildProject = async ({
     kind,
     manifest,
     readOnly,
+    accountProcedures,
     storage,
     noteStorage,
     cargoMidenVersion: builtWith,

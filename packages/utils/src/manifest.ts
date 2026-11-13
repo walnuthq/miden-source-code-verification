@@ -191,6 +191,16 @@ export type Manifest = {
 // the core, protocol and standards libraries).
 export type ReadOnlyProcedures = Record<string, boolean | null>;
 
+// The account procedures a note or transaction script calls: the digests (hex)
+// of the procedures it `call`s on the account it runs against, sorted and
+// deduplicated, which that account's code must have. `miden-package-metadata`
+// prints them as `accountProcedures` for those two kinds only, read from the
+// MAST (`account_procedures.rs`). `null` when they can't be told: a dynamic
+// call (`dynexec`, `dyncall`) is reachable, or an entry procedure's body isn't
+// in the package. Treat `null` and an absent key (an older api-compile,
+// another kind of package) alike: no constraint.
+export type AccountProcedures = string[] | null;
+
 // An account component's storage slots, from the account component metadata
 // the toolchain embeds in its package (`schemas.rs` in
 // `miden-package-metadata`), in the metadata's order. Types are the schema's

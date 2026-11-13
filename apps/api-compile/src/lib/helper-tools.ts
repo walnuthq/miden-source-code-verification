@@ -1,5 +1,6 @@
 import type { ImportedResource } from "miden-source-code-verification-utils/api-compile";
 import type {
+  AccountProcedures,
   Manifest,
   NoteStorageSchema,
   ReadOnlyProcedures,
@@ -116,14 +117,16 @@ export type MidenVerifierOutput =
   | { type: "note"; code: string; script: string };
 
 // What `miden-package-metadata` prints: the package's commitment and kind, its
-// manifest, whether each exported procedure is read-only, and the schemas of an
-// account component's storage and a note's storage, when the package has them
-// (the JSON `packages/utils/src/manifest.ts` documents).
+// manifest, whether each exported procedure is read-only, the account
+// procedures a note or transaction script calls, and the schemas of an account
+// component's storage and a note's storage, when the package has them (the JSON
+// `packages/utils/src/manifest.ts` documents).
 export type PackageMetadata = {
   commitment: string;
   kind: TargetType;
   manifest: Manifest;
   readOnly?: ReadOnlyProcedures;
+  accountProcedures?: AccountProcedures;
   storage?: StorageSchema;
   noteStorage?: NoteStorageSchema;
 };

@@ -20,10 +20,10 @@
 use std::collections::{HashMap, HashSet};
 
 use miden_core::mast::{MastForest, MastNode, MastNodeExt, MastNodeId};
-use miden_core_lib::CoreLibrary;
 use miden_mast_package::{Package, PackageExport, Word};
 use miden_protocol::ProtocolLib;
-use miden_standards::StandardsLib;
+
+use crate::libraries;
 
 const PROTOCOL_PREFIX: &str = "::miden::protocol::";
 
@@ -236,11 +236,7 @@ impl Default for Analyzer {
         let protocol = ProtocolLib::default();
         Self {
             protocol: protocol_access(protocol.as_ref()),
-            libraries: vec![
-                CoreLibrary::default().mast_forest().clone(),
-                protocol.mast_forest().clone(),
-                StandardsLib::default().package().mast_forest().clone(),
-            ],
+            libraries: libraries::forests(),
         }
     }
 }
@@ -304,16 +300,7 @@ impl Analyzer {
                 MastNode::Call(call) => stack.push((index, call.callee())),
                 MastNode::Dyn(_) => access = access.join(Access::Unknown),
                 MastNode::External(external) => {
-                    let digest = external.digest();
-                    // Its body: a procedure root with that digest that isn't
-                    // itself a reference (a re-export is an external node
-                    // that is also a procedure root).
-                    match forests.iter().enumerate().find_map(|(index, forest)| {
-                        forest
-                            .find_procedure_root(digest)
-                            .filter(|&id| !forest[id].is_external())
-                            .map(|id| (index, id))
-                    }) {
+                    match libraries::resolve(&forests, external.digest()) {
                         Some(found) => stack.push(found),
                         None => access = access.join(Access::Unknown),
                     }
@@ -327,6 +314,7 @@ impl Analyzer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use miden_standards::StandardsLib;
 
     fn standards_access(path: &str) -> Access {
         let standards = StandardsLib::default().package();
