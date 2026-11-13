@@ -16,6 +16,7 @@ vi.mock("../src/lib/constants.ts", async (importOriginal) => ({
 const FAKE_MIDEN_PACKAGE_METADATA = `#!/bin/sh
 case "$1" in
   ok) echo '{"commitment":"0x01"}' ;;
+  warned) echo "failed to read the note storage schema" >&2; echo '{"commitment":"0x01"}' ;;
   rejected) echo "Error: failed to read 'nope.masp'" >&2; exit 2 ;;
   failed) printf 'Error: rpc error\n\nCaused by:\n    request timed out\n' >&2; exit 1 ;;
   slow) sleep 5 ;;
@@ -32,6 +33,20 @@ describe("a helper tool", () => {
     await expect(midenPackageMetadata("ok")).resolves.toEqual({
       output: { commitment: "0x01" },
     });
+  });
+
+  it("logs what it warned about, and answers what it printed", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      await expect(midenPackageMetadata("warned")).resolves.toEqual({
+        output: { commitment: "0x01" },
+      });
+      expect(warn).toHaveBeenCalledWith(
+        "miden-package-metadata: failed to read the note storage schema",
+      );
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it("is rejected when it exits with 2, with the reason it wrote", async () => {

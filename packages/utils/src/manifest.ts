@@ -206,9 +206,12 @@ export type StorageSlotSchema = {
   | {
       type: "value";
       valueType: string;
-      // The slot's default word (32-byte hex), when the schema gives one.
+      // The slot's default word (32-byte hex), when the schema gives one. A
+      // composite slot (one schema per felt) is reported as a `word` with
+      // neither its felts' types nor its default.
       defaultValue?: string;
     }
+  // A map's default entries aren't reported.
   | { type: "map"; keyType: string; valueType: string }
 );
 
@@ -230,7 +233,8 @@ export type NoteStorageField = {
   // (`option`, `variant`, `record`) when the type has no name.
   type: string;
   // The felts it takes in the note's storage. Absent when that varies (an
-  // `option` or a `variant`).
+  // `option`, or a `variant` whose cases differ in width). A record the note
+  // defines comes with its width only, not its own fields.
   width?: number;
   description?: string;
 };

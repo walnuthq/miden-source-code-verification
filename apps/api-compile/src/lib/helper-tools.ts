@@ -59,8 +59,9 @@ const run = async <T>(
 ): Promise<ToolRun<T>> => {
   console.info([name, ...args].join(" "));
   let stdout: string;
+  let stderr: string;
   try {
-    ({ stdout } = await execFile(name, args, {
+    ({ stdout, stderr } = await execFile(name, args, {
       // Not the user that runs cargo: these read what it built, and own the
       // client stores it can't write.
       ...API_USER,
@@ -83,6 +84,11 @@ const run = async <T>(
       error: reason.replace(/^Error:\s*/, ""),
       rejected: exitCodeOf(error) === REJECTED_EXIT_CODE,
     };
+  }
+  // A tool that succeeds can still warn on stderr, e.g. about a schema it
+  // couldn't read and left out of its result: nothing else would show it.
+  if (stderr.trim()) {
+    console.warn(`${name}: ${stderr.trim()}`);
   }
   // The tool prints its result whenever it exits 0, so anything else is a
   // broken run a retry may fix, not a result that says no.

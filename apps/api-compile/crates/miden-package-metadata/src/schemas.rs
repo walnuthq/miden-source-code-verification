@@ -85,17 +85,19 @@ pub fn note_storage(package: &Package) -> Option<Value> {
             entry.insert("name".into(), json!(field.name()));
             entry.insert("type".into(), json!(type_name(field.ty())));
             // The felts the field takes in the note's storage, absent when its
-            // width varies (an `option` or a `variant`).
+            // width varies (an `option`, or a `variant` whose cases differ in
+            // width).
             if let Some(width) = field.ty().layout().fixed_width() {
                 entry.insert("width".into(), json!(width));
             }
-            if let Some(docs) = field.docs() {
-                entry.insert("description".into(), json!(docs.trim()));
+            if let Some(docs) = field.docs().map(str::trim).filter(|docs| !docs.is_empty()) {
+                entry.insert("description".into(), json!(docs));
             }
             Value::Object(entry)
         })
         .collect::<Vec<_>>();
-    Some(json!({ "name": root.name(), "fields": fields }))
+    // The record `type storage` names, so it has a name; `storage` otherwise.
+    Some(json!({ "name": root.name().unwrap_or("storage"), "fields": fields }))
 }
 
 /// The package's section with `id`, or `None` when it has none.
