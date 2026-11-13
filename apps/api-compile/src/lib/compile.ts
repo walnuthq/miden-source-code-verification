@@ -313,15 +313,15 @@ const deadlineError = () =>
 // may do in its own directories. Everything else (lock files, fingerprints,
 // build script output, the registry index) cargo opens for writing, so it is
 // copied.
-const LINKED_IN_TARGET = [
-  ["-name", "*.rlib"],
-  ["-name", "*.rmeta"],
-  ["-name", "*.so"],
-  ["-name", "build_script_build"],
+const LINK_TEST_IN_TARGET = [
+  ...["-name", "*.rlib", "-o"],
+  ...["-name", "*.rmeta", "-o"],
+  ...["-name", "*.so", "-o"],
+  ...["-name", "build_script_build"],
 ];
-const LINKED_IN_CARGO_HOME = [
-  ["-path", "./registry/src/*"],
-  ["-path", "./registry/cache/*"],
+const LINK_TEST_IN_CARGO_HOME = [
+  ...["-path", "./registry/src/*", "-o"],
+  ...["-path", "./registry/cache/*"],
 ];
 
 // The build's own view of the image's warm cache, at the paths cargo uses (its
@@ -342,12 +342,12 @@ const warmCache = (() => {
       {
         source: WARM_TARGET_DIR,
         destination: CARGO_TARGET_DIR,
-        linked: LINKED_IN_TARGET,
+        linkTest: LINK_TEST_IN_TARGET,
       },
       {
         source: WARM_CARGO_HOME,
         destination: CARGO_HOME,
-        linked: LINKED_IN_CARGO_HOME,
+        linkTest: LINK_TEST_IN_CARGO_HOME,
       },
     ],
   };
@@ -357,8 +357,10 @@ const warmCache = (() => {
 // arguments are the `find` test for the files to link. Run as root:
 // 1. hard-link the whole tree, which also creates the directories with their
 //    modes and timestamps;
-// 2. turn every file that isn't to be linked into a copy (`cp -a` keeps the
-//    timestamps cargo's fingerprints need);
+// 2. replace every link that isn't to stay one with a copy (`cp -a` keeps the
+//    timestamps cargo's fingerprints need). The link goes first, symbolic
+//    links included: `cp` won't copy a file over a link to itself, and a
+//    shared symbolic link would get its owner changed in the image's cache;
 // 3. give the build user the directories and the copies.
 // A linked file stays root's: the build user can read it and replace it in its
 // own directory, never write it, so the image's cache can't change. Only a
@@ -369,10 +371,11 @@ set -euo pipefail
 source=$1 destination=$2 owner=$3
 shift 3
 linked=(-type f -user 0 ! -perm /022 "(" "$@" ")")
+copied=(! -type d ! "(" "\${linked[@]}" ")")
 cd "$source"
 cp -al . "$destination"
-find . -type f ! "(" "\${linked[@]}" ")" -print0 |
-  xargs -0 -r cp -a --remove-destination --parents -t "$destination"
+find . "\${copied[@]}" -print0 | (cd "$destination" && xargs -0 -r rm -f)
+find . "\${copied[@]}" -print0 | xargs -0 -r cp -a --parents -t "$destination"
 find . ! "(" "\${linked[@]}" ")" -print0 |
   (cd "$destination" && xargs -0 -r chown -h "$owner")
 `;
@@ -380,7 +383,7 @@ find . ! "(" "\${linked[@]}" ")" -print0 |
 type WarmCache = NonNullable<typeof warmCache>;
 
 const linkWarmCache = async ({ buildUser, trees }: WarmCache) => {
-  for (const { source, destination, linked } of trees) {
+  for (const { source, destination, linkTest } of trees) {
     await rm(destination, { recursive: true, force: true });
     await mkdir(destination);
     await execFile(
@@ -392,10 +395,7 @@ const linkWarmCache = async ({ buildUser, trees }: WarmCache) => {
         source,
         destination,
         `${buildUser.uid}:${buildUser.gid}`,
-        // The tests, joined with `find`'s "or".
-        ...linked.flatMap((test, index) =>
-          index === 0 ? test : ["-o", ...test],
-        ),
+        ...linkTest,
       ],
       {
         cwd: "/",
@@ -434,28 +434,31 @@ const prepareWarmCache = async () => {
   }
   const destinations = warmCache.trees.map(({ destination }) => destination);
   const start = performance.now();
-  let how = "linked";
+  let outcome: "linked" | "copied";
   try {
-    await linkWarmCache(warmCache).catch(async (error: unknown) => {
-      // Slower, and as isolated: every build paying for a full copy must show
-      // in the log. One line of it: `cp` names every file it couldn't link.
-      const stderr =
-        typeof error === "object" && error !== null && "stderr" in error
-          ? String(error.stderr)
-          : errorMessage(error, "unknown error");
-      console.error(
-        `linking the build cache failed, copying it: ${stderr.trim().split("\n")[0]}`,
-      );
-      how = "copied";
-      await copyWarmCache(warmCache);
-    });
+    outcome = await linkWarmCache(warmCache).then(
+      () => "linked" as const,
+      async (error: unknown) => {
+        // Slower, and as isolated: every build paying for a full copy must show
+        // in the log. One line of it: `cp` names every file it couldn't link.
+        const stderr =
+          typeof error === "object" && error !== null && "stderr" in error
+            ? String(error.stderr)
+            : errorMessage(error, "unknown error");
+        console.error(
+          `linking the build cache failed, copying it: ${stderr.trim().split("\n")[0]}`,
+        );
+        await copyWarmCache(warmCache);
+        return "copied" as const;
+      },
+    );
   } catch (error) {
     // A partial cache mustn't stay on disk until the next request.
     await removeDirs(destinations);
     throw error;
   }
   console.info(
-    `build cache ${how} in ${Math.round(performance.now() - start)} ms`,
+    `build cache ${outcome} in ${Math.round(performance.now() - start)} ms`,
   );
 };
 
@@ -477,8 +480,8 @@ const compile = async (args: CompileArgs) => {
   const outputName = (tmpDir.split("/").at(-1) ?? "").replaceAll("-", "_");
   const midencTargetDir = `${CARGO_TARGET_DIR}/${outputName}`;
   // With a warm cache, the build's view of it goes, so it doesn't sit on disk
-  // between requests; `midencTargetDir` sits inside CARGO_TARGET_DIR, so it goes with
-  // them. On the host CARGO_TARGET_DIR is the shared cache: never delete it.
+  // between requests; `midencTargetDir` sits inside CARGO_TARGET_DIR, so it
+  // goes too. On the host CARGO_TARGET_DIR is the shared cache: never delete it.
   const cleanup = () =>
     removeDirs(
       warmCache === undefined

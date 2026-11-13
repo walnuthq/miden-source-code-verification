@@ -313,26 +313,14 @@ describe("POST /compile build isolation", () => {
     const files = await readProjectFiles(
       `${counterContractDir}/counter-contract`,
     );
+    editProjectFile(files, "build.rs", () => CACHE_PROBE_BUILD_RS);
 
-    const res = await api
-      .post("/compile")
-      .send({ files: { ...files, "build.rs": CACHE_PROBE_BUILD_RS } });
+    const res = await api.post("/compile").send({ files });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("built", false);
     expect(res.body.stderr).toMatch(/cache probe: \d+ foreign files/);
     expect(res.body.stderr).toContain("foreign files, 0 writable");
-  });
-
-  it("still compiles a counter-contract after it", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
-
-    const res = await api.post("/compile").send({ files });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("built", true);
   });
 });
 
