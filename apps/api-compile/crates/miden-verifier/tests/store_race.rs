@@ -36,11 +36,11 @@ fn concurrent_runs_on_a_new_store_all_build_the_client() {
             .map(|handle| handle.join().unwrap())
             .collect()
     });
+    std::fs::remove_dir_all(&dir).unwrap();
 
     for run in runs {
         let stderr = String::from_utf8_lossy(&run.stderr);
         assert_eq!(run.status.code(), Some(2), "{stderr}");
         assert!(stderr.contains("invalid package"), "{stderr}");
     }
-    std::fs::remove_dir_all(&dir).unwrap();
 }
