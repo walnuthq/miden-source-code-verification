@@ -4,7 +4,7 @@ import type { VerifyResponse } from "miden-source-code-verification-utils/api-co
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import type { Project } from "miden-source-code-verification-utils/project";
 import db, { type Database } from "../db/index.ts";
-import { getPackage } from "../db/packages.ts";
+import { getPackage, packageSchemas } from "../db/packages.ts";
 import {
   packagesTable,
   verifiedAccountCodeTable,
@@ -75,6 +75,7 @@ const insertPackage = async (
       commitment: build.commitment,
       manifest: build.manifest,
       readOnly: build.readOnly,
+      schemas: packageSchemas(build),
       entrypoint,
       builtWith: build.cargoMidenVersion,
     })

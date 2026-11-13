@@ -75,6 +75,9 @@ app.get("/:networkId/import/:resourceId", proxy(IMPORT_TIMEOUT_MS));
 // A file read, but it may wake the container: the health probe's allowance.
 app.get("/lockfile", proxy(HEALTH_TIMEOUT_MS));
 app.post("/verify", proxy(COMPILE_TIMEOUT_MS));
+// Reads a package's metadata without building it: quick, but it may wake the
+// container too.
+app.post("/package-metadata", proxy(HEALTH_TIMEOUT_MS));
 
 // The same JSON errors api-compile answers itself, for paths the Worker doesn't
 // forward and for failures in the Worker (Hono's defaults are plain text).

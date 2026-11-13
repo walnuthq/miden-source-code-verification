@@ -181,6 +181,9 @@ describe("GET /:networkId/verified-notes/:noteId", () => {
     expect(Object.keys(res2.body.package.readOnly).sort()).toEqual(
       procedureExportPaths(res2.body.package.manifest).sort(),
     );
+    // The counter-note declares no storage: it has no schemas, and isn't
+    // waiting for the backfill (null).
+    expect(res2.body.package).toHaveProperty("schemas", {});
 
     const res3 = await apiV1
       .get(`/${networkId}/packages/masp/${res2.body.package.commitment}.masp`)

@@ -55,6 +55,7 @@ const pkg = (name: string, ...digests: `0x${string}`[]): Package => {
     debugCommitment: null,
     debugBuiltWith: null,
     readOnly: Object.fromEntries(paths.map((path) => [path, true])),
+    schemas: {},
     createdAt: at,
     updatedAt: at,
   };

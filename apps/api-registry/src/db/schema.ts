@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 import {
   type Manifest,
+  type PackageSchemas,
   type ReadOnlyProcedures,
   TARGET_TYPES,
 } from "miden-source-code-verification-utils/manifest";
@@ -49,6 +50,10 @@ export const packagesTable = pgTable(
     // api-compile reads it from the package (`ReadOnlyProcedures`). Without a
     // default, like `networkId`, so an insert that forgets it fails to compile.
     readOnly: jsonb("read_only").$type<ReadOnlyProcedures>().notNull(),
+    // Its storage schemas, as api-compile reads them from the package
+    // (`PackageSchemas`): `{}` for a package with none. Null until they are
+    // read, which makes the row part of the schemas backfill's work list.
+    schemas: jsonb().$type<PackageSchemas>(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

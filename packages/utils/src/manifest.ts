@@ -240,6 +240,14 @@ export type NoteStorageField = {
   description?: string;
 };
 
+// The storage schemas a package carries, as the registry stores them: an
+// account component's `storage`, a note's `noteStorage`. A key is absent when
+// the package has no such schema, or when it couldn't be read.
+export type PackageSchemas = {
+  storage?: StorageSchema;
+  noteStorage?: NoteStorageSchema;
+};
+
 // The paths of the procedures a manifest exports, e.g.
 // `miden:counter-contract/counter-contract@0.1.0#increment-count`. A release
 // and a debug build of the same source export the same paths under different

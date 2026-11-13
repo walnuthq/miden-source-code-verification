@@ -2,6 +2,10 @@ import {
   type MaspVariant,
   packageMaspPath,
 } from "miden-source-code-verification-utils/api-registry";
+import type {
+  NoteStorageField,
+  StorageSlotSchema,
+} from "miden-source-code-verification-utils/manifest";
 import { cargoPackageName } from "miden-source-code-verification-utils/project";
 import type { PackageDependency } from "@/lib/api-registry.server";
 import { PUBLIC_API_REGISTRY_URL } from "@/lib/constants";
@@ -15,7 +19,7 @@ export type SourceFile = { path: string; html: string };
 // renders: the displayed files, sorted by path, and the one opened first.
 // `rawFiles` is every file the registry kept for the package, including those
 // the explorer hides, for the Download Sources archive. The name, commitment,
-// procedures, dependencies, verification time and source head the package's
+// procedures, storage schemas, dependencies, verification time and source head the package's
 // card.
 export type PackageSources = {
   name: string;
@@ -23,6 +27,10 @@ export type PackageSources = {
   // Whether the registry holds a debug build of the package to download.
   hasDebugBuild: boolean;
   procedures: PackageProcedure[];
+  // An account component's storage slots, and a note's storage fields (its
+  // inputs): empty when the package has none.
+  storageSlots: StorageSlotSchema[];
+  noteStorageFields: NoteStorageField[];
   dependencies: PackageDependency[];
   // When the package was verified against the resource, formatted in UTC.
   verifiedAt: string;

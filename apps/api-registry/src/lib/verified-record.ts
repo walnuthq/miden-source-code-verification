@@ -56,6 +56,7 @@ const toPackage = (row: PackageRow): Package => ({
   debugCommitment: row.debugCommitment,
   debugBuiltWith: row.debugBuiltWith,
   readOnly: row.readOnly,
+  schemas: row.schemas,
   createdAt: row.createdAt.toISOString(),
   updatedAt: row.updatedAt.toISOString(),
 });
