@@ -32,7 +32,7 @@ pub fn storage(package: &Package) -> Option<Value> {
                 StorageSlotSchema::Value(value) => value.description(),
                 StorageSlotSchema::Map(map) => map.description(),
             };
-            if let Some(description) = description {
+            if let Some(description) = description.map(|d| d.trim()).filter(|d| !d.is_empty()) {
                 entry.insert("description".into(), json!(description));
             }
             match slot {
@@ -96,7 +96,8 @@ pub fn note_storage(package: &Package) -> Option<Value> {
             Value::Object(entry)
         })
         .collect::<Vec<_>>();
-    // The record `type storage` names, so it has a name; `storage` otherwise.
+    // The record `type storage` names. WIT records are always named, so the
+    // `storage` fallback only guards a schema reader that stops naming them.
     Some(json!({ "name": root.name().unwrap_or("storage"), "fields": fields }))
 }
 
@@ -176,19 +177,34 @@ package miden:base@1.0.0 {
     }
 
     #[test]
-    fn storage_lists_value_and_map_slots() {
+    fn storage_lists_value_and_map_slots_in_slot_id_order() {
+        let names = [
+            "test::count",
+            "test::balances",
+            "test::owner",
+            "test::nonce",
+        ]
+        .map(|name| StorageSlotName::new(name).unwrap());
         let schema = StorageSchema::new([
             (
-                StorageSlotName::new("test::count").unwrap(),
+                names[0].clone(),
                 StorageSlotSchema::value("a counter", SlotType::native_felt()),
             ),
             (
-                StorageSlotName::new("test::balances").unwrap(),
+                names[1].clone(),
                 StorageSlotSchema::map(
                     "balances",
                     SlotType::native_word(),
                     SlotType::native_felt(),
                 ),
+            ),
+            (
+                names[2].clone(),
+                StorageSlotSchema::value("  ", SlotType::native_word()),
+            ),
+            (
+                names[3].clone(),
+                StorageSlotSchema::value("", SlotType::native_felt()),
             ),
         ])
         .unwrap();
@@ -197,17 +213,49 @@ package miden:base@1.0.0 {
             SectionId::ACCOUNT_COMPONENT_METADATA,
             metadata.to_bytes(),
         )]);
-        let mut slots = storage(&package).unwrap()["slots"]
+        let slots = storage(&package).unwrap()["slots"]
             .as_array()
             .unwrap()
             .clone();
-        slots.sort_by_key(|slot| slot["name"].as_str().unwrap().to_owned());
+
+        // The metadata keeps its slots by id, a hash of the name, so the order
+        // isn't the declaration order nor the names' alphabetical order.
+        let mut by_id = names.to_vec();
+        by_id.sort_by_key(StorageSlotName::id);
         assert_eq!(
-            slots,
-            vec![
-                json!({ "name": "test::balances", "description": "balances", "type": "map", "keyType": "word", "valueType": "felt" }),
-                json!({ "name": "test::count", "description": "a counter", "type": "value", "valueType": "felt" }),
-            ]
+            slots
+                .iter()
+                .map(|slot| slot["name"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            by_id
+                .iter()
+                .map(StorageSlotName::as_str)
+                .collect::<Vec<_>>(),
+        );
+
+        let slot = |name: &str| {
+            slots
+                .iter()
+                .find(|slot| slot["name"] == name)
+                .unwrap()
+                .clone()
+        };
+        assert_eq!(
+            slot("test::balances"),
+            json!({ "name": "test::balances", "description": "balances", "type": "map", "keyType": "word", "valueType": "felt" })
+        );
+        assert_eq!(
+            slot("test::count"),
+            json!({ "name": "test::count", "description": "a counter", "type": "value", "valueType": "felt" })
+        );
+        // Blank descriptions are left out.
+        assert_eq!(
+            slot("test::owner"),
+            json!({ "name": "test::owner", "type": "value", "valueType": "word" })
+        );
+        assert_eq!(
+            slot("test::nonce"),
+            json!({ "name": "test::nonce", "type": "value", "valueType": "felt" })
         );
     }
 

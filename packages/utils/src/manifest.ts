@@ -199,7 +199,7 @@ export type ReadOnlyProcedures = Record<string, boolean | null>;
 export type StorageSchema = { slots: StorageSlotSchema[] };
 
 export type StorageSlotSchema = {
-  // The slot's full name, e.g. `counter_contract::counter_contract::count_map`.
+  // The slot's full name, e.g. `counter_account::counter_contract::count_map`.
   name: string;
   description?: string;
 } & (
@@ -220,7 +220,8 @@ export type StorageSlotSchema = {
 // declaration order, which is the order their felts take in the note's
 // storage.
 export type NoteStorageSchema = {
-  // The record's WIT name, e.g. `p2id-note`.
+  // The record's WIT name, e.g. `p2id-note` (`storage` if it had none, which
+  // WIT doesn't allow).
   name: string;
   fields: NoteStorageField[];
 };
