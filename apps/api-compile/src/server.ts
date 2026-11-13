@@ -17,7 +17,6 @@ import compileRouter from "./routes/compile.ts";
 import compileDebugRouter from "./routes/compile-debug.ts";
 import importRouter from "./routes/import.ts";
 import lockfileRouter from "./routes/lockfile.ts";
-import packageMetadataRouter from "./routes/package-metadata.ts";
 import verifyRouter from "./routes/verify.ts";
 
 const app = express();
@@ -71,7 +70,6 @@ app.use(compileDebugRouter);
 app.use(verifyRouter);
 app.use(importRouter);
 app.use(lockfileRouter);
-app.use(packageMetadataRouter);
 app.use(notFound);
 app.use(errorHandler);
 

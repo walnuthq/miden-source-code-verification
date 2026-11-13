@@ -63,8 +63,8 @@ export async function loadPackageSources(
       files,
       entryPath,
     }),
-    storageSlots: schemas?.storage?.slots ?? [],
-    noteStorageFields: schemas?.noteStorage?.fields ?? [],
+    storageSlots: schemas.storage?.slots ?? [],
+    noteStorageFields: schemas.noteStorage?.fields ?? [],
     verifiedAt: formatUtcTimestamp(createdAt),
     source,
     // Only what the page shows; the manifest's `kind` stays on the server.

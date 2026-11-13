@@ -51,9 +51,9 @@ export const packagesTable = pgTable(
     // default, like `networkId`, so an insert that forgets it fails to compile.
     readOnly: jsonb("read_only").$type<ReadOnlyProcedures>().notNull(),
     // Its storage schemas, as api-compile reads them from the package
-    // (`PackageSchemas`): `{}` for a package with none. Null until they are
-    // read, which makes the row part of the schemas backfill's work list.
-    schemas: jsonb().$type<PackageSchemas>(),
+    // (`PackageSchemas`): `{}` for a package with none. Without a default,
+    // like `readOnly`, so an insert that forgets it fails to compile.
+    schemas: jsonb().$type<PackageSchemas>().notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

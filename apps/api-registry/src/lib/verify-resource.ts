@@ -2,9 +2,10 @@ import { eq, type SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 import type { VerifyResponse } from "miden-source-code-verification-utils/api-compile";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
+import type { PackageSchemas } from "miden-source-code-verification-utils/manifest";
 import type { Project } from "miden-source-code-verification-utils/project";
 import db, { type Database } from "../db/index.ts";
-import { getPackage, schemasOf, updatePackage } from "../db/packages.ts";
+import { getPackage } from "../db/packages.ts";
 import {
   packagesTable,
   verifiedAccountCodeTable,
@@ -56,6 +57,16 @@ const onConflictTakeOverPlayground = <TSet, TInsert>(
         set,
         setWhere: eq(sourceColumn, PLAYGROUND_SOURCE),
       });
+
+// The `schemas` column of what api-compile read of a package: only the
+// schemas it has, so `{}` for one with none (no keys set to `undefined`).
+const schemasOf = ({
+  storage,
+  noteStorage,
+}: PackageSchemas): PackageSchemas => ({
+  ...(storage && { storage }),
+  ...(noteStorage && { noteStorage }),
+});
 
 // The package's row: inserted, or found when a concurrent verification of the
 // same new package inserted it since the read outside the transaction.
@@ -286,11 +297,6 @@ export const verifyResource = async ({
     }
     return packageId;
   });
-  // A package stored before the registry kept its schemas: the build just
-  // read them.
-  if (stored && stored.schemas === null) {
-    await updatePackage(stored.id, { schemas: schemasOf(build) });
-  }
   // After the commit, so its failure can't undo the record: it is logged and
   // leaves the package without one, as the release build alone is what
   // verifies. Also for a package stored before it had a debug build.

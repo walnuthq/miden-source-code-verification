@@ -267,12 +267,7 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *           additionalProperties:
  *             type: [boolean, "null"]
  *         schemas:
- *           oneOf:
- *             - $ref: '#/components/schemas/PackageSchemas'
- *             - type: "null"
- *           description: >
- *             The storage schemas the package carries. Null for a package
- *             stored before the registry kept them, until they are read.
+ *           $ref: '#/components/schemas/PackageSchemas'
  *         createdAt:
  *           type: string
  *           format: date-time

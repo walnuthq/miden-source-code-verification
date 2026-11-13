@@ -5,10 +5,11 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { midenPackageMetadata } from "../src/lib/helper-tools.ts";
 import { useFakeTool } from "./fake-tool.ts";
 
-// A tool timeout short enough to trip.
+// A tool timeout short enough to trip, and long enough for a cold exec of the
+// fake script under a full parallel run (1 s wasn't).
 vi.mock("../src/lib/constants.ts", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/lib/constants.ts")>()),
-  MIDEN_TOOL_TIMEOUT_MS: 1_000,
+  MIDEN_TOOL_TIMEOUT_MS: 3_000,
 }));
 
 // The rules every helper tool is run by, through `miden-package-metadata`,
@@ -65,7 +66,7 @@ describe("a helper tool", () => {
 
   it("fails when it times out", async () => {
     await expect(midenPackageMetadata("slow")).resolves.toEqual({
-      error: "miden-package-metadata timed out after 1s",
+      error: "miden-package-metadata timed out after 3s",
       rejected: false,
     });
   });

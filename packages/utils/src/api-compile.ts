@@ -85,13 +85,6 @@ export type VerifyResponse = {
 // commitment (a 409 otherwise, and a 400 for a failed build).
 export type CompileDebugResponse = { debug: DebugBuild };
 
-// `POST /package-metadata`: what api-compile reads of a `.masp` it is sent,
-// without building anything, as `/compile` reads it of the package it builds.
-export type PackageMetadataResponse = Pick<
-  BuiltPackage,
-  "commitment" | "kind" | "manifest" | "readOnly" | "storage" | "noteStorage"
->;
-
 // A standard account component `miden-import` detected in an account's code,
 // with the procedure roots it claims.
 export type StandardAccountComponent = { name: string; procedures: string[] };
