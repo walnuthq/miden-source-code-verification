@@ -199,7 +199,7 @@ export type ReadOnlyProcedures = Record<string, boolean | null>;
 export type StorageSchema = { slots: StorageSlotSchema[] };
 
 export type StorageSlotSchema = {
-  // The slot's full name, e.g. `counter_account::counter_contract::count_map`.
+  // The slot's full name, e.g. `counter_contract::counter_contract::count_map`.
   name: string;
   description?: string;
 } & (
