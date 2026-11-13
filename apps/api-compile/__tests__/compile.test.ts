@@ -316,7 +316,7 @@ fn main() {
             probe(Path::new(&dir), true, me, &mut foreign, &mut writable);
         }
     }
-    panic!("cache probe: {foreign} foreign files, {} writable {:?}", writable.len(), writable.iter().take(3).collect::<Vec<_>>());
+    panic!("cache probe: {foreign} foreign entries, {} writable {:?}", writable.len(), writable.iter().take(3).collect::<Vec<_>>());
 }
 `;
 
@@ -336,8 +336,8 @@ describe("POST /compile build isolation", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("built", false);
-    expect(res.body.stderr).toMatch(/cache probe: \d+ foreign files/);
-    expect(res.body.stderr).toContain("foreign files, 0 writable");
+    expect(res.body.stderr).toMatch(/cache probe: \d+ foreign entries/);
+    expect(res.body.stderr).toContain("foreign entries, 0 writable");
   });
 });
 

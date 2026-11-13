@@ -375,10 +375,10 @@ const warmCache = (() => {
 // a symbolic link (empty: none); the remaining arguments are the `find` test
 // for the files to hard-link. Run as root:
 // 1. hard-link the tree, which also creates the directories with their modes
-//    and timestamps. With directories to symlink, `cp` gets the files outside
-//    them one by one instead of the whole tree, and each of those directories
-//    is made the build user's, holding one link per entry: cargo unpacks a
-//    crate it downloads next to them;
+//    and timestamps. With directories to symlink, the directories outside them
+//    are made first and `cp` gets the files there one by one instead of the
+//    whole tree; each directory to symlink is made the build user's, holding
+//    one link per entry: cargo unpacks a crate it downloads next to them;
 // 2. replace every link that isn't to stay one with a copy (`cp -a` keeps the
 //    timestamps cargo's fingerprints need). The link goes first, symbolic
 //    links included: `cp` won't copy a file over a link to itself, and a
@@ -388,21 +388,23 @@ const warmCache = (() => {
 // own directory, never write it, so the image's cache can't change. Only a
 // file that is root's and that no one else may write is linked, whatever the
 // test says: a link to anything else would be a way into the image's cache.
-// `linkWarmCache` checks the same of what the symbolic links lead to.
+// `linkWarmCache` checks the same of a tree the symbolic links lead into.
 const LINK_TREE_SCRIPT = `
 set -euo pipefail
-source=$1 destination=$2 owner=$3 symlinked_in=$4
+source=$1 destination=$2 owner=$3 symlink_parents=$4
 shift 4
 linked=(-type f -user 0 ! -perm /022 "(" "$@" ")")
 copied=(! -type d ! "(" "\${linked[@]}" ")")
-outside=(-path "$symlinked_in" -prune -o)
+outside=(-path "$symlink_parents" -type d -prune -o)
 cd "$source"
-if [[ -z $symlinked_in ]]; then
+if [[ -z $symlink_parents ]]; then
   cp -al . "$destination"
 else
+  find . "\${outside[@]}" -type d -print0 |
+    (cd "$destination" && xargs -0 -r mkdir -p)
   find . "\${outside[@]}" ! -type d -print0 |
     xargs -0 -r cp -al --parents -t "$destination"
-  find . -path "$symlinked_in" -prune -print0 |
+  find . -path "$symlink_parents" -type d -prune -printf "%P\\0" |
     while IFS= read -r -d "" dir; do
       mkdir -p "$destination/$dir"
       chown "$owner" "$destination/$dir"
@@ -420,11 +422,10 @@ find . "\${outside[@]}" ! "(" "\${linked[@]}" ")" -print0 |
 
 type WarmCache = NonNullable<typeof warmCache>;
 
-// Throws unless everything under `dir` is root's and no one else may write it:
-// what a symbolic link into the image's cache needs, since build code reaches
-// the files themselves through it. Symbolic links there are skipped: their
-// mode means nothing, and the build user can't replace one.
-const checkReadOnly = async (dir: string) => {
+// The first entry under `dir` that isn't root's or that someone else may
+// write, if any. Symbolic links are skipped: their mode means nothing, and the
+// build user can't replace one.
+const findWritable = async (dir: string) => {
   const { stdout } = await execFile(
     "find",
     [
@@ -438,25 +439,34 @@ const checkReadOnly = async (dir: string) => {
       timeout: MIDEN_TOOL_TIMEOUT_MS,
     },
   );
-  if (stdout) {
-    throw new Error(`${stdout.trim()} is not root's alone to write`);
-  }
+  return stdout.trim() || undefined;
 };
 
-// Asked once per directory and process: once it holds only root can undo it,
-// and walking the crate sources before every build would cost most of what
-// the symbolic links save. A failure stays too, so every build is then copied.
-const readOnlyChecks = new Map<string, Promise<void>>();
-const checkReadOnlyOnce = (dir: string) => {
-  const check = readOnlyChecks.get(dir) ?? checkReadOnly(dir);
-  readOnlyChecks.set(dir, check);
-  return check;
+// Asked once per directory and process: once nothing is found only root can
+// undo it, and walking the crate sources before every build would cost most
+// of what the symbolic links save. A walk that fails is asked again.
+const writableFinds = new Map<string, Promise<string | undefined>>();
+const findWritableOnce = (dir: string) => {
+  const found =
+    writableFinds.get(dir) ??
+    findWritable(dir).catch((error) => {
+      writableFinds.delete(dir);
+      throw error;
+    });
+  writableFinds.set(dir, found);
+  return found;
 };
 
 const linkWarmCache = async ({ buildUser, trees }: WarmCache) => {
   for (const { source, destination, linkTest, symlinkedIn } of trees) {
+    // Build code reaches the image's files themselves through a symbolic
+    // link, by path: the whole tree has to be root's alone to write, the
+    // directories above the links included.
     if (symlinkedIn !== undefined) {
-      await checkReadOnlyOnce(join(source, symlinkedIn));
+      const writable = await findWritableOnce(source);
+      if (writable !== undefined) {
+        throw new Error(`${writable} is not root's alone to write`);
+      }
     }
     await rm(destination, { recursive: true, force: true });
     await mkdir(destination);
