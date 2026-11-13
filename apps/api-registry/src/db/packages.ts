@@ -1,5 +1,4 @@
 import { eq } from "drizzle-orm";
-import type { PackageSchemas } from "miden-source-code-verification-utils/manifest";
 import db from "./index.ts";
 import { packagesTable } from "./schema.ts";
 
@@ -28,13 +27,3 @@ export const getPackagesWithoutDebugBuild = () =>
     where: { type: "account-component", debugCommitment: { isNull: true } },
     orderBy: { createdAt: "asc" },
   });
-
-// The `schemas` column of what api-compile read of a package: only the
-// schemas it has, so `{}` for one with none (no keys set to `undefined`).
-export const schemasOf = ({
-  storage,
-  noteStorage,
-}: PackageSchemas): PackageSchemas => ({
-  ...(storage && { storage }),
-  ...(noteStorage && { noteStorage }),
-});
