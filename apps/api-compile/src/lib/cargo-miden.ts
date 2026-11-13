@@ -39,7 +39,7 @@ const cargoOptions = ({
 
 const readCargoMidenVersion = async () => {
   const { stdout } = await execFile("cargo", ["miden", "--version"], {
-    // Runs outside builds, when the build's copy of the cache may not exist
+    // Runs outside builds, when the build's view of the cache may not exist
     // (or is being replaced), so it reads the image's read-only cargo home.
     ...cargoOptions(
       WARM_CARGO_HOME ? { env: { CARGO_HOME: WARM_CARGO_HOME } } : {},

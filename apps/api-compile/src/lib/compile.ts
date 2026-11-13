@@ -305,7 +305,26 @@ const deadlineError = () =>
     `the build did not finish within ${COMPILE_DEADLINE_MS / 1000}s`,
   );
 
-// The build's copies of the image's warm cache, at the paths cargo uses (its
+// What a build shares with the image's warm cache through hard links instead
+// of copying, as `find` tests: compiled dependencies under the target
+// directory, and the downloaded crates and their sources under CARGO_HOME.
+// Those are most of the cache's bytes, and a build never changes one in place:
+// rustc and the linker replace an output they rebuild, which the build user
+// may do in its own directories. Everything else (lock files, fingerprints,
+// build script output, the registry index) cargo opens for writing, so it is
+// copied.
+const LINK_TEST_IN_TARGET = [
+  ...["-name", "*.rlib", "-o"],
+  ...["-name", "*.rmeta", "-o"],
+  ...["-name", "*.so", "-o"],
+  ...["-name", "build_script_build"],
+];
+const LINK_TEST_IN_CARGO_HOME = [
+  ...["-path", "./registry/src/*", "-o"],
+  ...["-path", "./registry/cache/*"],
+];
+
+// The build's own view of the image's warm cache, at the paths cargo uses (its
 // fingerprints record them). Undefined on the host, which builds against
 // CARGO_TARGET_DIR and CARGO_HOME directly.
 const warmCache = (() => {
@@ -314,48 +333,132 @@ const warmCache = (() => {
   }
   if (BUILD_USER === undefined || CARGO_HOME === undefined) {
     throw new Error(
-      "WARM_CACHE_DIR needs BUILD_UID/BUILD_GID and CARGO_HOME: the cache is copied for the build user, at the paths cargo uses",
+      "WARM_CACHE_DIR needs BUILD_UID/BUILD_GID and CARGO_HOME: the cache is laid out for the build user, at the paths cargo uses",
     );
   }
   return {
     buildUser: BUILD_USER,
-    copies: [
-      [WARM_TARGET_DIR, CARGO_TARGET_DIR],
-      [WARM_CARGO_HOME, CARGO_HOME],
-    ] as const,
+    trees: [
+      {
+        source: WARM_TARGET_DIR,
+        destination: CARGO_TARGET_DIR,
+        linkTest: LINK_TEST_IN_TARGET,
+      },
+      {
+        source: WARM_CARGO_HOME,
+        destination: CARGO_HOME,
+        linkTest: LINK_TEST_IN_CARGO_HOME,
+      },
+    ],
   };
 })();
 
-// Replaces the build's cache directories with fresh copies of the image's
-// read-only warm cache, at the same paths (cargo's fingerprints record them).
-// The copy runs as the build user, so it owns the result with no chown pass,
-// and `cp -a` keeps the modes and timestamps the fingerprints need. Nothing
-// happens on the host, which builds against CARGO_TARGET_DIR directly.
-const copyWarmCache = async () => {
-  if (warmCache === undefined) {
-    return;
-  }
-  const { buildUser, copies } = warmCache;
-  const start = performance.now();
-  try {
-    for (const [source, destination] of copies) {
-      await rm(destination, { recursive: true, force: true });
-      await mkdir(destination);
-      await chown(destination, buildUser.uid, buildUser.gid);
-      await execFile("cp", ["-a", `${source}/.`, destination], {
-        ...buildUser,
+// Lays `$1` out at `$2` for the build user `$3` (uid:gid); the remaining
+// arguments are the `find` test for the files to link. Run as root:
+// 1. hard-link the whole tree, which also creates the directories with their
+//    modes and timestamps;
+// 2. replace every link that isn't to stay one with a copy (`cp -a` keeps the
+//    timestamps cargo's fingerprints need). The link goes first, symbolic
+//    links included: `cp` won't copy a file over a link to itself, and a
+//    shared symbolic link would get its owner changed in the image's cache;
+// 3. give the build user the directories and the copies.
+// A linked file stays root's: the build user can read it and replace it in its
+// own directory, never write it, so the image's cache can't change. Only a
+// file that is root's and that no one else may write is linked, whatever the
+// test says: a link to anything else would be a way into the image's cache.
+const LINK_TREE_SCRIPT = `
+set -euo pipefail
+source=$1 destination=$2 owner=$3
+shift 3
+linked=(-type f -user 0 ! -perm /022 "(" "$@" ")")
+copied=(! -type d ! "(" "\${linked[@]}" ")")
+cd "$source"
+cp -al . "$destination"
+find . "\${copied[@]}" -print0 | (cd "$destination" && xargs -0 -r rm -f)
+find . "\${copied[@]}" -print0 | xargs -0 -r cp -a --parents -t "$destination"
+find . ! "(" "\${linked[@]}" ")" -print0 |
+  (cd "$destination" && xargs -0 -r chown -h "$owner")
+`;
+
+type WarmCache = NonNullable<typeof warmCache>;
+
+const linkWarmCache = async ({ buildUser, trees }: WarmCache) => {
+  for (const { source, destination, linkTest } of trees) {
+    await rm(destination, { recursive: true, force: true });
+    await mkdir(destination);
+    await execFile(
+      "bash",
+      [
+        "-c",
+        LINK_TREE_SCRIPT,
+        "bash",
+        source,
+        destination,
+        `${buildUser.uid}:${buildUser.gid}`,
+        ...linkTest,
+      ],
+      {
         cwd: "/",
         env: { PATH: process.env.PATH },
         timeout: MIDEN_TOOL_TIMEOUT_MS,
-      });
+      },
+    );
+  }
+};
+
+// The whole cache as copies, for a filesystem that can't link it (the image's
+// cache on another device than the build's paths). The copy runs as the build
+// user, so it owns the result with no chown pass.
+const copyWarmCache = async ({ buildUser, trees }: WarmCache) => {
+  for (const { source, destination } of trees) {
+    await rm(destination, { recursive: true, force: true });
+    await mkdir(destination);
+    await chown(destination, buildUser.uid, buildUser.gid);
+    await execFile("cp", ["-a", `${source}/.`, destination], {
+      ...buildUser,
+      cwd: "/",
+      env: { PATH: process.env.PATH },
+      timeout: MIDEN_TOOL_TIMEOUT_MS,
+    });
+  }
+};
+
+// Replaces the build's cache directories with a fresh view of the image's
+// read-only warm cache, at the same paths (cargo's fingerprints record them):
+// hard links to what a build only reads, copies of the rest. Nothing a build
+// changes there reaches the image's cache or a later build. Nothing happens
+// on the host, which builds against CARGO_TARGET_DIR directly.
+const prepareWarmCache = async () => {
+  if (warmCache === undefined) {
+    return;
+  }
+  const destinations = warmCache.trees.map(({ destination }) => destination);
+  const start = performance.now();
+  let outcome = "linked";
+  try {
+    try {
+      await linkWarmCache(warmCache);
+    } catch (error) {
+      // Slower, and as isolated: every build paying for a full copy must show
+      // in the log. One line of it: `cp` names every file it couldn't link.
+      const stderr =
+        typeof error === "object" && error !== null && "stderr" in error
+          ? String(error.stderr).trim()
+          : "";
+      const reason = stderr || errorMessage(error, "unknown error");
+      console.error(
+        `linking the build cache failed, copying it: ${reason.split("\n")[0]}`,
+      );
+      await copyWarmCache(warmCache);
+      outcome = "copied";
     }
   } catch (error) {
-    // A partial copy of 1.8 GB mustn't stay on disk until the next request.
-    await removeDirs(copies.map(([, destination]) => destination));
+    // A partial cache mustn't stay on disk until the next request.
+    await removeDirs(destinations);
     throw error;
   }
   console.info(
-    `build cache copied in ${Math.round(performance.now() - start)} ms`,
+    `build cache ${outcome} in ${Math.round(performance.now() - start)} ms`,
   );
 };
 
@@ -365,8 +468,8 @@ const copyWarmCache = async () => {
 const compile = async (args: CompileArgs) => {
   // Whatever an earlier `cargo` call left running or lying in /tmp goes first.
   await killBuildUserProcesses();
-  // A failed copy fails the request: never build against a partial cache.
-  await copyWarmCache();
+  // A failure here fails the request: never build against a partial cache.
+  await prepareWarmCache();
   await mkdir(join(WORK_DIR, "projects"), { recursive: true });
   const tmpDir = await mkdtemp(join(WORK_DIR, "projects", "miden-project-"));
   // Only the build user may enter its project: no other request's files, and
@@ -376,14 +479,14 @@ const compile = async (args: CompileArgs) => {
   // mixed-case, so keep it as is: lowercasing it could make two names clash).
   const outputName = (tmpDir.split("/").at(-1) ?? "").replaceAll("-", "_");
   const midencTargetDir = `${CARGO_TARGET_DIR}/${outputName}`;
-  // With a warm cache copy, the copies go, so they don't sit on disk between
-  // requests; `midencTargetDir` sits inside CARGO_TARGET_DIR, so it goes with
-  // them. On the host CARGO_TARGET_DIR is the shared cache: never delete it.
+  // With a warm cache, the build's view of it goes, so it doesn't sit on disk
+  // between requests; `midencTargetDir` sits inside CARGO_TARGET_DIR, so it
+  // goes too. On the host CARGO_TARGET_DIR is the shared cache: never delete it.
   const cleanup = () =>
     removeDirs(
       warmCache === undefined
         ? [tmpDir, midencTargetDir]
-        : [tmpDir, ...warmCache.copies.map(([, destination]) => destination)],
+        : [tmpDir, ...warmCache.trees.map(({ destination }) => destination)],
     );
   // Started once the slot is taken: time spent queued doesn't count.
   const deadline = AbortSignal.timeout(COMPILE_DEADLINE_MS);
@@ -412,7 +515,7 @@ const compile = async (args: CompileArgs) => {
 // One build at a time is what isolates builds from each other: after each
 // build every process of the one build user is killed and its temp files
 // deleted, which would hit a concurrent build too. In the image, builds also
-// replace the one copy of the warm cache at fixed paths.
+// replace the one view of the warm cache at fixed paths.
 if (BUILD_USER !== undefined && COMPILE_CONCURRENCY > 1) {
   throw new Error(
     "COMPILE_CONCURRENCY must be 1 when builds run as BUILD_UID: one build user can't be isolated from itself",
