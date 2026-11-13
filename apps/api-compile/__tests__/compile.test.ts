@@ -271,18 +271,34 @@ describe("POST /compile", () => {
 
 // A build script that looks for a way into the cache it builds against: every
 // file there that isn't the build user's own (in the image, the hard links to
-// the image's warm cache), opened for writing. It writes nothing, and always
-// fails the build, so its report comes back in `stderr`.
+// the image's warm cache, and the crate sources behind its symbolic links),
+// opened for writing, and every directory that isn't its own, tried for a new
+// file. It leaves nothing behind, and always fails the build, so its report
+// comes back in `stderr`.
 const CACHE_PROBE_BUILD_RS = `
 use std::{env, fs, os::unix::fs::MetadataExt, path::Path};
 
-fn probe(dir: &Path, me: u32, foreign: &mut u32, writable: &mut Vec<String>) {
+// Follows a symbolic link to a directory once: the ones the server makes lead
+// into the image's cache, and a link found there is a crate's own.
+fn probe(dir: &Path, follow: bool, me: u32, foreign: &mut u32, writable: &mut Vec<String>) {
     let Ok(entries) = fs::read_dir(dir) else { return };
     for entry in entries.flatten() {
         let path = entry.path();
-        let Ok(meta) = fs::symlink_metadata(&path) else { continue };
+        let Ok(link) = fs::symlink_metadata(&path) else { continue };
+        if link.is_symlink() && !follow {
+            continue;
+        }
+        let Ok(meta) = fs::metadata(&path) else { continue };
         if meta.is_dir() {
-            probe(&path, me, foreign, writable);
+            if meta.uid() != me {
+                *foreign += 1;
+                let planted = path.join("cache-probe");
+                if fs::File::create(&planted).is_ok() {
+                    let _ = fs::remove_file(&planted);
+                    writable.push(path.display().to_string());
+                }
+            }
+            probe(&path, follow && !link.is_symlink(), me, foreign, writable);
         } else if meta.is_file() && meta.uid() != me {
             *foreign += 1;
             if fs::OpenOptions::new().append(true).open(&path).is_ok() {
@@ -297,7 +313,7 @@ fn main() {
     let (mut foreign, mut writable) = (0, Vec::new());
     for root in ["CARGO_TARGET_DIR", "CARGO_HOME"] {
         if let Ok(dir) = env::var(root) {
-            probe(Path::new(&dir), me, &mut foreign, &mut writable);
+            probe(Path::new(&dir), true, me, &mut foreign, &mut writable);
         }
     }
     panic!("cache probe: {foreign} foreign files, {} writable {:?}", writable.len(), writable.iter().take(3).collect::<Vec<_>>());
@@ -305,10 +321,11 @@ fn main() {
 `;
 
 describe("POST /compile build isolation", () => {
-  // In the image most of a build's cache is hard links to the image's warm
-  // cache: a link the build user could write would change that cache for
-  // every later build. On the host every file is the build's own, so there is
-  // nothing foreign to find.
+  // In the image most of a build's cache is links to the image's warm cache:
+  // hard links to files, symbolic links to each crate's sources. One the build
+  // user could write through would change that cache for every later build.
+  // On the host every file is the build's own, so there is nothing foreign to
+  // find.
   it("gives build code no file of the warm cache it can write", async () => {
     const files = await readProjectFiles(
       `${counterContractDir}/counter-contract`,
@@ -321,6 +338,21 @@ describe("POST /compile build isolation", () => {
     expect(res.body).toHaveProperty("built", false);
     expect(res.body.stderr).toMatch(/cache probe: \d+ foreign files/);
     expect(res.body.stderr).toContain("foreign files, 0 writable");
+  });
+});
+
+describe("POST /compile timings", () => {
+  it("reports where the time went in Server-Timing", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+
+    const res = await api.post("/compile").send({ files });
+
+    expect(res.status).toBe(200);
+    expect(res.headers["server-timing"]).toMatch(
+      /^layout;dur=\d+, cargo;dur=\d+, tools;dur=\d+, cleanup;dur=\d+$/,
+    );
   });
 });
 

@@ -9,7 +9,7 @@
     "typecheck": "tsc",
     "start": "node --env-file-if-exists=.env dist/src/server.js",
     "test": "vitest run",
-    "test:pure": "vitest run __tests__/limiter.test.ts __tests__/helper-tools.test.ts __tests__/busy.test.ts __tests__/import-busy.test.ts __tests__/exec-file.test.ts __tests__/deadline.test.ts __tests__/build-output.test.ts",
+    "test:pure": "vitest run __tests__/limiter.test.ts __tests__/helper-tools.test.ts __tests__/busy.test.ts __tests__/import-busy.test.ts __tests__/exec-file.test.ts __tests__/deadline.test.ts __tests__/build-output.test.ts __tests__/timings.test.ts",
     "lint": "biome check .",
     "format": "biome check --write ."
   },

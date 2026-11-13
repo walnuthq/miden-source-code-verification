@@ -43,6 +43,7 @@ import {
 } from "./constants.ts";
 import { midenPackageMetadata } from "./helper-tools.ts";
 import { createLimiter } from "./limiter.ts";
+import { type Timings, timed } from "./timings.ts";
 import { chownTree, execFile, removeDirs } from "./utils.ts";
 
 type CompileArgs = {
@@ -60,6 +61,10 @@ type CompileArgs = {
   warmLockfile?: boolean;
   // Also return the release build's Miden Assembly, as text.
   masm?: boolean;
+  // Filled with how long each part took: `layout` (the build's view of the
+  // warm cache), `cargo` (the release build), `tools` (reading the package),
+  // `debug` (the whole debug variant) and `cleanup`.
+  timings?: Timings;
   signal?: AbortSignal;
 };
 
@@ -188,6 +193,7 @@ const buildProject = async ({
   expectedCommitment,
   warmLockfile,
   masm = false,
+  timings,
   signal,
   tmpDir,
   midencTargetDir,
@@ -217,13 +223,15 @@ const buildProject = async ({
     stdout = "",
     stderr = "",
     error: cargoMidenError,
-  } = await cargoMidenBuild({
-    projectDir,
-    midencTargetDir,
-    warmLockfile,
-    masmDir,
-    signal,
-  });
+  } = await timed(timings, "cargo", () =>
+    cargoMidenBuild({
+      projectDir,
+      midencTargetDir,
+      warmLockfile,
+      masmDir,
+      signal,
+    }),
+  );
   // A process the build left running could rewrite the outputs after they're
   // checked, or reach the next build: none survives the build.
   await killBuildUserProcesses();
@@ -233,20 +241,24 @@ const buildProject = async ({
   const maspPath = `${midencTargetDir}/${PROFILE_DIRS.release}/${packageName}.masp`;
   // `midenPackageMetadata`, and `miden-verifier` after it, read the same file.
   await checkBuildOutput(maspPath, midencTargetDir);
-  const [maspBuffer, metadata, cargoLock, builtWith, masmOutput] =
-    await Promise.all([
-      readFile(maspPath),
-      midenPackageMetadata(maspPath, signal),
-      readCargoLock({ projectDir, rootDir: tmpDir, signal }),
-      // No signal: the version is asked once per process and shared.
-      cargoMidenVersion().catch((error) => {
-        console.error(error);
-        return undefined;
-      }),
-      masmDir
-        ? readMasm(`${masmDir}/${packageName}.masm`, midencTargetDir)
-        : undefined,
-    ]);
+  const [maspBuffer, metadata, cargoLock, builtWith, masmOutput] = await timed(
+    timings,
+    "tools",
+    () =>
+      Promise.all([
+        readFile(maspPath),
+        midenPackageMetadata(maspPath, signal),
+        readCargoLock({ projectDir, rootDir: tmpDir, signal }),
+        // No signal: the version is asked once per process and shared.
+        cargoMidenVersion().catch((error) => {
+          console.error(error);
+          return undefined;
+        }),
+        masmDir
+          ? readMasm(`${masmDir}/${packageName}.masm`, midencTargetDir)
+          : undefined,
+      ]),
+  );
   if ("error" in metadata) {
     throw new Error(metadata.error);
   }
@@ -258,14 +270,16 @@ const buildProject = async ({
   // it, on the same sources and lockfile.
   const debugBuild =
     debug && !drift
-      ? await buildDebug({
-          projectDir,
-          midencTargetDir,
-          packageName,
-          releaseManifest: manifest,
-          builtWith,
-          signal,
-        })
+      ? await timed(timings, "debug", () =>
+          buildDebug({
+            projectDir,
+            midencTargetDir,
+            packageName,
+            releaseManifest: manifest,
+            builtWith,
+            signal,
+          }),
+        )
       : undefined;
   // The debug build ran build code again, which could have replaced the release
   // package after it was read: the verifier reads `maspPath`, so it must still
@@ -307,22 +321,23 @@ const deadlineError = () =>
 
 // What a build shares with the image's warm cache through hard links instead
 // of copying, as `find` tests: compiled dependencies under the target
-// directory, and the downloaded crates and their sources under CARGO_HOME.
-// Those are most of the cache's bytes, and a build never changes one in place:
-// rustc and the linker replace an output they rebuild, which the build user
-// may do in its own directories. Everything else (lock files, fingerprints,
-// build script output, the registry index) cargo opens for writing, so it is
-// copied.
+// directory, and the downloaded crates under CARGO_HOME. Those are most of the
+// cache's bytes, and a build never changes one in place: rustc and the linker
+// replace an output they rebuild, which the build user may do in its own
+// directories. Everything else (lock files, fingerprints, build script output,
+// the registry index) cargo opens for writing, so it is copied.
 const LINK_TEST_IN_TARGET = [
   ...["-name", "*.rlib", "-o"],
   ...["-name", "*.rmeta", "-o"],
   ...["-name", "*.so", "-o"],
   ...["-name", "build_script_build"],
 ];
-const LINK_TEST_IN_CARGO_HOME = [
-  ...["-path", "./registry/src/*", "-o"],
-  ...["-path", "./registry/cache/*"],
-];
+const LINK_TEST_IN_CARGO_HOME = ["-path", "./registry/cache/*"];
+// The crate sources, relative to CARGO_HOME: one directory per registry, one
+// directory per crate in it. They are four fifths of the cache's entries and a
+// build only reads them, so each crate's directory is shared whole, through
+// one symbolic link, instead of entry by entry.
+const CRATE_SOURCES = "registry/src";
 
 // The build's own view of the image's warm cache, at the paths cargo uses (its
 // fingerprints record them). Undefined on the host, which builds against
@@ -343,20 +358,27 @@ const warmCache = (() => {
         source: WARM_TARGET_DIR,
         destination: CARGO_TARGET_DIR,
         linkTest: LINK_TEST_IN_TARGET,
+        symlinkedIn: undefined,
       },
       {
         source: WARM_CARGO_HOME,
         destination: CARGO_HOME,
         linkTest: LINK_TEST_IN_CARGO_HOME,
+        symlinkedIn: CRATE_SOURCES,
       },
     ],
   };
 })();
 
-// Lays `$1` out at `$2` for the build user `$3` (uid:gid); the remaining
-// arguments are the `find` test for the files to link. Run as root:
-// 1. hard-link the whole tree, which also creates the directories with their
-//    modes and timestamps;
+// Lays `$1` out at `$2` for the build user `$3` (uid:gid). `$4` is a `find`
+// path pattern for the directories whose entries are each shared whole, through
+// a symbolic link (empty: none); the remaining arguments are the `find` test
+// for the files to hard-link. Run as root:
+// 1. hard-link the tree, which also creates the directories with their modes
+//    and timestamps. With directories to symlink, `cp` gets the files outside
+//    them one by one instead of the whole tree, and each of those directories
+//    is made the build user's, holding one link per entry: cargo unpacks a
+//    crate it downloads next to them;
 // 2. replace every link that isn't to stay one with a copy (`cp -a` keeps the
 //    timestamps cargo's fingerprints need). The link goes first, symbolic
 //    links included: `cp` won't copy a file over a link to itself, and a
@@ -366,24 +388,76 @@ const warmCache = (() => {
 // own directory, never write it, so the image's cache can't change. Only a
 // file that is root's and that no one else may write is linked, whatever the
 // test says: a link to anything else would be a way into the image's cache.
+// `linkWarmCache` checks the same of what the symbolic links lead to.
 const LINK_TREE_SCRIPT = `
 set -euo pipefail
-source=$1 destination=$2 owner=$3
-shift 3
+source=$1 destination=$2 owner=$3 symlinked_in=$4
+shift 4
 linked=(-type f -user 0 ! -perm /022 "(" "$@" ")")
 copied=(! -type d ! "(" "\${linked[@]}" ")")
+outside=(-path "$symlinked_in" -prune -o)
 cd "$source"
-cp -al . "$destination"
-find . "\${copied[@]}" -print0 | (cd "$destination" && xargs -0 -r rm -f)
-find . "\${copied[@]}" -print0 | xargs -0 -r cp -a --parents -t "$destination"
-find . ! "(" "\${linked[@]}" ")" -print0 |
+if [[ -z $symlinked_in ]]; then
+  cp -al . "$destination"
+else
+  find . "\${outside[@]}" ! -type d -print0 |
+    xargs -0 -r cp -al --parents -t "$destination"
+  find . -path "$symlinked_in" -prune -print0 |
+    while IFS= read -r -d "" dir; do
+      mkdir -p "$destination/$dir"
+      chown "$owner" "$destination/$dir"
+      find "$source/$dir" -mindepth 1 -maxdepth 1 -print0 |
+        xargs -0 -r ln -s -t "$destination/$dir"
+    done
+fi
+find . "\${outside[@]}" "\${copied[@]}" -print0 |
+  (cd "$destination" && xargs -0 -r rm -f)
+find . "\${outside[@]}" "\${copied[@]}" -print0 |
+  xargs -0 -r cp -a --parents -t "$destination"
+find . "\${outside[@]}" ! "(" "\${linked[@]}" ")" -print0 |
   (cd "$destination" && xargs -0 -r chown -h "$owner")
 `;
 
 type WarmCache = NonNullable<typeof warmCache>;
 
+// Throws unless everything under `dir` is root's and no one else may write it:
+// what a symbolic link into the image's cache needs, since build code reaches
+// the files themselves through it. Symbolic links there are skipped: their
+// mode means nothing, and the build user can't replace one.
+const checkReadOnly = async (dir: string) => {
+  const { stdout } = await execFile(
+    "find",
+    [
+      dir,
+      ...["(", "!", "-user", "0", "-o", "-perm", "/022", ")"],
+      ...["!", "-type", "l", "-print", "-quit"],
+    ],
+    {
+      cwd: "/",
+      env: { PATH: process.env.PATH },
+      timeout: MIDEN_TOOL_TIMEOUT_MS,
+    },
+  );
+  if (stdout) {
+    throw new Error(`${stdout.trim()} is not root's alone to write`);
+  }
+};
+
+// Asked once per directory and process: once it holds only root can undo it,
+// and walking the crate sources before every build would cost most of what
+// the symbolic links save. A failure stays too, so every build is then copied.
+const readOnlyChecks = new Map<string, Promise<void>>();
+const checkReadOnlyOnce = (dir: string) => {
+  const check = readOnlyChecks.get(dir) ?? checkReadOnly(dir);
+  readOnlyChecks.set(dir, check);
+  return check;
+};
+
 const linkWarmCache = async ({ buildUser, trees }: WarmCache) => {
-  for (const { source, destination, linkTest } of trees) {
+  for (const { source, destination, linkTest, symlinkedIn } of trees) {
+    if (symlinkedIn !== undefined) {
+      await checkReadOnlyOnce(join(source, symlinkedIn));
+    }
     await rm(destination, { recursive: true, force: true });
     await mkdir(destination);
     await execFile(
@@ -395,6 +469,8 @@ const linkWarmCache = async ({ buildUser, trees }: WarmCache) => {
         source,
         destination,
         `${buildUser.uid}:${buildUser.gid}`,
+        // Each registry's directory under it, as `find` sees it from `source`.
+        symlinkedIn === undefined ? "" : `./${symlinkedIn}/*`,
         ...linkTest,
       ],
       {
@@ -425,7 +501,7 @@ const copyWarmCache = async ({ buildUser, trees }: WarmCache) => {
 
 // Replaces the build's cache directories with a fresh view of the image's
 // read-only warm cache, at the same paths (cargo's fingerprints record them):
-// hard links to what a build only reads, copies of the rest. Nothing a build
+// links to what a build only reads, copies of the rest. Nothing a build
 // changes there reaches the image's cache or a later build. Nothing happens
 // on the host, which builds against CARGO_TARGET_DIR directly.
 const prepareWarmCache = async () => {
@@ -469,7 +545,7 @@ const compile = async (args: CompileArgs) => {
   // Whatever an earlier `cargo` call left running or lying in /tmp goes first.
   await killBuildUserProcesses();
   // A failure here fails the request: never build against a partial cache.
-  await prepareWarmCache();
+  await timed(args.timings, "layout", prepareWarmCache);
   await mkdir(join(WORK_DIR, "projects"), { recursive: true });
   const tmpDir = await mkdtemp(join(WORK_DIR, "projects", "miden-project-"));
   // Only the build user may enter its project: no other request's files, and
@@ -541,6 +617,6 @@ export const queueCompile = async <T>(
     try {
       return await use(build);
     } finally {
-      await cleanup();
+      await timed(args.timings, "cleanup", cleanup);
     }
   }, args.signal);

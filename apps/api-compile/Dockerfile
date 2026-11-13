@@ -163,11 +163,11 @@ WORKDIR /cache/examples/counter-contract/counter-contract
 # copied to another path would recompile every dependency. The result then
 # moves, in this same RUN (a later layer would duplicate it), to a read-only
 # /cache/image; before each build the server lays it out again at the original
-# paths, as hard links to the compiled dependencies and crate sources and
-# copies of the rest, so nothing build code changes reaches a later build. The
-# links are safe only because these files are root's and no one else may write
-# them, which the chmod also ensures; it makes the warm-up's root-only files
-# (lock files) readable too.
+# paths, as hard links to the compiled dependencies and downloaded crates, a
+# symbolic link to each crate's sources and copies of the rest, so nothing
+# build code changes reaches a later build. The links are safe only because
+# these files are root's and no one else may write them, which the chmod also
+# ensures; it makes the warm-up's root-only files (lock files) readable too.
 RUN cp -r /cache/examples/counter-contract/counter-contract /tmp/warm \
  && cd /tmp/warm \
  && CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release --locked \
