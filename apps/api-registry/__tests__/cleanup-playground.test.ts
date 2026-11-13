@@ -36,7 +36,12 @@ const insertPackage = async (maspStore: MaspStore, commitment: string) => {
   await maspStore.put(commitment, Buffer.from("debug"), "debug");
   const rows = await db
     .insert(packagesTable)
-    .values({ commitment, debugCommitment: hex("ff"), readOnly: {} })
+    .values({
+      commitment,
+      debugCommitment: hex("ff"),
+      readOnly: {},
+      schemas: {},
+    })
     .returning({ id: packagesTable.id });
   return { id: firstId(rows), commitment };
 };

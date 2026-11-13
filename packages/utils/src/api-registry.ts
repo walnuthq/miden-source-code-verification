@@ -41,9 +41,8 @@ export type Package = {
   // Whether each exported procedure is read-only, by export path.
   readOnly: ReadOnlyProcedures;
   // Its storage schemas: an account component's storage slots, a note's
-  // storage fields. Null for a package stored before the registry kept them,
-  // until the backfill reads them.
-  schemas: PackageSchemas | null;
+  // storage fields.
+  schemas: PackageSchemas;
   createdAt: string;
   updatedAt: string;
 };

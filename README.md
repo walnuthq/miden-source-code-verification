@@ -49,7 +49,7 @@ A verified package's release build carries no debug info, so a transaction simul
 
 ### Storage schemas
 
-`miden-package-metadata` also reads the storage schemas the toolchain embeds in a package (see `schemas.rs`): an account component's storage slots, from its account component metadata, and a note's storage fields (its inputs), from its WIT storage schema. `POST /compile` and `POST /verify` return them as `storage` and `noteStorage`, each absent when the package has none (`manifest.ts` documents their shape and limits). The registry stores both in the package's `schemas`, and the web-viewer lists them on the account and note pages. `POST /package-metadata` reads them, with the commitment, kind, manifest and read-only flags, from a `.masp` sent as `application/octet-stream`, without building anything: the [backfill](#backfilling-storage-schemas) uses it.
+`miden-package-metadata` also reads the storage schemas the toolchain embeds in a package (see `schemas.rs`): an account component's storage slots, from its account component metadata, and a note's storage fields (its inputs), from its WIT storage schema. `POST /compile` and `POST /verify` return them as `storage` and `noteStorage`, each absent when the package has none (`manifest.ts` documents their shape and limits). The registry stores both in the package's `schemas` when it is verified, and doesn't recompute them when `schemas.rs` changes. The web-viewer lists them on the account and note pages.
 
 ### Miden toolchain
 
@@ -235,17 +235,6 @@ REGISTRY_URL=https://miden-source-code-verification-api-registry.walnut.dev ADMI
 ```
 
 The script builds the packages one at a time and waits out a busy api-compile. Each build goes through api-compile's `POST /compile-debug`, which first rebuilds the release build and answers `409` when it no longer has the stored commitment, as after a toolchain upgrade. Such a package, or one whose entrypoint can't be told from its files (`422`), is skipped and gets a debug build when it is verified again. The script ends with a count of stored, skipped and failed packages.
-
-### Backfilling storage schemas
-
-Packages stored before the registry kept their storage schemas (an account component's storage slots, a note's storage fields) get them through two operator routes, `GET /admin/schemas/pending` and `POST /admin/packages/{commitment}/schemas`, with the same `ADMIN_TOKEN` as above. Run it once api-compile's container rollout has ended:
-
-```bash
-REGISTRY_URL=https://miden-source-code-verification-api-registry.walnut.dev ADMIN_TOKEN=… \
-  pnpm --filter miden-source-code-verification-api-registry exec node --conditions development --env-file-if-exists=.env scripts/backfill-schemas.ts
-```
-
-Each package's stored `.masp` goes to api-compile's `POST /package-metadata`, so nothing is rebuilt and a toolchain upgrade doesn't stop it. The answer's commitment must be the stored one (`409` otherwise). Until it has run, an older package's page shows no storage schemas, so the script reports any package it couldn't read as failed and exits non-zero. It retries an api-compile that is waking up or busy.
 
 ### Cleaning up playground verifications
 

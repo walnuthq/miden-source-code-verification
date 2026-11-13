@@ -2,7 +2,6 @@ import type { Request } from "express";
 import type {
   CompileDebugResponse,
   ImportedResource,
-  PackageMetadataResponse,
   VerifyResponse,
 } from "miden-source-code-verification-utils/api-compile";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
@@ -66,12 +65,6 @@ export type ApiCompile = {
     /** Aborts the call, as when the registry's own client went away. */
     signal?: AbortSignal;
   }): Promise<CompileDebugResponse>;
-  /**
-   * Reads a stored package's metadata from its `.masp`, without building
-   * anything, for the schemas backfill. api-compile answers 400 when it can't
-   * read the package.
-   */
-  packageMetadata(masp: Uint8Array): Promise<PackageMetadataResponse>;
 };
 
 const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
@@ -147,16 +140,6 @@ export const createHttpApiCompile = (baseUrl: string): ApiCompile => ({
     ),
   compileDebug: ({ signal, ...input }) =>
     postBuild<CompileDebugResponse>(`${baseUrl}/compile-debug`, input, signal),
-  // Reads one file without building anything, but it may wake the container:
-  // the import's allowance, above the Worker's own (the health probe's), so a
-  // slow wake-up comes back as the Worker's 504, which the backfill retries.
-  packageMetadata: (masp) =>
-    fetchJson<PackageMetadataResponse>(`${baseUrl}/package-metadata`, {
-      method: "POST",
-      headers: { "Content-Type": "application/octet-stream" },
-      body: masp,
-      signal: AbortSignal.timeout(API_COMPILE_IMPORT_TIMEOUT_MS),
-    }),
 });
 
 /** The api-compile `createApp` attached to the app handling `req`. */

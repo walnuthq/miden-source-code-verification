@@ -4,7 +4,7 @@ import type { VerifyResponse } from "miden-source-code-verification-utils/api-co
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import type { Project } from "miden-source-code-verification-utils/project";
 import db, { type Database } from "../db/index.ts";
-import { getPackage, schemasOf, updatePackage } from "../db/packages.ts";
+import { getPackage, schemasOf } from "../db/packages.ts";
 import {
   packagesTable,
   verifiedAccountCodeTable,
@@ -286,11 +286,6 @@ export const verifyResource = async ({
     }
     return packageId;
   });
-  // A package stored before the registry kept its schemas: the build just
-  // read them.
-  if (stored && stored.schemas === null) {
-    await updatePackage(stored.id, { schemas: schemasOf(build) });
-  }
   // After the commit, so its failure can't undo the record: it is logged and
   // leaves the package without one, as the release build alone is what
   // verifies. Also for a package stored before it had a debug build.

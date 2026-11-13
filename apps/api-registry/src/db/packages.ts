@@ -12,10 +12,7 @@ export const getPackage = (commitment: string) =>
 
 export const updatePackage = async (
   id: string,
-  update: Pick<
-    NewPackage,
-    "entrypoint" | "debugCommitment" | "debugBuiltWith" | "schemas"
-  >,
+  update: Pick<NewPackage, "entrypoint" | "debugCommitment" | "debugBuiltWith">,
 ) => {
   await db
     .update(packagesTable)
@@ -29,15 +26,6 @@ export const getPackagesWithoutDebugBuild = () =>
   db.query.packagesTable.findMany({
     columns: { id: true, name: true, commitment: true, entrypoint: true },
     where: { type: "account-component", debugCommitment: { isNull: true } },
-    orderBy: { createdAt: "asc" },
-  });
-
-// The schemas backfill's work list: packages, of every kind, whose storage
-// schemas haven't been read yet.
-export const getPackagesWithoutSchemas = () =>
-  db.query.packagesTable.findMany({
-    columns: { id: true, name: true, commitment: true },
-    where: { schemas: { isNull: true } },
     orderBy: { createdAt: "asc" },
   });
 
