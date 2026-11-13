@@ -81,4 +81,14 @@ export {
   SelectValue,
 } from "@ui/components/ui/select";
 export { Separator } from "@ui/components/ui/separator";
+export {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@ui/components/ui/table";
 export { cn } from "@ui/lib/utils";

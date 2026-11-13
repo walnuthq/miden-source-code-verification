@@ -1,5 +1,10 @@
 import type { StandardAccountComponent } from "./api-compile.ts";
-import type { Manifest, ReadOnlyProcedures, TargetType } from "./manifest.ts";
+import type {
+  Manifest,
+  PackageSchemas,
+  ReadOnlyProcedures,
+  TargetType,
+} from "./manifest.ts";
 
 // What api-registry answers, how it names a package's artifact, and how a
 // client waits out its 503. The registry's lookups build their answers against
@@ -35,6 +40,10 @@ export type Package = {
   debugBuiltWith: string | null;
   // Whether each exported procedure is read-only, by export path.
   readOnly: ReadOnlyProcedures;
+  // Its storage schemas: an account component's storage slots, a note's
+  // storage fields. Null for a package stored before the registry kept them,
+  // until the backfill reads them.
+  schemas: PackageSchemas | null;
   createdAt: string;
   updatedAt: string;
 };

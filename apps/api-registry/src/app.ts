@@ -136,6 +136,79 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *           type: array
  *           items:
  *             $ref: '#/components/schemas/PackageDependency'
+ *     StorageSlotSchema:
+ *       type: object
+ *       description: >
+ *         One of an account component's storage slots, from the account
+ *         component metadata in its package. Types are the schema's names:
+ *         `word` and `felt`, or a named type such as
+ *         `miden::standards::auth::pub_key`. A composite value slot (one
+ *         schema per felt) is reported as a `word` with neither its felts'
+ *         types nor its default; a map's default entries aren't reported.
+ *       required: [name, type, valueType]
+ *       properties:
+ *         name:
+ *           type: string
+ *           description: The slot's full name, e.g. `counter_contract::counter_contract::count_map`.
+ *         description:
+ *           type: string
+ *         type:
+ *           type: string
+ *           enum: [value, map]
+ *         valueType:
+ *           type: string
+ *         keyType:
+ *           type: string
+ *           description: A map slot's key type.
+ *         defaultValue:
+ *           type: string
+ *           description: A value slot's default word (32-byte hex), when the schema gives one.
+ *     NoteStorageField:
+ *       type: object
+ *       description: One of a note's storage fields (its inputs), in storage order.
+ *       required: [name, type]
+ *       properties:
+ *         name:
+ *           type: string
+ *           description: The field's WIT name, e.g. `target-account-id`.
+ *         type:
+ *           type: string
+ *           description: >
+ *             Its WIT type name (`felt`, `word`, `account-id`, `u64`, ..., or a
+ *             record the note defines, whose own fields aren't reported), or
+ *             `record`, `option` or `variant` for a type with no name.
+ *         width:
+ *           type: integer
+ *           description: The felts it takes in the note's storage. Absent when that varies.
+ *         description:
+ *           type: string
+ *     PackageSchemas:
+ *       type: object
+ *       description: >
+ *         A package's storage schemas. A key is absent when the package has no
+ *         such schema.
+ *       properties:
+ *         storage:
+ *           type: object
+ *           description: An account component's storage slots, in slot order.
+ *           required: [slots]
+ *           properties:
+ *             slots:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/StorageSlotSchema'
+ *         noteStorage:
+ *           type: object
+ *           description: A note's storage schema.
+ *           required: [name, fields]
+ *           properties:
+ *             name:
+ *               type: string
+ *               description: The storage record's WIT name, e.g. `p2id-note`.
+ *             fields:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/NoteStorageField'
  *     Package:
  *       type: object
  *       description: A compiled Rust source package recorded in the registry.
@@ -193,6 +266,13 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *             or a procedure from another package).
  *           additionalProperties:
  *             type: [boolean, "null"]
+ *         schemas:
+ *           oneOf:
+ *             - $ref: '#/components/schemas/PackageSchemas'
+ *             - type: "null"
+ *           description: >
+ *             The storage schemas the package carries. Null for a package
+ *             stored before the registry kept them, until they are read.
  *         createdAt:
  *           type: string
  *           format: date-time

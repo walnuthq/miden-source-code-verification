@@ -37,7 +37,15 @@ function getHighlighter() {
 // app's theme. Shiki escapes the source text, so the HTML is safe to inject even
 // though anyone can submit sources for verification.
 export async function loadPackageSources(
-  { name, commitment, files, manifest, readOnly, debugCommitment }: Package,
+  {
+    name,
+    commitment,
+    files,
+    manifest,
+    readOnly,
+    schemas,
+    debugCommitment,
+  }: Package,
   // The record verifying the package against the resource: an account's
   // component, or the note itself.
   { createdAt, source }: { createdAt: string; source: string },
@@ -55,6 +63,8 @@ export async function loadPackageSources(
       files,
       entryPath,
     }),
+    storageSlots: schemas?.storage?.slots ?? [],
+    noteStorageFields: schemas?.noteStorage?.fields ?? [],
     verifiedAt: formatUtcTimestamp(createdAt),
     source,
     // Only what the page shows; the manifest's `kind` stays on the server.

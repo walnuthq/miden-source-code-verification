@@ -1,10 +1,15 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { type RequestHandler, Router } from "express";
-import { notFound } from "miden-source-code-verification-utils/http-errors";
+import {
+  HttpError,
+  notFound,
+} from "miden-source-code-verification-utils/http-errors";
 import { inferEntrypoint } from "miden-source-code-verification-utils/project";
 import {
   getPackage,
   getPackagesWithoutDebugBuild,
+  getPackagesWithoutSchemas,
+  schemasOf,
   updatePackage,
 } from "../db/packages.ts";
 import { getApiCompile } from "../lib/api-compile.ts";
@@ -14,9 +19,10 @@ import { storeDebugBuild } from "../lib/debug-build.ts";
 import { parseRoot } from "../lib/roots.ts";
 import { getMaspStore } from "../storage/masp-store.ts";
 
-// Operator routes, left out of the OpenAPI docs: the backfill of debug builds
-// for packages stored before the registry kept them
-// (`scripts/backfill-debug-packages.ts` drives it) and the cleanup of the
+// Operator routes, left out of the OpenAPI docs: the backfills of debug builds
+// and of storage schemas for packages stored before the registry kept them
+// (`scripts/backfill-debug-packages.ts` and `scripts/backfill-schemas.ts`
+// drive them) and the cleanup of the
 // playground's verifications. They run here because the Worker is what holds
 // the R2 and database bindings.
 const router: Router = Router();
@@ -91,6 +97,46 @@ router.post("/admin/packages/:commitment/debug-build", async (req, res) => {
     await updatePackage(dbPackage.id, { entrypoint });
   }
   res.json({ debugCommitment: debug.commitment });
+});
+
+// The packages the schemas backfill still has to read.
+router.get("/admin/schemas/pending", async (_req, res) => {
+  res.json(await getPackagesWithoutSchemas());
+});
+
+// Reads the storage schemas of one stored package and records them.
+// api-compile reads them from the stored `.masp`, so nothing is rebuilt and
+// the toolchain's drift doesn't matter, only that it still reads the format.
+// It answers the package's commitment too, which must be the stored one. A
+// 400 from api-compile (it can't read the package) passes through.
+router.post("/admin/packages/:commitment/schemas", async (req, res) => {
+  const commitment = parseRoot(req.params.commitment);
+  if (!commitment) {
+    res.status(400).json({ error: "invalid package commitment" });
+    return;
+  }
+  const dbPackage = await getPackage(commitment);
+  if (!dbPackage) {
+    throw new HttpError(404, "package not found");
+  }
+  if (dbPackage.schemas) {
+    res.json({ schemas: dbPackage.schemas });
+    return;
+  }
+  const masp = await getMaspStore(req).get(commitment);
+  if (!masp) {
+    throw new HttpError(404, "package masp not found");
+  }
+  const metadata = await getApiCompile(req).packageMetadata(masp);
+  if (metadata.commitment.toLowerCase() !== commitment.toLowerCase()) {
+    throw new HttpError(
+      409,
+      `stored masp has commitment ${metadata.commitment}`,
+    );
+  }
+  const schemas = schemasOf(metadata);
+  await updatePackage(dbPackage.id, { schemas });
+  res.json({ schemas });
 });
 
 // Deletes the playground's verifications older than a day, and the packages
