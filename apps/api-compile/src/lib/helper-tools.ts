@@ -1,7 +1,9 @@
 import type { ImportedResource } from "miden-source-code-verification-utils/api-compile";
 import type {
   Manifest,
+  NoteStorageSchema,
   ReadOnlyProcedures,
+  StorageSchema,
   TargetType,
 } from "miden-source-code-verification-utils/manifest";
 import {
@@ -57,8 +59,9 @@ const run = async <T>(
 ): Promise<ToolRun<T>> => {
   console.info([name, ...args].join(" "));
   let stdout: string;
+  let stderr: string;
   try {
-    ({ stdout } = await execFile(name, args, {
+    ({ stdout, stderr } = await execFile(name, args, {
       // Not the user that runs cargo: these read what it built, and own the
       // client stores it can't write.
       ...API_USER,
@@ -81,6 +84,11 @@ const run = async <T>(
       error: reason.replace(/^Error:\s*/, ""),
       rejected: exitCodeOf(error) === REJECTED_EXIT_CODE,
     };
+  }
+  // A tool that succeeds can still warn on stderr, e.g. about a schema it
+  // couldn't read and left out of its result: nothing else would show it.
+  if (stderr.trim()) {
+    console.warn(`${name}: ${stderr.trim()}`);
   }
   // The tool prints its result whenever it exits 0, so anything else is a
   // broken run a retry may fix, not a result that says no.
@@ -108,13 +116,16 @@ export type MidenVerifierOutput =
   | { type: "note"; code: string; script: string };
 
 // What `miden-package-metadata` prints: the package's commitment and kind, its
-// manifest, and whether each exported procedure is read-only (the JSON
-// `packages/utils/src/manifest.ts` documents).
+// manifest, whether each exported procedure is read-only, and the schemas of an
+// account component's storage and a note's storage, when the package has them
+// (the JSON `packages/utils/src/manifest.ts` documents).
 export type PackageMetadata = {
   commitment: string;
   kind: TargetType;
   manifest: Manifest;
   readOnly?: ReadOnlyProcedures;
+  storage?: StorageSchema;
+  noteStorage?: NoteStorageSchema;
 };
 
 // `miden-import` and `miden-verifier` keep one client store per network under

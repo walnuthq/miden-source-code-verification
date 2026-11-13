@@ -1,4 +1,10 @@
-import type { Manifest, ReadOnlyProcedures, TargetType } from "./manifest.ts";
+import type {
+  Manifest,
+  NoteStorageSchema,
+  ReadOnlyProcedures,
+  StorageSchema,
+  TargetType,
+} from "./manifest.ts";
 
 // What api-compile answers. Its routes build their answers against these types
 // (`satisfies`), and the registry's port reads them: one place names the wire
@@ -14,6 +20,12 @@ export type BuiltPackage = {
   manifest: Manifest;
   // Whether each exported procedure is read-only, by export path.
   readOnly: ReadOnlyProcedures;
+  // An account component's storage slots. Absent for other packages, and when
+  // the schema couldn't be read.
+  storage?: StorageSchema;
+  // A note's storage, its inputs. Absent for other packages, for a note that
+  // declares none, and when the schema couldn't be read.
+  noteStorage?: NoteStorageSchema;
   // The sources plus the lockfile the build used, keyed by path in the
   // project, so a client can resubmit them and get the same dependency
   // versions.
