@@ -353,8 +353,25 @@ Expected repository: `0xMiden/miden-vm` (`miden-mast-package`,
   leaves the section out, instead of `commitment()`. The stored files still
   differ: a consumer can't compare a download with a local build by checksum.
   Stripping the section before storing is specified but not implemented.
-- **Not confirmed:** that host architecture is the cause. The spec lists the
-  check (an amd64 build on the same machine).
+- **Confirmed (2026-11-12):** an amd64 build on the same machine reproduces
+  the production files byte for byte, and an arm64 build of the same sources
+  doesn't. The two `.wasm` files differ only in crate hashes inside mangled
+  symbol names, all of them in the core module's `name` custom section. A
+  dependency update (`cargo update`) changes the hash the same way, with the
+  commitment unchanged. The crate hashes depend on the host through cargo's
+  `-C metadata`, which covers each crate's build scripts and proc macros:
+  those hash the host triple, and the SDK's proc macro has dependencies that
+  differ by architecture (`cpufeatures`, `curve25519-dalek`). Separately, the
+  `.wasm` is hashed under its absolute path, so another `CARGO_TARGET_DIR`
+  on the same machine changes `source_hash` too.
+- **Filed (2026-11-12):**
+  [0xMiden/compiler#1505](https://github.com/0xMiden/compiler/issues/1505),
+  together with A3. There was no existing report, and the code is unchanged
+  on the default branches of both repositories. The fix belongs in
+  `0xMiden/compiler`. Two fixes were tested on both architectures: a
+  host-independent `-C metadata` for Wasm crates, which also fixes debug
+  builds (A3), and a small patch to the provenance inputs, which fixes
+  release packages only.
 - **Ask:** make the provenance hashes independent of the host (hash a
   normalized module, label sources relative to the target directory), and
   document which of `commitment()`, `dependency_commitment()` and
@@ -387,7 +404,7 @@ than to the crates in scope.
 | --- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | A1  | Compiler / Rust SDK      | A Rust-compiled auth component has no ready way to pay the transaction fee, so only accounts with a standard auth component can transact without help. `miden-base-sys` 0.15 binds `tx::compute_fee` and `tx::get_fee_asset_id` but not `miden::standards::fee`. Ask: an SDK helper and an example auth component that creates the `TX_FEE` note. Not yet tried: see #126 before filing. | `generate-fixtures/src/fee.rs`, `note.rs`                  |
 | A2  | Compiler (`midenc` 0.11) | Dev builds fail with `failed to legalize operation 'cf.switch'` when an inlined function can end three ways (here, a `vec!` allocation inside `withdraw`). Release builds are unaffected. We changed the example's source to avoid the allocation.                                                                                                                                       | `examples/miden-bank/bank-account/src/lib.rs:303`          |
-| A3  | Compiler                 | A debug build's commitment differs between x86_64 and aarch64 hosts; the release commitment doesn't. Debug packages can't be checked against an expected commitment.                                                                                                                                                                                                                     | `docs/claude/debug-builds.md`                              |
+| A3  | Compiler                 | A debug build's commitment differs between x86_64 and aarch64 hosts; the release commitment doesn't. Debug packages can't be checked against an expected commitment. Same cause as V2 (see `spec/masp-reproducibility.md`), filed with it as 0xMiden/compiler#1505.                                                                                                                      | `docs/claude/debug-builds.md`                              |
 | A4  | `cargo-miden`            | A nested `cargo miden build` inherits `RUSTUP_TOOLCHAIN` and `CARGO_TARGET_DIR` from a parent cargo, which overrides the project's `rust-toolchain.toml` and moves the `generated-wit/` directory dependents resolve against.                                                                                                                                                            | `generate-fixtures/src/build.rs:30`                        |
 | A5  | Faucet                   | `miden-faucet-lib` pins its own `miden-client`, so using its request types would duplicate the client in our lockfile. We call the two HTTP endpoints and solve the proof of work by hand. Taken from our manifest comment, not re-checked. Ask: a types-only client crate.                                                                                                              | `generate-fixtures/Cargo.toml`, `fee.rs` (`mint`, `solve`) |
 | A6  | Faucet (0.17)            | `/get_tokens` answers with a note ID before the note is on chain and offers no way to ask about its progress. We poll for up to 10 minutes and can't tell a slow funding service from a stalled chain.                                                                                                                                                                                   | `generate-fixtures/src/fee.rs` (`wait_for_note`)           |
@@ -421,7 +438,7 @@ fixed in
    change, and each has a small, concrete ask.
 2. **V1, S6, S5:** the largest amounts of code we maintain in place of an
    upstream API.
-3. **V2, V3:** they need a policy decision upstream (artifact identity and
-   format compatibility), so start the discussion early.
+3. **V3:** it needs a policy decision upstream (format compatibility), so
+   start the discussion early. V2 and A3 are filed (0xMiden/compiler#1505).
 4. **C1, C3, C4:** error-reporting fixes that are cheap upstream.
 5. The rest, as time allows.

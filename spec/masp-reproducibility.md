@@ -113,8 +113,8 @@ end of the file. It's identical on both machines.
 ### Why local and production disagree
 
 Neither the random build directory nor the code version explains it: builds on
-one machine are identical, and both images run the same code. What's left
-is the host:
+one machine are identical, and both images run the same code. What differs is
+the host:
 
 |              | Local (docker-compose, OrbStack)         | Production (Cloudflare Containers) |
 | ------------ | ---------------------------------------- | ---------------------------------- |
@@ -122,16 +122,180 @@ is the host:
 | Image        | built from `apps/api-compile/Dockerfile` | same Dockerfile                    |
 | Toolchain    | `nightly-2026-09-01`                     | `nightly-2026-09-01`               |
 
-The most likely cause is that rustc and LLVM, running on different host
-architectures, emit `.wasm` files that differ in ways that don't reach the
-lowered MAST. That would leave the commitment identical and the WAT, and so
+The host architecture is the cause. rustc, running on different host
+architectures, emits `.wasm` files that differ in ways that don't reach the
+lowered MAST. That leaves the commitment identical and the WAT, and so
 `source_hash`, different.
 
-**This hasn't been confirmed.** To confirm it, build the api-compile image for
-`linux/amd64` locally (`docker build --platform linux/amd64 …`), compile the
-same example, and compare with the production file. If they match, the
-architecture is the cause. If they don't, compare the two `.wasm` files to find
-which other input varies.
+### Confirmation (2026-11-12)
+
+The three packages were built on both architectures on one machine, from the
+same Dockerfile (cut after the warm-up builds), with the build api-compile
+runs: a copy of the example in a temp directory, the shared
+`CARGO_TARGET_DIR`, `cargo miden build --release`. The table gives the number
+of bytes that differ from the production file:
+
+| Build                                        | `counter-contract` | `auth-component-no-auth` | `counter-note` |
+| -------------------------------------------- | ------------------ | ------------------------ | -------------- |
+| amd64, examples as of 2026-10-09 (`0c0f3ee`) | 0                  | 0                        | 0              |
+| arm64, examples as of 2026-10-09             | 32                 | 32                       | 64             |
+| amd64, current examples (`0809fd1`)          | 32                 | 32                       | 64             |
+| arm64, current examples                      | 31                 | 32                       | 64             |
+
+The differing bytes are the hash fields described above (the 31 is one byte
+that happens to coincide). Sizes and commitments are the same in every build.
+
+- **An amd64 build reproduces production byte for byte**, and an arm64 build
+  of the same sources doesn't.
+- **The lockfile is a second input.** The production files were recorded
+  before the examples' lockfiles were updated (`078588e`, 2026-11-01). That
+  update alone changes `source_hash` on either architecture, with the
+  commitment unchanged. A local amd64 build of the current examples therefore
+  doesn't match the stored files either.
+- **The project directory is not an input.** Building in another temp
+  directory gave identical files on both architectures. Cargo's target
+  directory is one: see the end of this section.
+
+In every pair (amd64 against arm64, old lockfile against new), the two `.wasm`
+files have the same size and differ by 11 to 33 bytes. All of them are crate
+hashes inside mangled symbol names, for example
+`_RNvNtCshbBG9ViipQ1_16counter_contract…` against
+`_RNvNtCs7UdU5TbqH4g_16counter_contract…`, for the package's own crate and for
+its dependencies (`miden_base`, `miden_field`).
+
+**Every differing byte is in the `name` custom section** of the component's
+core module. Parsing the sections of each pair shows no difference anywhere
+else, and the files are equal once that one section is left out. The section
+only holds debug names: it doesn't affect what the module does.
+
+**Cargo's `-C metadata` is where the host gets in.** A crate's hash in a
+symbol name comes from the `-C metadata` value cargo passes to rustc. Cargo
+computes it in `compute_metadata` (`src/compiler/build_runner/compilation_files.rs`,
+read at `e8cb624d5`, the cargo that `nightly-2026-09-01` ships). Two of its
+inputs matter here:
+
+- the `-C metadata` values of the crate's dependencies, build scripts and
+  proc macros included;
+- on a nightly toolchain, the host triple, for crates built for the host only
+  (`hash_rustc_version`). A crate built for Wasm doesn't hash it directly.
+
+So the host reaches a Wasm crate only through the crates built for the host
+below it, in two ways. Both were checked with a wrapper (`RUSTC`) that runs
+the real compiler, can rewrite the `host:` line of `rustc -vV`, and logs the
+arguments of every rustc invocation (about 340 per build).
+
+**1. The host triple, through any build script or proc macro.**
+
+- On arm64, reporting `aarch64-unknown-linux-musl` instead of
+  `aarch64-unknown-linux-gnu` changes all three crate hashes in the `.wasm`,
+  and `source_hash` with them.
+- On arm64, reporting `s390x-unknown-linux-gnu` changes the `-C metadata` of
+  17 of the 18 crates built for Wasm, the standard library's `alloc`
+  included. Only `core`, which has no build script or proc macro below it,
+  keeps its value.
+
+**2. The host's dependency graph, through the SDK's proc macro.** With both
+architectures reporting the same host (`s390x-unknown-linux-gnu`), the
+`.wasm` files still differ, in the hash of the package's own crate only:
+those of `miden_base` and `miden_field` now agree. In the logs, 214 of the
+277 crates built on both architectures get the same `-C metadata` and 63
+don't. Of the 18 built for Wasm, four differ: `miden` and the three packages.
+Following the differences down from each package gives the same chain:
+
+```
+counter_contract, auth_component_no_auth, counter_note (wasm)
+└─ miden (wasm)
+   └─ miden_base_macros (proc macro, built for the host)
+      └─ … miden_assembly_syntax, miden_core, miden_debug_types …
+         └─ miden_crypto (host)
+            ├─ blake3, chacha20, poly1305 (host)
+            │  └─ cpufeatures (host): depends on libc on aarch64 only
+            └─ curve25519_dalek (host): depends on cpufeatures, and on
+               curve25519_dalek_derive on x86_64 only
+```
+
+`cpufeatures` is the one differing crate with no differing dependency: it's
+where the two builds first diverge. Its dependencies are conditional on the
+architecture it's built for, and it's built for the host because the SDK's
+proc macro (`miden_base_macros`) links the Miden VM crates. Its value
+differs, so does the proc macro's, then `miden`'s, then each package's.
+
+A note on the method: `blake3`'s build script trusts the reported host, so on
+amd64 the wrapper passed that crate's x86 `--cfg` flags itself. Cargo doesn't
+see arguments the wrapper adds, so they can't have changed a `-C metadata`
+value. On arm64, a build through the wrapper reporting the real host gives
+the same files as a build without it.
+
+**Cargo's target directory is a third input, on the same machine.** Building
+on arm64 with another `CARGO_TARGET_DIR` gives byte-identical `.wasm` files
+and a different `source_hash`: the `.wasm` is hashed under its absolute path
+(see [What `source_hash` covers](#what-source_hash-covers-for-a-rust-package)).
+Changing `MIDENC_TARGET_DIR` alone changes nothing. api-compile always builds
+in `/cache/target`, which is why its builds agree with each other.
+
+### Debug builds: the same cause reaches the code
+
+`docs/claude/debug-builds.md` records that a debug build's commitment differs
+between x86_64 and aarch64. It's the same cause with a larger effect. In the
+dev profile, the debug `.wasm` files of `counter-contract` and `counter-note`
+differ across architectures in their `code` and `data` sections too (same
+sizes, other content), and their custom sections come in another order: the
+crate hashes are part of the symbol names the functions are ordered by. The
+MAST differs, and so does the commitment. `auth-component-no-auth`, whose
+`code` section is the same on both, keeps its commitment.
+
+| Debug package            | Commitment, amd64 | Commitment, arm64 |
+| ------------------------ | ----------------- | ----------------- |
+| `counter-contract`       | `0xdd3b…6e2d`     | `0x4527…52ed`     |
+| `auth-component-no-auth` | `0x4f35…0bc9`     | `0x4f35…0bc9`     |
+| `counter-note`           | `0x5f65…3710`     | `0xf0d7…8b9a`     |
+
+A fix limited to the provenance section can't help here: the `.wasm` itself
+has to come out the same.
+
+### A package also holds paths from the machine that built the compiler
+
+Found on the way: the `counter-note` package holds 21 absolute paths of the
+form `/usr/local/cargo/registry/src/index.crates.io-…/miden-protocol-0.17.1/asm/…`.
+They are source locations of the protocol library linked into `cargo-miden`,
+as they were on the machine that compiled `cargo-miden`. A `cargo-miden` built
+from the `v0.11.0` tag with its lockfile links `miden-protocol` 0.17.0, and
+the paths in its packages say so, while `cargo install cargo-miden --version
+0.11.0` resolved 0.17.1. The commitment is the same either way. So the bytes
+of a package also depend on where, and with which dependency versions, the
+compiler was installed.
+
+## Upstream state (2026-11-12)
+
+Filed as [0xMiden/compiler#1505](https://github.com/0xMiden/compiler/issues/1505)
+on 2026-11-12, for the release and the dev profile together, with an offer to
+open the pull requests. What was found before filing:
+
+- **No existing report.** Neither `0xMiden/miden-vm` nor `0xMiden/compiler`
+  has an issue or pull request about this (searched for provenance,
+  `source_hash`, `dependency_hash`, reproducible, deterministic,
+  byte-for-byte, name section, aarch64/arm64). The nearest is miden-vm #2945,
+  closed by #3091, which narrowed build provenance to "fields that can affect
+  the selected target's artifact": the principle this report relies on.
+- **The code is unchanged on both default branches** (`next`: miden-vm
+  `e7295a986`, compiler `f662b93a0`). `build_provenance.rs` and
+  `dependency_graph.rs` are identical to `miden-assembly` 0.35.0. The
+  compiler's Wasm frontend was reworked after v0.11.0, but `WasmProvenance`
+  still takes the WAT of the whole module and the path it was read from
+  (`midenc-compile/src/pipeline/frontends/wasm.rs`).
+- **The fix belongs in `0xMiden/compiler`.** It supplies both the content and
+  the path that `miden-assembly` hashes, and it runs cargo. It already builds
+  with `trim-paths` and `--remap-path-prefix` (`frontends/rust.rs`), so
+  independence from the build machine is something it aims for.
+- **It reproduces with the compiler's own examples** (`examples/` at
+  `v0.11.0`, default target directory). The release commitments are equal and
+  the dev ones differ, for `counter-contract` and `counter-note`. The release
+  files differ by 54 and 86 bytes: the provenance hashes, plus two 11-byte
+  crate hashes in mangled names that those packages store next to their
+  procedure paths. Our examples' release packages hold no such names, and why
+  wasn't established.
+- v0.11.0 is the compiler's latest release. miden-vm has released 0.36.4 and
+  1.0.0-rc.0 since the 0.35.0 tested here.
 
 ## Impact
 
@@ -195,19 +359,45 @@ fixtures.
 
 ### 2. Fix it in the compiler (long term)
 
-Ask the Miden compiler team to make the provenance hash independent of the
-host. For example:
+Two fixes were tested on both architectures, with the three packages of the
+counter example. The files are in `spec/masp-reproducibility/`.
 
-- hash a normalized `.wasm`, without its custom sections, or the lowered HIR
-  instead of the raw WAT;
-- label the root source relative to the target directory instead of by
-  absolute path;
-- build Rust with `-Z trim-paths` / `--remap-path-prefix` so the `.wasm` holds
-  no host paths.
+**A. Give Wasm crates a `-C metadata` that doesn't depend on the host**
+(`rustc-stable-metadata.sh`). A rustc wrapper replaces cargo's value, for
+crates built for Wasm only, with a hash of the crate's name and version.
+The compiler runs cargo, so it could install such a wrapper itself
+(`RUSTC_WRAPPER`).
 
-This keeps the section's purpose (cache reuse) and makes rebuilds
-reproducible. It's out of this project's control, so open an issue on the
-compiler with the reproduction above.
+- amd64 and arm64 then produce byte-identical `.wasm` and `.masp` files, in
+  the release and the dev profile. This is the only fix that covers debug
+  builds.
+- Release commitments are unchanged (`0xd4ae…2b9d`, `0xb869…bdf3`,
+  `0x8163…e670`). Debug commitments change once, to the value both
+  architectures then agree on.
+- It doesn't remove the target directory from `source_hash`: the test built in
+  the same directory on both machines.
+- Open points: the name and version don't tell apart two builds of one crate
+  with other features, which a real implementation has to handle, and build
+  scripts and proc macros keep cargo's value, as they should.
+
+**B. Hash a host-independent view of the module**
+(`provenance-fix-v0.11.0.patch`, about 70 added lines in
+`midenc-compile/src/pipeline/frontends/wasm.rs`). `WasmProvenance` takes the
+WAT of the module without its `name` sections, and the file name instead of
+the full path.
+
+- Release packages are then byte-identical across amd64 and arm64, across two
+  `CARGO_TARGET_DIR`s, and across the lockfile update of 2026-11-01.
+- Commitments are unchanged.
+- It leaves the `.wasm` as it is, so it does nothing for debug builds, nor
+  for a release package that stores mangled names, like those of the
+  compiler's own examples.
+- The `name` section is the only thing left out: the other custom sections
+  hold data the frontend reads (`rodata,miden_account`, `rodata,miden_wit`).
+
+A and B are complementary: A makes the compiled module the same everywhere,
+B keeps the provenance hash from depending on things that aren't part of what
+was built. A alone would still need the path part of B.
 
 ### 3. Build on one architecture everywhere (doesn't fix the root cause)
 
@@ -218,8 +408,11 @@ emulation makes local builds slower.
 
 ## Recommendation
 
-1. Confirm the architecture cause with a local `linux/amd64` build.
+1. ~~Confirm the architecture cause with a local `linux/amd64` build.~~ Done,
+   see [Confirmation](#confirmation-2026-11-12).
 2. Strip the provenance section in api-compile, add the reproducibility test,
    and rewrite or re-record the packages already in R2.
-3. Open an issue on the compiler so the provenance hash no longer depends on the
-   host, and remove the stripping once a compiler release fixes it.
+3. ~~Open an issue on `0xMiden/compiler` with the reproduction, the cause and
+   the two tested fixes.~~ Done:
+   [0xMiden/compiler#1505](https://github.com/0xMiden/compiler/issues/1505).
+   Remove the stripping once a compiler release fixes it.

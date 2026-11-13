@@ -1,0 +1,114 @@
+diff --git a/midenc-compile/src/pipeline/frontends/wasm.rs b/midenc-compile/src/pipeline/frontends/wasm.rs
+index c2a3218..80e2e6a 100644
+--- a/midenc-compile/src/pipeline/frontends/wasm.rs
++++ b/midenc-compile/src/pipeline/frontends/wasm.rs
+@@ -168,11 +168,7 @@ pub(crate) fn translate_wasm_input(
+ 
+     // Computed rather than memoized: there is no target to key a cache by, and a caller with no
+     // assembler asks for this once.
+-    let provenance = WasmProvenance {
+-        path: source.path.clone(),
+-        wat: WasmFrontend::to_wat(&source.wasm)?.into_boxed_str(),
+-    }
+-    .to_inputs();
++    let provenance = WasmProvenance::of(&source)?.to_inputs();
+ 
+     WasmFrontend::translate(context, &source, provenance)
+ }
+@@ -234,6 +230,19 @@ struct WasmProvenance {
+ }
+ 
+ impl WasmProvenance {
++    /// The provenance of `source`, made independent of the machine that built it.
++    ///
++    /// Two things are left out. The `name` custom section holds debug names only, and the
++    /// mangled Rust names in it carry crate hashes that depend on the build host. The directory
++    /// of the path is where cargo wrote the module, which is not part of what was built.
++    fn of(source: &WasmSource) -> CompilerResult<Self> {
++        let path = source.path.file_name().map(Path::new).unwrap_or(&source.path);
++        Ok(Self {
++            path: path.into(),
++            wat: WasmFrontend::to_wat(&strip_name_sections(&source.wasm))?.into_boxed_str(),
++        })
++    }
++
+     /// This provenance, in the shape the assembler asks for.
+     fn to_inputs(&self) -> ProjectSourceProvenanceInputs {
+         ProjectSourceProvenanceInputs {
+@@ -246,6 +255,64 @@ impl WasmProvenance {
+     }
+ }
+ 
++/// `wasm` without its `name` custom sections, those of nested modules and components included.
++///
++/// Malformed input is returned as is: the caller reports it when it disassembles the bytes.
++fn strip_name_sections(wasm: &[u8]) -> Vec<u8> {
++    fn leb(bytes: &[u8], mut at: usize) -> Option<(usize, usize)> {
++        let (mut value, mut shift) = (0usize, 0u32);
++        loop {
++            let byte = *bytes.get(at)?;
++            at += 1;
++            value |= ((byte & 0x7f) as usize).checked_shl(shift)?;
++            shift += 7;
++            if byte < 0x80 {
++                return Some((value, at));
++            }
++        }
++    }
++    fn write_leb(out: &mut Vec<u8>, mut value: usize) {
++        loop {
++            let byte = (value & 0x7f) as u8;
++            value >>= 7;
++            if value == 0 {
++                out.push(byte);
++                return;
++            }
++            out.push(byte | 0x80);
++        }
++    }
++    fn strip(wasm: &[u8]) -> Option<Vec<u8>> {
++        let header = wasm.get(..8)?;
++        let is_component = header[4..8] == [0x0d, 0x00, 0x01, 0x00];
++        let mut out = header.to_vec();
++        let mut at = 8;
++        while at < wasm.len() {
++            let id = wasm[at];
++            let (size, body_start) = leb(wasm, at + 1)?;
++            let body = wasm.get(body_start..body_start.checked_add(size)?)?;
++            at = body_start + size;
++            if id == 0 {
++                let (name_len, name_start) = leb(body, 0)?;
++                if body.get(name_start..name_start.checked_add(name_len)?)? == b"name" {
++                    continue;
++                }
++            }
++            // In a component, sections 1 and 4 hold a whole core module or component.
++            let body = if is_component && (id == 1 || id == 4) {
++                alloc::borrow::Cow::Owned(strip(body)?)
++            } else {
++                alloc::borrow::Cow::Borrowed(body)
++            };
++            out.push(id);
++            write_leb(&mut out, body.len());
++            out.extend_from_slice(&body);
++        }
++        Some(out)
++    }
++    strip(wasm).unwrap_or_else(|| wasm.to_vec())
++}
++
+ /// One target's WebAssembly, as this frontend reads it.
+ ///
+ /// Visible to the sibling frontends because
+@@ -420,10 +487,7 @@ impl WasmFrontend {
+             return Ok(found.to_inputs());
+         }
+ 
+-        let provenance = WasmProvenance {
+-            path: source.path.clone(),
+-            wat: Self::to_wat(&source.wasm)?.into_boxed_str(),
+-        };
++        let provenance = WasmProvenance::of(source)?;
+         let inputs = provenance.to_inputs();
+         self.provenance.borrow_mut().insert(key, provenance);
+         Ok(inputs)
