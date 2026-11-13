@@ -434,24 +434,24 @@ const prepareWarmCache = async () => {
   }
   const destinations = warmCache.trees.map(({ destination }) => destination);
   const start = performance.now();
-  let outcome: "linked" | "copied";
+  let outcome = "linked";
   try {
-    outcome = await linkWarmCache(warmCache).then(
-      () => "linked" as const,
-      async (error: unknown) => {
-        // Slower, and as isolated: every build paying for a full copy must show
-        // in the log. One line of it: `cp` names every file it couldn't link.
-        const stderr =
-          typeof error === "object" && error !== null && "stderr" in error
-            ? String(error.stderr)
-            : errorMessage(error, "unknown error");
-        console.error(
-          `linking the build cache failed, copying it: ${stderr.trim().split("\n")[0]}`,
-        );
-        await copyWarmCache(warmCache);
-        return "copied" as const;
-      },
-    );
+    try {
+      await linkWarmCache(warmCache);
+    } catch (error) {
+      // Slower, and as isolated: every build paying for a full copy must show
+      // in the log. One line of it: `cp` names every file it couldn't link.
+      const stderr =
+        typeof error === "object" && error !== null && "stderr" in error
+          ? String(error.stderr).trim()
+          : "";
+      const reason = stderr || errorMessage(error, "unknown error");
+      console.error(
+        `linking the build cache failed, copying it: ${reason.split("\n")[0]}`,
+      );
+      await copyWarmCache(warmCache);
+      outcome = "copied";
+    }
   } catch (error) {
     // A partial cache mustn't stay on disk until the next request.
     await removeDirs(destinations);
