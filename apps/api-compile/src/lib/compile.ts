@@ -575,10 +575,10 @@ const takeLayout = async ({ timings, signal }: CompileArgs) => {
   nextLayout = undefined;
   if (firstBuild) {
     firstBuild = false;
-    const preloaded = preload.took();
+    const preloadMs = preload.durationMs();
     preload.stop();
-    if (timings && preloaded !== undefined) {
-      timings.preload = preloaded;
+    if (timings && preloadMs !== undefined) {
+      timings.preload = preloadMs;
     }
   }
   if (prepared === undefined) {

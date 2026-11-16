@@ -8,9 +8,9 @@ type View = { targetDir: string; cargoHome: string };
 export type Preload = {
   // Settles once the read is over, however it ended: never rejects.
   settled: Promise<void>;
-  // How long the read took, in ms, once it has finished; undefined while it
-  // runs, when it failed and when there was none.
-  took: () => number | undefined;
+  // How long the read took, once it has finished; undefined while it runs,
+  // when it failed or was stopped, and when there was none.
+  durationMs: () => number | undefined;
   // Ends the read now. `settled` follows at once.
   stop: () => void;
 };
@@ -28,11 +28,15 @@ export const startPreload = (
   script = PRELOAD_SCRIPT,
 ): Preload => {
   if (view === undefined) {
-    return { settled: Promise.resolve(), took: () => undefined, stop() {} };
+    return {
+      settled: Promise.resolve(),
+      durationMs: () => undefined,
+      stop() {},
+    };
   }
   const controller = new AbortController();
   const start = performance.now();
-  let took: number | undefined;
+  let durationMs: number | undefined;
   const settled = execFile(script, [view.targetDir, view.cargoHome], {
     cwd: "/",
     env: { PATH: process.env.PATH, RUSTUP_HOME: process.env.RUSTUP_HOME },
@@ -40,10 +44,10 @@ export const startPreload = (
     signal: controller.signal,
   }).then(
     ({ stdout }) => {
-      took = performance.now() - start;
+      durationMs = performance.now() - start;
       const megabytes = Math.round(Number(stdout) / 1024 / 1024);
       console.info(
-        `first build's files read in ${Math.round(took)} ms (${megabytes} MiB)`,
+        `first build's files read in ${Math.round(durationMs)} ms (${megabytes} MiB)`,
       );
     },
     (error: unknown) => {
@@ -53,5 +57,9 @@ export const startPreload = (
       }
     },
   );
-  return { settled, took: () => took, stop: () => controller.abort() };
+  return {
+    settled,
+    durationMs: () => durationMs,
+    stop: () => controller.abort(),
+  };
 };

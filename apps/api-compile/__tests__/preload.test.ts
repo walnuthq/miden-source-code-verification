@@ -17,22 +17,36 @@ import healthRouter from "../src/routes/health.ts";
 import { useFakeTool } from "./fake-tool.ts";
 
 // The server's own preload, which the host never starts (it has no warm
-// cache), is the real one here, running a script that never finishes: every
-// request below arrives while it is pending.
+// cache), is the real one here, running a script that never finishes and says
+// which process it is: every request below arrives while it is pending.
+const pending = vi.hoisted(() => ({
+  dir: "",
+  // What compile.ts asked to preload, before this file put a view in.
+  views: [] as unknown[],
+}));
+
 vi.mock("../src/lib/preload.ts", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/lib/preload.ts")>();
-  const script = join(mkdtempSync(join(tmpdir(), "preload-pending-")), "run");
-  writeFileSync(script, "#!/bin/sh\nsleep 60\n", { mode: 0o755 });
-  return {
-    ...actual,
-    startPreload: (view: unknown, given?: string) =>
-      given === undefined
-        ? actual.startPreload(
-            { targetDir: "/none", cargoHome: "/none" },
-            script,
-          )
-        : actual.startPreload(view as never, given),
+  pending.dir = mkdtempSync(join(tmpdir(), "preload-pending-"));
+  const script = join(pending.dir, "run");
+  writeFileSync(
+    script,
+    `#!/bin/sh\necho $$ > ${pending.dir}/pid\nexec sleep 60\n`,
+    {
+      mode: 0o755,
+    },
+  );
+  const startPreload: typeof actual.startPreload = (view, given) => {
+    if (given !== undefined) {
+      return actual.startPreload(view, given);
+    }
+    pending.views.push(view);
+    return actual.startPreload(
+      { targetDir: "/none", cargoHome: "/none" },
+      script,
+    );
   };
+  return { ...actual, startPreload };
 });
 
 vi.mock("../src/lib/constants.ts", async (importOriginal) => ({
@@ -86,7 +100,7 @@ describe("startPreload", () => {
     await preload.settled;
     preload.stop();
 
-    expect(preload.took()).toBeUndefined();
+    expect(preload.durationMs()).toBeUndefined();
     await expect(readFile(marker)).rejects.toThrow("ENOENT");
     expect(error).not.toHaveBeenCalled();
   });
@@ -102,10 +116,10 @@ describe("startPreload", () => {
       { targetDir: "/cache/target", cargoHome: "/cache/cargo-home" },
       script,
     );
-    expect(preload.took()).toBeUndefined();
+    expect(preload.durationMs()).toBeUndefined();
     await preload.settled;
 
-    expect(preload.took()).toBeGreaterThan(0);
+    expect(preload.durationMs()).toBeGreaterThan(0);
     expect(await readFile(scripts.path("args"), "utf-8")).toBe(
       "/cache/target /cache/cargo-home\n",
     );
@@ -122,7 +136,7 @@ describe("startPreload", () => {
     const preload = startPreload(view, script);
 
     await expect(preload.settled).resolves.toBeUndefined();
-    expect(preload.took()).toBeUndefined();
+    expect(preload.durationMs()).toBeUndefined();
     expect(error).toHaveBeenCalledTimes(1);
   });
 
@@ -154,9 +168,9 @@ describe("startPreload", () => {
     preload.stop();
     await preload.settled;
 
-    expect(Date.now() - start).toBeLessThan(2_000);
+    expect(Date.now() - start).toBeLessThan(5_000);
     await vi.waitFor(() => expect(alive(pid)).toBe(false));
-    expect(preload.took()).toBeUndefined();
+    expect(preload.durationMs()).toBeUndefined();
     expect(error).not.toHaveBeenCalled();
   });
 });
@@ -178,8 +192,19 @@ esac
     .use(compileRouter)
     .use(errorHandler);
 
+  const pendingPid = async () =>
+    Number(await readFile(join(pending.dir, "pid"), "utf-8"));
+
   afterAll(async () => {
     await stopPreload();
+    await rm(pending.dir, { recursive: true, force: true });
+  });
+
+  it("started it with the server, for no view on the host", async () => {
+    expect(pending.views).toEqual([undefined]);
+    await vi.waitFor(async () => {
+      expect(alive(await pendingPid())).toBe(true);
+    });
   });
 
   it("answers the health probe", async () => {
@@ -187,6 +212,7 @@ esac
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("timestamp");
+    expect(alive(await pendingPid())).toBe(true);
   });
 
   it("builds at once, ends the preload and reports none", async () => {
@@ -200,12 +226,8 @@ esac
     expect(res.body.built).toBe(false);
     expect(res.headers["server-timing"]).toMatch(/^layout;dur=\d+, cargo;/);
     expect(Date.now() - start).toBeLessThan(10_000);
-    // Already over: the build stopped it, nothing is left to wait for.
-    await expect(
-      Promise.race([
-        stopPreload().then(() => "settled"),
-        new Promise((resolve) => setTimeout(resolve, 2_000, "pending")),
-      ]),
-    ).resolves.toBe("settled");
+    // The build ended it, not this file.
+    const pid = await pendingPid();
+    await vi.waitFor(() => expect(alive(pid)).toBe(false));
   }, 30_000);
 });

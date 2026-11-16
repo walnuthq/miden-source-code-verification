@@ -4,7 +4,8 @@
 #   preload-first-build <target dir> <cargo home>
 #
 # A container starts with nothing of the image in memory, and the first build
-# then reads about 510 MB off a cold disk: the compiler (rustc's two shared
+# then reads about 510 MB off a cold disk (this script, which reads whole
+# files, about 700 MiB): the compiler (rustc's two shared
 # libraries are half of it), the host's standard library, which every build
 # script and procedural macro links, cargo-miden, and the view of the warm
 # cache at <target dir> and <cargo home>. The server runs this once at
@@ -49,12 +50,11 @@ files() {
     -name Cargo.toml -print0
 }
 
-# `ionice` only where the disk scheduler has an idle class to give.
-idle=(nice -n 19)
-if ionice -c 3 true 2>/dev/null; then
-  idle+=(ionice -c 3)
-fi
-bytes=$(files 2>/dev/null | "${idle[@]}" xargs -0 -r cat 2>/dev/null | wc -c)
+# The whole script, the walks included, at the lowest priority; the disk's
+# only where its scheduler has an idle class to give.
+renice -n 19 $$ >/dev/null 2>&1
+ionice -c 3 -p $$ 2>/dev/null
+bytes=$(files 2>/dev/null | xargs -0 -r cat 2>/dev/null | wc -c)
 if ((bytes == 0)); then
   echo "nothing to read under ${RUSTUP_HOME:-an unset RUSTUP_HOME}, $target_dir or $cargo_home" >&2
   exit 1
