@@ -204,6 +204,11 @@ COPY --from=helpers-builder \
      /home/node/crates/target/release/miden-verifier \
      /usr/local/cargo/bin/
 
+# What reads the first build's files into memory when the server starts (see
+# the script). Copied after the warm-up, which doesn't use it: a change to it
+# doesn't redo the warm-up.
+COPY --chmod=755 apps/api-compile/scripts/preload-first-build.sh /usr/local/bin/preload-first-build
+
 # App: only the built output + production dependencies from the deploy bundle
 WORKDIR /home/node/api
 COPY --from=api-builder /prod/api-compile/package.json .

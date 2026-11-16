@@ -4,17 +4,11 @@ import {
   errorHandler,
   notFound,
 } from "miden-source-code-verification-utils/http-errors";
-import { cargoMidenVersion } from "./lib/cargo-miden.ts";
-import { nextLayoutSettled } from "./lib/compile.ts";
-import {
-  ALLOWED_ORIGINS,
-  CARGO_TARGET_DIR,
-  MIDEN_CLIENT_CACHE_DIR,
-  PORT,
-  SHUTDOWN_TIMEOUT_MS,
-} from "./lib/constants.ts";
+import { nextLayoutSettled, stopPreload } from "./lib/compile.ts";
+import { ALLOWED_ORIGINS, PORT, SHUTDOWN_TIMEOUT_MS } from "./lib/constants.ts";
 import compileRouter from "./routes/compile.ts";
 import compileDebugRouter from "./routes/compile-debug.ts";
+import healthRouter from "./routes/health.ts";
 import importRouter from "./routes/import.ts";
 import lockfileRouter from "./routes/lockfile.ts";
 import verifyRouter from "./routes/verify.ts";
@@ -44,27 +38,7 @@ app.use((_req, res, next) => {
 
 app.use(express.json({ limit: "1mb" }));
 
-// `/` is the health probe, so it must not run cargo on every request: a stuck
-// or starved toolchain would make a healthy server look down. Resolve the
-// version once, at startup.
-const cargoMidenVersionPromise = cargoMidenVersion().catch((error) => {
-  console.error(error);
-  return null;
-});
-
-app.get("/", async (_req, res) => {
-  res.json({
-    timestamp: Date.now(),
-    env: {
-      PORT,
-      ALLOWED_ORIGINS,
-      CARGO_TARGET_DIR,
-      MIDEN_CLIENT_CACHE_DIR,
-    },
-    cargoMidenVersion: await cargoMidenVersionPromise,
-  });
-});
-
+app.use(healthRouter);
 app.use(compileRouter);
 app.use(compileDebugRouter);
 app.use(verifyRouter);
@@ -86,9 +60,14 @@ const shutdown = (signal: NodeJS.Signals) => {
   }
   shuttingDown = true;
   console.log(`${signal} received, finishing in-flight requests`);
+  // The read started at startup, if it is still running, ends here: no build
+  // is left to come for it.
+  const preloadStopped = stopPreload();
   // The last build's files are deleted after its answer: wait for that too.
   server.close(() => {
-    void nextLayoutSettled().finally(() => process.exit(0));
+    void Promise.all([nextLayoutSettled(), preloadStopped]).finally(() =>
+      process.exit(0),
+    );
   });
   server.closeIdleConnections();
   setTimeout(() => {
