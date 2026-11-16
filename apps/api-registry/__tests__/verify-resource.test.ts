@@ -50,6 +50,7 @@ const built = (debug?: DebugBuild): Omit<VerifyResponse, "root"> => ({
   kind: "account-component",
   manifest: { exports: [], dependencies: [] },
   readOnly: {},
+  callsForeign: {},
   files,
   cargoMidenVersion: "0.11.0",
   debug,
