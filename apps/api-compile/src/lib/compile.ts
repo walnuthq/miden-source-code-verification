@@ -46,6 +46,7 @@ import {
 } from "./constants.ts";
 import { midenPackageMetadata } from "./helper-tools.ts";
 import { createLimiter } from "./limiter.ts";
+import { startPreload } from "./preload.ts";
 import { type Timings, timed } from "./timings.ts";
 import { chownTree, execFile, removeDirs } from "./utils.ts";
 
@@ -66,9 +67,11 @@ type CompileArgs = {
   masm?: boolean;
   // Filled with how long each part took: `layout` (waiting for the build's
   // view of the warm cache), `cargo` (the release build), `tools` (reading the
-  // package), `debug` (the whole debug variant) and `cleanup`. `prepare` is
-  // not part of the request: how long the view this build took had taken to
-  // make, after the build before it.
+  // package), `debug` (the whole debug variant) and `cleanup`. Two are not
+  // part of the request. `prepare`: how long the view this build took had
+  // taken to make, after the build before it. `preload`, on the first build
+  // of a process only: how long reading that build's files at startup took,
+  // when it was over before the build began.
   timings?: Timings;
   signal?: AbortSignal;
 };
@@ -515,6 +518,27 @@ export const nextLayoutSettled = async () => {
   await nextLayout;
 };
 
+// What the first build reads, read into memory from the moment the server
+// starts: a container starts with none of the image there, and that build
+// would read it off a cold disk on its own time. It holds no build slot, and
+// the first build ends it: by then that build reads what it needs itself, and
+// a read still running beside it would only take the disk from it.
+const preload = startPreload(
+  warmCache && {
+    targetDir: warmCache.target.destination,
+    cargoHome: warmCache.cargoHome.destination,
+  },
+);
+// The first build reports how long that read took, when it was over.
+let firstBuild = true;
+
+// Ends that read, for a server that is shutting down, and settles once it is
+// over.
+export const stopPreload = () => {
+  preload.stop();
+  return preload.settled;
+};
+
 // After a build, off its response path: deletes the build's project, then
 // replaces the view of the warm cache it built in (its package included) with
 // the next build's. The next build waits for it, so on a server that had a
@@ -549,6 +573,14 @@ const takeLayout = async ({ timings, signal }: CompileArgs) => {
   const prepared = await nextLayout;
   signal?.throwIfAborted();
   nextLayout = undefined;
+  if (firstBuild) {
+    firstBuild = false;
+    const preloadMs = preload.durationMs();
+    preload.stop();
+    if (timings && preloadMs !== undefined) {
+      timings.preload = preloadMs;
+    }
+  }
   if (prepared === undefined) {
     // Whatever an earlier `cargo` call left running or lying in /tmp goes
     // first.

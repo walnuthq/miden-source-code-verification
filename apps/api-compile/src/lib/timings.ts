@@ -3,6 +3,7 @@
 // back as a `Server-Timing` header: the container's log can't be read from
 // the CLI, a response header can.
 export type Part =
+  | "preload"
   | "layout"
   | "prepare"
   | "cargo"

@@ -352,7 +352,7 @@ describe("POST /compile timings", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers["server-timing"]).toMatch(
-      /^(prepare;dur=\d+, )?layout;dur=\d+, cargo;dur=\d+, tools;dur=\d+, cleanup;dur=\d+$/,
+      /^(preload;dur=\d+, )?(prepare;dur=\d+, )?layout;dur=\d+, cargo;dur=\d+, tools;dur=\d+, cleanup;dur=\d+$/,
     );
   });
 });

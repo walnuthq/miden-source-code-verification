@@ -32,6 +32,12 @@ export const WARM_CACHE_LAYOUT =
 export const SHIPPED_VIEW_MARKER = WARM_CACHE_DIR
   ? join(WARM_CACHE_DIR, "shipped-view")
   : undefined;
+// What reads the first build's files into memory when the server starts
+// (scripts/preload-first-build.sh, lib/preload.ts), where the image installs
+// it. It has about 700 MiB to read, some ten seconds on a cold production
+// disk; the timeout only ends a read that hangs.
+export const PRELOAD_SCRIPT = "/usr/local/bin/preload-first-build";
+export const PRELOAD_TIMEOUT_MS = 120_000;
 // The lockfile the image warmed cargo's cache with (see the Dockerfile): the
 // crate versions an offline build finds. `GET /lockfile` serves it, so clients
 // that send their own lockfile can keep it in step.
