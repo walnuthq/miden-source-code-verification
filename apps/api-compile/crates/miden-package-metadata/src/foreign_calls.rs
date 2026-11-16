@@ -24,9 +24,31 @@ use crate::libraries;
 
 const EXECUTE_FOREIGN_PROCEDURE: &str = "::miden::protocol::tx::execute_foreign_procedure";
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ForeignCalls {
+    /// `tx::execute_foreign_procedure` is reachable.
+    Reachable,
+    /// It isn't, and everything reachable could be followed.
+    Unreachable,
+    /// It wasn't found, but something couldn't be followed: a dynamic call,
+    /// an external procedure from none of the libraries, or an export whose
+    /// root isn't in the package's forest.
+    Unknown,
+}
+
+impl ForeignCalls {
+    /// `true`, `false`, or `null` when it can't be told.
+    pub fn calls_foreign(self) -> Option<bool> {
+        match self {
+            Self::Reachable => Some(true),
+            Self::Unreachable => Some(false),
+            Self::Unknown => None,
+        }
+    }
+}
+
 pub struct Analyzer {
-    // The digest of `tx::execute_foreign_procedure`.
-    foreign: Word,
+    execute_foreign_procedure_digest: Word,
     // The libraries an external procedure is looked up in, after the package.
     libraries: Vec<Arc<MastForest>>,
 }
@@ -34,7 +56,7 @@ pub struct Analyzer {
 impl Default for Analyzer {
     fn default() -> Self {
         let protocol = ProtocolLib::default();
-        let foreign = protocol
+        let execute_foreign_procedure_digest = protocol
             .as_ref()
             .manifest
             .exports()
@@ -52,7 +74,7 @@ impl Default for Analyzer {
                 panic!("the protocol library doesn't export {EXECUTE_FOREIGN_PROCEDURE}")
             });
         Self {
-            foreign,
+            execute_foreign_procedure_digest,
             libraries: libraries::forests(),
         }
     }
@@ -60,7 +82,7 @@ impl Default for Analyzer {
 
 impl Analyzer {
     /// Each procedure export's answer, by export path: see `procedure`.
-    pub fn exports(&self, package: &Package) -> Vec<(String, Option<bool>)> {
+    pub fn exports(&self, package: &Package) -> Vec<(String, ForeignCalls)> {
         let forest = package.mast_forest();
         package
             .manifest
@@ -73,22 +95,20 @@ impl Analyzer {
                 let root = procedure
                     .node
                     .or_else(|| forest.find_procedure_root(procedure.digest));
-                let calls = root.and_then(|root| self.procedure(forest, root));
+                let calls = root.map_or(ForeignCalls::Unknown, |root| self.procedure(forest, root));
                 (procedure.path.to_string(), calls)
             })
             .collect()
     }
 
     /// Whether a foreign call is reachable from `root`, in `forest` and,
-    /// through external nodes, in the libraries: `Some(true)` when one is,
-    /// `Some(false)` when none is and everything reachable could be followed,
-    /// `None` when none was found but something couldn't be followed (a
-    /// dynamic call, or an external procedure from none of the libraries).
-    pub fn procedure(&self, forest: &MastForest, root: MastNodeId) -> Option<bool> {
+    /// through external nodes, in the libraries. One reachable foreign call
+    /// is enough, whatever else can't be followed.
+    pub fn procedure(&self, forest: &MastForest, root: MastNodeId) -> ForeignCalls {
         let forests: Vec<&MastForest> = std::iter::once(forest)
             .chain(self.libraries.iter().map(AsRef::as_ref))
             .collect();
-        let mut followed_everything = true;
+        let mut calls = ForeignCalls::Unreachable;
         let mut seen = HashSet::new();
         let mut stack = vec![(0, root)];
         while let Some((index, id)) = stack.pop() {
@@ -98,8 +118,8 @@ impl Analyzer {
             let node = &forests[index][id];
             // Called (an external node) or linked in (a procedure root with
             // the same digest).
-            if node.digest() == self.foreign {
-                return Some(true);
+            if node.digest() == self.execute_foreign_procedure_digest {
+                return ForeignCalls::Reachable;
             }
             match node {
                 MastNode::Block(_) => {}
@@ -114,16 +134,16 @@ impl Analyzer {
                 // through the protocol procedure matched above.
                 MastNode::Call(call) if call.is_syscall() => {}
                 MastNode::Call(call) => stack.push((index, call.callee())),
-                MastNode::Dyn(_) => followed_everything = false,
+                MastNode::Dyn(_) => calls = ForeignCalls::Unknown,
                 MastNode::External(external) => {
                     match libraries::resolve(&forests, external.digest()) {
                         Some(found) => stack.push(found),
-                        None => followed_everything = false,
+                        None => calls = ForeignCalls::Unknown,
                     }
                 }
             }
         }
-        followed_everything.then_some(false)
+        calls
     }
 }
 
@@ -134,7 +154,7 @@ mod tests {
 
     /// The answer for each export of an account component built from
     /// `source`, by procedure name.
-    fn component(source: &str) -> Vec<(String, Option<bool>)> {
+    fn component(source: &str) -> Vec<(String, ForeignCalls)> {
         let package = CodeBuilder::default()
             .compile_component_code("test::component", source)
             .expect("the test component assembles")
@@ -149,7 +169,7 @@ mod tests {
             .collect()
     }
 
-    fn answer(source: &str, name: &str) -> Option<bool> {
+    fn answer(source: &str, name: &str) -> ForeignCalls {
         component(source)
             .into_iter()
             .find_map(|(export, calls)| (export == name).then_some(calls))
@@ -166,7 +186,7 @@ mod tests {
                 end",
                 "read_foreign"
             ),
-            Some(true)
+            ForeignCalls::Reachable
         );
     }
 
@@ -182,8 +202,8 @@ mod tests {
             pub proc call_helper
                 call.helper
             end";
-        assert_eq!(answer(source, "read_foreign"), Some(true));
-        assert_eq!(answer(source, "call_helper"), Some(true));
+        assert_eq!(answer(source, "read_foreign"), ForeignCalls::Reachable);
+        assert_eq!(answer(source, "call_helper"), ForeignCalls::Reachable);
     }
 
     #[test]
@@ -196,7 +216,7 @@ mod tests {
                 end",
                 "get_count"
             ),
-            Some(false)
+            ForeignCalls::Unreachable
         );
     }
 
@@ -209,7 +229,7 @@ mod tests {
                 end",
                 "run"
             ),
-            None
+            ForeignCalls::Unknown
         );
     }
 
@@ -224,7 +244,7 @@ mod tests {
                 end",
                 "run"
             ),
-            Some(true)
+            ForeignCalls::Reachable
         );
     }
 
@@ -241,7 +261,7 @@ mod tests {
                 end",
                 "copy_count"
             ),
-            Some(true)
+            ForeignCalls::Reachable
         );
     }
 }

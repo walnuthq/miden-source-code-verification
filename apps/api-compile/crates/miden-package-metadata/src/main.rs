@@ -79,12 +79,12 @@ fn main() -> Result<()> {
         // isn't and everything reachable could be followed, `null` when it
         // wasn't found but something couldn't be (a dynamic call, a procedure
         // from a package other than the core, protocol and standards
-        // libraries, or a root missing from the forest). `foreign_calls.rs`
-        // reads it from the MAST.
+        // libraries, or an export whose root isn't in the package's forest).
+        // `foreign_calls.rs` reads it from the MAST.
         "callsForeign": foreign_calls::Analyzer::default()
             .exports(&package)
             .into_iter()
-            .map(|(path, calls)| (path, json!(calls)))
+            .map(|(path, calls)| (path, json!(calls.calls_foreign())))
             .collect::<Map<_, _>>(),
     });
     // A note's or transaction script's account procedures: the digests of the

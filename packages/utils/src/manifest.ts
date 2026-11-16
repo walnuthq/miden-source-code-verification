@@ -198,7 +198,7 @@ export type ReadOnlyProcedures = Record<string, boolean | null>;
 // is reachable, `false` when it isn't and everything reachable could be
 // followed, `null` when it wasn't found but something couldn't be followed (a
 // dynamic call, a procedure from a package other than the core, protocol and
-// standards libraries, or an export whose body isn't in the package). Which
+// standards libraries, or an export whose root isn't in the package's forest). Which
 // account or procedure is called isn't recoverable. Act on `true` only, and
 // treat an absent key (an older api-compile) as `null`.
 export type ForeignCallingProcedures = Record<string, boolean | null>;
