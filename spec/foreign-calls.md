@@ -1,6 +1,6 @@
 # Whether an exported procedure makes a foreign call
 
-Status: **implemented** (2026-11-16), not yet deployed. This is the api-compile half. The Playground half is PR B of `spec/generic-invoke-and-foreign-calls.md` in walnuthq/miden-playground; ship this half and deploy it first.
+Status: **deployed** (2026-11-16, PR #142, api-compile container v113). Production `POST /compile` of the counter example returns `callsForeign` with every export `false`; the Playground half can start. This is the api-compile half. The Playground half is PR B of `spec/generic-invoke-and-foreign-calls.md` in walnuthq/miden-playground; ship this half and deploy it first.
 
 ## Why
 
