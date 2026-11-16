@@ -1,5 +1,6 @@
 import type {
   AccountProcedures,
+  ForeignCallingProcedures,
   Manifest,
   NoteStorageSchema,
   ReadOnlyProcedures,
@@ -21,6 +22,9 @@ export type BuiltPackage = {
   manifest: Manifest;
   // Whether each exported procedure is read-only, by export path.
   readOnly: ReadOnlyProcedures;
+  // Whether each exported procedure can make a foreign procedure invocation,
+  // by export path: see `manifest.ts`.
+  callsForeign: ForeignCallingProcedures;
   // The digests of the account procedures a note or transaction script calls,
   // which the account it runs against must have. `null` when they can't be
   // told, absent for other packages: see `manifest.ts`.

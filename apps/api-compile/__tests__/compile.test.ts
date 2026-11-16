@@ -61,6 +61,7 @@ describe("POST /compile", () => {
     expect(res.body).not.toHaveProperty("kind");
     expect(res.body).not.toHaveProperty("manifest");
     expect(res.body).not.toHaveProperty("readOnly");
+    expect(res.body).not.toHaveProperty("callsForeign");
     expect(res.body).not.toHaveProperty("files");
   });
 
@@ -434,6 +435,26 @@ describe("POST /compile readOnly", () => {
       // Writes it through `native_account::set_map_item`.
       [`${component}::"increment-count"`]: false,
       [`${component}::init`]: true,
+    });
+  });
+});
+
+describe("POST /compile callsForeign", () => {
+  it("finds no foreign call in the counter-contract", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+
+    const res = await api.post("/compile").send({ files });
+
+    expect(res.status).toBe(200);
+    const component = '::"miden:counter-contract/counter-contract@0.1.0"';
+    // Every procedure reaches only the core and protocol libraries, so each
+    // answer is a definite `false`, not `null`.
+    expect(res.body.callsForeign).toEqual({
+      [`${component}::"get-count"`]: false,
+      [`${component}::"increment-count"`]: false,
+      [`${component}::init`]: false,
     });
   });
 });

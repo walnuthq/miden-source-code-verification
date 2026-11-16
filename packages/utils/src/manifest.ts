@@ -191,6 +191,18 @@ export type Manifest = {
 // the core, protocol and standards libraries).
 export type ReadOnlyProcedures = Record<string, boolean | null>;
 
+// Whether each procedure a package exports can make a foreign procedure
+// invocation (FPI), by export path: what `miden-package-metadata` prints as
+// `callsForeign`, for every package kind, read from the MAST
+// (`foreign_calls.rs`). `true` when `miden::protocol::tx::execute_foreign_procedure`
+// is reachable, `false` when it isn't and everything reachable could be
+// followed, `null` when it wasn't found but something couldn't be followed (a
+// dynamic call, a procedure from a package other than the core, protocol and
+// standards libraries, or an export whose body isn't in the package). Which
+// account or procedure is called isn't recoverable. Act on `true` only, and
+// treat an absent key (an older api-compile) as `null`.
+export type ForeignCallingProcedures = Record<string, boolean | null>;
+
 // The account procedures a note or transaction script calls: the digests (hex)
 // of the procedures it `call`s on the account it runs against, sorted and
 // deduplicated, which that account's code must have. `miden-package-metadata`
