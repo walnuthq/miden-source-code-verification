@@ -43,7 +43,7 @@ const verifyCounterContract = async () => {
   return dbPackage as {
     commitment: string;
     readOnly: Record<string, boolean | null>;
-    parameters: Record<string, { name: string; type: string }[]> | null;
+    parameters: Record<string, { name: string; type: string }[]>;
   };
 };
 

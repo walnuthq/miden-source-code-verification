@@ -62,8 +62,6 @@ export async function loadPackageSources(
       manifest,
       readOnly,
       parameters,
-      files,
-      entryPath,
     }),
     storageSlots: schemas.storage?.slots ?? [],
     noteStorageFields: schemas.noteStorage?.fields ?? [],

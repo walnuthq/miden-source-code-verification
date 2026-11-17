@@ -1,0 +1,1 @@
+ALTER TABLE "packages" ALTER COLUMN "parameters" SET NOT NULL;

@@ -1,14 +1,10 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { type RequestHandler, Router } from "express";
-import {
-  HttpError,
-  notFound,
-} from "miden-source-code-verification-utils/http-errors";
+import { notFound } from "miden-source-code-verification-utils/http-errors";
 import { inferEntrypoint } from "miden-source-code-verification-utils/project";
 import {
   getPackage,
   getPackagesWithoutDebugBuild,
-  getPackagesWithoutParameters,
   updatePackage,
 } from "../db/packages.ts";
 import { getApiCompile } from "../lib/api-compile.ts";
@@ -18,10 +14,9 @@ import { storeDebugBuild } from "../lib/debug-build.ts";
 import { parseRoot } from "../lib/roots.ts";
 import { getMaspStore } from "../storage/masp-store.ts";
 
-// Operator routes, left out of the OpenAPI docs: the backfills of debug builds
-// and of procedure parameters for packages stored before the registry kept
-// them (`scripts/backfill-debug-packages.ts` and
-// `scripts/backfill-parameters.ts` drive them) and the cleanup of the
+// Operator routes, left out of the OpenAPI docs: the backfill of debug builds
+// for packages stored before the registry kept them
+// (`scripts/backfill-debug-packages.ts` drives it) and the cleanup of the
 // playground's verifications. They run here because the Worker is what holds
 // the R2 and database bindings.
 const router: Router = Router();
@@ -96,51 +91,6 @@ router.post("/admin/packages/:commitment/debug-build", async (req, res) => {
     await updatePackage(dbPackage.id, { entrypoint });
   }
   res.json({ debugCommitment: debug.commitment });
-});
-
-// The packages the parameters backfill still has to read.
-router.get("/admin/parameters/pending", async (_req, res) => {
-  res.json(await getPackagesWithoutParameters());
-});
-
-// Reads the parameter names of one stored package and records them.
-// api-compile reads them from the stored `.masp`, so nothing is rebuilt and
-// the toolchain's drift doesn't matter, only that it still reads the format.
-// It answers the package's commitment too, which must be the stored one. A
-// 400 from api-compile (it can't read the package) passes through. A package
-// whose WIT api-compile couldn't parse gets `{}`, as one without a WIT does:
-// `unreadable` tells the script so.
-router.post("/admin/packages/:commitment/parameters", async (req, res) => {
-  const commitment = parseRoot(req.params.commitment);
-  if (!commitment) {
-    res.status(400).json({ error: "invalid package commitment" });
-    return;
-  }
-  const dbPackage = await getPackage(commitment);
-  if (!dbPackage) {
-    throw new HttpError(404, "package not found");
-  }
-  if (dbPackage.parameters) {
-    res.json({ parameters: dbPackage.parameters });
-    return;
-  }
-  const masp = await getMaspStore(req).get(commitment);
-  if (!masp) {
-    throw new HttpError(404, "package masp not found");
-  }
-  const metadata = await getApiCompile(req).packageMetadata(masp);
-  if (metadata.commitment.toLowerCase() !== commitment.toLowerCase()) {
-    throw new HttpError(
-      409,
-      `stored masp has commitment ${metadata.commitment}`,
-    );
-  }
-  const parameters = metadata.parameters ?? {};
-  await updatePackage(dbPackage.id, { parameters });
-  res.json({
-    parameters,
-    ...(metadata.parameters === undefined && { unreadable: true }),
-  });
 });
 
 // Deletes the playground's verifications older than a day, and the packages

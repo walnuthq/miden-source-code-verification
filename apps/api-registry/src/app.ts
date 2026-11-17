@@ -269,7 +269,7 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *         schemas:
  *           $ref: '#/components/schemas/PackageSchemas'
  *         parameters:
- *           type: [object, "null"]
+ *           type: object
  *           description: >
  *             Each exported procedure's parameters, in order, keyed by its
  *             export path, from the WIT the toolchain embeds in the package:
@@ -278,9 +278,7 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *             its kind, such as `list`). An export is listed only when its WIT
  *             function has as many parameters as its signature, so the two
  *             pair by index. `{}` for a package without a WIT (a transaction
- *             script, or one built before `cargo-miden` 0.10). Null for a
- *             package stored before the registry kept them, until they are
- *             read.
+ *             script, or one built before `cargo-miden` 0.10).
  *           additionalProperties:
  *             type: array
  *             items:

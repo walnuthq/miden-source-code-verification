@@ -11,7 +11,5 @@ export const fakeApiCompile = (
     Promise.reject(new Error("importResource was not expected")),
   compileDebug: () =>
     Promise.reject(new Error("compileDebug was not expected")),
-  packageMetadata: () =>
-    Promise.reject(new Error("packageMetadata was not expected")),
   ...calls,
 });

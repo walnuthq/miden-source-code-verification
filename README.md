@@ -244,17 +244,6 @@ REGISTRY_URL=https://miden-source-code-verification-api-registry.walnut.dev ADMI
 
 The script builds the packages one at a time and waits out a busy api-compile. Each build goes through api-compile's `POST /compile-debug`, which first rebuilds the release build and answers `409` when it no longer has the stored commitment, as after a toolchain upgrade. Such a package, or one whose entrypoint can't be told from its files (`422`), is skipped and gets a debug build when it is verified again. The script ends with a count of stored, skipped and failed packages.
 
-### Backfilling procedure parameters
-
-Packages stored before the registry kept their procedures' parameter names get them through two operator routes, `GET /admin/parameters/pending` and `POST /admin/packages/{commitment}/parameters`, with the same `ADMIN_TOKEN` as above. Run it once api-compile's container rollout has ended:
-
-```bash
-REGISTRY_URL=https://miden-source-code-verification-api-registry.walnut.dev ADMIN_TOKEN=… \
-  pnpm --filter miden-source-code-verification-api-registry exec node --conditions development --env-file-if-exists=.env scripts/backfill-parameters.ts
-```
-
-Each package's stored `.masp` goes to api-compile's `POST /package-metadata`, which reads it as `/compile` reads a package it builds, so nothing is rebuilt and a toolchain upgrade doesn't stop it. The answer's commitment must be the stored one (`409` otherwise). A package without a `wit` section gets `{}`, as does one whose WIT can't be parsed; the script counts both. It reports any package it couldn't read as failed and exits non-zero, and retries an api-compile that is waking up or busy.
-
 ### Cleaning up playground verifications
 
 The Miden playground verifies throwaway deploys with `source: "miden-playground"`. `POST /admin/playground/cleanup` deletes those older than 24 hours (by when the component or note was verified), with the same `ADMIN_TOKEN` as above:
