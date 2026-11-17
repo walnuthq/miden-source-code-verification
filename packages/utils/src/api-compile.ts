@@ -3,6 +3,7 @@ import type {
   ForeignCallingProcedures,
   Manifest,
   NoteStorageSchema,
+  ProcedureParameters,
   ReadOnlyProcedures,
   StorageSchema,
   TargetType,
@@ -25,6 +26,9 @@ export type BuiltPackage = {
   // Whether each exported procedure can make a foreign procedure invocation,
   // by export path: see `manifest.ts`.
   callsForeign: ForeignCallingProcedures;
+  // Each exported procedure's parameter names and types, by export path.
+  // Absent when the package's WIT couldn't be read: see `manifest.ts`.
+  parameters?: ProcedureParameters;
   // The digests of the account procedures a note or transaction script calls,
   // which the account it runs against must have. `null` when they can't be
   // told, absent for other packages: see `manifest.ts`.
@@ -93,6 +97,22 @@ export type VerifyResponse = {
 // `POST /compile-debug`, when the release build still has the expected
 // commitment (a 409 otherwise, and a 400 for a failed build).
 export type CompileDebugResponse = { debug: DebugBuild };
+
+// `POST /package-metadata`: what api-compile reads of a `.masp` it is sent,
+// without building anything, as `/compile` reads it of the package it builds.
+// For the registry's backfill of procedure parameters.
+export type PackageMetadataResponse = Pick<
+  BuiltPackage,
+  | "commitment"
+  | "kind"
+  | "manifest"
+  | "readOnly"
+  | "callsForeign"
+  | "parameters"
+  | "accountProcedures"
+  | "storage"
+  | "noteStorage"
+>;
 
 // A standard account component `miden-import` detected in an account's code,
 // with the procedure roots it claims.

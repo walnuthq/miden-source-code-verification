@@ -183,6 +183,12 @@ describe("GET /:networkId/verified-notes/:noteId", () => {
     );
     // The counter-note declares no storage: it has no schemas.
     expect(res2.body.package).toHaveProperty("schemas", {});
+    // Its entrypoint's argument, named in its WIT.
+    expect(res2.body.package.parameters).toEqual({
+      '::"miden:counter-note/miden-counter-note@0.1.0"::run': [
+        { name: "arg", type: "word" },
+      ],
+    });
 
     const res3 = await apiV1
       .get(`/${networkId}/packages/masp/${res2.body.package.commitment}.masp`)

@@ -268,6 +268,29 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *             type: [boolean, "null"]
  *         schemas:
  *           $ref: '#/components/schemas/PackageSchemas'
+ *         parameters:
+ *           type: [object, "null"]
+ *           description: >
+ *             Each exported procedure's parameters, in order, keyed by its
+ *             export path, from the WIT the toolchain embeds in the package:
+ *             each one's `name` and `type` as the WIT spells them, in kebab
+ *             case (`deposit-asset`, `account-id`; a type with no name gives
+ *             its kind, such as `list`). An export is listed only when its WIT
+ *             function has as many parameters as its signature, so the two
+ *             pair by index. `{}` for a package without a WIT (a transaction
+ *             script, or one built before `cargo-miden` 0.10). Null for a
+ *             package stored before the registry kept them, until they are
+ *             read.
+ *           additionalProperties:
+ *             type: array
+ *             items:
+ *               type: object
+ *               required: [name, type]
+ *               properties:
+ *                 name:
+ *                   type: string
+ *                 type:
+ *                   type: string
  *         createdAt:
  *           type: string
  *           format: date-time

@@ -12,7 +12,7 @@ const manifest = (...digests: Word[]): PackageManifest => ({
     Procedure: {
       path: `::component::procedure${i}`,
       digest: d,
-      signature: { abi: 3 },
+      signature: { abi: 3, params: [], results: [] },
     },
   })),
   dependencies: [],
@@ -63,14 +63,14 @@ describe("getVerificationStatus", () => {
                 Procedure: {
                   path: "::component::procedure0",
                   digest: digest(1),
-                  signature: { abi: 3 },
+                  signature: { abi: 3, params: [], results: [] },
                 },
               },
               {
                 Procedure: {
                   path: "::component::procedure1",
                   digest: digest(2),
-                  signature: { abi: 0 },
+                  signature: { abi: 0, params: [], results: [] },
                 },
               },
               {

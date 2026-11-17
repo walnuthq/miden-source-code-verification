@@ -24,3 +24,7 @@ miden-note-schema = "=0.15.0"
 miden-standards = "=0.17.1"
 miden-serde-utils = "=0.35.0"
 serde_json = { version = "1.0", features = ["preserve_order"] }
+# For `parameters.rs`: parses the component's WIT, which `cargo-miden` embeds in
+# the `wit` section, without resolving the packages it `use`s. Already in the
+# lockfile through `miden-note-schema`, at this version.
+wit-parser = "=0.258.3"

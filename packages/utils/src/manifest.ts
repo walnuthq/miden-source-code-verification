@@ -203,6 +203,24 @@ export type ReadOnlyProcedures = Record<string, boolean | null>;
 // treat an absent key (an older api-compile) as `null`.
 export type ForeignCallingProcedures = Record<string, boolean | null>;
 
+// One parameter of an exported procedure: its name and type as the package's
+// WIT spells them, in kebab case (`deposit-asset`, `account-id`). `type` is the
+// type's name, or its structural kind when it has none (`list`, `option`,
+// `tuple`). Consumers convert both for display.
+export type ProcedureParameter = { name: string; type: string };
+
+// Each exported procedure's parameters, in order, by export path: what
+// `miden-package-metadata` prints as `parameters`, for every package kind, from
+// the component's public WIT the toolchain embeds in the package
+// (`parameters.rs`). The manifest's signature has the parameters' types but
+// not their names. An export is listed only when its WIT function was found
+// with as many parameters as its signature, so the two pair by index. No names
+// is one case however it happens: an absent export, `{}` for a package without
+// the WIT section (a transaction script, a package built before `cargo-miden`
+// 0.10), an absent key (a section that couldn't be read, an older
+// api-compile). Fall back to the signature's types.
+export type ProcedureParameters = Record<string, ProcedureParameter[]>;
+
 // The account procedures a note or transaction script calls: the digests (hex)
 // of the procedures it `call`s on the account it runs against, sorted and
 // deduplicated, which that account's code must have. `miden-package-metadata`

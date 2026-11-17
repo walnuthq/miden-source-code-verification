@@ -15,6 +15,7 @@ use std::path::PathBuf;
 mod account_procedures;
 mod foreign_calls;
 mod libraries;
+mod parameters;
 mod read_only;
 mod schemas;
 
@@ -108,6 +109,16 @@ fn main() -> Result<()> {
     }
     if let Some(note_storage) = schemas::note_storage(&package) {
         metadata["noteStorage"] = note_storage;
+    }
+    // Each exported procedure's parameters, by export path, in order:
+    // `[{ "name", "type" }]`, both as the package's WIT spells them (kebab
+    // case). An export is listed only when its WIT function was found with as
+    // many parameters as its signature, so the two pair by index. `{}` for a
+    // package without the WIT section (a transaction script, or a package
+    // built before `cargo-miden` 0.10); absent when the section can't be
+    // read. `parameters.rs` reads them.
+    if let Some(parameters) = parameters::package(&package) {
+        metadata["parameters"] = Value::Object(parameters);
     }
 
     println!("{}", serde_json::to_string(&metadata)?);

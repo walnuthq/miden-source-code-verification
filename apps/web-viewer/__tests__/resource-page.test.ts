@@ -56,6 +56,8 @@ const pkg = (name: string, ...digests: `0x${string}`[]): Package => {
     debugBuiltWith: null,
     readOnly: Object.fromEntries(paths.map((path) => [path, true])),
     schemas: {},
+    // As stored before the registry kept them: signatures come from the source.
+    parameters: null,
     createdAt: at,
     updatedAt: at,
   };

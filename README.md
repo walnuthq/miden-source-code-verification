@@ -49,6 +49,8 @@ A verified package's release build carries no debug info, so a transaction simul
 
 It also tells whether each exported procedure can make a foreign procedure invocation (see `foreign_calls.rs`): `true` when `miden::protocol::tx::execute_foreign_procedure` is reachable, `false` when it isn't and everything reachable could be followed, `null` when it wasn't found but something couldn't be followed (a dynamic call, a procedure from another package, or an export whose root isn't in the package's forest). Which foreign account or procedure is called isn't recoverable. `POST /compile` and `POST /verify` return it as `callsForeign`, keyed by export path, for every package kind; the registry doesn't store it. The Playground uses it to refuse simulating a procedure that makes a foreign call.
 
+It also names each exported procedure's parameters (see `parameters.rs`), which a manifest's signature types but doesn't name. `cargo-miden` embeds the component's public WIT in the package, in a section named `wit`, and the tool reads each function's parameters from it: `[{ "name": "depositor", "type": "account-id" }, …]`, both kebab case, as the WIT spells them. `POST /compile` and `POST /verify` return them as `parameters`, keyed by export path, for every package kind. An export is listed only when its WIT function has as many parameters as its signature, so the two pair by index. A transaction script, or a package built before `cargo-miden` 0.10, has no `wit` section and gets `{}`; a section that can't be read leaves the key out. The registry stores them with each package, and the web-viewer writes each procedure's signature from them.
+
 ### Storage schemas
 
 `miden-package-metadata` also reads the storage schemas the toolchain embeds in a package (see `schemas.rs`): an account component's storage slots, from its account component metadata, and a note's storage fields (its inputs), from its WIT storage schema. `POST /compile` and `POST /verify` return them as `storage` and `noteStorage`, each absent when the package has none (`manifest.ts` documents their shape and limits). The registry stores both in the package's `schemas` when it is verified, and doesn't recompute them when `schemas.rs` changes. The web-viewer lists them on the account and note pages.
@@ -241,6 +243,17 @@ REGISTRY_URL=https://miden-source-code-verification-api-registry.walnut.dev ADMI
 ```
 
 The script builds the packages one at a time and waits out a busy api-compile. Each build goes through api-compile's `POST /compile-debug`, which first rebuilds the release build and answers `409` when it no longer has the stored commitment, as after a toolchain upgrade. Such a package, or one whose entrypoint can't be told from its files (`422`), is skipped and gets a debug build when it is verified again. The script ends with a count of stored, skipped and failed packages.
+
+### Backfilling procedure parameters
+
+Packages stored before the registry kept their procedures' parameter names get them through two operator routes, `GET /admin/parameters/pending` and `POST /admin/packages/{commitment}/parameters`, with the same `ADMIN_TOKEN` as above. Run it once api-compile's container rollout has ended:
+
+```bash
+REGISTRY_URL=https://miden-source-code-verification-api-registry.walnut.dev ADMIN_TOKEN=… \
+  pnpm --filter miden-source-code-verification-api-registry exec node --conditions development --env-file-if-exists=.env scripts/backfill-parameters.ts
+```
+
+Each package's stored `.masp` goes to api-compile's `POST /package-metadata`, which reads it as `/compile` reads a package it builds, so nothing is rebuilt and a toolchain upgrade doesn't stop it. The answer's commitment must be the stored one (`409` otherwise). A package without a `wit` section gets `{}`, as does one whose WIT can't be parsed; the script counts both. It reports any package it couldn't read as failed and exits non-zero, and retries an api-compile that is waking up or busy.
 
 ### Cleaning up playground verifications
 

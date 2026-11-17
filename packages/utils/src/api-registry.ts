@@ -2,6 +2,7 @@ import type { StandardAccountComponent } from "./api-compile.ts";
 import type {
   Manifest,
   PackageSchemas,
+  ProcedureParameters,
   ReadOnlyProcedures,
   TargetType,
 } from "./manifest.ts";
@@ -43,6 +44,10 @@ export type Package = {
   // Its storage schemas: an account component's storage slots, a note's
   // storage fields.
   schemas: PackageSchemas;
+  // Each exported procedure's parameter names and types, by export path (see
+  // `ProcedureParameters` in `manifest.ts`). Null for a package stored before
+  // the registry kept them, until the backfill reads them.
+  parameters: ProcedureParameters | null;
   createdAt: string;
   updatedAt: string;
 };
