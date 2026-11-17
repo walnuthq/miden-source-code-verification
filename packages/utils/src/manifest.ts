@@ -216,9 +216,8 @@ export type ProcedureParameter = { name: string; type: string };
 // not their names. An export is listed only when its WIT function was found
 // with as many parameters as its signature, so the two pair by index. No names
 // is one case however it happens: an absent export, `{}` for a package without
-// the WIT section (a transaction script, a package built before `cargo-miden`
-// 0.10), an absent key (a section that couldn't be read, an older
-// api-compile). Fall back to the signature's types.
+// the WIT section (a transaction script), an absent key (a section that
+// couldn't be read). Fall back to the signature's types.
 export type ProcedureParameters = Record<string, ProcedureParameter[]>;
 
 // The account procedures a note or transaction script calls: the digests (hex)

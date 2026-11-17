@@ -278,7 +278,7 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *             its kind, such as `list`). An export is listed only when its WIT
  *             function has as many parameters as its signature, so the two
  *             pair by index. `{}` for a package without a WIT (a transaction
- *             script, or one built before `cargo-miden` 0.10).
+ *             script) or whose WIT couldn't be read.
  *           additionalProperties:
  *             type: array
  *             items:

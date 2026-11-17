@@ -87,7 +87,8 @@ const insertPackage = async (
       manifest: build.manifest,
       readOnly: build.readOnly,
       schemas: schemasOf(build),
-      // No names, however it happens, is one case: `{}`.
+      // `{}` when api-compile answers no names: its tool couldn't parse the
+      // package's WIT (a package without one already gives `{}`).
       parameters: build.parameters ?? {},
       entrypoint,
       builtWith: build.cargoMidenVersion,
