@@ -5,7 +5,7 @@ import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import type { PackageSchemas } from "miden-source-code-verification-utils/manifest";
 import type { Project } from "miden-source-code-verification-utils/project";
 import db, { type Database } from "../db/index.ts";
-import { getPackage, updatePackage } from "../db/packages.ts";
+import { getPackage } from "../db/packages.ts";
 import {
   packagesTable,
   verifiedAccountCodeTable,
@@ -87,10 +87,9 @@ const insertPackage = async (
       manifest: build.manifest,
       readOnly: build.readOnly,
       schemas: schemasOf(build),
-      // Null when the answer has no names at all: an api-compile still on
-      // the previous version, during a deploy, leaves the key out, and the
-      // backfill reads them later. `{}` once the cleanup has run.
-      parameters: build.parameters ?? null,
+      // `{}` when api-compile answers no names: its tool couldn't parse the
+      // package's WIT (a package without one already gives `{}`).
+      parameters: build.parameters ?? {},
       entrypoint,
       builtWith: build.cargoMidenVersion,
     })
@@ -301,11 +300,6 @@ export const verifyResource = async ({
     }
     return packageId;
   });
-  // A package stored before the registry kept parameter names: the build
-  // just read them.
-  if (stored && stored.parameters === null && build.parameters) {
-    await updatePackage(stored.id, { parameters: build.parameters });
-  }
   // After the commit, so its failure can't undo the record: it is logged and
   // leaves the package without one, as the release build alone is what
   // verifies. Also for a package stored before it had a debug build.

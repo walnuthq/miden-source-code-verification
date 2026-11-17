@@ -41,6 +41,7 @@ const insertPackage = async (maspStore: MaspStore, commitment: string) => {
       debugCommitment: hex("ff"),
       readOnly: {},
       schemas: {},
+      parameters: {},
     })
     .returning({ id: packagesTable.id });
   return { id: firstId(rows), commitment };

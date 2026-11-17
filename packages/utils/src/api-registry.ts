@@ -45,9 +45,8 @@ export type Package = {
   // storage fields.
   schemas: PackageSchemas;
   // Each exported procedure's parameter names and types, by export path (see
-  // `ProcedureParameters` in `manifest.ts`). Null for a package stored before
-  // the registry kept them, until the backfill reads them.
-  parameters: ProcedureParameters | null;
+  // `ProcedureParameters` in `manifest.ts`).
+  parameters: ProcedureParameters;
   createdAt: string;
   updatedAt: string;
 };

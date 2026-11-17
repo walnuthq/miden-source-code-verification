@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import type {
   CallConv,
   FunctionType,
@@ -17,13 +14,6 @@ import {
   packageProcedures,
   procedureName,
 } from "@/lib/procedure-signatures";
-
-const examplesDir = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../../api-compile/examples",
-);
-const readExample = (relativePath: string) =>
-  readFileSync(path.join(examplesDir, relativePath), "utf8");
 
 // A struct of `miden:base/core-types`, as the manifest's signatures name them.
 const core = (name: string): Type => ({
@@ -106,10 +96,6 @@ const bank = {
       },
     ],
   ),
-  files: {
-    "src/lib.rs": readExample("miden-bank/bank-account/src/lib.rs"),
-  },
-  entryPath: "src/lib.rs",
 };
 const bankParameters: ProcedureParameters = {
   [bankPath('"get-depositor-balance"')]: [
@@ -183,10 +169,6 @@ describe("packageProcedures", () => {
           { params: [core("word")], results: [] },
         ]),
         parameters: { [notePath]: [{ name: "arg", type: "word" }] },
-        files: {
-          "src/lib.rs": readExample("counter-contract/counter-note/src/lib.rs"),
-        },
-        entryPath: "src/lib.rs",
       });
       expect(signatures(procedures)).toEqual(["fn run(arg: Word);"]);
     });
@@ -219,8 +201,6 @@ describe("packageProcedures", () => {
             { name: "pair", type: "price-pair" },
           ],
         },
-        files: {},
-        entryPath: null,
       });
       expect(signatures(procedures)).toEqual([
         "fn mix(amount: u64, flag: bool, slots: [Felt; 4], bytes: Vec<u8>, pair: PricePair) -> (u32, Felt);",
@@ -240,130 +220,19 @@ describe("packageProcedures", () => {
           [counterPath("init"), "0x03", 0, true],
         ),
         parameters: { [counterPath('"get-count"')]: [] },
-        files: {},
-        entryPath: null,
       });
       expect(signatures(procedures)).toEqual(["fn get_count() -> Felt;"]);
     });
   });
 
-  describe("without names, from the source", () => {
-    it("reads account procedures from the #[component] trait, without the receiver", () => {
-      const files = {
-        "counter-contract/src/lib.rs": readExample(
-          "counter-contract/counter-contract/src/lib.rs",
-        ),
-      };
-      const procedures = packageProcedures({
-        // Exported alphabetically, as the compiler does, plus `init` (abi 0).
-        ...exported(
-          [counterPath('"get-count"'), "0x01", 3, true],
-          [counterPath('"increment-count"'), "0x02", 3, false],
-          [counterPath("init"), "0x03", 0, true],
-        ),
-        // A package the registry stored before it kept them.
-        parameters: null,
-        files,
-        entryPath: "counter-contract/src/lib.rs",
-      });
-      expect(procedures).toEqual([
-        {
-          name: "get_count",
-          signature: "fn get_count() -> Felt;",
-          digest: "0x01",
-          readOnly: true,
-        },
-        {
-          name: "increment_count",
-          signature: "fn increment_count() -> Felt;",
-          digest: "0x02",
-          readOnly: false,
-        },
-      ]);
-    });
-
-    it("falls back per procedure the names leave out", () => {
-      const { [bankPath("deposit")]: _, ...parameters } = bankParameters;
-      const procedures = packageProcedures({ ...bank, parameters });
-      expect(signatures(procedures)).toEqual([
-        "fn get_depositor_balance(depositor: AccountId, asset: Asset) -> Felt;",
-        "fn deposit(depositor: AccountId, deposit_asset: Asset);",
-        "fn initialize();",
-        "fn withdraw(withdraw_asset: Asset, serial_num: Word, tag: Felt, note_type: Felt);",
-      ]);
-    });
-
-    it("reads a note's entrypoint after #[note_script], without its body", () => {
-      const procedures = packageProcedures({
-        ...exported([notePath, "0x01", 3]),
-        parameters: {},
-        files: {
-          "src/lib.rs": readExample("counter-contract/counter-note/src/lib.rs"),
-        },
-        entryPath: "src/lib.rs",
-      });
-      expect(signatures(procedures)).toEqual([
-        "fn run(_arg: Word, account: &mut CounterAccount);",
-      ]);
-    });
-
-    it("prefers the trait declaration over the impl, and joins wrapped lines", () => {
-      const source = `
-#[component]
-impl Wallet for WalletStorage {
-    fn send(&mut self, asset: Asset) { todo!() }
-}
-
-#[component]
-trait Wallet {
-    /// Sends an asset; see \`fn send(\`.
-    #[account_procedure]
-    fn send(
-        &mut self,
-        asset: Asset,
-        slots: [Felt; 4],
-    ) -> NoteIdx;
-}
-`;
-      const procedures = packageProcedures({
-        ...exported([counterPath("send"), "0x01", 3]),
-        parameters: null,
-        files: { "src/lib.rs": source },
-        entryPath: "src/lib.rs",
-      });
-      expect(signatures(procedures)).toEqual([
-        "fn send(asset: Asset, slots: [Felt; 4]) -> NoteIdx;",
-      ]);
-    });
-
-    it("only searches the package's own crate", () => {
-      const procedures = packageProcedures({
-        ...exported([counterPath('"get-count"'), "0x01", 3]),
-        parameters: null,
-        files: {
-          "counter-contract/src/lib.rs": "#[component]\ntrait Counter {}\n",
-          "count-reader/src/lib.rs":
-            "#[component]\ntrait Reader {\n    fn get_count(&self) -> u64;\n}\n",
-        },
-        entryPath: "counter-contract/src/lib.rs",
-      });
-      expect(signatures(procedures)).toEqual(["fn get_count"]);
-    });
-
-    it("falls back to the name when the signature can't be found", () => {
-      const procedures = packageProcedures({
-        ...exported(
-          [counterPath("missing"), "0x01", 3],
-          [counterPath('"get-count"'), "0x02", 3],
-        ),
-        parameters: null,
-        files: {
-          "src/lib.rs":
-            "#[component]\ntrait C {\n    fn get_count(&self);\n}\n",
-        },
-        entryPath: "src/lib.rs",
-      });
-      expect(signatures(procedures)).toEqual(["fn missing", "fn get_count();"]);
-    });
+  it("writes `_` for each parameter of an export the names leave out", () => {
+    const { [bankPath("deposit")]: _, ...parameters } = bankParameters;
+    const procedures = packageProcedures({ ...bank, parameters });
+    expect(signatures(procedures)).toEqual([
+      "fn get_depositor_balance(depositor: AccountId, asset: Asset) -> Felt;",
+      "fn deposit(_: AccountId, _: Asset);",
+      "fn initialize();",
+      "fn withdraw(withdraw_asset: Asset, serial_num: Word, tag: Felt, note_type: Felt);",
+    ]);
   });
 });

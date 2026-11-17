@@ -57,9 +57,9 @@ export const packagesTable = pgTable(
     schemas: jsonb().$type<PackageSchemas>().notNull(),
     // Each exported procedure's parameter names and types, as api-compile
     // reads them from the package's WIT (`ProcedureParameters`): `{}` for a
-    // package without one. Null until they are read, which makes the row part
-    // of the parameters backfill's work list.
-    parameters: jsonb().$type<ProcedureParameters>(),
+    // package without one. Without a default, like `readOnly`, so an insert
+    // that forgets it fails to compile.
+    parameters: jsonb().$type<ProcedureParameters>().notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

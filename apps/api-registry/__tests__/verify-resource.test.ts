@@ -11,7 +11,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import db, { createDb, dbScope } from "../src/db/index.ts";
 import { getPackage } from "../src/db/packages.ts";
 import {
-  packagesTable,
   verifiedAccountCodeTable,
   verifiedNoteScriptTable,
 } from "../src/db/schema.ts";
@@ -597,37 +596,8 @@ describe("verifyResource", () => {
     });
 
     it("stores `{}` when the build read none", async () => {
-      await verifyBuilt(
-        ACCOUNT,
-        { ...built(), parameters: {} },
-        `0x${"52".repeat(32)}`,
-      );
+      await verifyBuilt(ACCOUNT, built(), `0x${"52".repeat(32)}`);
       expect(await getPackage(COMMITMENT)).toHaveProperty("parameters", {});
-    });
-
-    it("leaves them for the backfill when api-compile answers none", async () => {
-      // An api-compile from before them, during a deploy.
-      await verifyBuilt(ACCOUNT, built(), `0x${"57".repeat(32)}`);
-      expect(await getPackage(COMMITMENT)).toHaveProperty("parameters", null);
-    });
-
-    it("fills them in on a package stored without them", async () => {
-      await verifyBuilt(ACCOUNT, built(), `0x${"53".repeat(32)}`);
-      // As a registry stored it before it kept them.
-      await db
-        .update(packagesTable)
-        .set({ parameters: null })
-        .where(eq(packagesTable.commitment, COMMITMENT));
-
-      await verifyBuilt(
-        ACCOUNT,
-        { ...built(), parameters },
-        `0x${"54".repeat(32)}`,
-      );
-      expect(await getPackage(COMMITMENT)).toHaveProperty(
-        "parameters",
-        parameters,
-      );
     });
 
     it("keeps what a package already has", async () => {

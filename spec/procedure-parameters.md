@@ -1,6 +1,6 @@
 # The names of an exported procedure's parameters
 
-Status: **deployed** (2026-11-17, PR #143, e2b60be, api-compile container v115); cleanup PR (steps 20–21) next. The production backfill named all 545 stored packages (0 without names, 0 unreadable, 0 failed). Production `POST /compile` of the counter and bank examples returns `parameters` with the names above (`deposit`: `depositor: account-id`, `deposit-asset: asset`), and the counter account's page (`mtst`, `0x7db388f2c58f4251104a1aa6a7c2d4`) shows `fn get_count() -> Felt;`, `fn increment_count() -> Felt;` and `fn auth_procedure(arg: Word);`, without a receiver. The Playground half can start. Checks 1–3 passed; check 4 was dropped (see below).
+Status: **deployed** (2026-11-17, PR #143, e2b60be, api-compile container v115); cleanup PR (steps 20–21) in review. The production backfill named all 545 stored packages (0 without names, 0 unreadable, 0 failed). Production `POST /compile` of the counter and bank examples returns `parameters` with the names above (`deposit`: `depositor: account-id`, `deposit-asset: asset`), and the counter account's page (`mtst`, `0x7db388f2c58f4251104a1aa6a7c2d4`) shows `fn get_count() -> Felt;`, `fn increment_count() -> Felt;` and `fn auth_procedure(arg: Word);`, without a receiver. The Playground half can start. Checks 1–3 passed; check 4 was dropped (see below).
 
 Check results:
 
