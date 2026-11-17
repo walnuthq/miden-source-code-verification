@@ -21,15 +21,16 @@ import {
 // build one without the rest of a `Manifest`.
 
 // Only what the pages read of the shared `Manifest`: each exported procedure's
-// path, digest and calling convention (`abi`), for the verification status and
-// the package's procedures, and the packages it was compiled against. Picked
+// path, digest and signature (its calling convention, `abi`, and its types),
+// for the verification status and the package's procedures, and the packages
+// it was compiled against. Picked
 // from the shared types so they can't drift from what the registry serves.
 export type PackageManifest = {
   // `Procedure` is optional as a manifest also exports constants and types,
   // named so the full `Manifest` assigns to the view.
   exports: {
     Procedure?: Pick<ProcedureExport, "path" | "digest"> & {
-      signature: Pick<FunctionType, "abi"> | null;
+      signature: FunctionType | null;
     };
     Constant?: unknown;
     Type?: unknown;

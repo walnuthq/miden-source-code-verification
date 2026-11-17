@@ -62,6 +62,7 @@ describe("POST /compile", () => {
     expect(res.body).not.toHaveProperty("manifest");
     expect(res.body).not.toHaveProperty("readOnly");
     expect(res.body).not.toHaveProperty("callsForeign");
+    expect(res.body).not.toHaveProperty("parameters");
     expect(res.body).not.toHaveProperty("files");
   });
 
@@ -456,6 +457,77 @@ describe("POST /compile callsForeign", () => {
       [`${component}::"increment-count"`]: false,
       [`${component}::init`]: false,
     });
+  });
+});
+
+describe("POST /compile parameters", () => {
+  it("names the bank's parameters as its WIT does", async () => {
+    const files = await readProjectFiles(`${bankDir}/bank-account`);
+
+    const res = await api.post("/compile").send({ files });
+
+    expect(res.status).toBe(200);
+    const component = '::"miden:bank-account/bank@0.1.0"';
+    expect(res.body.parameters).toEqual({
+      [`${component}::"get-depositor-balance"`]: [
+        { name: "depositor", type: "account-id" },
+        { name: "asset", type: "asset" },
+      ],
+      [`${component}::deposit`]: [
+        { name: "depositor", type: "account-id" },
+        { name: "deposit-asset", type: "asset" },
+      ],
+      [`${component}::initialize`]: [],
+      [`${component}::withdraw`]: [
+        { name: "withdraw-asset", type: "asset" },
+        { name: "serial-num", type: "word" },
+        { name: "tag", type: "felt" },
+        { name: "note-type", type: "felt" },
+      ],
+    });
+  });
+
+  it("leaves out an export the WIT doesn't declare", async () => {
+    const files = await readProjectFiles(
+      `${counterContractDir}/counter-contract`,
+    );
+
+    const res = await api.post("/compile").send({ files });
+
+    expect(res.status).toBe(200);
+    const component = '::"miden:counter-contract/counter-contract@0.1.0"';
+    // `init` is exported, but isn't one of the component's WIT functions.
+    expect(res.body.parameters).toEqual({
+      [`${component}::"get-count"`]: [],
+      [`${component}::"increment-count"`]: [],
+    });
+  });
+
+  it("names a note script's argument", async () => {
+    const files = await readProjectFiles(counterContractDir);
+
+    const res = await api
+      .post("/compile")
+      .send({ files, entrypoint: "counter-note" });
+
+    expect(res.status).toBe(200);
+    // The WIT escapes it as `%run`.
+    expect(res.body.parameters).toEqual({
+      '::"miden:counter-note/miden-counter-note@0.1.0"::run': [
+        { name: "arg", type: "word" },
+      ],
+    });
+  });
+
+  it("has no names for a transaction script, which carries no WIT", async () => {
+    const files = await readProjectFiles(counterContractDir);
+
+    const res = await api
+      .post("/compile")
+      .send({ files, entrypoint: "counter-script" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.parameters).toEqual({});
   });
 });
 

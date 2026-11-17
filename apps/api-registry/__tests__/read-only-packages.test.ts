@@ -43,6 +43,7 @@ const verifyCounterContract = async () => {
   return dbPackage as {
     commitment: string;
     readOnly: Record<string, boolean | null>;
+    parameters: Record<string, { name: string; type: string }[]> | null;
   };
 };
 
@@ -50,5 +51,14 @@ describe("read-only procedures", () => {
   it("stores whether a verified component's procedures are read-only", async () => {
     const { readOnly } = await verifyCounterContract();
     expect(readOnly).toEqual(COUNTER_CONTRACT_READ_ONLY);
+  });
+
+  it("stores the names of its procedures' parameters", async () => {
+    const { parameters } = await verifyCounterContract();
+    // `init` isn't one of the component's WIT functions.
+    expect(parameters).toEqual({
+      [`${component}::"get-count"`]: [],
+      [`${component}::"increment-count"`]: [],
+    });
   });
 });

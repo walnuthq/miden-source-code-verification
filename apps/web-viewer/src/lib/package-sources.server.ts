@@ -43,6 +43,7 @@ export async function loadPackageSources(
     files,
     manifest,
     readOnly,
+    parameters,
     schemas,
     debugCommitment,
   }: Package,
@@ -60,6 +61,7 @@ export async function loadPackageSources(
     procedures: packageProcedures({
       manifest,
       readOnly,
+      parameters,
       files,
       entryPath,
     }),

@@ -126,6 +126,11 @@ describe("POST /verify", () => {
     expect(res.body).toHaveProperty("masp");
     expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("manifest");
+    expect(res.body.parameters).toEqual({
+      '::"miden:counter-contract/counter-contract@0.1.0"::"get-count"': [],
+      '::"miden:counter-contract/counter-contract@0.1.0"::"increment-count"':
+        [],
+    });
   });
 
   it("verifies an on-chain counter-contract", async () => {

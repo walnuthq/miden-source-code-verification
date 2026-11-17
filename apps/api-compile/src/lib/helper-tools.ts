@@ -4,6 +4,7 @@ import type {
   ForeignCallingProcedures,
   Manifest,
   NoteStorageSchema,
+  ProcedureParameters,
   ReadOnlyProcedures,
   StorageSchema,
   TargetType,
@@ -119,7 +120,7 @@ export type MidenVerifierOutput =
 
 // What `miden-package-metadata` prints: the package's commitment and kind, its
 // manifest, whether each exported procedure is read-only and whether it can
-// make a foreign call, the account
+// make a foreign call, its parameters' names, the account
 // procedures a note or transaction script calls, and the schemas of an account
 // component's storage and a note's storage, when the package has them (the JSON
 // `packages/utils/src/manifest.ts` documents).
@@ -129,6 +130,7 @@ export type PackageMetadata = {
   manifest: Manifest;
   readOnly?: ReadOnlyProcedures;
   callsForeign?: ForeignCallingProcedures;
+  parameters?: ProcedureParameters;
   accountProcedures?: AccountProcedures;
   storage?: StorageSchema;
   noteStorage?: NoteStorageSchema;
