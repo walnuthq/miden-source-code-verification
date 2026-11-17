@@ -10,6 +10,7 @@ import {
 } from "miden-source-code-verification-test-utils";
 import { errorHandler } from "miden-source-code-verification-utils/http-errors";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { cargoMidenVersion } from "../src/lib/cargo-miden.ts";
 import { stopPreload } from "../src/lib/compile.ts";
 import { startPreload } from "../src/lib/preload.ts";
 import compileRouter from "../src/routes/compile.ts";
@@ -89,6 +90,12 @@ const alive = (pid: number) => {
 };
 
 describe("startPreload", () => {
+  // Importing the health route asks cargo for its version once, and logs a
+  // failure (CI has no cargo-miden): let it settle first, or its error lands
+  // in a test below that expects none.
+  beforeAll(async () => {
+    await cargoMidenVersion().catch(() => {});
+  });
   const scripts = useScripts();
 
   it("starts nothing without a warm cache", async () => {
