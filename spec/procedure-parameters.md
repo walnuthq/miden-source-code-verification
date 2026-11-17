@@ -1,6 +1,6 @@
 # The names of an exported procedure's parameters
 
-Status: **deployed** (2026-11-17, PR #143, e2b60be, api-compile container v115); cleanup PR (steps 20–21) in review. The production backfill named all 545 stored packages (0 without names, 0 unreadable, 0 failed). Production `POST /compile` of the counter and bank examples returns `parameters` with the names above (`deposit`: `depositor: account-id`, `deposit-asset: asset`), and the counter account's page (`mtst`, `0x7db388f2c58f4251104a1aa6a7c2d4`) shows `fn get_count() -> Felt;`, `fn increment_count() -> Felt;` and `fn auth_procedure(arg: Word);`, without a receiver. The Playground half can start. Checks 1–3 passed; check 4 was dropped (see below).
+Status: **done** (2026-11-17). Feature: PR #143 (e2b60be, api-compile container v115). Cleanup: PR #144 (6f83045, container v116): backfill plumbing removed, `packages.parameters` NOT NULL, the web-viewer's source search deleted; production's counter page still shows `fn get_count() -> Felt;`, `fn increment_count() -> Felt;`, `fn auth_procedure(arg: Word);`, and `POST /package-metadata` answers 404. The production backfill named all 545 stored packages (0 without names, 0 unreadable, 0 failed). Production `POST /compile` of the counter and bank examples returns `parameters` with the names above (`deposit`: `depositor: account-id`, `deposit-asset: asset`), and the counter account's page (`mtst`, `0x7db388f2c58f4251104a1aa6a7c2d4`) shows `fn get_count() -> Felt;`, `fn increment_count() -> Felt;` and `fn auth_procedure(arg: Word);`, without a receiver. The Playground half can start. Checks 1–3 passed; check 4 was dropped (see below).
 
 Check results:
 
@@ -9,7 +9,7 @@ Check results:
 3. Every abi-3 export of an account component or note had as many WIT parameters as `signature.params`: core types are single structs on the manifest's side, not flattened.
 4. Dropped by the owner's decision (2026-11-17): every package is assumed built with `cargo-miden` 0.11, so every stored account component and note has a `wit` section (it shipped in 0.10.0, compiler commit 90aa5a0). Signatures need no source fallback once the backfill has run; a procedure without names is a defect to fix, not a case to render.
 
-Deviations: `insertPackage` stores `build.parameters ?? null`, not `?? {}`, so a package verified while api-compile's rollout is still running stays on the backfill's work list; the cleanup PR makes it `?? {}`. The backfill uses api-compile's `POST /package-metadata`, restored from the schemas backfill, which the cleanup PR removes with the admin routes.
+Deviations: until the cleanup, `insertPackage` stored `build.parameters ?? null`, not `?? {}`, so a package verified while api-compile's rollout was still running stayed on the backfill's work list; #144 made it `?? {}`, and its migration sets any null left to `{}` before `SET NOT NULL`. The backfill uses api-compile's `POST /package-metadata`, restored from the schemas backfill, which the cleanup PR removes with the admin routes.
 
 This is the verification-service half. The Playground half is `spec/procedure-parameter-names.md` in walnuthq/miden-playground; ship this half and deploy it first.
 
