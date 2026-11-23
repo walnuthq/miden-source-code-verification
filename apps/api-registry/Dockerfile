@@ -44,8 +44,9 @@ WORKDIR /repo/apps/api-registry
 # verify-deps-before-run check, which would try to reinstall the filtered
 # workspace and abort in a non-TTY container.
 # The workspace uses pnpm's `hoisted` nodeLinker (flat, npm-style layout), so
-# drizzle-kit lives in the repo-root node_modules, not the package's.
-CMD ["node", "/repo/node_modules/drizzle-kit/bin.cjs", "migrate"]
+# drizzle-kit lives in the repo-root node_modules, not the package's. Its
+# .bin link follows the package's `bin` field (bin.cjs became bin.js in rc.6).
+CMD ["/repo/node_modules/.bin/drizzle-kit", "migrate"]
 
 # --- Runtime stage: minimal image with just the built app + prod deps ---
 FROM base AS runtime
