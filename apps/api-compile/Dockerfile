@@ -37,11 +37,14 @@ RUN rustup component add rustfmt rust-src clippy rust-analyzer \
 # builds them in parallel and caches them independently. Each stage gets its
 # own cargo cache (`id=`), since parallel stages sharing one unpack the same
 # crate at once on a cold cache and fail with "File exists (os error 17)". The
-# cache is never persisted in a layer.
+# cache is never persisted in a layer. cargo-miden installs with `--locked`,
+# against the Cargo.lock its crate ships: without it cargo resolves the newest
+# compatible dependencies on every cold build, and a release that needs a newer
+# nightly than the pinned toolchain breaks the image (hashbrown 0.17.2).
 FROM rust AS cargo-miden-builder
 RUN --mount=type=cache,id=cargo-registry-cargo-miden,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git-cargo-miden,target=/usr/local/cargo/git \
-    cargo install cargo-miden --version 0.11.0 \
+    cargo install cargo-miden --version 0.11.0 --locked \
  && strip /usr/local/cargo/bin/cargo-miden
 
 # The helper binaries are one cargo workspace (apps/api-compile/crates), so the
