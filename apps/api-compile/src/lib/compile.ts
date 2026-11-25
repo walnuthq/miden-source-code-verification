@@ -6,7 +6,6 @@ import {
   readFile,
   rm,
   stat,
-  writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
 import type {
@@ -42,7 +41,7 @@ import { midenPackageMetadata } from "./helper-tools.ts";
 import { createLimiter } from "./limiter.ts";
 import { startPreload } from "./preload.ts";
 import { type Timings, timed } from "./timings.ts";
-import { chownTree, execFile, removeDirs } from "./utils.ts";
+import { chownTree, execFile, removeDirs, writeProjectFiles } from "./utils.ts";
 
 type CompileArgs = {
   // Already opened by the route: its files are clean project-relative paths,
@@ -117,12 +116,7 @@ const buildProject = async ({
   tmpDir: string;
   midencTargetDir: string;
 }): Promise<Build> => {
-  for (const [path, content] of Object.entries(files)) {
-    const fullPath = join(tmpDir, path);
-    const dir = fullPath.substring(0, fullPath.lastIndexOf("/"));
-    await mkdir(dir, { recursive: true });
-    await writeFile(fullPath, content, "utf-8");
-  }
+  await writeProjectFiles(tmpDir, files);
   // The files were written by the server, the build runs as another user.
   await chownTree(tmpDir, BUILD_USER);
   const projectDir = join(tmpDir, entrypoint);

@@ -1,18 +1,25 @@
 import { parse } from "smol-toml";
 
-// A Project (see GLOSSARY.md): a files map plus an entrypoint that cargo-miden
-// can build into one package. Keys are project-relative paths; at the
-// entrypoint sit a `Cargo.toml` with a `[package]` and a `miden-project.toml`.
-// This module is the only reader of `Cargo.toml` in the repo, and the one
-// place that says why a submitted files map isn't a project.
+// A Project (see GLOSSARY.md): a files map plus an entrypoint that builds into
+// one package. Keys are project-relative paths. A Rust project has a
+// `Cargo.toml` with a `[package]` at its entrypoint, and a `miden-project.toml`
+// next to it; cargo-miden builds it. Any other project is a MASM project: a
+// `miden-project.toml` with a `[package]` at its entrypoint, which the
+// assembler builds. This module is the only reader of `Cargo.toml` in the
+// repo, and the one place that says why a submitted files map isn't a project.
 export type Project = {
   files: Record<string, string>;
   // `.` for the root, otherwise a relative directory with no leading `./` and
   // no trailing `/`.
   entrypoint: string;
-  // The `[package] name` of the entrypoint's `Cargo.toml`.
+  // The `[package] name` of the entrypoint's `Cargo.toml`, or of its
+  // `miden-project.toml` for a MASM project.
   name: string;
+  // Which toolchain builds it: cargo-miden, or the MASM assembler.
+  kind: ProjectKind;
 };
+
+export type ProjectKind = "rust" | "masm";
 
 // `error` is the reason a files map isn't a project, worded for the client:
 // the routes answer it as a 400 as is.
@@ -91,40 +98,57 @@ const normalizeEntrypoint = (value: unknown): string | null => {
 const projectPath = (entrypoint: string, file: string) =>
   entrypoint === "." ? file : `${entrypoint}/${file}`;
 
-// The `[package] name` of a Cargo.toml, or why there is none: the file isn't
-// TOML, or it has no `[package]` (a workspace root only lists members).
-const readCargoPackage = (
-  cargoToml: string,
+// The `[package] name` of a TOML manifest, `Cargo.toml` or
+// `miden-project.toml`, or why there is none: the file isn't TOML, or it has
+// no `[package]` (a workspace root only lists members).
+const readPackageName = (
+  manifest: string,
 ): { name: string } | { error: "invalid toml" | "no package" } => {
   let parsed: Record<string, unknown>;
   try {
-    parsed = parse(cargoToml);
+    parsed = parse(manifest);
   } catch {
     return { error: "invalid toml" };
   }
-  const cargoPackage = parsed.package;
+  const manifestPackage = parsed.package;
   const name =
-    typeof cargoPackage === "object" && cargoPackage !== null
-      ? (cargoPackage as { name?: unknown }).name
+    typeof manifestPackage === "object" && manifestPackage !== null
+      ? (manifestPackage as { name?: unknown }).name
       : undefined;
   return typeof name === "string" ? { name } : { error: "no package" };
 };
 
+// The reason a manifest at `path` names no package, worded for the client.
+const packageError = (path: string, error: "invalid toml" | "no package") =>
+  error === "invalid toml"
+    ? `${path} is not valid TOML`
+    : `${path} has no [package]`;
+
 // The `[package] name` of a Cargo.toml, undefined when it has none or doesn't
 // parse. For callers that only match crates by name.
 export const cargoPackageName = (cargoToml: string) => {
-  const cargoPackage = readCargoPackage(cargoToml);
+  const cargoPackage = readPackageName(cargoToml);
   return "name" in cargoPackage ? cargoPackage.name : undefined;
 };
 
 // Opens the project a client submitted: `files` and `entrypoint` as they came
 // in the request body. The reasons it can refuse, in the order checked:
 // `missing files`, `invalid file path: <path>`, `invalid file content: <path>`,
-// `invalid entrypoint`, `missing Cargo.toml`, `missing miden-project.toml`,
-// `<path>/Cargo.toml is not valid TOML`, `<path>/Cargo.toml has no [package]`.
+// `invalid entrypoint`, then for a Rust project `missing miden-project.toml`,
+// `<path>/Cargo.toml is not valid TOML`, `<path>/Cargo.toml has no [package]`,
+// and for a MASM project `missing miden-project.toml`,
+// `<path>/miden-project.toml is not valid TOML`,
+// `<path>/miden-project.toml has no [package]`.
+//
+// MASM projects are opened only with `masm: true`, which api-compile passes;
+// without it a files map with no `Cargo.toml` at its entrypoint is refused
+// with `missing Cargo.toml`, as before MASM projects existed. The registry
+// opens Rust projects only until it learns to store MASM ones
+// (spec/remove-rust, plan 05).
 export const openProject = (
   files: unknown,
   entrypoint?: unknown,
+  { masm = false }: { masm?: boolean } = {},
 ): ProjectResult => {
   if (typeof files !== "object" || files === null || Array.isArray(files)) {
     return { error: "missing files" };
@@ -143,27 +167,46 @@ export const openProject = (
   if (dir === null) {
     return { error: "invalid entrypoint" };
   }
+  const fileAt = (path: string) =>
+    Object.hasOwn(projectFiles, path) ? projectFiles[path] : undefined;
   const cargoTomlPath = projectPath(dir, CARGO_TOML);
-  const cargoToml = Object.hasOwn(projectFiles, cargoTomlPath)
-    ? projectFiles[cargoTomlPath]
-    : undefined;
+  const midenProjectTomlPath = projectPath(dir, MIDEN_PROJECT_TOML);
+  const cargoToml = fileAt(cargoTomlPath);
+  const midenProjectToml = fileAt(midenProjectTomlPath);
   if (cargoToml === undefined) {
-    return { error: `missing ${CARGO_TOML}` };
-  }
-  if (!Object.hasOwn(projectFiles, projectPath(dir, MIDEN_PROJECT_TOML))) {
-    return { error: `missing ${MIDEN_PROJECT_TOML}` };
-  }
-  const cargoPackage = readCargoPackage(cargoToml);
-  if ("error" in cargoPackage) {
+    if (!masm) {
+      return { error: `missing ${CARGO_TOML}` };
+    }
+    if (midenProjectToml === undefined) {
+      return { error: `missing ${MIDEN_PROJECT_TOML}` };
+    }
+    const masmPackage = readPackageName(midenProjectToml);
+    if ("error" in masmPackage) {
+      return { error: packageError(midenProjectTomlPath, masmPackage.error) };
+    }
     return {
-      error:
-        cargoPackage.error === "invalid toml"
-          ? `${cargoTomlPath} is not valid TOML`
-          : `${cargoTomlPath} has no [package]`,
+      project: {
+        files: projectFiles,
+        entrypoint: dir,
+        name: masmPackage.name,
+        kind: "masm",
+      },
     };
   }
+  if (midenProjectToml === undefined) {
+    return { error: `missing ${MIDEN_PROJECT_TOML}` };
+  }
+  const cargoPackage = readPackageName(cargoToml);
+  if ("error" in cargoPackage) {
+    return { error: packageError(cargoTomlPath, cargoPackage.error) };
+  }
   return {
-    project: { files: projectFiles, entrypoint: dir, name: cargoPackage.name },
+    project: {
+      files: projectFiles,
+      entrypoint: dir,
+      name: cargoPackage.name,
+      kind: "rust",
+    },
   };
 };
 

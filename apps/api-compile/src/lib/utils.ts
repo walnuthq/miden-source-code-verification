@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
-import { lchown, readdir, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { lchown, mkdir, readdir, rm, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import type { Response } from "express";
 import { SUBPROCESS_MAX_OUTPUT_BYTES } from "./constants.ts";
 
@@ -12,6 +12,19 @@ export const removeDirs = async (dirs: string[]) => {
     );
   } catch (error) {
     console.error(error);
+  }
+};
+
+// Writes a project's files under `dir`. Its keys are clean project-relative
+// paths (`openProject` checked them), so every file lands under `dir`.
+export const writeProjectFiles = async (
+  dir: string,
+  files: Record<string, string>,
+) => {
+  for (const [path, content] of Object.entries(files)) {
+    const fullPath = join(dir, path);
+    await mkdir(dirname(fullPath), { recursive: true });
+    await writeFile(fullPath, content, "utf-8");
   }
 };
 

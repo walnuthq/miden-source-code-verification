@@ -26,22 +26,23 @@ export type BuiltPackage = {
   // Whether each exported procedure can make a foreign procedure invocation,
   // by export path: see `manifest.ts`.
   callsForeign: ForeignCallingProcedures;
-  // Each exported procedure's parameter names and types, by export path.
-  // Absent when the package's WIT couldn't be read: see `manifest.ts`.
+  // Each exported procedure's parameter names and types, by export path: from
+  // the package's WIT for a Rust project, from the source for a MASM one.
+  // Absent when neither could be read: see `manifest.ts`.
   parameters?: ProcedureParameters;
   // The digests of the account procedures a note or transaction script calls,
   // which the account it runs against must have. `null` when they can't be
   // told, absent for other packages: see `manifest.ts`.
   accountProcedures?: AccountProcedures;
-  // An account component's storage slots. Absent for other packages, and when
-  // the schema couldn't be read.
+  // An account component's storage slots. Absent for other packages, for a
+  // MASM package, which has no schema, and when the schema couldn't be read.
   storage?: StorageSchema;
-  // A note's storage, its inputs. Absent for other packages, for a note that
-  // declares none, and when the schema couldn't be read.
+  // A note's storage, its inputs. Absent for other packages, for a MASM note,
+  // for a note that declares none, and when the schema couldn't be read.
   noteStorage?: NoteStorageSchema;
   // The sources plus the lockfile the build used, keyed by path in the
   // project, so a client can resubmit them and get the same dependency
-  // versions.
+  // versions. A MASM project has no lockfile: its files come back as sent.
   files: Record<string, string>;
 };
 
@@ -68,18 +69,32 @@ export type BuildDiagnostic = {
   help?: string;
 };
 
-// `POST /compile`: the build's outcome, with cargo-miden's output either way.
-// A failed build is an answer, not a refused request: its diagnostics are what
-// a compile client is after.
+// What a MASM build adds to its answer (`spec/remove-rust/README.md`, "The
+// MASM wire format"). Both are absent from a Rust project's answer.
+export type AssemblyReport = {
+  // Every problem the assembler found: none or warnings when the project
+  // built, at least one error when it didn't.
+  diagnostics?: BuildDiagnostic[];
+  // The versions the assembler was built with, as one string:
+  // `miden-assembly 0.36.4, miden-protocol 0.18.0, …`.
+  builtWith?: string;
+};
+
+// `POST /compile`: the build's outcome, with the toolchain's output either
+// way: cargo-miden's for a Rust project; for a MASM project the assembler's
+// report as text in `stderr` and as `diagnostics`, and an empty `stdout`. A
+// failed build is an answer, not a refused request: its diagnostics are what a
+// compile client is after.
 export type CompileResponse =
-  | { built: false; stdout: string; stderr: string }
+  | ({ built: false; stdout: string; stderr: string } & AssemblyReport)
   | ({
       built: true;
       stdout: string;
       stderr: string;
-      // Set when `masm` was requested.
+      // Set when `masm` was requested, for a Rust project only.
       masm?: MasmOutput;
-    } & BuiltPackage);
+    } & BuiltPackage &
+      AssemblyReport);
 
 // `POST /verify`, when the project built (a failed build is a 400): whether
 // its package is the resource's on chain, the resource's root, and the
@@ -89,9 +104,11 @@ export type VerifyResponse = {
   // The resource's root as the verifier read it on chain: an account code root
   // or a note script root. The registry keys its record on it.
   root: string;
-  // The cargo-miden that built it. Absent when its version couldn't be read.
+  // The cargo-miden that built a Rust project. Absent for a MASM project, and
+  // when its version couldn't be read.
   cargoMidenVersion?: string;
-} & BuiltPackage;
+} & BuiltPackage &
+  AssemblyReport;
 
 // A standard account component `miden-import` detected in an account's code,
 // with the procedure roots it claims.

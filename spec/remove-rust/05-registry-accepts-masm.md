@@ -19,7 +19,7 @@ The registry verifies, stores and serves a MASM project as it does a Rust one. R
 - The `.debug.masp` route serves the debug builds stored before plan 01, which stopped making them; `storage/masp-store.ts` stores both files.
 - `packageMaspPath` names the download as Rust spells the crate (`counter_contract.masp`).
 - The OpenAPI annotations in `app.ts` and `routes/v1/*.ts` describe a "compiled Rust source package", `Cargo.toml` and `Cargo.lock`. `apps/api-docs` publishes them.
-- The registry validates uploaded projects with `packages/utils/src/project.ts`, which plan 03 taught about MASM projects.
+- The registry validates uploaded projects with `packages/utils/src/project.ts`, which plan 03 taught about MASM projects behind an option: `openProject(files, entrypoint, { masm: true })` opens either kind and says which (`project.kind`), while the registry's two routes still call it without the option and so answer `missing Cargo.toml` to a MASM project, as before plan 03. Step 1 starts by passing `{ masm: true }` there; the registry's "rejects requests missing Cargo.toml" tests then get `missing miden-project.toml`, as api-compile's did in plan 03.
 
 ## Steps
 

@@ -19,7 +19,9 @@ const bankDir = `${examplesDir}/miden-bank`;
 const api = request(process.env.API_URL ?? "http://localhost:8080");
 
 describe("POST /compile", () => {
-  it("rejects requests missing Cargo.toml", async () => {
+  // With no Cargo.toml at its entrypoint a files map is a MASM project, which
+  // needs a miden-project.toml there.
+  it("rejects a files map with neither manifest", async () => {
     const files = await readProjectFiles(
       `${counterContractDir}/counter-contract`,
     );
@@ -27,7 +29,7 @@ describe("POST /compile", () => {
       .post("/compile")
       .send({ files: { "src/lib.rs": files["src/lib.rs"] } });
     expect(res.status).toBe(400);
-    expect(res.body).toHaveProperty("error", "missing Cargo.toml");
+    expect(res.body).toHaveProperty("error", "missing miden-project.toml");
   });
 
   it("rejects a file path that would leave the project", async () => {

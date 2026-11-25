@@ -89,4 +89,4 @@ A project is a files map plus an entrypoint. It is a Rust project when a `Cargo.
 - `stderr` holds the same diagnostics as the assembler renders them, with the project directory cut off, for clients that show text. `stdout` is empty.
 - `builtWith` is new: the versions the tool was built with, as one string (for example `miden-assembly 0.36.4, miden-protocol 0.18.0`). `cargoMidenVersion` is absent.
 
-`POST /verify` for a MASM project answers the existing `VerifyResponse` with the same differences.
+`POST /verify` for a MASM project answers the existing `VerifyResponse` with the same differences. A project that doesn't build is a `400` as for a Rust one, with `error` holding the rendered report (what `stderr` holds for `/compile`) and no `diagnostics`.
