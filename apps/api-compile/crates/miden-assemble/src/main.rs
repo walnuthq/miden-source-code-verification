@@ -45,7 +45,7 @@ struct Args {
     /// `miden-project.toml` is assembled. `.` for the project root itself.
     entrypoint: PathBuf,
     /// Where to write the package.
-    out: PathBuf,
+    masp_path: PathBuf,
 }
 
 fn main() -> Result<()> {
@@ -64,27 +64,23 @@ fn main() -> Result<()> {
             args.project_root.display()
         )
     })?;
-    let output = assemble(&root, &args.entrypoint, &args.out)?;
+    let output = assemble(&root, &args.entrypoint, &args.masp_path)?;
     println!("{}", serde_json::to_string(&output)?);
     Ok(())
 }
 
 /// Assembles the project at `entrypoint` in `root`, which must be canonical,
-/// and writes the package to `out` when it builds.
-fn assemble(root: &Path, entrypoint: &Path, out: &Path) -> Result<Value> {
+/// and writes the package to `masp_path` when it builds.
+fn assemble(root: &Path, entrypoint: &Path, masp_path: &Path) -> Result<Value> {
     confine::check_ancestors(root)?;
-    if let Some(refusal) = confine::check_manifests(root)? {
-        let report = Report::msg(format!("{}: {}", refusal.manifest, refusal.reason));
-        return Ok(json!({
-            "built": false,
-            "builtWith": BUILT_WITH,
-            "rendered": diagnostics::render(&report, root),
-            "diagnostics": [{
-                "severity": "error",
-                "message": refusal.reason,
-                "file": refusal.manifest,
-            }],
-        }));
+    if let Some(refusal) = confine::check_project(root)? {
+        let report = Report::msg(format!("{}: {}", refusal.file, refusal.reason));
+        let diagnostic = json!({
+            "severity": "error",
+            "message": refusal.reason,
+            "file": refusal.file,
+        });
+        return Ok(failed(&report, root, vec![diagnostic]));
     }
 
     let manifest = root.join(entrypoint).join(confine::MANIFEST);
@@ -92,27 +88,19 @@ fn assemble(root: &Path, entrypoint: &Path, out: &Path) -> Result<Value> {
         // The assembler says only `No such file or directory`.
         let file = confine::relative(&manifest, root);
         let message = format!("there is no {file}");
-        return Ok(json!({
-            "built": false,
-            "builtWith": BUILT_WITH,
-            "rendered": diagnostics::render(&Report::msg(message.clone()), root),
-            "diagnostics": [{ "severity": "error", "message": message }],
-        }));
+        let diagnostic = json!({ "severity": "error", "message": message });
+        return Ok(failed(&Report::msg(message), root, vec![diagnostic]));
     }
     let package = match build(&manifest, false) {
         Ok(package) => package,
         Err(report) => {
-            return Ok(json!({
-                "built": false,
-                "builtWith": BUILT_WITH,
-                "rendered": diagnostics::render(&report, root),
-                "diagnostics": diagnostics::collect(&report, root, None),
-            }));
+            let diagnostics = diagnostics::collect(&report, root, None);
+            return Ok(failed(&report, root, diagnostics));
         }
     };
     package
-        .write_to_file(out)
-        .with_context(|| format!("failed to write the package to '{}'", out.display()))?;
+        .write_to_file(masp_path)
+        .with_context(|| format!("failed to write the package to '{}'", masp_path.display()))?;
 
     // The assembler prints the warnings of a build that succeeds to stderr as
     // text, and returns none of them. Treated as errors, they fail a second
@@ -128,6 +116,16 @@ fn assemble(root: &Path, entrypoint: &Path, out: &Path) -> Result<Value> {
         "builtWith": BUILT_WITH,
         "diagnostics": warnings,
     }))
+}
+
+/// A failed build's answer: `report` rendered, and its `diagnostics`.
+fn failed(report: &Report, root: &Path, diagnostics: Vec<Value>) -> Value {
+    json!({
+        "built": false,
+        "builtWith": BUILT_WITH,
+        "rendered": diagnostics::render(report, root),
+        "diagnostics": diagnostics,
+    })
 }
 
 /// One assembly of the project whose manifest is `manifest`, against the

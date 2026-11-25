@@ -30,7 +30,7 @@ struct Args {
     /// assembled from, for the parameter names of a package without a WIT
     /// section: they are read from its MASM source.
     #[arg(long)]
-    sources: Option<PathBuf>,
+    entrypoint_dir: Option<PathBuf>,
 }
 
 // The JSON below is the contract `packages/utils/src/manifest.ts` documents.
@@ -119,16 +119,16 @@ fn main() -> Result<()> {
     // Each exported procedure's parameters, by export path, in order:
     // `[{ "name", "type" }]`. From the package's WIT when it has the section
     // (a `cargo-miden` package), both as the WIT spells them (kebab case);
-    // otherwise from the MASM source when `--sources` names it, both as the
+    // otherwise from the MASM source when `--entrypoint-dir` names its project, both as the
     // source spells them. An export is listed only when its WIT function or
     // procedure was found with as many named parameters as its signature, so
     // the two pair by index. `{}` for a package without the WIT section and
-    // no sources (a Rust transaction script, or a package built before
-    // `cargo-miden` 0.10); absent when the section or the sources can't be
+    // `--entrypoint-dir` (a Rust transaction script, or a package built before
+    // `cargo-miden` 0.10); absent when the section or the source can't be
     // read. `parameters.rs` and `source_parameters.rs` read them.
-    let parameters = match &args.sources {
-        Some(sources) if !parameters::has_section(&package) => {
-            source_parameters::package(&package, sources)
+    let parameters = match &args.entrypoint_dir {
+        Some(entrypoint_dir) if !parameters::has_section(&package) => {
+            source_parameters::package(&package, entrypoint_dir)
         }
         _ => parameters::package(&package),
     };

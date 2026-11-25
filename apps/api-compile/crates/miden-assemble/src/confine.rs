@@ -5,8 +5,10 @@
 //! clones a `git` dependency with the `git` binary. It also looks for a
 //! workspace manifest in every directory above the one it starts from. So,
 //! before it runs, every `miden-project.toml` in the project is read here and
-//! refused when it names a path outside the project or a git repository, and
-//! the directories above the project must hold no manifest.
+//! refused when it names a path outside the project, a path that isn't plain
+//! (the assembler reads some as URIs, `file://localhost/…` among them), or a
+//! git repository; the project may hold no symbolic link, and the directories
+//! above it must hold no manifest.
 
 use anyhow::{Result, bail};
 use std::path::{Component, Path, PathBuf};
@@ -15,13 +17,18 @@ use toml::{Table, Value};
 /// The manifest file the assembler reads in each directory.
 pub const MANIFEST: &str = "miden-project.toml";
 
-/// Why a manifest is refused: the manifest, relative to the project
-/// directory, and what it names.
+/// Why a project is refused: the file, relative to the project root (a
+/// manifest, or a symbolic link), and the reason.
 #[derive(Debug, PartialEq)]
 pub struct Refusal {
-    pub manifest: String,
+    pub file: String,
     pub reason: String,
 }
+
+/// What a path in a manifest may not contain: the assembler reads a path as a
+/// URI, so a scheme (`file:`, in any case), a query, a fragment or a
+/// percent-escape would make it read another path than the one checked here.
+const NOT_PLAIN: [char; 5] = [':', '?', '#', '%', '\\'];
 
 /// Checks the directories above `root`, which must be canonical: a manifest
 /// there would be read as the project's workspace. A tool failure, not a
@@ -39,12 +46,21 @@ pub fn check_ancestors(root: &Path) -> Result<()> {
     Ok(())
 }
 
-/// The first manifest under `root`, which must be canonical, that names a
-/// path outside it or a git repository. A manifest that isn't valid TOML is
-/// left to the assembler, which reports it if it reads it.
-pub fn check_manifests(root: &Path) -> Result<Option<Refusal>> {
+/// The first symbolic link under `root`, which must be canonical, or else the
+/// first manifest that names a path outside it, a path that isn't plain, or a
+/// git repository. A manifest that isn't valid TOML is left to the assembler,
+/// which reports it if it reads it.
+pub fn check_project(root: &Path) -> Result<Option<Refusal>> {
     let mut manifests = Vec::new();
-    find_manifests(root, &mut manifests)?;
+    let mut links = Vec::new();
+    walk(root, &mut manifests, &mut links)?;
+    links.sort();
+    if let Some(link) = links.first() {
+        return Ok(Some(Refusal {
+            file: relative(link, root),
+            reason: "symbolic links are not supported".into(),
+        }));
+    }
     manifests.sort();
     for manifest in manifests {
         let Ok(table) = std::fs::read_to_string(&manifest)?.parse::<Table>() else {
@@ -53,7 +69,7 @@ pub fn check_manifests(root: &Path) -> Result<Option<Refusal>> {
         let directory = manifest.parent().expect("a file has a parent");
         if let Some(reason) = check_table(&table, directory, root) {
             return Ok(Some(Refusal {
-                manifest: relative(&manifest, root),
+                file: relative(&manifest, root),
                 reason,
             }));
         }
@@ -61,15 +77,18 @@ pub fn check_manifests(root: &Path) -> Result<Option<Refusal>> {
     Ok(None)
 }
 
-/// Every manifest under `directory`, symbolic links not followed.
-fn find_manifests(directory: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
+/// Every manifest and every symbolic link under `directory`, links not
+/// followed.
+fn walk(directory: &Path, manifests: &mut Vec<PathBuf>, links: &mut Vec<PathBuf>) -> Result<()> {
     for entry in std::fs::read_dir(directory)? {
         let entry = entry?;
         let file_type = entry.file_type()?;
-        if file_type.is_dir() {
-            find_manifests(&entry.path(), out)?;
+        if file_type.is_symlink() {
+            links.push(entry.path());
+        } else if file_type.is_dir() {
+            walk(&entry.path(), manifests, links)?;
         } else if entry.file_name() == MANIFEST {
-            out.push(entry.path());
+            manifests.push(entry.path());
         }
     }
     Ok(())
@@ -113,16 +132,15 @@ fn check_table(table: &Table, directory: &Path, root: &Path) -> Option<String> {
     None
 }
 
-/// Why `path`, relative to `directory`, is refused: it leaves `root`, by its
-/// components or, when it exists, through a symbolic link.
+/// Why `path`, relative to `directory`, is refused: it isn't a plain path,
+/// or its components lead out of `root`. The project holds no symbolic link,
+/// so the components say where it leads.
 fn check_path(path: &str, directory: &Path, root: &Path) -> Option<String> {
-    let plain = path.strip_prefix("file://").unwrap_or(path);
-    let joined = normalize(&directory.join(plain));
-    let inside = joined.starts_with(root)
-        && joined
-            .canonicalize()
-            .map_or(true, |canonical| canonical.starts_with(root));
-    (!inside).then(|| format!("the path '{path}' leaves the project root"))
+    if path.contains(NOT_PLAIN) {
+        return Some(format!("the path '{path}' is not a plain path"));
+    }
+    (!normalize(&directory.join(path)).starts_with(root))
+        .then(|| format!("the path '{path}' leaves the project root"))
 }
 
 /// `path` with its `.` and `..` components resolved, without reading the
@@ -178,7 +196,7 @@ mod tests {
 
     fn refusal(manifests: &[(&str, &str)]) -> Option<Refusal> {
         let (base, root) = project(manifests);
-        let refusal = check_manifests(&root).unwrap();
+        let refusal = check_project(&root).unwrap();
         std::fs::remove_dir_all(base).unwrap();
         refusal
     }
@@ -202,15 +220,23 @@ mod tests {
         assert_eq!(
             refusal(&[("a", "[dependencies]\nb = { path = \"../../b\" }\n")]),
             Some(Refusal {
-                manifest: "a/miden-project.toml".into(),
+                file: "a/miden-project.toml".into(),
                 reason: "the path '../../b' leaves the project root".into(),
             })
         );
     }
 
     #[test]
-    fn refuses_absolute_and_file_uri_paths() {
-        for path in ["/etc", "file:///etc"] {
+    fn refuses_absolute_paths_and_uris() {
+        for path in [
+            "/etc",
+            "file:///etc",
+            "FILE:///etc",
+            "file://localhost/etc/hosts",
+            // Read as a URI, its path ends at `#`: `x/../..`.
+            "x/../..#a/..",
+            "%2e%2e/%2e%2e/etc",
+        ] {
             let manifest = format!("[lib]\npath = \"{path}\"\n");
             assert!(refusal(&[("a", &manifest)]).is_some(), "{path}");
         }
@@ -238,13 +264,19 @@ mod tests {
     }
 
     #[test]
-    fn refuses_a_symbolic_link_out_of_the_project() {
-        let (base, root) = project(&[("a", "[lib]\npath = \"link/x.masm\"\n")]);
+    fn refuses_any_symbolic_link() {
+        // Named by no manifest: a module directory could reach it.
+        let (base, root) = project(&[("a", "[lib]\npath = \"a.masm\"\n")]);
         std::os::unix::fs::symlink(&base, root.join("a/link")).unwrap();
-        std::fs::write(base.join("x.masm"), "").unwrap();
-        let refusal = check_manifests(&root).unwrap();
+        let refusal = check_project(&root).unwrap();
         std::fs::remove_dir_all(base).unwrap();
-        assert!(refusal.is_some());
+        assert_eq!(
+            refusal,
+            Some(Refusal {
+                file: "a/link".into(),
+                reason: "symbolic links are not supported".into(),
+            })
+        );
     }
 
     #[test]

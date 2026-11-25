@@ -19,7 +19,7 @@ miden-standards = "=0.18.0"
 serde_json = { version = "1.0", features = ["preserve_order"] }
 # For `confine.rs`, which reads the project's manifests before the assembler
 # does. Already in the lockfile through `miden-project`, at this version.
-toml = "1.0"
+toml = "=1.1.8"
 
 [dev-dependencies]
 # For `tests/assemble.rs`, which reads the packages the binary writes.

@@ -1,5 +1,5 @@
 //! Runs the binary on dev packages assembled from `miden-assemble`'s test
-//! projects, with `--sources`: what api-compile does for a MASM project.
+//! projects, with `--entrypoint-dir`: what api-compile does for a MASM project.
 
 use miden_assembly::{
     Assembler, ProjectTargetSelector,
@@ -44,7 +44,7 @@ fn metadata(name: &str) -> Value {
     package.write_to_file(&masp).unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_miden-package-metadata"))
         .arg(&masp)
-        .arg("--sources")
+        .arg("--entrypoint-dir")
         .arg(project(name))
         .output()
         .unwrap();

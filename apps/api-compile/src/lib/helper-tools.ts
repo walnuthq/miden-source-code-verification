@@ -185,16 +185,19 @@ export const midenVerifier = ({
     { cwd: MIDEN_CLIENT_CACHE_DIR },
   );
 
-// The package at `maspPath`, read. `sources` is the directory holding the
+// The package at `maspPath`, read. `entrypointDir` is the directory holding the
 // `miden-project.toml` a MASM package was assembled from: the parameter names
 // are read from its source, as the package has no WIT to give them.
 export const midenPackageMetadata = (
   maspPath: string,
-  { sources, signal }: { sources?: string; signal?: AbortSignal } = {},
+  {
+    entrypointDir,
+    signal,
+  }: { entrypointDir?: string; signal?: AbortSignal } = {},
 ) =>
   run<PackageMetadata>(
     "miden-package-metadata",
-    [maspPath, ...(sources ? ["--sources", sources] : [])],
+    [maspPath, ...(entrypointDir ? ["--entrypoint-dir", entrypointDir] : [])],
     { signal },
   );
 
@@ -215,14 +218,17 @@ export type MidenAssembleOutput =
 // package (with debug info) written to `maspPath` when it builds. The tool
 // reads nothing outside `projectRoot`: it turns away a manifest that names a
 // path outside it or a git dependency, as a failed build.
-export const midenAssemble = (
-  {
-    projectRoot,
-    entrypoint,
-    maspPath,
-  }: { projectRoot: string; entrypoint: string; maspPath: string },
-  signal?: AbortSignal,
-) =>
+export const midenAssemble = ({
+  projectRoot,
+  entrypoint,
+  maspPath,
+  signal,
+}: {
+  projectRoot: string;
+  entrypoint: string;
+  maspPath: string;
+  signal?: AbortSignal;
+}) =>
   run<MidenAssembleOutput>(
     "miden-assemble",
     [projectRoot, entrypoint, maspPath],

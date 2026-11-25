@@ -215,12 +215,12 @@ export type ProcedureParameter = { name: string; type: string };
 // `miden-package-metadata` prints as `parameters`, for every package kind, from
 // the component's public WIT `cargo-miden` embeds in the package
 // (`parameters.rs`) or, for a MASM package, from the project's source when
-// api-compile passes it (`source_parameters.rs`). The manifest's signature has
+// api-compile names its entrypoint directory (`source_parameters.rs`). The manifest's signature has
 // the parameters' types but not their names. An export is listed only when its
 // WIT function or procedure was found with as many named parameters as its
 // signature, so the two pair by index. No names is one case however it
 // happens: an absent export, `{}` for a package without the WIT section (a
-// Rust transaction script) and no sources, an absent key (a section or sources
+// Rust transaction script) and no entrypoint directory, an absent key (a section or source
 // that couldn't be read). Fall back to the signature's types.
 export type ProcedureParameters = Record<string, ProcedureParameter[]>;
 

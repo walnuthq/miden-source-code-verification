@@ -118,14 +118,16 @@ describe("the arguments a tool is given", () => {
     });
   });
 
-  it("name the sources to miden-package-metadata when given", async () => {
+  it("name the entrypoint directory to miden-package-metadata when given", async () => {
     await expect(midenPackageMetadata("a.masp")).resolves.toMatchObject({
       output: { builtWith: "a.masp" },
     });
     await expect(
-      midenPackageMetadata("a.masp", { sources: "/work/project/counter" }),
+      midenPackageMetadata("a.masp", {
+        entrypointDir: "/work/project/counter",
+      }),
     ).resolves.toMatchObject({
-      output: { builtWith: "a.masp --sources /work/project/counter" },
+      output: { builtWith: "a.masp --entrypoint-dir /work/project/counter" },
     });
   });
 });
