@@ -242,7 +242,7 @@ export function ThemeScript({
     } catch {}
   })();`;
 
-  // Safe to inject: a static script built from our own constants.
+  // oxlint-disable-next-line react/no-danger -- a static script built from our own constants.
   return <script dangerouslySetInnerHTML={{ __html: script }} />;
 }
 

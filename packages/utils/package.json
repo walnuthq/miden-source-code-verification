@@ -45,7 +45,7 @@
     "typecheck": "tsc",
     "test": "vitest run",
     "lint": "oxlint --deny-warnings && oxfmt --check",
-    "format": "oxlint --fix && oxfmt"
+    "format": "oxfmt && oxlint --fix"
   },
   "dependencies": {
     "@scure/base": "2.4.0",

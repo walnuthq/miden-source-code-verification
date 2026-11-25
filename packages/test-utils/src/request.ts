@@ -20,7 +20,7 @@ export type TestResponse = {
   // Parsed JSON for a JSON response, a Buffer for a binary one (or for any
   // response after `.responseType("blob")`), and `{}` for text or no body
   // (read `text`), as supertest does.
-  // `any`: tests assert on arbitrary shapes.
+  // oxlint-disable-next-line typescript/no-explicit-any -- tests assert on arbitrary shapes.
   body: any;
   text: string;
 };

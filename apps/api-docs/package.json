@@ -9,7 +9,7 @@
     "dev": "node --env-file-if-exists=.env src/build.ts && sirv dist --port 8082 --dev",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --deny-warnings && oxfmt --check",
-    "format": "oxlint --fix && oxfmt"
+    "format": "oxfmt && oxlint --fix"
   },
   "dependencies": {
     "swagger-jsdoc": "6.3.0",

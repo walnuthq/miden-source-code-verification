@@ -6,7 +6,7 @@
   "scripts": {
     "typecheck": "pnpm --filter miden-source-code-verification-api-registry... build && tsc --noEmit",
     "lint": "oxlint --deny-warnings && oxfmt --check",
-    "format": "oxlint --fix && oxfmt",
+    "format": "oxfmt && oxlint --fix",
     "cf:typegen": "wrangler types",
     "cf:dev": "pnpm --filter miden-source-code-verification-api-registry... build && wrangler dev --port 8081",
     "cf:deploy": "pnpm --filter miden-source-code-verification-api-registry... build && wrangler deploy"

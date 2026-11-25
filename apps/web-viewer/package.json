@@ -14,7 +14,7 @@
     "build": "react-router typegen && tsc -b tsconfig.app.json tsconfig.node.json && react-router build",
     "typecheck": "react-router typegen && tsc -b",
     "lint": "oxlint --deny-warnings && oxfmt --check",
-    "format": "oxlint --fix && oxfmt",
+    "format": "oxfmt && oxlint --fix",
     "start": "react-router-serve ./build/server/index.js",
     "test": "vitest run"
   },

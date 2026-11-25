@@ -16,7 +16,7 @@
     "generate-masm-fixtures": "cargo run --release --manifest-path ../../apps/api-compile/crates/generate-fixtures/Cargo.toml -- --mode masm --out src/masm-fixtures.ts",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --deny-warnings && oxfmt --check",
-    "format": "oxlint --fix && oxfmt"
+    "format": "oxfmt && oxlint --fix"
   },
   "devDependencies": {
     "@types/node": "26.6.7",

@@ -87,6 +87,7 @@ export function EditorTabs({
           className="min-h-0 flex-1 overflow-auto text-xs leading-5"
           // Shiki's output, rendered on the server with the source text escaped
           // (see package-sources.server.ts), so it is safe to inject.
+          // oxlint-disable-next-line react/no-danger
           dangerouslySetInnerHTML={{ __html: activeFile.html }}
         />
       ) : (

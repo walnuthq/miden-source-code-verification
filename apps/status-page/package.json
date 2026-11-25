@@ -13,7 +13,7 @@
     "test": "vitest run",
     "test:pure": "vitest run",
     "lint": "oxlint --deny-warnings && oxfmt --check",
-    "format": "oxlint --fix && oxfmt"
+    "format": "oxfmt && oxlint --fix"
   },
   "dependencies": {
     "@tailwindcss/vite": "4.3.5",

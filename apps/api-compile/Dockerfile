@@ -89,7 +89,7 @@ COPY --parents package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc apps/*/pac
 # Install only what api-compile needs (and its workspace deps), with a cached store.
 # --network-concurrency=2 (down from the default 16) for the slow-network Docker
 # build only: on a thin pipe, many parallel multi-MB binary downloads (workerd,
-# oxlint) starve each other into the fetch timeout; serializing lets
+# oxlint, oxfmt) starve each other into the fetch timeout; serializing lets
 # each use the full bandwidth. The generous fetch timeout/retries live in
 # pnpm-workspace.yaml (pnpm 11+ only honors these there, not in .npmrc).
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \

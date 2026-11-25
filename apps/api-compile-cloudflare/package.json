@@ -6,7 +6,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --deny-warnings && oxfmt --check",
-    "format": "oxlint --fix && oxfmt",
+    "format": "oxfmt && oxlint --fix",
     "cf:typegen": "wrangler types",
     "cf:deploy": "wrangler deploy",
     "cf:dev": "wrangler dev"

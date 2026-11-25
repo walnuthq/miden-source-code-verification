@@ -7,7 +7,7 @@
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "lint": "oxlint --deny-warnings && oxfmt --check",
-    "format": "oxlint --fix && oxfmt",
+    "format": "oxfmt && oxlint --fix",
     "test": "pnpm -r test",
     "test:pure": "pnpm --filter ./packages/utils --filter ./apps/web-viewer --filter ./apps/web-verifier test && pnpm --filter ./apps/api-compile --filter ./apps/api-registry --filter ./apps/status-page test:pure",
     "typecheck": "tsc -p tsconfig.json && pnpm -r typecheck",

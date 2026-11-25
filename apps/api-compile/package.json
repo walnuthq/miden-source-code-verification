@@ -11,7 +11,7 @@
     "test": "vitest run",
     "test:pure": "vitest run __tests__/limiter.test.ts __tests__/helper-tools.test.ts __tests__/busy.test.ts __tests__/import-busy.test.ts __tests__/exec-file.test.ts __tests__/deadline.test.ts __tests__/build-output.test.ts __tests__/timings.test.ts __tests__/preload.test.ts __tests__/assemble-limits.test.ts",
     "lint": "oxlint --deny-warnings && oxfmt --check",
-    "format": "oxlint --fix && oxfmt"
+    "format": "oxfmt && oxlint --fix"
   },
   "dependencies": {
     "cors": "2.8.6",

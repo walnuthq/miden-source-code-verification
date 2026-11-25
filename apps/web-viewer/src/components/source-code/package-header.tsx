@@ -241,7 +241,7 @@ function StorageSlotTable({ slots }: { slots: StorageSlotSchema[] }) {
 // within a word.
 function SlotName({ name }: { name: string }) {
   return name.split("::").map((part, index) => (
-    // Keyed by index: the parts never reorder.
+    // oxlint-disable-next-line react/no-array-index-key -- the parts never reorder.
     <Fragment key={index}>
       {index > 0 && (
         <>

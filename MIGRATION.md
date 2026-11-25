@@ -58,6 +58,7 @@ a **different** account on the same network that shares the same code.
 
 New response shape:
 
+<!-- prettier-ignore -->
 ```jsonc
 {
   "id": "…",
@@ -76,7 +77,9 @@ New response shape:
       "packageCommitment": "0x7f70…",
       "createdAt": "2026-02-23T12:34:28.801Z",
       "updatedAt": "2026-02-23T12:34:28.801Z",
-      "package": {/* Package, see below */},
+      "package": {
+        /* Package, see below */
+      },
     },
   ],
   // the id (or address) you queried with, echoed back
@@ -108,6 +111,7 @@ another note on the same network sharing that script.
 
 New response shape:
 
+<!-- prettier-ignore -->
 ```jsonc
 {
   "id": "…",
@@ -120,7 +124,9 @@ New response shape:
   "packageCommitment": "0xb32e…",
   "createdAt": "2026-03-26T…Z",
   "updatedAt": "2026-03-26T…Z",
-  "package": {/* Package, see below */},
+  "package": {
+    /* Package, see below */
+  },
   // the id you queried with, echoed back
   "noteId": "0xcc3f…",
 }
