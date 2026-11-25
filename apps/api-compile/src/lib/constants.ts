@@ -67,6 +67,23 @@ export const COMPILE_DEADLINE_MS = 400_000;
 export const COMPILE_CONCURRENCY = Number(process.env.COMPILE_CONCURRENCY ?? 1);
 export const COMPILE_QUEUE_SIZE = Number(process.env.COMPILE_QUEUE_SIZE ?? 8);
 
+// A MASM build: `miden-assemble`, then `miden-package-metadata`, and for
+// `/verify` `miden-verifier`. Assembling takes some 20 ms and runs none of the
+// project's code (docs/adr/0007-masm-builds-run-no-project-code.md), so MASM
+// builds share no cache and no build user, and need neither the build slot
+// nor its deadline: a few run at once, more wait, the rest get a 503. The
+// deadline bounds one request's tools together, the verifier's network call
+// included.
+export const ASSEMBLE_DEADLINE_MS = Number(
+  process.env.ASSEMBLE_DEADLINE_MS ?? 30_000,
+);
+export const ASSEMBLE_CONCURRENCY = Number(
+  process.env.ASSEMBLE_CONCURRENCY ?? 4,
+);
+export const ASSEMBLE_QUEUE_SIZE = Number(
+  process.env.ASSEMBLE_QUEUE_SIZE ?? 16,
+);
+
 // An import is a `miden-import` run: a second or so, a connection to the node
 // and a write to the network's client store. A few at once are fine; a burst
 // of them would start one process each on a single container.

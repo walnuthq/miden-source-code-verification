@@ -105,6 +105,7 @@ fn builds_every_project() {
         let (output, package) = copy.assemble(project);
         assert_eq!(output["built"], true, "{project}: {output}");
         assert_eq!(output["diagnostics"], json!([]), "{project}");
+        assert_eq!(output["rendered"], "", "{project}");
         let built_with = output["builtWith"].as_str().unwrap();
         assert!(
             built_with.starts_with("miden-assembly 0.36."),
@@ -205,6 +206,16 @@ fn a_warning_is_returned_with_its_span_and_the_package_is_written() {
             "length": 4,
             "help": "this import is never used and can be safely removed",
         }])
+    );
+    let rendered = output["rendered"].as_str().unwrap();
+    assert!(rendered.contains("unused import"), "{rendered}");
+    assert!(
+        rendered.contains("counter-account/counter_account.masm"),
+        "{rendered}"
+    );
+    assert!(
+        !rendered.contains(copy.root().to_str().unwrap()),
+        "{rendered}"
     );
 }
 

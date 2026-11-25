@@ -1,0 +1,12 @@
+[package]
+name = "counter-contract"
+version = "0.1.0"
+
+[lib]
+kind = "account-component"
+namespace = "counter_contract"
+path = "counter_contract.masm"
+
+[dependencies]
+miden-core = "*"
+miden-protocol = "*"

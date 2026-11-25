@@ -165,11 +165,13 @@ export const midenVerifier = ({
   resourceId,
   maspPath,
   resourcePath,
+  signal,
 }: {
   networkId: string;
   resourceId: string;
   maspPath: string;
   resourcePath?: string;
+  signal?: AbortSignal;
 }) =>
   run<MidenVerifierOutput>(
     "miden-verifier",
@@ -182,7 +184,7 @@ export const midenVerifier = ({
       maspPath,
       ...(resourcePath ? ["--resource-path", resourcePath] : []),
     ],
-    { cwd: MIDEN_CLIENT_CACHE_DIR },
+    { cwd: MIDEN_CLIENT_CACHE_DIR, signal },
   );
 
 // The package at `maspPath`, read. `entrypointDir` is the directory holding the
@@ -202,17 +204,16 @@ export const midenPackageMetadata = (
   );
 
 // What `miden-assemble` prints. A failed build is an answer, so it exits 0
-// either way: built, with the warnings, or failed, with at least one error and
-// the report as the assembler renders it, paths relative to the project root.
-// `builtWith` names the versions the tool was built with.
-export type MidenAssembleOutput =
-  | { built: true; builtWith: string; diagnostics: BuildDiagnostic[] }
-  | {
-      built: false;
-      builtWith: string;
-      rendered: string;
-      diagnostics: BuildDiagnostic[];
-    };
+// either way: built, with the warnings, or failed, with at least one error.
+// `rendered` is the report as the assembler renders it, paths relative to the
+// project root: empty for a build with no warnings. `builtWith` names the
+// versions the tool was built with.
+export type MidenAssembleOutput = {
+  built: boolean;
+  builtWith: string;
+  rendered: string;
+  diagnostics: BuildDiagnostic[];
+};
 
 // The MASM project at `entrypoint` in `projectRoot`, assembled into a dev
 // package (with debug info) written to `maspPath` when it builds. The tool

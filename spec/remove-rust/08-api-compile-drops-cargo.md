@@ -18,7 +18,7 @@ After plan 03 the MASM path lives in `src/lib/assemble.ts` and the cargo path in
 
 ## Steps
 
-1. A project with a `Cargo.toml` at its entrypoint is refused with a 400: "Rust projects are no longer supported: Miden projects are written in MASM (`miden-project.toml`)". `packages/utils/src/project.ts` loses its `Cargo.toml` reading; the package name comes from `miden-project.toml` only. Update ADR 0004's text: same conclusion, another file.
+1. A project with a `Cargo.toml` at its entrypoint is refused with a 400: "Rust projects are no longer supported: Miden projects are written in MASM (`miden-project.toml`)". `packages/utils/src/project.ts` loses its `Cargo.toml` reading, the `masm` option of `openProject` (plan 03) and `Project.kind`; the package name comes from `miden-project.toml` only. Update ADR 0004's text: same conclusion, another file.
 2. Delete the cargo path: `cargo-miden.ts`, the cargo half of `compile.ts`, `preload.ts`, `build-output.ts`, both scripts, `routes/lockfile.ts`, `BUILD_USER`, `COMPILE_CONCURRENCY = 1`, the retry ladder, `warmLockfile` and `masm` request flags, `MasmOutput`, `MAX_MASM_BYTES`. The Dockerfile's dev-profile warm-up build (`cargo miden build --locked` without `--release`) has had no use since plan 01.
 3. Wire types (`packages/utils/src/api-compile.ts`): remove `storage`, `noteStorage`, `masm`; `cargoMidenVersion` goes, `builtWith` becomes required; `diagnostics` becomes required. Update the README's wire format section in the same PR.
 4. Crates: `miden-package-metadata` loses `schemas.rs`, the WIT half of `parameters.rs`, and the `wit-parser` and `miden-note-schema` dependencies. `miden-verifier` keeps its export filter; remove the comment about compiler internals (`cabi_realloc`, `init`, adapters).

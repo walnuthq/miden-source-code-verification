@@ -32,25 +32,28 @@ export const writeResourceFile = async (resource: string) => {
 
 // Whether the package at `maspPath` is the resource's on chain, with the
 // resource's root as the verifier read it: the account code root or the note
-// script root, the same root `miden-import` reads.
+// script root, the same root `miden-import` reads. `signal` ends the run.
 export const verify = async ({
   networkId,
   resourceId,
   resourcePath,
   maspPath,
   commitment,
+  signal,
 }: {
   networkId: string;
   resourceId: string;
   resourcePath?: string;
   maspPath: string;
   commitment: string;
+  signal?: AbortSignal;
 }) => {
   const run = await midenVerifier({
     networkId,
     resourceId,
     maspPath,
     resourcePath,
+    signal,
   });
   if ("error" in run) {
     throw new VerifierError(run.error, run.rejected ? 400 : 502);

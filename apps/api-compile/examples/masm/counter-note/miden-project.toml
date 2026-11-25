@@ -1,0 +1,13 @@
+[package]
+name = "counter-note"
+version = "0.1.0"
+
+[lib]
+kind = "note"
+namespace = "counter_note"
+path = "counter_note.masm"
+
+[dependencies]
+miden-core = "*"
+miden-protocol = "*"
+counter-contract = { path = "../counter-contract" }

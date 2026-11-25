@@ -49,7 +49,9 @@ esac
 `;
 
 describe("POST /verify", () => {
-  it("rejects requests missing Cargo.toml", async () => {
+  // With no Cargo.toml at its entrypoint a files map is a MASM project, which
+  // needs a miden-project.toml there.
+  it("rejects a files map with neither manifest", async () => {
     const files = await readProjectFiles(
       `${counterContractDir}/counter-contract`,
     );
@@ -59,7 +61,7 @@ describe("POST /verify", () => {
 
     expect(res.status).toBe(400);
 
-    expect(res.body).toHaveProperty("error", "missing Cargo.toml");
+    expect(res.body).toHaveProperty("error", "missing miden-project.toml");
   });
 
   it("rejects requests missing network ID", async () => {

@@ -13,6 +13,7 @@ const project = {
   files: { "Cargo.toml": "" },
   entrypoint: ".",
   name: "counter-contract",
+  kind: "rust" as const,
 };
 const verify = () =>
   apiCompile.verify({

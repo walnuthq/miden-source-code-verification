@@ -30,7 +30,12 @@ const files = {
   "Cargo.toml": '[package]\nname = "counter-contract"\n',
   "miden-project.toml": "",
 };
-const project = { files, entrypoint: ".", name: "counter-contract" };
+const project = {
+  files,
+  entrypoint: ".",
+  name: "counter-contract",
+  kind: "rust" as const,
+};
 
 const ACCOUNT: Resource = {
   kind: "account",

@@ -1,0 +1,12 @@
+[package]
+name = "basic-wallet"
+version = "0.1.0"
+
+[lib]
+kind = "account-component"
+namespace = "basic_wallet"
+path = "basic_wallet.masm"
+
+[dependencies]
+miden-core = "*"
+miden-protocol = "*"

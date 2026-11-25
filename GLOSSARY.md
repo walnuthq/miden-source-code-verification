@@ -43,7 +43,7 @@ Who a verification says it comes from (`miden-verify`, `web-verifier`, `miden-pl
 _Avoid_: origin, client
 
 **Build**:
-What compiling a project yields: built, with its package and cargo-miden's output, or failed, with the output alone. A failed build is an outcome, not an error: `POST /compile` answers it with `built: false`.
+What compiling a project yields: built, with its package and the toolchain's output, or failed, with the output alone. A failed build is an outcome, not an error: `POST /compile` answers it with `built: false`. A Rust project is built by cargo-miden; a MASM project is assembled by `miden-assemble`, whose report also comes as `diagnostics`.
 _Avoid_: compile result, compilation output
 
 **Debug build**:
@@ -53,7 +53,7 @@ _Avoid_: dev build, debug package
 ### Sources
 
 **Project**:
-A files map plus an entrypoint that cargo-miden can build into one package: at the entrypoint sit a `Cargo.toml` with a `[package]` and a `miden-project.toml`. The package name is the `[package]` name.
+A files map plus an entrypoint that builds into one package. A Rust project has a `Cargo.toml` with a `[package]` at its entrypoint, and a `miden-project.toml` next to it; any other project is a MASM project, with a `miden-project.toml` with a `[package]` at its entrypoint. The package name is that `[package]` name. The registry accepts Rust projects only, until it learns to store MASM ones.
 _Avoid_: files map, upload, sources (for the whole)
 
 **Entrypoint**:

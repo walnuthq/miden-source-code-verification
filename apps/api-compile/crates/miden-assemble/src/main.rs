@@ -4,7 +4,8 @@
 //! A failed build is an answer, as for `POST /compile` (ADR 0001): the tool
 //! exits 0 and prints `{ "built": false, "builtWith", "rendered",
 //! "diagnostics" }`. A built one prints `{ "built": true, "builtWith",
-//! "diagnostics" }`, its warnings in `diagnostics`, and writes the package.
+//! "rendered", "diagnostics" }`, its warnings in `diagnostics` and rendered
+//! (empty when there are none), and writes the package.
 //! A non-zero exit is the tool's own failure: bad arguments, an unreadable
 //! directory, a package it can't write.
 
@@ -107,13 +108,17 @@ fn assemble(root: &Path, entrypoint: &Path, masp_path: &Path) -> Result<Value> {
     // build, which reports them with their spans; it stops at the first module
     // that has any, so a project with warnings in two modules lists the first
     // module's only.
-    let warnings = match build(&manifest, true) {
-        Ok(_) => vec![],
-        Err(report) => diagnostics::collect(&report, root, Some("warning")),
+    let (rendered, warnings) = match build(&manifest, true) {
+        Ok(_) => (String::new(), vec![]),
+        Err(report) => (
+            diagnostics::render(&report, root),
+            diagnostics::collect(&report, root, Some("warning")),
+        ),
     };
     Ok(json!({
         "built": true,
         "builtWith": BUILT_WITH,
+        "rendered": rendered,
         "diagnostics": warnings,
     }))
 }
