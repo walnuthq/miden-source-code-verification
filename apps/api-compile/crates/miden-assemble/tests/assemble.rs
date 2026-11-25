@@ -136,17 +136,44 @@ fn builds_are_reproducible() {
 }
 
 #[test]
-fn the_commitment_does_not_depend_on_the_directory() {
+fn the_package_does_not_depend_on_the_directory() {
     let (one, other) = (Copy::new(), Copy::new());
     for project in PROJECTS {
         let (_, first) = one.assemble(project);
         let (_, second) = other.assemble(project);
-        assert_eq!(
-            commitment(&first.unwrap()),
-            commitment(&second.unwrap()),
-            "{project}"
-        );
+        let (first, second) = (first.unwrap(), second.unwrap());
+        assert_eq!(commitment(&first), commitment(&second), "{project}");
+        // The debug info names the sources relative to the project root, so
+        // the bytes are the same too.
+        assert!(first == second, "{project}: the packages differ");
     }
+}
+
+#[test]
+fn the_debug_info_names_sources_by_their_path_in_the_project() {
+    let copy = Copy::new();
+    let root = copy.root();
+    // The note's own source, and none under the project root by its full path.
+    let (_, package) = copy.assemble("increment-note");
+    let package = Package::read_from_bytes(&package.unwrap()).unwrap();
+    let debug_info = package.debug_info().unwrap().unwrap();
+    let paths = debug_info
+        .files()
+        .iter()
+        .map(|file| debug_info.get_string(file.path_idx).unwrap().to_string())
+        .collect::<Vec<_>>();
+    assert!(
+        paths.contains(&"increment-note/increment_note.masm".to_string()),
+        "{paths:?}"
+    );
+    let root = root.to_string_lossy();
+    assert!(
+        debug_info
+            .strings()
+            .iter()
+            .all(|string| !string.contains(root.as_ref())),
+        "{paths:?}"
+    );
 }
 
 #[test]

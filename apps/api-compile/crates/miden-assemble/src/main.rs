@@ -12,10 +12,7 @@
 use anyhow::{Context, Result, bail};
 use clap::Parser;
 use miden_assembly::diagnostics::Report;
-use miden_assembly::{
-    Assembler, ProjectTargetSelector,
-    debuginfo::{DefaultSourceManager, SourceManager},
-};
+use miden_assembly::{Assembler, ProjectTargetSelector, debuginfo::SourceManager};
 use miden_core_lib::CoreLibrary;
 use miden_mast_package::Package;
 use miden_package_registry::{InMemoryPackageRegistry, PackageCache};
@@ -27,6 +24,7 @@ use std::sync::Arc;
 
 mod confine;
 mod diagnostics;
+mod sources;
 
 /// The profile every build uses: the dev one keeps the debug info, and shares
 /// its procedure roots and commitment with a release build.
@@ -65,7 +63,14 @@ fn main() -> Result<()> {
             args.project_root.display()
         )
     })?;
-    let output = assemble(&root, &args.entrypoint, &args.masp_path)?;
+    // Resolved before the tool moves into the project root, which a relative
+    // package path would otherwise be read against.
+    let masp_path = std::path::absolute(&args.masp_path)?;
+    // The sources are named relative to the root (see `sources`): run from
+    // there, so those names read the files they name.
+    std::env::set_current_dir(&root)
+        .with_context(|| format!("failed to enter the project root '{}'", root.display()))?;
+    let output = assemble(&root, &args.entrypoint, &masp_path)?;
     println!("{}", serde_json::to_string(&output)?);
     Ok(())
 }
@@ -92,7 +97,7 @@ fn assemble(root: &Path, entrypoint: &Path, masp_path: &Path) -> Result<Value> {
         let diagnostic = json!({ "severity": "error", "message": message });
         return Ok(failed(&Report::msg(message), root, vec![diagnostic]));
     }
-    let package = match build(&manifest, false) {
+    let package = match build(&manifest, root, false) {
         Ok(package) => package,
         Err(report) => {
             let diagnostics = diagnostics::collect(&report, root, None);
@@ -108,7 +113,7 @@ fn assemble(root: &Path, entrypoint: &Path, masp_path: &Path) -> Result<Value> {
     // build, which reports them with their spans; it stops at the first module
     // that has any, so a project with warnings in two modules lists the first
     // module's only.
-    let (rendered, warnings) = match build(&manifest, true) {
+    let (rendered, warnings) = match build(&manifest, root, true) {
         Ok(_) => (String::new(), vec![]),
         Err(report) => (
             diagnostics::render(&report, root),
@@ -133,9 +138,10 @@ fn failed(report: &Report, root: &Path, diagnostics: Vec<Value>) -> Value {
     })
 }
 
-/// One assembly of the project whose manifest is `manifest`, against the
-/// core, protocol, transaction kernel and standards packages.
-fn build(manifest: &Path, warnings_as_errors: bool) -> Result<Arc<Package>, Report> {
+/// One assembly of the project whose manifest is `manifest`, in the project at
+/// `root`, against the core, protocol, transaction kernel and standards
+/// packages. Its sources are named relative to `root`.
+fn build(manifest: &Path, root: &Path, warnings_as_errors: bool) -> Result<Arc<Package>, Report> {
     let mut registry = InMemoryPackageRegistry::default();
     for package in [
         CoreLibrary::default().package(),
@@ -147,7 +153,7 @@ fn build(manifest: &Path, warnings_as_errors: bool) -> Result<Arc<Package>, Repo
             .cache_package(package)
             .expect("the four packages are distinct");
     }
-    let source_manager: Arc<dyn SourceManager> = Arc::new(DefaultSourceManager::default());
+    let source_manager: Arc<dyn SourceManager> = Arc::new(sources::ProjectSourceManager::new(root));
     Assembler::new(source_manager)
         .with_warnings_as_errors(warnings_as_errors)
         .for_project_at_path(manifest, &mut registry)?

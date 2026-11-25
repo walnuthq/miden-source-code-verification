@@ -85,12 +85,9 @@ describe("POST /compile a MASM project", () => {
     });
 
     expect(flagged.status).toBe(200);
-    // The package's debug info names its sources by absolute path, under the
-    // build's own temporary directory, so two builds differ in those bytes
-    // only: the rest of the answer, the commitment included, is the same.
-    const { masp: _plain, ...plainRest } = plain.body;
-    const { masp: _flagged, ...flaggedRest } = flagged.body;
-    expect(flaggedRest).toEqual(plainRest);
+    // The package too: its debug info names the sources by their path in
+    // the project, not under the build's own directory.
+    expect(flagged.body).toEqual(plain.body);
   });
 
   it("builds a note with a path dependency on the counter", async () => {
