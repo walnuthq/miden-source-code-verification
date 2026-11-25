@@ -14,13 +14,13 @@ api-compile builds MASM projects only. The Rust toolchain, `cargo-miden`, the wa
 
 ## Current state
 
-After plan 03 the MASM path lives in `src/lib/assemble.ts` and the cargo path in `src/lib/compile.ts` (681 lines), `cargo-miden.ts` (220 lines), `preload.ts`, `build-output.ts`, `scripts/lay-out-warm-cache.sh`, `scripts/preload-first-build.sh`, `routes/lockfile.ts`, `routes/compile-debug.ts`. The Dockerfile (229 lines) has a `cargo-miden-builder` stage and copies rustup and cargo into `runtime`. `__tests__/` has `compile.test.ts` (790 lines), `preload`, `lockfile`, `compile-debug`, `build-output` for the cargo path. `examples/` holds three Rust projects (84 files) that are also the image's warm-up input.
+After plan 03 the MASM path lives in `src/lib/assemble.ts` and the cargo path in `src/lib/compile.ts` (681 lines), `cargo-miden.ts` (220 lines), `preload.ts`, `build-output.ts`, `scripts/lay-out-warm-cache.sh`, `scripts/preload-first-build.sh`, `routes/lockfile.ts`. Plan 01 already removed `routes/compile-debug.ts` and the debug build. The Dockerfile (229 lines) has a `cargo-miden-builder` stage and copies rustup and cargo into `runtime`. `__tests__/` has `compile.test.ts` (790 lines), `preload`, `lockfile`, `build-output` for the cargo path. `examples/` holds three Rust projects (84 files) that are also the image's warm-up input.
 
 ## Steps
 
 1. A project with a `Cargo.toml` at its entrypoint is refused with a 400: "Rust projects are no longer supported: Miden projects are written in MASM (`miden-project.toml`)". `packages/utils/src/project.ts` loses its `Cargo.toml` reading; the package name comes from `miden-project.toml` only. Update ADR 0004's text: same conclusion, another file.
-2. Delete the cargo path: `cargo-miden.ts`, the cargo half of `compile.ts`, `preload.ts`, `build-output.ts`, both scripts, `routes/lockfile.ts`, `routes/compile-debug.ts`, `BUILD_USER`, `COMPILE_CONCURRENCY = 1`, the retry ladder, `warmLockfile`, `masm` and `debug` request flags, `MasmOutput`, `DebugBuild`, `MAX_MASM_BYTES`, `MAX_DEBUG_MASP_BYTES`.
-3. Wire types (`packages/utils/src/api-compile.ts`): remove `storage`, `noteStorage`, `debug`, `masm`, `CompileDebugResponse`; `cargoMidenVersion` goes, `builtWith` becomes required; `diagnostics` becomes required. Update the README's wire format section in the same PR.
+2. Delete the cargo path: `cargo-miden.ts`, the cargo half of `compile.ts`, `preload.ts`, `build-output.ts`, both scripts, `routes/lockfile.ts`, `BUILD_USER`, `COMPILE_CONCURRENCY = 1`, the retry ladder, `warmLockfile` and `masm` request flags, `MasmOutput`, `MAX_MASM_BYTES`. The Dockerfile's dev-profile warm-up build (`cargo miden build --locked` without `--release`) has had no use since plan 01.
+3. Wire types (`packages/utils/src/api-compile.ts`): remove `storage`, `noteStorage`, `masm`; `cargoMidenVersion` goes, `builtWith` becomes required; `diagnostics` becomes required. Update the README's wire format section in the same PR.
 4. Crates: `miden-package-metadata` loses `schemas.rs`, the WIT half of `parameters.rs`, and the `wit-parser` and `miden-note-schema` dependencies. `miden-verifier` keeps its export filter; remove the comment about compiler internals (`cabi_realloc`, `init`, adapters).
 5. Dockerfile: remove the `cargo-miden-builder` stage, the rustup and cargo copies, the warm-up build and `/cache/image`. The `rust` stage stays as a build stage for the helper tools. The runtime is Node plus four binaries.
 6. Timeouts and queue in `constants.ts` come down to seconds. The Cloudflare Worker's compile timeout (`apps/api-compile-cloudflare`, 420 s) and the registry's follow. Revisit the container's instance type (`standard-2` was chosen for the cache and cargo) and say what you measured.
@@ -41,11 +41,11 @@ After plan 03 the MASM path lives in `src/lib/assemble.ts` and the cargo path in
 ## STOP conditions
 
 - The user hasn't confirmed the Playground's switch is live.
-- The registry suite fails for a reason other than the removed debug and lockfile routes: plan 09 owns the registry's side, but the two ship together, so report what the registry needs.
+- The registry suite fails for a reason other than the removed lockfile route: plan 09 owns the registry's side, but the two ship together, so report what the registry needs.
 
 ## Ships with
 
-Plan 09. The registry calls `/compile-debug` and reads `debug` today: merge and deploy the two together, registry first if its changes tolerate both shapes.
+Plan 09. The registry reads `storage` and `noteStorage` today: merge and deploy the two together, registry first if its changes tolerate both shapes.
 
 ## Out of scope
 

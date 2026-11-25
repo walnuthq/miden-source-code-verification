@@ -24,7 +24,7 @@ Every Rust-built package, the verified accounts and notes that point at it, and 
    - A dry run is the default: it lists, per network, the packages, verified accounts, verified notes and stored files it would delete, and deletes nothing.
    - The real run deletes records and files in an order that never leaves a record pointing at a missing file, and is safe to run twice.
    - Test it in a throwaway database with both kinds of rows. Never against production.
-3. **Debug package** (decision 5): remove `lib/debug-build.ts`, the `.debug.masp` route, `X-Debug-Commitment`, the debug-build backfill, and stop writing `debug_built_with` and the debug commitment. The columns stay until plan 10.
+3. **Debug package** (decision 5): remove the `.debug.masp` route, `X-Debug-Commitment` and `debugPackage`. Plan 01 already removed `lib/debug-build.ts`, the debug-build backfill, and the writes of `debug_built_with` and the debug commitment. The columns stay until plan 10.
 4. **`schemas`**: stop reading and writing it. The column stays until plan 10.
 5. **OpenAPI**: MASM only; republish `apps/api-docs`.
 6. **web-viewer**: remove the Rust highlighting, the Rust file rules, `rustType` and the Rust signature writer, and the storage listings.

@@ -11,20 +11,15 @@ import {
 import { join } from "node:path";
 import type {
   BuiltPackage,
-  DebugBuild,
   MasmOutput,
 } from "miden-source-code-verification-utils/api-compile";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
-import {
-  type Manifest,
-  procedureExportPaths,
-} from "miden-source-code-verification-utils/manifest";
 import type { Project } from "miden-source-code-verification-utils/project";
 import { checkBuildOutput, killBuildUserProcesses } from "./build-output.ts";
 import {
   cargoMidenBuild,
   cargoMidenVersion,
-  PROFILE_DIRS,
+  RELEASE_DIR,
   readCargoLock,
 } from "./cargo-miden.ts";
 import {
@@ -34,7 +29,6 @@ import {
   COMPILE_CONCURRENCY,
   COMPILE_DEADLINE_MS,
   COMPILE_QUEUE_SIZE,
-  MAX_DEBUG_MASP_BYTES,
   MAX_MASM_BYTES,
   MIDEN_TOOL_TIMEOUT_MS,
   SHIPPED_VIEW_MARKER,
@@ -54,11 +48,6 @@ type CompileArgs = {
   // Already opened by the route: its files are clean project-relative paths,
   // its entrypoint is normalized and names the package.
   project: Project;
-  // Also build the debug variant, right after the release build.
-  debug?: boolean;
-  // Only build the debug variant when the release build has this commitment,
-  // i.e. when the toolchain still reproduces a stored package.
-  expectedCommitment?: string;
   // Re-resolve a lockfile that pins crates the image doesn't have against the
   // ones it has, before building online (see `cargoMidenBuild`). The returned
   // `files` then carry the updated lockfile.
@@ -67,11 +56,10 @@ type CompileArgs = {
   masm?: boolean;
   // Filled with how long each part took: `layout` (waiting for the build's
   // view of the warm cache), `cargo` (the release build), `tools` (reading the
-  // package), `debug` (the whole debug variant) and `cleanup`. Two are not
-  // part of the request. `prepare`: how long the view this build took had
-  // taken to make, after the build before it. `preload`, on the first build
-  // of a process only: how long reading that build's files at startup took,
-  // when it was over before the build began.
+  // package) and `cleanup`. Two are not part of the request. `prepare`: how
+  // long the view this build took had taken to make, after the build before
+  // it. `preload`, on the first build of a process only: how long reading that
+  // build's files at startup took, when it was over before the build began.
   timings?: Timings;
   signal?: AbortSignal;
 };
@@ -99,79 +87,6 @@ const readMasm = async (
   }
 };
 
-// A debug build of the same sources, as a `DebugBuild`: a failure never fails
-// the request it's part of.
-const buildDebug = async ({
-  projectDir,
-  midencTargetDir,
-  packageName,
-  releaseManifest,
-  builtWith,
-  signal,
-}: {
-  projectDir: string;
-  midencTargetDir: string;
-  packageName: string;
-  releaseManifest: Manifest;
-  builtWith?: string;
-  signal?: AbortSignal;
-}): Promise<DebugBuild> => {
-  try {
-    const { error: cargoMidenError } = await cargoMidenBuild({
-      projectDir,
-      midencTargetDir,
-      profile: "debug",
-      signal,
-    });
-    // Before anything reads its outputs: see `buildProject`.
-    await killBuildUserProcesses();
-    if (cargoMidenError) {
-      return { error: cargoMidenError };
-    }
-    const maspPath = `${midencTargetDir}/${PROFILE_DIRS.debug}/${packageName}.masp`;
-    // Answers the generic failure: a new message would be a new contract.
-    if (
-      !(await checkBuildOutput(maspPath, midencTargetDir).then(
-        () => true,
-        () => false,
-      ))
-    ) {
-      return { error: "debug build failed" };
-    }
-    // Checked before reading it: the registry holds the whole response in
-    // memory, base64-encoded.
-    const { size } = await stat(maspPath);
-    if (size > MAX_DEBUG_MASP_BYTES) {
-      return { error: "debug build too large" };
-    }
-    const [maspBuffer, metadata] = await Promise.all([
-      readFile(maspPath),
-      midenPackageMetadata(maspPath, signal),
-    ]);
-    if ("error" in metadata) {
-      return { error: metadata.error };
-    }
-    const { commitment, manifest } = metadata.output;
-    // The simulator pairs the two builds' procedures by export path.
-    const debugPaths = new Set(procedureExportPaths(manifest));
-    if (
-      !procedureExportPaths(releaseManifest).every((path) =>
-        debugPaths.has(path),
-      )
-    ) {
-      return { error: "debug build exports differ" };
-    }
-    return {
-      masp: maspBuffer.toString("base64"),
-      commitment,
-      manifest,
-      cargoMidenVersion: builtWith,
-    };
-  } catch (error) {
-    return { error: errorMessage(error, "debug build failed") };
-  }
-};
-
 // What compiling a project yields: built, with its package and cargo-miden's
 // output, or failed, with the output alone. A failed build is an outcome the
 // routes answer, not an error.
@@ -186,19 +101,12 @@ export type Build =
       maspPath: string;
       // The cargo-miden that built it, when its version could be read.
       cargoMidenVersion?: string;
-      // Set when `expectedCommitment` was given and the build doesn't match
-      // it.
-      drift: boolean;
-      // Set when `debug` was requested, unless the build drifted.
-      debug?: DebugBuild;
       // Set when `masm` was requested.
       masm?: MasmOutput;
     } & BuiltPackage);
 
 const buildProject = async ({
   project: { files, entrypoint, name: packageName },
-  debug = false,
-  expectedCommitment,
   warmLockfile,
   masm = false,
   timings,
@@ -246,7 +154,7 @@ const buildProject = async ({
   if (cargoMidenError) {
     return { built: false, stdout, stderr: cargoMidenError };
   }
-  const maspPath = `${midencTargetDir}/${PROFILE_DIRS.release}/${packageName}.masp`;
+  const maspPath = `${midencTargetDir}/${RELEASE_DIR}/${packageName}.masp`;
   // `midenPackageMetadata`, and `miden-verifier` after it, read the same file.
   await checkBuildOutput(maspPath, midencTargetDir);
   const [maspBuffer, metadata, cargoLock, builtWith, masmOutput] = await timed(
@@ -281,34 +189,6 @@ const buildProject = async ({
     storage,
     noteStorage,
   } = metadata.output;
-  const drift =
-    expectedCommitment !== undefined &&
-    expectedCommitment.toLowerCase() !== commitment.toLowerCase();
-  // In the same queue slot as the release build, so it runs warm right after
-  // it, on the same sources and lockfile.
-  const debugBuild =
-    debug && !drift
-      ? await timed(timings, "debug", () =>
-          buildDebug({
-            projectDir,
-            midencTargetDir,
-            packageName,
-            releaseManifest: manifest,
-            builtWith,
-            signal,
-          }),
-        )
-      : undefined;
-  // The debug build ran build code again, which could have replaced the release
-  // package after it was read: the verifier reads `maspPath`, so it must still
-  // be the package this answer returns. No build user process is left to
-  // change it after this check.
-  if (debugBuild) {
-    await checkBuildOutput(maspPath, midencTargetDir);
-    if (!(await readFile(maspPath)).equals(maspBuffer)) {
-      throw new Error("build output changed after it was read");
-    }
-  }
   return {
     built: true,
     stdout,
@@ -325,8 +205,6 @@ const buildProject = async ({
     storage,
     noteStorage,
     cargoMidenVersion: builtWith,
-    drift,
-    debug: debugBuild,
     masm: masmOutput,
     // The sources with the lockfile cargo created or updated, so a client can
     // resubmit them and get the same dependency versions next time.

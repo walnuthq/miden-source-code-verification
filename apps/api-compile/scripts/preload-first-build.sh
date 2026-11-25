@@ -14,8 +14,8 @@
 # run as root, at the lowest CPU and disk priority, it changes nothing.
 #
 # The list follows what a counter-contract release build was measured to read
-# (ADR 0006, step seven), not everything a build may read: a debug build's
-# dependencies and the toolchain's other tools stay cold. A path that isn't
+# (ADR 0006, step seven), not everything a build may read: the dev-profile
+# dependencies the image still warms and the toolchain's other tools stay cold. A path that isn't
 # there is skipped; reading nothing at all is the one failure.
 set -uo pipefail
 target_dir=$1 cargo_home=$2

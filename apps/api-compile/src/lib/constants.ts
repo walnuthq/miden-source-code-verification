@@ -53,9 +53,9 @@ export const CARGO_MIDEN_BUILD_TIMEOUT_MS = 240_000;
 export const MIDEN_TOOL_TIMEOUT_MS = 60_000;
 
 // How long one request may hold the build slot, all its subprocesses together:
-// the offline build, its online retry, the debug build and the tools after
-// them. Below the 420 s the Cloudflare Worker in front of the container allows,
-// so the caller gets this 504 rather than the Worker's.
+// the offline build, its online retry and the tools after them. Below the
+// 420 s the Cloudflare Worker in front of the container allows, so the caller
+// gets this 504 rather than the Worker's.
 export const COMPILE_DEADLINE_MS = 400_000;
 
 // In the image, every build replaces the one view of the warm cache at fixed
@@ -76,12 +76,6 @@ export const IMPORT_QUEUE_SIZE = Number(process.env.IMPORT_QUEUE_SIZE ?? 16);
 // How long in-flight requests get to finish on SIGTERM. It must stay below the
 // 15 minutes Cloudflare waits during a rollout before it kills the container.
 export const SHUTDOWN_TIMEOUT_MS = 600_000;
-
-// A debug build is ~100× its release build (1.8 MB for the counter). Larger
-// ones are dropped: the debugger can't load a package whose debug info is over
-// 16 MiB (0xMiden/compiler#1430), and the registry holds the whole response in
-// a Worker's memory.
-export const MAX_DEBUG_MASP_BYTES = 16 * 1024 * 1024;
 
 // The Miden Assembly `POST /compile` returns with `masm: true` is ~40 KB for
 // the counter, most of it Wasm glue. Larger ones are left out of the response,

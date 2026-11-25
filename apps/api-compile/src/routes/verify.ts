@@ -14,11 +14,10 @@ type VerifyRequestBody = {
   networkId?: unknown;
   resourceId?: unknown;
   resource?: unknown;
-  debug?: boolean;
 };
 
 router.post("/verify", async (req, res) => {
-  const { files, entrypoint, networkId, resourceId, resource, debug } =
+  const { files, entrypoint, networkId, resourceId, resource } =
     req.body as VerifyRequestBody;
   const opened = openProject(files, entrypoint);
   if ("error" in opened) {
@@ -41,14 +40,9 @@ router.post("/verify", async (req, res) => {
   // build's files are deleted. A failed run throws a `VerifierError`, answered
   // with its status.
   const result = await queueCompile(
-    // The debug variant is built whether or not the release build verifies,
-    // in the same queue slot: verifying runs in that slot too, before the next
-    // build replaces the cache the package lives in.
-    {
-      project: opened.project,
-      debug: debug === true,
-      signal: abortOnClose(res),
-    },
+    // In the build's queue slot, before the next build replaces the cache the
+    // package lives in.
+    { project: opened.project, signal: abortOnClose(res) },
     async (build) => {
       // Without a package there is nothing to check: the failed build's
       // diagnostics are the error.
@@ -69,7 +63,6 @@ router.post("/verify", async (req, res) => {
         noteStorage,
         files: compiledFiles,
         cargoMidenVersion,
-        debug: debugBuild,
       } = build;
       const resourcePath = resource
         ? await writeResourceFile(resource)
@@ -97,7 +90,6 @@ router.post("/verify", async (req, res) => {
           noteStorage,
           files: compiledFiles,
           cargoMidenVersion,
-          debug: debugBuild,
         } satisfies VerifyResponse;
       } finally {
         if (resourcePath) {

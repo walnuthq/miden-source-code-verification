@@ -9,7 +9,5 @@ export const fakeApiCompile = (
   verify: () => Promise.reject(new Error("verify was not expected")),
   importResource: () =>
     Promise.reject(new Error("importResource was not expected")),
-  compileDebug: () =>
-    Promise.reject(new Error("compileDebug was not expected")),
   ...calls,
 });

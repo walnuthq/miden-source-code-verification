@@ -158,9 +158,10 @@ COPY --chmod=755 apps/api-compile/scripts/lay-out-warm-cache.sh /usr/local/bin/l
 # Copy project template
 WORKDIR /cache/examples
 COPY apps/api-compile/examples .
-# Warm cargo's dependency cache, in both profiles: each verification also
-# builds its debug variant (dev profile), whose dependencies cargo builds
-# separately from the release ones. One example is enough: user builds run in
+# Warm cargo's dependency cache. The dev-profile build is left over from the
+# debug variant, which api-compile no longer builds: it only adds image size,
+# and goes with the rest of the cargo stages (spec/remove-rust plan 08) rather
+# than force a cold rebuild of this layer now. One example is enough: user builds run in
 # a fresh directory, so all they reuse from here is the compiled registry
 # crates, and every example's Cargo.lock pins the same ones. `--locked`: the
 # downloaded crates are what user builds resolve against (they run

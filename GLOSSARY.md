@@ -47,7 +47,7 @@ What compiling a project yields: built, with its package and cargo-miden's outpu
 _Avoid_: compile result, compilation output
 
 **Debug build**:
-The dev-profile build of a verified package's sources, kept so a simulator can name call-trace frames. It never decides whether anything is verified.
+The dev-profile build of a verified package's sources, kept so a simulator can name call-trace frames. It never decided whether anything is verified. No longer made: the registry serves only the ones it stored before (`<commitment>.debug.masp`). A MASM package carries its debug info in the one package that verifies.
 _Avoid_: dev build, debug package
 
 ### Sources
