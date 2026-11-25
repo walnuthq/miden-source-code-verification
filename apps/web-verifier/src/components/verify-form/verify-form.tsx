@@ -290,7 +290,7 @@ export function VerifyForm({
               <Info />
               <AlertTitle>Upload source code to verify this {kind}</AlertTitle>
               <AlertDescription className="text-blue-700/90 dark:text-blue-400/90">
-                Select the folder of the Rust project to verify. If the project
+                Select the folder of the Miden project to verify. If the project
                 has local dependencies, select the parent directory containing
                 both the project and its dependencies, then choose the project
                 as the entrypoint.

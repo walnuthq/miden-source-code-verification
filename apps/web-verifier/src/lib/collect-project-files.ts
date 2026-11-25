@@ -1,11 +1,24 @@
 // Filters a directory selected via a `webkitdirectory` input down to the subset
 // the verifier cares about, and reads the kept files into a path -> content map.
 //
-// Port of the Rust logic in walnuthq/miden-verify (`is_included` / `collect_files`):
-// keep files under any `src/` dir, plus `Cargo.toml`, `Cargo.lock`, `build.rs`,
-// `miden-project.toml`, `rust-toolchain.toml` and `.cargo/config.toml`; prune
-// `target/` and hidden dirs (except `.cargo`). `Cargo.lock` pins dependency
-// versions, so the verifier builds what the author built.
+// A project is a directory holding a `miden-project.toml` or a `Cargo.toml`. It
+// is a Rust project when a `Cargo.toml` sits there, a MASM project otherwise.
+// A file belongs to the nearest project above it. Kept files:
+//
+// - every `*.masm` file and every `miden-project.toml`, wherever it sits: a
+//   MASM manifest's `[lib] path` can point anywhere;
+// - in a Rust project, or outside any project, also the rules of the
+//   walnuthq/miden-verify CLI (`is_included`): files under any `src/` dir, plus
+//   `Cargo.toml`, `Cargo.lock`, `build.rs`, `rust-toolchain.toml` and
+//   `.cargo/config.toml`. `Cargo.lock` pins dependency versions, so the
+//   verifier builds what the author built. Outside any project, because a Rust
+//   workspace can keep `.cargo/config.toml` above its crates.
+//
+// `target/` and hidden dirs (except `.cargo`) are pruned everywhere.
+//
+// The entrypoints are the project directories, plus the root (`.`) when it
+// holds a `miden-project.toml`. A root holding only a `Cargo.toml` is a Rust
+// workspace, not something to build, so it stays out of the list.
 
 export type ProjectFiles = {
   files: Record<string, string>;
@@ -27,59 +40,95 @@ function stripRoot(path: string): string {
   return slash === -1 ? path : path.slice(slash + 1);
 }
 
-// Mirrors the Rust walker pruning `target/` and hidden dirs other than `.cargo`.
-// Runs before inclusion: a `src` dir can exist under `target`.
+// Mirrors the CLI's walker pruning `target/` and hidden dirs other than `.cargo`.
 function isSkippedDir(parents: string[]): boolean {
   return parents.some(
     (part) => part === "target" || (part.startsWith(".") && part !== ".cargo"),
   );
 }
 
-function isIncluded(rel: string): boolean {
-  const parts = rel.split("/");
-  const name = parts[parts.length - 1];
-  const parents = parts.slice(0, -1);
+function isRustBuildInput(name: string, parents: string[]): boolean {
   if (parents.includes("src")) return true;
   if (
     name === "Cargo.toml" ||
     name === "Cargo.lock" ||
     name === "build.rs" ||
-    name === "miden-project.toml" ||
     name === "rust-toolchain.toml"
   )
     return true;
-  if (name === "config.toml" && parents[parents.length - 1] === ".cargo") {
-    return true;
+  return name === "config.toml" && parents[parents.length - 1] === ".cargo";
+}
+
+function isMasmBuildInput(name: string): boolean {
+  return name === "miden-project.toml" || name.endsWith(".masm");
+}
+
+type ProjectKind = "rust" | "masm";
+
+type SplitPath = { rel: string; name: string; parents: string[] };
+
+function splitPath(rel: string): SplitPath {
+  const parts = rel.split("/");
+  return { rel, name: parts[parts.length - 1], parents: parts.slice(0, -1) };
+}
+
+// The kind of each project directory, keyed by its path ("" for the root).
+function findProjects(paths: SplitPath[]): Map<string, ProjectKind> {
+  const projects = new Map<string, ProjectKind>();
+  for (const { name, parents } of paths) {
+    const dir = parents.join("/");
+    if (name === "Cargo.toml") projects.set(dir, "rust");
+    else if (name === "miden-project.toml" && !projects.has(dir)) {
+      projects.set(dir, "masm");
+    }
   }
-  return false;
+  return projects;
+}
+
+// The kind of the nearest project holding the file, or null outside any.
+function owningProjectKind(
+  parents: string[],
+  projects: Map<string, ProjectKind>,
+): ProjectKind | null {
+  for (let depth = parents.length; depth >= 0; depth--) {
+    const kind = projects.get(parents.slice(0, depth).join("/"));
+    if (kind) return kind;
+  }
+  return null;
 }
 
 /**
  * Pure path filtering over raw `webkitRelativePath` strings. Returns the kept
- * paths (relative to the selected folder) and the entrypoints: directories that
- * directly contain a `Cargo.toml`, as folder names, with the root excluded.
+ * paths (relative to the selected folder) and the sorted entrypoints.
  */
 export function selectProjectFiles(webkitRelativePaths: string[]): {
   includedPaths: string[];
   entrypoints: string[];
 } {
-  const includedPaths: string[] = [];
-  const entrypoints = new Set<string>();
+  // Pruning runs first: a `src` dir or a manifest can exist under `target`.
+  const paths = webkitRelativePaths
+    .map((path) => splitPath(stripRoot(path)))
+    .filter(({ parents }) => !isSkippedDir(parents));
+  const projects = findProjects(paths);
 
-  for (const path of webkitRelativePaths) {
-    const rel = stripRoot(path);
-    const parts = rel.split("/");
-    const parents = parts.slice(0, -1);
-    if (isSkippedDir(parents) || !isIncluded(rel)) continue;
+  const includedPaths = paths
+    .filter(
+      ({ name, parents }) =>
+        isMasmBuildInput(name) ||
+        (owningProjectKind(parents, projects) !== "masm" &&
+          isRustBuildInput(name, parents)),
+    )
+    .map(({ rel }) => rel);
 
-    includedPaths.push(rel);
-    if (parts[parts.length - 1] === "Cargo.toml") {
-      const dir = parents.join("/");
-      if (dir) entrypoints.add(dir);
-    }
-  }
-
-  return { includedPaths, entrypoints: [...entrypoints].sort() };
+  const rootHasManifest = paths.some(
+    ({ name, parents }) =>
+      parents.length === 0 && name === "miden-project.toml",
+  );
+  const entrypoints = [...projects.keys()]
+    .filter((dir) => dir !== "")
+    .concat(rootHasManifest ? ["."] : [])
+    .sort();
+  return { includedPaths, entrypoints };
 }
 
 // Reads a file's text content; `null` when its bytes aren't UTF-8.
