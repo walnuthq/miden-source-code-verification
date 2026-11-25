@@ -58,7 +58,8 @@ const onConflictTakeOverPlayground = <TSet, TInsert>(
       });
 
 // The `schemas` column of what api-compile read of a package: only the
-// schemas it has, so `{}` for one with none (no keys set to `undefined`).
+// schemas it has, so `{}` for one with none (no keys set to `undefined`), as
+// every MASM package is.
 const schemasOf = ({
   storage,
   noteStorage,
@@ -71,7 +72,7 @@ const schemasOf = ({
 // same new package inserted it since the read outside the transaction.
 const insertPackage = async (
   tx: Transaction,
-  { name, entrypoint }: Project,
+  { name, entrypoint, kind }: Project,
   build: VerifyResponse,
 ) => {
   const [inserted] = await tx
@@ -79,18 +80,22 @@ const insertPackage = async (
     .values({
       name,
       type: build.kind,
-      // Keeps the lockfile with the sources, so the record pins the
-      // dependency versions that produced `commitment`.
+      // For a Rust project, keeps the lockfile with the sources, so the
+      // record pins the dependency versions that produced `commitment`. A
+      // MASM project has none: its files come back as sent.
       files: build.files,
       commitment: build.commitment,
       manifest: build.manifest,
       readOnly: build.readOnly,
       schemas: schemasOf(build),
       // `{}` when api-compile answers no names: its tool couldn't parse the
-      // package's WIT (a package without one already gives `{}`).
+      // package's WIT or MASM source (a package without one already gives
+      // `{}`).
       parameters: build.parameters ?? {},
       entrypoint,
-      builtWith: build.cargoMidenVersion,
+      // The toolchain that built it: cargo-miden's version, or the versions
+      // the assembler was built with.
+      builtWith: kind === "rust" ? build.cargoMidenVersion : build.builtWith,
     })
     .onConflictDoNothing({ target: packagesTable.commitment })
     .returning({ id: packagesTable.id });

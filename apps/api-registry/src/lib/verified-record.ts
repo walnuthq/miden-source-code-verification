@@ -15,6 +15,7 @@ import type {
   verifiedNoteScriptTable,
 } from "../db/schema.ts";
 import { type ApiCompile, ApiCompileError } from "./api-compile.ts";
+import { debugBuildOf } from "./debug-build.ts";
 import type { Resource } from "./verify-resource.ts";
 
 // The kind of a resource, which picks the table its verified record is in.
@@ -38,6 +39,13 @@ type AccountRow = typeof verifiedAccountCodeTable.$inferSelect & {
 };
 type NoteRow = typeof verifiedNoteScriptTable.$inferSelect & {
   package: PackageRow;
+};
+
+// The commitment of a package's debug build, as the `.debug.masp` route
+// sends it, or null when it has none.
+const debugCommitmentOf = (row: PackageRow) => {
+  const debugBuild = debugBuildOf(row);
+  return debugBuild ? { commitment: debugBuild.commitment } : null;
 };
 
 // What the registry answers for each row, field by field: the wire format is
@@ -74,10 +82,8 @@ const toVerifiedAccountComponent = (
   updatedAt: row.updatedAt.toISOString(),
   package: toPackage(row.package),
   // Whether the simulator can name the component's call-trace frames, without
-  // fetching its debug build first.
-  debugPackage: row.package.debugCommitment
-    ? { commitment: row.package.debugCommitment }
-    : null,
+  // fetching its debug build first: a MASM package is its own.
+  debugPackage: debugCommitmentOf(row.package),
 });
 
 const toVerifiedAccount = (row: AccountRow): VerifiedAccount => ({

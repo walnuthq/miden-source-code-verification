@@ -55,7 +55,7 @@ describe("POST /:networkId/verified-accounts", () => {
     expect(res.body).toHaveProperty("error", "missing accountId");
   });
 
-  it("rejects requests missing Cargo.toml", async () => {
+  it("rejects a files map with neither manifest", async () => {
     const files = await readProjectFiles(
       `${counterContractDir}/counter-contract`,
     );
@@ -65,7 +65,7 @@ describe("POST /:networkId/verified-accounts", () => {
       files: { "src/lib.rs": files["src/lib.rs"] },
     });
     expect(res.status).toBe(400);
-    expect(res.body).toHaveProperty("error", "missing Cargo.toml");
+    expect(res.body).toHaveProperty("error", "missing miden-project.toml");
   });
 
   it("rejects a file path that would leave the project", async () => {

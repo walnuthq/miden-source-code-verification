@@ -4,6 +4,7 @@ import {
   parseMaspKey,
 } from "miden-source-code-verification-utils/api-registry";
 import { getPackage } from "../../db/packages.ts";
+import { debugBuildOf } from "../../lib/debug-build.ts";
 import { getMaspStore } from "../../storage/masp-store.ts";
 
 const router: Router = Router();
@@ -21,13 +22,15 @@ const router: Router = Router();
  *       consistency with the other endpoints.
  *
  *       Request `{packageCommitment}.debug.masp` instead for the package's
- *       **debug build**: the same sources built with the dev profile
- *       (`cargo miden build` without `--release`), whose debug info names
- *       call-trace frames. It has its own commitment, sent in
- *       `X-Debug-Commitment`, and other procedure roots: it isn't the deployed
- *       code and doesn't verify anything. `{packageCommitment}` is still the
- *       release build's. Only packages verified before debug builds were
- *       retired have one.
+ *       **debug build**, whose debug info names call-trace frames. Its
+ *       commitment is sent in `X-Debug-Commitment`. For a Rust package it is
+ *       the same sources built with the dev profile (`cargo miden build`
+ *       without `--release`), with its own commitment and other procedure
+ *       roots: it isn't the deployed code and doesn't verify anything.
+ *       `{packageCommitment}` is still the release build's. Only Rust
+ *       packages verified before debug builds were retired have one. A MASM
+ *       package is one package with debug info: its `.debug.masp` is the
+ *       package itself, and `X-Debug-Commitment` is `{packageCommitment}`.
  *     parameters:
  *       - in: path
  *         name: networkId
@@ -52,7 +55,8 @@ const router: Router = Router();
  *           Content-Disposition:
  *             description: >
  *               `attachment`, with a file name taken from the package's name
- *               as Rust spells the crate (each run of characters outside
+ *               (from its `Cargo.toml` or `miden-project.toml`) as Rust
+ *               spells the crate (each run of characters outside
  *               `[A-Za-z0-9.]` replaced by `_`, leading `_` dropped):
  *               `counter_contract.masp` for `counter-contract`, or
  *               `counter_contract.debug.masp` for its debug build. This is
@@ -63,8 +67,8 @@ const router: Router = Router();
  *               type: string
  *           X-Debug-Commitment:
  *             description: >
- *               The debug build's own commitment (32-byte hex). Only sent for
- *               a `.debug.masp`.
+ *               The debug build's own commitment (32-byte hex), the package's
+ *               own for a MASM package. Only sent for a `.debug.masp`.
  *             schema:
  *               type: string
  *         content:
@@ -114,15 +118,18 @@ router.get("/:networkId/packages/masp/:file", async (req, res) => {
   }
   const { commitment, variant } = key;
   // The row names the download, and for a `.debug.masp` says whether there
-  // is a debug build and gives its commitment.
+  // is a debug build, where it is stored and its commitment.
   const dbPackage = await getPackage(commitment);
-  const debugCommitment =
-    variant === "debug" ? (dbPackage?.debugCommitment ?? null) : null;
-  if (variant === "debug" && !debugCommitment) {
+  const debugBuild =
+    variant === "debug" && dbPackage ? debugBuildOf(dbPackage) : null;
+  if (variant === "debug" && !debugBuild) {
     res.status(404).json({ error: "package debug masp not found" });
     return;
   }
-  const masp = await getMaspStore(req).get(commitment, variant);
+  const masp = await getMaspStore(req).get(
+    commitment,
+    debugBuild?.variant ?? variant,
+  );
   if (!masp) {
     res.status(404).json({
       error:
@@ -132,8 +139,8 @@ router.get("/:networkId/packages/masp/:file", async (req, res) => {
     });
     return;
   }
-  if (debugCommitment) {
-    res.set("X-Debug-Commitment", debugCommitment);
+  if (debugBuild) {
+    res.set("X-Debug-Commitment", debugBuild.commitment);
   }
   res
     // Named after the package, so a cross-origin link (whose `download`

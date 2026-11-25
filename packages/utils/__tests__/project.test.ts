@@ -3,6 +3,7 @@ import {
   cargoPackageName,
   inferEntrypoint,
   openProject,
+  storedProjectKind,
 } from "../src/project.ts";
 
 const cargoToml = (name: string) => `[package]\nname = "${name}"\n`;
@@ -316,5 +317,28 @@ describe("inferEntrypoint", () => {
       "miden-project.toml": "",
     };
     expect(inferEntrypoint(files, "counter-contract")).toBeNull();
+  });
+});
+
+describe("storedProjectKind", () => {
+  it("is rust with a Cargo.toml at the entrypoint", () => {
+    const files = {
+      "counter-note/Cargo.toml": "",
+      "counter-note/miden-project.toml": "",
+    };
+    expect(storedProjectKind(files, "counter-note")).toBe("rust");
+  });
+
+  it("is masm with no Cargo.toml at the entrypoint", () => {
+    const files = {
+      "Cargo.toml": "",
+      "counter-note/miden-project.toml": "",
+    };
+    expect(storedProjectKind(files, "counter-note")).toBe("masm");
+    expect(storedProjectKind({ "miden-project.toml": "" }, ".")).toBe("masm");
+  });
+
+  it("is rust for a project stored without its entrypoint", () => {
+    expect(storedProjectKind({ "miden-project.toml": "" }, null)).toBe("rust");
   });
 });

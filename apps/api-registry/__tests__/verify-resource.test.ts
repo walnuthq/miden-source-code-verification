@@ -18,7 +18,7 @@ import {
   createFsMaspStore,
   type MaspStore,
 } from "../src/storage/masp-store.ts";
-import { fakeApiCompile } from "./fake-api-compile.ts";
+import { fakeApiCompile, masmVerified } from "./fake-api-compile.ts";
 
 // Runs the verification in-process, against the local database, with
 // api-compile faked: the only way to see what recording the same root twice
@@ -534,6 +534,60 @@ describe("verifyResource", () => {
         `0x${"56".repeat(32)}`,
       );
       expect(await getPackage(COMMITMENT)).toHaveProperty("parameters", {});
+    });
+  });
+  describe("a MASM project", () => {
+    const MASM_COMMITMENT = `0x${"bb".repeat(32)}`;
+    const masmFiles = {
+      "miden-project.toml": '[package]\nname = "counter-contract"\n',
+      "counter_contract.masm": "pub proc increment_count(amount: felt)\nend\n",
+    };
+    const masmProject = {
+      files: masmFiles,
+      entrypoint: ".",
+      name: "counter-contract",
+      kind: "masm" as const,
+    };
+
+    it("stores its package as a Rust one's, with the assembler as builtWith", async () => {
+      const root = `0x${"61".repeat(32)}`;
+      const answer = masmVerified(masmFiles, MASM_COMMITMENT);
+      expect(
+        await verifyResource({
+          networkId: "mtst",
+          resource: ACCOUNT,
+          project: masmProject,
+          maspStore,
+          apiCompile: fakeApiCompile({
+            verify: async () => ({ ...answer, root }),
+          }),
+        }),
+      ).toBe(true);
+
+      expect(await getPackage(MASM_COMMITMENT)).toMatchObject({
+        name: "counter-contract",
+        type: "account-component",
+        files: masmFiles,
+        entrypoint: ".",
+        builtWith: "miden-assembly 0.36.5, miden-protocol 0.18.0",
+        debugCommitment: null,
+        debugBuiltWith: null,
+        schemas: {},
+        parameters: answer.parameters,
+        readOnly: answer.readOnly,
+      });
+      expect(
+        Buffer.from((await maspStore.get(MASM_COMMITMENT)) ?? []).toString(),
+      ).toBe("masm package");
+      const record = await findVerifiedRecordByRoot({
+        networkId: "mtst",
+        kind: "account",
+        root,
+      });
+      expect(record.verifiedAccountComponents[0]).toHaveProperty(
+        "debugPackage",
+        { commitment: MASM_COMMITMENT },
+      );
     });
   });
 });

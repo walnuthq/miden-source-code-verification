@@ -53,7 +53,7 @@ describe("POST /:networkId/verified-notes", () => {
     expect(res.body).toHaveProperty("error", "missing noteId");
   });
 
-  it("rejects requests missing Cargo.toml", async () => {
+  it("rejects a files map with neither manifest", async () => {
     const files = await readProjectFiles(counterContractDir);
     const res = await apiV1.post(`/${networkId}/verified-notes`).send({
       noteId: COUNTER_NOTE_ID_1,
@@ -63,7 +63,7 @@ describe("POST /:networkId/verified-notes", () => {
       entrypoint: "counter-note",
     });
     expect(res.status).toBe(400);
-    expect(res.body).toHaveProperty("error", "missing Cargo.toml");
+    expect(res.body).toHaveProperty("error", "missing miden-project.toml");
   });
 
   it("doesn't verify a buggy counter-note", async () => {
