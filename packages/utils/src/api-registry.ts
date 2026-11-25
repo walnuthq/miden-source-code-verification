@@ -21,31 +21,35 @@ import type {
 // from and what api-compile read of the build. Timestamps are ISO 8601.
 export type Package = {
   id: string;
-  // From the project's `Cargo.toml`.
+  // The `[package] name` of the project's `Cargo.toml`, or of its
+  // `miden-project.toml` for a MASM project.
   name: string;
   type: TargetType;
-  // The sources plus the lockfile the build used, keyed by project-relative
-  // path: the exact inputs behind `commitment`.
+  // The sources, keyed by project-relative path: the exact inputs behind
+  // `commitment`, with the lockfile the build used for a Rust project.
   files: Record<string, string>;
   commitment: string;
   manifest: Manifest;
   // The project directory within `files` the package was built from (`.` for
   // the root). Null for packages recorded before it was stored.
   entrypoint: string | null;
-  // The cargo-miden that built it, when known.
+  // The toolchain that built it, when known: cargo-miden's version for a Rust
+  // package, the versions the assembler was built with for a MASM one
+  // (`miden-assembly 0.36.4, miden-protocol 0.18.0`).
   builtWith: string | null;
   // The debug build of the same sources: its own commitment, served at
   // `packageMaspPath(…, "debug")`, and the cargo-miden that built it. Null
-  // until it has one.
+  // for every package verified since debug builds were retired, and for every
+  // MASM package.
   debugCommitment: string | null;
   debugBuiltWith: string | null;
   // Whether each exported procedure is read-only, by export path.
   readOnly: ReadOnlyProcedures;
   // Its storage schemas: an account component's storage slots, a note's
-  // storage fields.
+  // storage fields. `{}` for a MASM package, which has none.
   schemas: PackageSchemas;
-  // Each exported procedure's parameter names and types, by export path (see
-  // `ProcedureParameters` in `manifest.ts`).
+  // Each exported procedure's parameter names and types, by export path, from
+  // the WIT or the MASM source (see `ProcedureParameters` in `manifest.ts`).
   parameters: ProcedureParameters;
   createdAt: string;
   updatedAt: string;
@@ -65,7 +69,8 @@ export type VerifiedAccountComponent = {
   updatedAt: string;
   package: Package;
   // The package's debug build, whose debug info names call-trace frames, or
-  // null when it has none: known without fetching the build first.
+  // null when it has none: known without fetching the build first. A MASM
+  // package is its own debug build, under its own commitment.
   debugPackage: { commitment: string } | null;
 };
 
@@ -147,6 +152,7 @@ export const parseMaspKey = (
 // for `counter-contract` or `counter_contract.debug.masp` for its debug build:
 // the package name as Rust spells the crate, which is how cargo-miden names the
 // artifact and what the simulator's `miden-client call --package` line uses.
+// A MASM package's `miden-project.toml` name is spelled the same way.
 // Each run of characters outside `[A-Za-z0-9.]` becomes `_`, then leading `_`
 // are dropped, so WIT-style names (`miden:basic-wallet/basic-wallet`) work too.
 // When nothing is left of the name, the artifact's key. The registry sends it

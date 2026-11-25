@@ -140,11 +140,10 @@ export const cargoPackageName = (cargoToml: string) => {
 // `<path>/miden-project.toml is not valid TOML`,
 // `<path>/miden-project.toml has no [package]`.
 //
-// MASM projects are opened only with `masm: true`, which api-compile passes;
-// without it a files map with no `Cargo.toml` at its entrypoint is refused
-// with `missing Cargo.toml`, as before MASM projects existed. The registry
-// opens Rust projects only until it learns to store MASM ones
-// (spec/remove-rust, plan 05).
+// MASM projects are opened only with `masm: true`, which api-compile and the
+// registry pass; without it a files map with no `Cargo.toml` at its
+// entrypoint is refused with `missing Cargo.toml`, as before MASM projects
+// existed.
 export const openProject = (
   files: unknown,
   entrypoint?: unknown,
@@ -209,6 +208,18 @@ export const openProject = (
     },
   };
 };
+
+// The kind of a project the registry stored: Rust when its `files` hold a
+// `Cargo.toml` at its entrypoint, MASM otherwise. A project stored before its
+// entrypoint was recorded (`null`) is a Rust one: MASM projects came later.
+export const storedProjectKind = (
+  files: Record<string, string>,
+  entrypoint: string | null,
+): ProjectKind =>
+  entrypoint === null ||
+  Object.hasOwn(files, projectPath(entrypoint, CARGO_TOML))
+    ? "rust"
+    : "masm";
 
 // The inverse of `openProject` for a project stored before its entrypoint was
 // recorded: the one entrypoint in `files` whose `Cargo.toml` names `name` and

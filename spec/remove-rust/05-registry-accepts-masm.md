@@ -24,14 +24,14 @@ The registry verifies, stores and serves a MASM project as it does a Rust one. R
 ## Steps
 
 1. Follow a MASM project through `POST /v1/{network}/verified-accounts` and `/verified-notes` and fix what assumes Rust: the validation messages, the record written, the files stored.
-2. Columns keep their names with wider meanings: `built_with` takes api-compile's `builtWith` for a MASM package; `schemas` is null; `parameters` holds the names read from the source; `files` holds the project without a lockfile. Update the schema's comments. No migration.
-3. Debug package. A MASM package is one dev package (decision 5). For a MASM row, as for every row since plan 01, `debug_built_with` and the debug commitment stay null. The `.debug.masp` route answers a MASM row with the one stored package and its commitment in `X-Debug-Commitment`, so Walnut's simulator keeps working unchanged until plan 09 removes the route.
+2. Columns keep their names with wider meanings: `built_with` takes api-compile's `builtWith` for a MASM package; `schemas` is `{}` (done: the column is NOT NULL since the storage-schemas rollout, and `{}` is its value for a package with none, so null would need a migration); `parameters` holds the names read from the source; `files` holds the project without a lockfile. Update the schema's comments. No migration.
+3. Debug package. A MASM package is one dev package (decision 5). For a MASM row, as for every row since plan 01, `debug_built_with` and the debug commitment stay null. The `.debug.masp` route answers a MASM row with the one stored package and its commitment in `X-Debug-Commitment`, so Walnut's simulator keeps working unchanged until plan 09 removes the route. Done: `debugPackage` on a MASM component names the same commitment, so the simulator, which reads it before fetching, finds that build.
 4. `packageMaspPath`: for a MASM package use the `[package] name` with `-` turned into `_`, the same spelling as today, so download names don't change shape.
 5. Telling the two kinds apart, where code must: a row is Rust-built when its `files` hold a `Cargo.toml` at the entrypoint. No new column (decision 6).
 6. Admin routes that rebuild from stored sources: none left since plan 01 removed the debug-build backfill. Nothing to do.
 7. The Playground promotion and cleanup paths (`lib/playground.ts`, `lib/cleanup-playground.ts`): check they don't read a Rust-only field.
 8. OpenAPI: describe both project kinds for now ("a Miden project: MASM, or Rust until its removal").
-9. Tests in `apps/api-registry/__tests__/`: verify the MASM fixtures from plan 04 (account and note), read them back through the package, sources, `.masp` and `.debug.masp` routes, and check `schemas` is null and `parameters` has names. `fake-api-compile.ts` gains a MASM answer. Existing tests stay green.
+9. Tests in `apps/api-registry/__tests__/`: verify the MASM fixtures from plan 04 (account and note), read them back through the package, sources, `.masp` and `.debug.masp` routes, and check `schemas` is `{}` and `parameters` has names. `fake-api-compile.ts` gains a MASM answer. Existing tests stay green.
 
 ## Verification
 

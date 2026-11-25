@@ -15,6 +15,7 @@ import type {
   verifiedNoteScriptTable,
 } from "../db/schema.ts";
 import { type ApiCompile, ApiCompileError } from "./api-compile.ts";
+import { debugBuildOf } from "./debug-build.ts";
 import type { Resource } from "./verify-resource.ts";
 
 // The kind of a resource, which picks the table its verified record is in.
@@ -64,21 +65,22 @@ const toPackage = (row: PackageRow): Package => ({
 
 const toVerifiedAccountComponent = (
   row: ComponentRow,
-): VerifiedAccountComponent => ({
-  id: row.id,
-  verifiedAccountId: row.verifiedAccountId,
-  packageId: row.packageId,
-  packageCommitment: row.packageCommitment,
-  source: row.source,
-  createdAt: row.createdAt.toISOString(),
-  updatedAt: row.updatedAt.toISOString(),
-  package: toPackage(row.package),
-  // Whether the simulator can name the component's call-trace frames, without
-  // fetching its debug build first.
-  debugPackage: row.package.debugCommitment
-    ? { commitment: row.package.debugCommitment }
-    : null,
-});
+): VerifiedAccountComponent => {
+  const debugBuild = debugBuildOf(row.package);
+  return {
+    id: row.id,
+    verifiedAccountId: row.verifiedAccountId,
+    packageId: row.packageId,
+    packageCommitment: row.packageCommitment,
+    source: row.source,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+    package: toPackage(row.package),
+    // Whether the simulator can name the component's call-trace frames, without
+    // fetching its debug build first: a MASM package is its own.
+    debugPackage: debugBuild ? { commitment: debugBuild.commitment } : null,
+  };
+};
 
 const toVerifiedAccount = (row: AccountRow): VerifiedAccount => ({
   id: row.id,

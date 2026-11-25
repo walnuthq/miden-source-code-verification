@@ -26,9 +26,12 @@ export const packagesTable = pgTable(
     id: uuid().primaryKey().defaultRandom(),
     name: varchar({ length: 255 }).notNull().default(""),
     type: packageTypeEnum().notNull().default("account-component"),
-    // The sources, keyed by project-relative path, and the manifest, as
-    // api-compile answers them. Typed after the `{}` defaults, which predate
-    // both being required: an insert always supplies them.
+    // The sources, keyed by project-relative path (with the build's
+    // `Cargo.lock` for a Rust project; a MASM project as sent), and the
+    // manifest, as api-compile answers them. A row is Rust-built when its
+    // files hold a `Cargo.toml` at its entrypoint (`storedProjectKind`).
+    // Typed after the `{}` defaults, which predate both being required: an
+    // insert always supplies them.
     files: jsonb().notNull().default({}).$type<Record<string, string>>(),
     commitment: varchar({ length: 66 })
       .notNull()
@@ -39,12 +42,16 @@ export const packagesTable = pgTable(
     // The project directory within `files` the package was built from (`.` for
     // the root). Null on rows from before it was recorded.
     entrypoint: text(),
-    // `cargo miden --version` of the build. Null when unknown.
+    // The toolchain of the build: `cargo miden --version` for a Rust package,
+    // api-compile's `builtWith` (the assembler's crate versions) for a MASM
+    // one. Null when unknown.
     builtWith: varchar("built_with", { length: 64 }),
     // The debug build of the same sources (a dev-profile build, whose debug info
     // names call-trace frames), stored as `<commitment>.debug.masp`: its own
     // commitment, and the cargo-miden that built it. Null for a package with
-    // none, which is every new row: api-compile no longer builds them.
+    // none, which is every new row: api-compile no longer builds them. A MASM
+    // package is one package with debug info, which the `.debug.masp` route
+    // serves (`debugBuildOf`), so these stay null for it too.
     debugCommitment: varchar("debug_commitment", { length: 66 }),
     debugBuiltWith: varchar("debug_built_with", { length: 64 }),
     // Whether each exported procedure is read-only, by export path, as
@@ -52,13 +59,14 @@ export const packagesTable = pgTable(
     // default, like `networkId`, so an insert that forgets it fails to compile.
     readOnly: jsonb("read_only").$type<ReadOnlyProcedures>().notNull(),
     // Its storage schemas, as api-compile reads them from the package
-    // (`PackageSchemas`): `{}` for a package with none. Without a default,
-    // like `readOnly`, so an insert that forgets it fails to compile.
+    // (`PackageSchemas`): `{}` for a package with none, as every MASM package
+    // is. Without a default, like `readOnly`, so an insert that forgets it
+    // fails to compile.
     schemas: jsonb().$type<PackageSchemas>().notNull(),
     // Each exported procedure's parameter names and types, as api-compile
-    // reads them from the package's WIT (`ProcedureParameters`): `{}` for a
-    // package without one. Without a default, like `readOnly`, so an insert
-    // that forgets it fails to compile.
+    // reads them from the package's WIT, or from the source of a MASM package
+    // (`ProcedureParameters`): `{}` for a package without either. Without a
+    // default, like `readOnly`, so an insert that forgets it fails to compile.
     parameters: jsonb().$type<ProcedureParameters>().notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),

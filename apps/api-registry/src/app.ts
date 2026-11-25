@@ -186,7 +186,7 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *       type: object
  *       description: >
  *         A package's storage schemas. A key is absent when the package has no
- *         such schema.
+ *         such schema: `{}` for a MASM package, which has none.
  *       properties:
  *         storage:
  *           type: object
@@ -211,23 +211,30 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *                 $ref: '#/components/schemas/NoteStorageField'
  *     Package:
  *       type: object
- *       description: A compiled Rust source package recorded in the registry.
+ *       description: >
+ *         A compiled Miden project recorded in the registry: a MASM project
+ *         (`miden-project.toml`), or a Rust one (`Cargo.toml`) until Rust
+ *         support is removed.
  *       properties:
  *         id:
  *           type: string
  *           format: uuid
  *         name:
  *           type: string
- *           description: Package name from its `Cargo.toml`.
+ *           description: >
+ *             Package name: the `[package] name` of its `Cargo.toml`, or of its
+ *             `miden-project.toml` for a MASM project.
  *         type:
  *           $ref: '#/components/schemas/PackageType'
  *         files:
  *           type: object
  *           description: >
  *             Map of project-relative file paths to their UTF-8 source contents
- *             (the exact inputs that were compiled). Includes the `Cargo.lock`
- *             the build used, even when the verification request didn't send
- *             one, so the dependency versions behind `commitment` are recorded.
+ *             (the exact inputs that were compiled). For a Rust project,
+ *             includes the `Cargo.lock` the build used, even when the
+ *             verification request didn't send one, so the dependency versions
+ *             behind `commitment` are recorded. A MASM project is stored as
+ *             sent: it has no lockfile.
  *           additionalProperties:
  *             type: string
  *         commitment:
@@ -246,14 +253,19 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *             stored.
  *         builtWith:
  *           type: [string, "null"]
- *           description: Version of cargo-miden that built the package, when known.
+ *           description: >
+ *             The toolchain that built the package, when known: the version of
+ *             cargo-miden for a Rust project, the versions the assembler was
+ *             built with for a MASM one (`miden-assembly 0.36.4,
+ *             miden-protocol 0.18.0`).
  *         debugCommitment:
  *           type: [string, "null"]
  *           description: >
  *             Commitment of the package's debug build (32-byte hex), served as
  *             `/v1/{networkId}/packages/masp/{commitment}.debug.masp`. Null
  *             when it has none: packages verified since debug builds were
- *             retired have none.
+ *             retired have none, and a MASM package, which is its own debug
+ *             build (see `debugPackage`), has none either.
  *         debugBuiltWith:
  *           type: [string, "null"]
  *           description: Version of cargo-miden that built the debug build, when known.
@@ -273,13 +285,15 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *           type: object
  *           description: >
  *             Each exported procedure's parameters, in order, keyed by its
- *             export path, from the WIT the toolchain embeds in the package:
- *             each one's `name` and `type` as the WIT spells them, in kebab
- *             case (`deposit-asset`, `account-id`; a type with no name gives
- *             its kind, such as `list`). An export is listed only when its WIT
- *             function has as many parameters as its signature, so the two
- *             pair by index. `{}` for a package without a WIT (a transaction
- *             script) or whose WIT couldn't be read.
+ *             export path. For a Rust project, from the WIT the toolchain
+ *             embeds in the package: each one's `name` and `type` as the WIT
+ *             spells them, in kebab case (`deposit-asset`, `account-id`; a type
+ *             with no name gives its kind, such as `list`). An export is listed
+ *             only when its WIT function has as many parameters as its
+ *             signature, so the two pair by index. `{}` for a package without a
+ *             WIT (a transaction script) or whose WIT couldn't be read. For a
+ *             MASM project, the names from its source, with the types of the
+ *             package's signatures.
  *           additionalProperties:
  *             type: array
  *             items:
@@ -333,6 +347,8 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *             The component package's debug build, whose debug info names
  *             call-trace frames, or null when it has none. Download it from
  *             `/v1/{networkId}/packages/masp/{packageCommitment}.debug.masp`.
+ *             A MASM package carries its debug info itself: its debug build is
+ *             the package, under the package's own commitment.
  *           properties:
  *             commitment:
  *               type: string
