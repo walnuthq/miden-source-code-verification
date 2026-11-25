@@ -9,40 +9,14 @@ import { abortOnClose } from "../lib/utils.ts";
 const router = Router();
 
 // A MASM project's answer (the README of spec/remove-rust, "The MASM wire
-// format"): its package and the assembler's report, with no storage schemas,
-// no compiler MASM and its path on disk left out.
+// format"): the assembly without its path on disk. It has no storage schemas
+// and no compiler MASM to leave out.
 const assemblyResponse = (assembly: Assembly): CompileResponse => {
-  const { stdout, stderr, diagnostics, builtWith } = assembly;
   if (!assembly.built) {
-    return { built: false, stdout, stderr, diagnostics, builtWith };
+    return assembly;
   }
-  const {
-    masp,
-    commitment,
-    kind,
-    manifest,
-    readOnly,
-    callsForeign,
-    parameters,
-    accountProcedures,
-    files,
-  } = assembly;
-  return {
-    built: true,
-    stdout,
-    stderr,
-    masp,
-    commitment,
-    kind,
-    manifest,
-    readOnly,
-    callsForeign,
-    parameters,
-    accountProcedures,
-    files,
-    diagnostics,
-    builtWith,
-  };
+  const { maspPath: _maspPath, ...response } = assembly;
+  return response;
 };
 
 type CompileRequestBody = {

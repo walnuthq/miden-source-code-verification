@@ -72,10 +72,10 @@ export const COMPILE_QUEUE_SIZE = Number(process.env.COMPILE_QUEUE_SIZE ?? 8);
 // project's code (docs/adr/0007-masm-builds-run-no-project-code.md), so MASM
 // builds share no cache and no build user, and need neither the build slot
 // nor its deadline: a few run at once, more wait, the rest get a 503. The
-// deadline bounds one request's tools together, the verifier's network call
-// included.
+// deadline bounds one request's tools together. Assembling takes milliseconds,
+// so most of it is for the verifier's network call, whose own timeout is 60 s.
 export const ASSEMBLE_DEADLINE_MS = Number(
-  process.env.ASSEMBLE_DEADLINE_MS ?? 30_000,
+  process.env.ASSEMBLE_DEADLINE_MS ?? 90_000,
 );
 export const ASSEMBLE_CONCURRENCY = Number(
   process.env.ASSEMBLE_CONCURRENCY ?? 4,

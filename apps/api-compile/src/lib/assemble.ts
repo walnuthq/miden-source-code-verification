@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type {
-  BuildDiagnostic,
+  AssemblyReport,
   BuiltPackage,
 } from "miden-source-code-verification-utils/api-compile";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
@@ -34,16 +34,17 @@ type AssembleArgs = {
   signal?: AbortSignal;
 };
 
-// What the assembler adds to either outcome: its report, and its versions.
-type AssemblyReport = { diagnostics: BuildDiagnostic[]; builtWith: string };
-
 // What assembling a MASM project yields: built, with its package, or failed.
 // Either way `stderr` is the report as the assembler renders it (empty for a
 // build with no warnings) and `stdout` is empty: the wire format keeps the
 // cargo path's two keys. A failed build is an outcome the routes answer, not
 // an error.
 export type Assembly =
-  | ({ built: false; stdout: string; stderr: string } & AssemblyReport)
+  | ({
+      built: false;
+      stdout: string;
+      stderr: string;
+    } & Required<AssemblyReport>)
   | ({
       built: true;
       stdout: string;
@@ -52,7 +53,7 @@ export type Assembly =
       // `use` returns.
       maspPath: string;
     } & BuiltPackage &
-      AssemblyReport);
+      Required<AssemblyReport>);
 
 const deadlineError = () =>
   new HttpError(

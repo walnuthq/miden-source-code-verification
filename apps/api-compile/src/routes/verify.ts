@@ -30,19 +30,14 @@ const verifyAssembly = async ({
   if (!assembly.built) {
     return { error: assembly.stderr };
   }
+  // The package as the answer carries it: no path on disk, and no build
+  // output, which a verification doesn't answer.
   const {
     maspPath,
-    masp,
-    commitment,
-    kind,
-    manifest,
-    readOnly,
-    callsForeign,
-    parameters,
-    accountProcedures,
-    files,
-    diagnostics,
-    builtWith,
+    built: _built,
+    stdout: _stdout,
+    stderr: _stderr,
+    ...answer
   } = assembly;
   const resourcePath = resource ? await writeResourceFile(resource) : undefined;
   try {
@@ -51,24 +46,10 @@ const verifyAssembly = async ({
       resourceId,
       resourcePath,
       maspPath,
-      commitment,
+      commitment: answer.commitment,
       signal,
     });
-    return {
-      verified,
-      root,
-      masp,
-      commitment,
-      kind,
-      manifest,
-      readOnly,
-      callsForeign,
-      parameters,
-      accountProcedures,
-      files,
-      diagnostics,
-      builtWith,
-    };
+    return { verified, root, ...answer };
   } finally {
     if (resourcePath) {
       await removeDirs([dirname(resourcePath)]);
