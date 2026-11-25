@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { serverTiming, type Timings, timed } from "../src/lib/timings.ts";
 
 describe("timed", () => {
@@ -38,9 +39,7 @@ describe("timed", () => {
 
 describe("serverTiming", () => {
   it("lists each part with its duration in whole ms, in order", () => {
-    expect(serverTiming({ layout: 412.4, cargo: 630.5 })).toBe(
-      "layout;dur=412, cargo;dur=631",
-    );
+    expect(serverTiming({ layout: 412.4, cargo: 630.5 })).toBe("layout;dur=412, cargo;dur=631");
   });
 
   it("is empty when nothing was timed", () => {

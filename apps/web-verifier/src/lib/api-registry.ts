@@ -30,10 +30,7 @@ export type VerifyOutcome = VerificationResponse | { error: string };
 
 // What the registry's error body says, when it is one.
 const errorOf = (data: unknown) =>
-  typeof data === "object" &&
-  data !== null &&
-  "error" in data &&
-  typeof data.error === "string"
+  typeof data === "object" && data !== null && "error" in data && typeof data.error === "string"
     ? data.error
     : undefined;
 
@@ -61,19 +58,14 @@ export async function verifyResource({
   // The API expects `accountId` in canonical hex form, which is what
   // `parseResourceId` resolves an address to.
   const id =
-    resource.kind === "note"
-      ? { noteId: resource.noteId }
-      : { accountId: resource.accountId };
+    resource.kind === "note" ? { noteId: resource.noteId } : { accountId: resource.accountId };
   const response = await fetchWhileBusy(
     () =>
-      fetch(
-        `${registryUrl}/v1/${network}/${resourceCollection(resource.kind)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...id, files, entrypoint, source }),
-        },
-      ),
+      fetch(`${registryUrl}/v1/${network}/${resourceCollection(resource.kind)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...id, files, entrypoint, source }),
+      }),
     { maxRetries: MAX_BUSY_RETRIES, wait },
   );
   // Error pages from a proxy in front of the verifier are not JSON.

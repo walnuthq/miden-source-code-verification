@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
+
 import { getAbsoluteFSPath } from "swagger-ui-dist";
+
 import { openapiSpec } from "./lib/openapi.ts";
 
 // Builds a self-contained static Swagger UI site into `dist/`, suitable for
@@ -18,10 +20,7 @@ fs.mkdirSync(outDir, { recursive: true });
 fs.cpSync(getAbsoluteFSPath(), outDir, { recursive: true });
 
 // Write the generated OpenAPI document next to the UI.
-fs.writeFileSync(
-  path.join(outDir, "openapi.json"),
-  JSON.stringify(openapiSpec, null, 2),
-);
+fs.writeFileSync(path.join(outDir, "openapi.json"), JSON.stringify(openapiSpec, null, 2));
 
 // Replace the default initializer (which loads the Petstore demo) with one that
 // loads our spec via a relative URL, so it works under any Pages base path.

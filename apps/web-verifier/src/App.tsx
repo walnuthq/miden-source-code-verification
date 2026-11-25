@@ -1,8 +1,4 @@
-import {
-  Footer,
-  Navbar,
-  NetworkSelect,
-} from "miden-source-code-verification-ui";
+import { Footer, Navbar, NetworkSelect } from "miden-source-code-verification-ui";
 import {
   DEFAULT_NETWORK,
   type NetworkId,

@@ -6,10 +6,7 @@ import { data } from "react-router";
 import { getVerifiedRecord } from "@/lib/api-registry.server";
 import { loadPackageSources } from "@/lib/package-sources.server";
 import type { PackageSources } from "@/lib/source-files";
-import {
-  getVerificationStatus,
-  type VerificationStatus,
-} from "@/lib/verification-status";
+import { getVerificationStatus, type VerificationStatus } from "@/lib/verification-status";
 
 // What a verified resource's page shows, account or note: the network's name,
 // each verified package's sources, and how much of the resource's code the
@@ -26,10 +23,7 @@ export type ResourcePage = {
 // What the record says of the resource, where the kinds differ: which records
 // verify a package against it (an account's components, or the note itself),
 // and the verification status. Null when the registry has no record.
-type VerifiedRecord = Pick<
-  ResourcePage,
-  "verificationStatus" | "standardAccountComponents"
-> & {
+type VerifiedRecord = Pick<ResourcePage, "verificationStatus" | "standardAccountComponents"> & {
   components: { package: Package; createdAt: string; source: string }[];
 };
 
@@ -58,9 +52,7 @@ export async function loadResourcePage({
   // Only what the page uses: each package's displayed sources, already
   // highlighted, and its raw files for the download.
   const packages = await Promise.all(
-    components.map((component) =>
-      loadPackageSources(component.package, component),
-    ),
+    components.map((component) => loadPackageSources(component.package, component)),
   );
   return {
     networkName,
@@ -89,9 +81,7 @@ async function verifiedAccountRecord(
       standardAccountComponents: account.standardAccountComponents,
       manifests: components.map((component) => component.package.manifest),
     }),
-    standardAccountComponents: account.standardAccountComponents.map(
-      ({ name }) => name,
-    ),
+    standardAccountComponents: account.standardAccountComponents.map(({ name }) => name),
   };
 }
 

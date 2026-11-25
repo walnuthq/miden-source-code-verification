@@ -1,16 +1,11 @@
 import { DrizzleQueryError, sql } from "drizzle-orm";
 import express from "express";
 import { request } from "miden-source-code-verification-test-utils";
-import {
-  errorHandler,
-  HttpError,
-} from "miden-source-code-verification-utils/http-errors";
+import { errorHandler, HttpError } from "miden-source-code-verification-utils/http-errors";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+
 import { createDb } from "../src/db/context.ts";
-import {
-  DatabaseConnectionError,
-  hideQueryErrors,
-} from "../src/lib/query-errors.ts";
+import { DatabaseConnectionError, hideQueryErrors } from "../src/lib/query-errors.ts";
 
 const queryError = new DrizzleQueryError(
   "select * from packages where id = $1",
@@ -37,9 +32,7 @@ describe("hideQueryErrors", () => {
   });
 
   it("answers a failed query without its SQL and parameters, and logs it", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     const res = await request(app).get("/query");
 
     expect(res.status).toBe(500);
@@ -47,9 +40,7 @@ describe("hideQueryErrors", () => {
     const text = JSON.stringify(res.body);
     expect(text).not.toContain("select");
     expect(text).not.toContain("secret-param");
-    expect(consoleError).toHaveBeenCalledWith(
-      expect.objectContaining({ cause: queryError }),
-    );
+    expect(consoleError).toHaveBeenCalledWith(expect.objectContaining({ cause: queryError }));
   });
 
   it("keeps the message of any other error", async () => {
@@ -69,8 +60,7 @@ describe("hideQueryErrors", () => {
 });
 
 // Port 1 is closed: the connection is refused at once, with no Postgres needed.
-const unreachable = () =>
-  createDb("postgres://registry:registry@127.0.0.1:1/registry");
+const unreachable = () => createDb("postgres://registry:registry@127.0.0.1:1/registry");
 
 describe("a failed database connection", () => {
   const db = unreachable();
@@ -105,9 +95,7 @@ describe("a failed database connection", () => {
   });
 
   it("answers a transaction's failure without the database address", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     const res = await request(connectionApp).get("/transaction");
 
     expect(res.status).toBe(500);

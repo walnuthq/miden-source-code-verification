@@ -1,23 +1,19 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
 import { and, eq } from "drizzle-orm";
 import type { VerifyResponse } from "miden-source-code-verification-utils/api-compile";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import db, { createDb, dbScope } from "../src/db/index.ts";
 import { getPackage } from "../src/db/packages.ts";
-import {
-  verifiedAccountCodeTable,
-  verifiedNoteScriptTable,
-} from "../src/db/schema.ts";
+import { verifiedAccountCodeTable, verifiedNoteScriptTable } from "../src/db/schema.ts";
 import { type ApiCompile, ApiCompileError } from "../src/lib/api-compile.ts";
 import { findVerifiedRecordByRoot } from "../src/lib/verified-record.ts";
 import { type Resource, verifyResource } from "../src/lib/verify-resource.ts";
-import {
-  createFsMaspStore,
-  type MaspStore,
-} from "../src/storage/masp-store.ts";
+import { createFsMaspStore, type MaspStore } from "../src/storage/masp-store.ts";
 import { fakeApiCompile, masmVerified } from "./fake-api-compile.ts";
 
 // Runs the verification in-process, against the local database, with
@@ -69,11 +65,7 @@ describe("verifyResource", () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  const verify = (
-    resource: Resource,
-    apiCompile: ApiCompile,
-    source?: string,
-  ) =>
+  const verify = (resource: Resource, apiCompile: ApiCompile, source?: string) =>
     verifyResource({
       networkId: "mtst",
       resource,
@@ -89,12 +81,7 @@ describe("verifyResource", () => {
     result: Omit<VerifyResponse, "root">,
     root: string,
     source?: string,
-  ) =>
-    verify(
-      resource,
-      fakeApiCompile({ verify: async () => ({ ...result, root }) }),
-      source,
-    );
+  ) => verify(resource, fakeApiCompile({ verify: async () => ({ ...result, root }) }), source);
 
   // Each on its own connection, as each request is on Cloudflare: the shared
   // pool has one, which would run the two transactions one after the other.
@@ -126,9 +113,7 @@ describe("verifyResource", () => {
       debugCommitment: null,
       debugBuiltWith: null,
     });
-    expect(
-      Buffer.from((await maspStore.get(COMMITMENT)) ?? []).toString(),
-    ).toBe("release");
+    expect(Buffer.from((await maspStore.get(COMMITMENT)) ?? []).toString()).toBe("release");
     expect(await maspStore.get(COMMITMENT, "debug")).toBeNull();
   });
 
@@ -149,16 +134,14 @@ describe("verifyResource", () => {
       networkId: "mtst",
       resourceId: NOTE.noteId,
     });
-    expect(
-      await findVerifiedRecordByRoot({ networkId: "mtst", kind: "note", root }),
-    ).toMatchObject({
-      packageCommitment: COMMITMENT,
-      source: "unknown",
-      package: { type: "note", debugCommitment: null },
-    });
-    expect(
-      Buffer.from((await maspStore.get(COMMITMENT)) ?? []).toString(),
-    ).toBe("release");
+    expect(await findVerifiedRecordByRoot({ networkId: "mtst", kind: "note", root })).toMatchObject(
+      {
+        packageCommitment: COMMITMENT,
+        source: "unknown",
+        package: { type: "note", debugCommitment: null },
+      },
+    );
+    expect(Buffer.from((await maspStore.get(COMMITMENT)) ?? []).toString()).toBe("release");
   });
 
   it("records two accounts verified with the same new package at once", async () => {
@@ -193,9 +176,7 @@ describe("verifyResource", () => {
     expect(
       await Promise.all([
         onOwnConnection(() => verifyBuilt(ACCOUNT, built(), root)),
-        onOwnConnection(() =>
-          verifyBuilt(ACCOUNT, { ...built(), commitment: other }, root),
-        ),
+        onOwnConnection(() => verifyBuilt(ACCOUNT, { ...built(), commitment: other }, root)),
       ]),
     ).toEqual([true, true]);
 
@@ -239,9 +220,7 @@ describe("verifyResource", () => {
     const root = `0x${"01".repeat(32)}`;
     await verifyBuilt(ACCOUNT, built(), root);
 
-    const error = await verifyBuilt(ACCOUNT, built(), root).catch(
-      (error) => error,
-    );
+    const error = await verifyBuilt(ACCOUNT, built(), root).catch((error) => error);
 
     expect(error).toBeInstanceOf(HttpError);
     expect(error).toMatchObject({
@@ -279,13 +258,9 @@ describe("verifyResource", () => {
       onOwnConnection(() => verifyBuilt(ACCOUNT, built(), root)),
     ]);
 
-    expect(
-      results.filter(({ status }) => status === "fulfilled"),
-    ).toMatchObject([{ value: true }]);
+    expect(results.filter(({ status }) => status === "fulfilled")).toMatchObject([{ value: true }]);
     const rejected = results.find(({ status }) => status === "rejected");
-    expect(rejected?.status === "rejected" && rejected.reason).toBeInstanceOf(
-      HttpError,
-    );
+    expect(rejected?.status === "rejected" && rejected.reason).toBeInstanceOf(HttpError);
     expect(rejected).toMatchObject({
       reason: { status: 409, message: "account component already verified" },
     });
@@ -305,9 +280,7 @@ describe("verifyResource", () => {
     const root = `0x${"01".repeat(32)}`;
     await verifyBuilt(NOTE, built(), root);
 
-    const error = await verifyBuilt(NOTE, built(), root).catch(
-      (error) => error,
-    );
+    const error = await verifyBuilt(NOTE, built(), root).catch((error) => error);
 
     expect(error).toBeInstanceOf(HttpError);
     expect(error).toMatchObject({
@@ -319,15 +292,12 @@ describe("verifyResource", () => {
   describe("a record the playground verified", () => {
     const root = `0x${"01".repeat(32)}`;
     // What the verification rejected with, to assert on.
-    const caught = (promise: Promise<boolean>) =>
-      promise.catch((error: unknown) => error);
+    const caught = (promise: Promise<boolean>) => promise.catch((error: unknown) => error);
 
     it("takes over an account component the playground verified", async () => {
       await verifyBuilt(ACCOUNT, built(), root, "miden-playground");
 
-      expect(await verifyBuilt(ACCOUNT, built(), root, "miden-verify")).toBe(
-        true,
-      );
+      expect(await verifyBuilt(ACCOUNT, built(), root, "miden-verify")).toBe(true);
 
       const { verifiedAccountComponents } = await findVerifiedRecordByRoot({
         networkId: "mtst",
@@ -381,9 +351,7 @@ describe("verifyResource", () => {
       it("answers 409 when the playground verifies its own record again", async () => {
         await verifyBuilt(resource, built(), root, "miden-playground");
 
-        const error = await caught(
-          verifyBuilt(resource, built(), root, "miden-playground"),
-        );
+        const error = await caught(verifyBuilt(resource, built(), root, "miden-playground"));
 
         expect(error).toBeInstanceOf(HttpError);
         expect(error).toMatchObject({ status: 409 });
@@ -393,9 +361,7 @@ describe("verifyResource", () => {
       it("answers 409 when the record is another source's", async () => {
         await verifyBuilt(resource, built(), root, "miden-verify");
 
-        const error = await caught(
-          verifyBuilt(resource, built(), root, "web-verifier"),
-        );
+        const error = await caught(verifyBuilt(resource, built(), root, "web-verifier"));
 
         expect(error).toBeInstanceOf(HttpError);
         expect(error).toMatchObject({ status: 409 });
@@ -405,9 +371,7 @@ describe("verifyResource", () => {
       it("leaves a record another source verified alone when the playground comes after", async () => {
         await verifyBuilt(resource, built(), root, "miden-verify");
 
-        const error = await caught(
-          verifyBuilt(resource, built(), root, "miden-playground"),
-        );
+        const error = await caught(verifyBuilt(resource, built(), root, "miden-playground"));
 
         expect(error).toBeInstanceOf(HttpError);
         expect(error).toMatchObject({ status: 409 });
@@ -436,13 +400,9 @@ describe("verifyResource", () => {
       onOwnConnection(() => verifyBuilt(NOTE, built(), root)),
     ]);
 
-    expect(
-      results.filter(({ status }) => status === "fulfilled"),
-    ).toMatchObject([{ value: true }]);
+    expect(results.filter(({ status }) => status === "fulfilled")).toMatchObject([{ value: true }]);
     const rejected = results.find(({ status }) => status === "rejected");
-    expect(rejected?.status === "rejected" && rejected.reason).toBeInstanceOf(
-      HttpError,
-    );
+    expect(rejected?.status === "rejected" && rejected.reason).toBeInstanceOf(HttpError);
     expect(rejected).toMatchObject({
       reason: { status: 409, message: "note already verified" },
     });
@@ -481,11 +441,7 @@ describe("verifyResource", () => {
     };
 
     it("stores the schemas the build read", async () => {
-      await verifyBuilt(
-        ACCOUNT,
-        { ...built(), storage },
-        `0x${"41".repeat(32)}`,
-      );
+      await verifyBuilt(ACCOUNT, { ...built(), storage }, `0x${"41".repeat(32)}`);
       expect(await getPackage(COMMITMENT)).toHaveProperty("schemas", {
         storage,
       });
@@ -506,15 +462,8 @@ describe("verifyResource", () => {
     };
 
     it("stores the parameters the build read", async () => {
-      await verifyBuilt(
-        ACCOUNT,
-        { ...built(), parameters },
-        `0x${"51".repeat(32)}`,
-      );
-      expect(await getPackage(COMMITMENT)).toHaveProperty(
-        "parameters",
-        parameters,
-      );
+      await verifyBuilt(ACCOUNT, { ...built(), parameters }, `0x${"51".repeat(32)}`);
+      expect(await getPackage(COMMITMENT)).toHaveProperty("parameters", parameters);
     });
 
     it("stores `{}` when the build read none", async () => {
@@ -523,16 +472,8 @@ describe("verifyResource", () => {
     });
 
     it("keeps what a package already has", async () => {
-      await verifyBuilt(
-        ACCOUNT,
-        { ...built(), parameters: {} },
-        `0x${"55".repeat(32)}`,
-      );
-      await verifyBuilt(
-        ACCOUNT,
-        { ...built(), parameters },
-        `0x${"56".repeat(32)}`,
-      );
+      await verifyBuilt(ACCOUNT, { ...built(), parameters: {} }, `0x${"55".repeat(32)}`);
+      await verifyBuilt(ACCOUNT, { ...built(), parameters }, `0x${"56".repeat(32)}`);
       expect(await getPackage(COMMITMENT)).toHaveProperty("parameters", {});
     });
   });
@@ -577,18 +518,17 @@ describe("verifyResource", () => {
         parameters: answer.parameters,
         readOnly: answer.readOnly,
       });
-      expect(
-        Buffer.from((await maspStore.get(MASM_COMMITMENT)) ?? []).toString(),
-      ).toBe("masm package");
+      expect(Buffer.from((await maspStore.get(MASM_COMMITMENT)) ?? []).toString()).toBe(
+        "masm package",
+      );
       const record = await findVerifiedRecordByRoot({
         networkId: "mtst",
         kind: "account",
         root,
       });
-      expect(record.verifiedAccountComponents[0]).toHaveProperty(
-        "debugPackage",
-        { commitment: MASM_COMMITMENT },
-      );
+      expect(record.verifiedAccountComponents[0]).toHaveProperty("debugPackage", {
+        commitment: MASM_COMMITMENT,
+      });
     });
   });
 });

@@ -10,7 +10,9 @@ import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import { ErrorPage } from "@/components/error-page";
 import { WEB_VERIFIER_URL } from "@/lib/constants";
 import { networkSearch, useNetwork } from "@/lib/use-network";
+
 import type { Route } from "./+types/root";
+
 import "./index.css";
 
 export const meta: Route.MetaFunction = () => [

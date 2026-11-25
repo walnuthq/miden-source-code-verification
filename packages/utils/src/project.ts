@@ -121,9 +121,7 @@ const readPackageName = (
 
 // The reason a manifest at `path` names no package, worded for the client.
 const packageError = (path: string, error: "invalid toml" | "no package") =>
-  error === "invalid toml"
-    ? `${path} is not valid TOML`
-    : `${path} has no [package]`;
+  error === "invalid toml" ? `${path} is not valid TOML` : `${path} has no [package]`;
 
 // The `[package] name` of a Cargo.toml, undefined when it has none or doesn't
 // parse. For callers that only match crates by name.
@@ -147,11 +145,8 @@ export const midenProjectLibrary = (
   // Parsed again: `readPackageName` keeps only the name.
   const lib = (parse(midenProjectToml) as { lib?: unknown }).lib;
   const path =
-    typeof lib === "object" && lib !== null
-      ? (lib as { path?: unknown }).path
-      : undefined;
-  const libPath =
-    typeof path === "string" ? path.replace(/^(?:\.\/)+/, "") : "";
+    typeof lib === "object" && lib !== null ? (lib as { path?: unknown }).path : undefined;
+  const libPath = typeof path === "string" ? path.replace(/^(?:\.\/)+/, "") : "";
   return {
     name: masmPackage.name,
     libPath: libPath === "" ? undefined : libPath,
@@ -243,24 +238,19 @@ export const storedProjectKind = (
   files: Record<string, string>,
   entrypoint: string | null,
 ): ProjectKind =>
-  entrypoint === null ||
-  Object.hasOwn(files, projectPath(entrypoint, CARGO_TOML))
+  entrypoint === null || Object.hasOwn(files, projectPath(entrypoint, CARGO_TOML))
     ? "rust"
     : "masm";
 
 // The inverse of `openProject` for a project stored before its entrypoint was
 // recorded: the one entrypoint in `files` whose `Cargo.toml` names `name` and
 // has a `miden-project.toml` next to it. Null when none or several do.
-export const inferEntrypoint = (
-  files: Record<string, string>,
-  name: string,
-) => {
+export const inferEntrypoint = (files: Record<string, string>, name: string) => {
   const entrypoints = Object.keys(files).flatMap((path) => {
     if (path !== CARGO_TOML && !path.endsWith(`/${CARGO_TOML}`)) {
       return [];
     }
-    const dir =
-      path === CARGO_TOML ? "." : path.slice(0, -(CARGO_TOML.length + 1));
+    const dir = path === CARGO_TOML ? "." : path.slice(0, -(CARGO_TOML.length + 1));
     const cargoToml = files[path];
     const isProject =
       cargoToml !== undefined &&

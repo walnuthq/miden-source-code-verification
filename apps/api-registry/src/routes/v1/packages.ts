@@ -1,8 +1,6 @@
 import { Router } from "express";
-import {
-  maspDownloadName,
-  parseMaspKey,
-} from "miden-source-code-verification-utils/api-registry";
+import { maspDownloadName, parseMaspKey } from "miden-source-code-verification-utils/api-registry";
+
 import { getPackage } from "../../db/packages.ts";
 import { debugBuildOf } from "../../lib/debug-build.ts";
 import { getMaspStore } from "../../storage/masp-store.ts";
@@ -120,22 +118,15 @@ router.get("/:networkId/packages/masp/:file", async (req, res) => {
   // The row names the download, and for a `.debug.masp` says whether there
   // is a debug build, where it is stored and its commitment.
   const dbPackage = await getPackage(commitment);
-  const debugBuild =
-    variant === "debug" && dbPackage ? debugBuildOf(dbPackage) : null;
+  const debugBuild = variant === "debug" && dbPackage ? debugBuildOf(dbPackage) : null;
   if (variant === "debug" && !debugBuild) {
     res.status(404).json({ error: "package debug masp not found" });
     return;
   }
-  const masp = await getMaspStore(req).get(
-    commitment,
-    debugBuild?.variant ?? variant,
-  );
+  const masp = await getMaspStore(req).get(commitment, debugBuild?.variant ?? variant);
   if (!masp) {
     res.status(404).json({
-      error:
-        variant === "debug"
-          ? "package debug masp not found"
-          : "package masp not found",
+      error: variant === "debug" ? "package debug masp not found" : "package masp not found",
     });
     return;
   }

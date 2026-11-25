@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "sortImports": true,
+  "ignorePatterns": [
+    "**/worker-configuration.d.ts",
+    "**/drizzle",
+    "**/components/ui",
+    "**/.agents",
+    "**/.claude",
+    "pnpm-lock.yaml",
+    "**/*.toml"
+  ]
+}

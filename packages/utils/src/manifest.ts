@@ -41,11 +41,7 @@ export type CallConv = 0 | 1 | 2 | 3 | { Extern: string };
 
 export type AddressSpace = "Byte" | "Element";
 
-export type TypeRepr =
-  | "Default"
-  | { Align: number }
-  | { Packed: number }
-  | "Transparent";
+export type TypeRepr = "Default" | { Align: number } | { Packed: number } | "Transparent";
 
 export type PointerType = { addrspace: AddressSpace; pointee: Type };
 
@@ -141,10 +137,7 @@ export type MetaList = { name: string; items: MetaExpr[] };
 
 export type MetaKeyValue = { name: string; items: Record<string, MetaExpr> };
 
-export type Attribute =
-  | { Marker: string }
-  | { List: MetaList }
-  | { KeyValue: MetaKeyValue };
+export type Attribute = { Marker: string } | { List: MetaList } | { KeyValue: MetaKeyValue };
 
 export type AttributeSet = { attrs: Attribute[] };
 

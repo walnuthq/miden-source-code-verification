@@ -1,15 +1,9 @@
 import { createServer, get } from "node:http";
 import type { AddressInfo } from "node:net";
+
 import express from "express";
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+
 import { errorHandler, HttpError, notFound } from "../src/http-errors.ts";
 
 // An app whose routes fail in every way the handler tells apart.
@@ -65,8 +59,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const silenceErrors = () =>
-  vi.spyOn(console, "error").mockImplementation(() => {});
+const silenceErrors = () => vi.spyOn(console, "error").mockImplementation(() => {});
 
 describe("errorHandler", () => {
   it("answers an HttpError with its status, headers and message", async () => {

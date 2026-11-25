@@ -5,12 +5,7 @@ import {
   parseNetwork,
 } from "miden-source-code-verification-utils/networks";
 import { useCallback } from "react";
-import {
-  useLocation,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 
 // `?network=` for a non-default network, and nothing for the default, to keep
 // URLs clean.
@@ -26,9 +21,7 @@ export function useNetwork() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const onResourcePage = isNetworkId(networkId);
-  const network = onResourcePage
-    ? networkId
-    : parseNetwork(searchParams.get("network"));
+  const network = onResourcePage ? networkId : parseNetwork(searchParams.get("network"));
 
   const setNetwork = useCallback(
     (next: NetworkId) => {

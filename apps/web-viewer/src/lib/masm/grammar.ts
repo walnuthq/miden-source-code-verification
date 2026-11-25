@@ -116,9 +116,7 @@ export const masmGrammar = {
     keywords: {
       name: "keyword.other.masm",
       match: wordsPattern(
-        vocabulary.keywords.filter(
-          (word) => !CONTROL.includes(word) && !MODIFIERS.includes(word),
-        ),
+        vocabulary.keywords.filter((word) => !CONTROL.includes(word) && !MODIFIERS.includes(word)),
       ),
     },
     types: {
@@ -131,8 +129,7 @@ export const masmGrammar = {
       name: "support.function.instruction.masm",
       match: wordsPattern(
         vocabulary.instructions.filter(
-          (word) =>
-            !INVOCATIONS.includes(word) && !DYNAMIC_INVOCATIONS.includes(word),
+          (word) => !INVOCATIONS.includes(word) && !DYNAMIC_INVOCATIONS.includes(word),
         ),
       ),
     },

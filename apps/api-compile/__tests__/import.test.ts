@@ -14,6 +14,7 @@ import {
 } from "miden-source-code-verification-test-utils";
 import { errorHandler } from "miden-source-code-verification-utils/http-errors";
 import { describe, expect, it, vi } from "vitest";
+
 import importRouter from "../src/routes/import.ts";
 import { useFakeTool } from "./fake-tool.ts";
 
@@ -71,9 +72,7 @@ describe("GET /:networkId/import/:resourceId", () => {
     for (const procedure of procedures) {
       expect(procedure).toMatch(/^0x[0-9a-f]{64}$/);
     }
-    const claimed = standardAccountComponents.flatMap(
-      (component) => component.procedures,
-    );
+    const claimed = standardAccountComponents.flatMap((component) => component.procedures);
     expect(claimed.length).toBeGreaterThan(0);
     // Each procedure is claimed by at most one component, and only procedures
     // of the account are claimed.
@@ -112,9 +111,7 @@ describe("GET /:networkId/import/:resourceId", () => {
       "SchemaCommitment",
     ]);
 
-    const claimed = standardAccountComponents.flatMap(
-      (component) => component.procedures,
-    );
+    const claimed = standardAccountComponents.flatMap((component) => component.procedures);
     // The custom bank component's procedures are left over.
     expect(procedures.length).toBeGreaterThan(claimed.length);
   });
@@ -144,18 +141,13 @@ describe("GET /:networkId/import/:resourceId", () => {
   // A MASM-built account answers as a Rust-built one does. It carries no
   // schema commitment: a MASM package has no storage schema.
   it("imports an on-chain MASM account", async () => {
-    const res = await api.get(
-      `/${networkId}/import/${MASM_COUNTER_CONTRACT_ID}`,
-    );
+    const res = await api.get(`/${networkId}/import/${MASM_COUNTER_CONTRACT_ID}`);
     const rust = await api.get(`/${networkId}/import/${COUNTER_CONTRACT_ID_1}`);
 
     expect(res.status).toBe(200);
     expect(Object.keys(res.body).sort()).toEqual(Object.keys(rust.body).sort());
     expect(res.body).toHaveProperty("type", "account");
-    expect(res.body).toHaveProperty(
-      "code",
-      masmAccounts[MASM_COUNTER_CONTRACT_ID].code,
-    );
+    expect(res.body).toHaveProperty("code", masmAccounts[MASM_COUNTER_CONTRACT_ID].code);
     const { standardAccountComponents } = res.body as {
       standardAccountComponents: { name: string }[];
     };
@@ -172,10 +164,7 @@ describe("GET /:networkId/import/:resourceId", () => {
     expect(res.status).toBe(200);
     expect(Object.keys(res.body).sort()).toEqual(Object.keys(rust.body).sort());
     expect(res.body).toHaveProperty("type", "note");
-    expect(res.body).toHaveProperty(
-      "code",
-      masmNotes[MASM_COUNTER_NOTE_ID].code,
-    );
+    expect(res.body).toHaveProperty("code", masmNotes[MASM_COUNTER_NOTE_ID].code);
   });
 
   it("returns 404 for an account not found on the network", async () => {
@@ -203,8 +192,7 @@ describe("GET /:networkId/import/:resourceId", () => {
 // Mainnet has no fixtures, since deploying there needs an invite code and real
 // fees. These cases only read the public USDCx fee faucet.
 const MAINNET_FAUCET_ID = "0xe69e6ca6e39df1b10c1e5399399feb";
-const MAINNET_FAUCET_ADDRESS =
-  "mm1arnfum9xuwwlrvgvrefejwvlavn3vk24_qr7qqq9wr6w";
+const MAINNET_FAUCET_ADDRESS = "mm1arnfum9xuwwlrvgvrefejwvlavn3vk24_qr7qqq9wr6w";
 
 describe("GET /:networkId/import/:resourceId across networks", () => {
   it("imports a Mainnet account", async () => {

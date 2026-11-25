@@ -50,10 +50,7 @@ const masmNoteWithDependency = {
   ),
   "counter-note/counter_note.masm": "",
   "counter-note/lib/helpers.masm": "",
-  "counter-note/miden-project.toml": midenProjectToml(
-    "counter-note",
-    "./counter_note.masm",
-  ),
+  "counter-note/miden-project.toml": midenProjectToml("counter-note", "./counter_note.masm"),
   "counter-note/notes.txt": "",
 };
 
@@ -83,17 +80,13 @@ describe("filterSourceFiles", () => {
       "src/data.json": "",
       "tests/counter.rs": "",
     };
-    expect(Object.keys(filterSourceFiles(files))).toEqual([
-      "src/storage/mod.rs",
-    ]);
+    expect(Object.keys(filterSourceFiles(files))).toEqual(["src/storage/mod.rs"]);
   });
 });
 
 describe("filterSourceFiles of a MASM project", () => {
   it("keeps the manifests and every MASM module, at any depth", () => {
-    expect(
-      Object.keys(filterSourceFiles(masmNoteWithDependency)).sort(),
-    ).toEqual([
+    expect(Object.keys(filterSourceFiles(masmNoteWithDependency)).sort()).toEqual([
       "counter-contract/counter_contract.masm",
       "counter-contract/miden-project.toml",
       "counter-note/counter_note.masm",
@@ -105,29 +98,23 @@ describe("filterSourceFiles of a MASM project", () => {
 
 describe("findEntryFile", () => {
   it("opens the lib.rs of a project uploaded on its own", () => {
-    expect(
-      findEntryFile(filterSourceFiles(rootProject), "counter-contract"),
-    ).toBe("src/lib.rs");
+    expect(findEntryFile(filterSourceFiles(rootProject), "counter-contract")).toBe("src/lib.rs");
   });
 
   it("opens the lib.rs of the crate named after the package", () => {
     const files = filterSourceFiles(noteWithDependency);
-    expect(findEntryFile(files, "counter-note")).toBe(
-      "counter-note/src/lib.rs",
-    );
+    expect(findEntryFile(files, "counter-note")).toBe("counter-note/src/lib.rs");
   });
 
   it("matches the package name exactly, not up to - and _", () => {
     const files = filterSourceFiles(noteWithDependency);
-    expect(findEntryFile(files, "counter_note")).toBe(
-      "counter-contract/src/lib.rs",
-    );
+    expect(findEntryFile(files, "counter_note")).toBe("counter-contract/src/lib.rs");
   });
 
   it("falls back to the first lib.rs when no crate is named after the package", () => {
-    expect(
-      findEntryFile(filterSourceFiles(noteWithDependency), "counter-account"),
-    ).toBe("counter-contract/src/lib.rs");
+    expect(findEntryFile(filterSourceFiles(noteWithDependency), "counter-account")).toBe(
+      "counter-contract/src/lib.rs",
+    );
   });
 
   it("skips manifests that don't parse", () => {
@@ -141,9 +128,7 @@ describe("findEntryFile", () => {
   });
 
   it("falls back to the first file, or null without files", () => {
-    expect(findEntryFile({ "src/main.rs": "", "Cargo.toml": "" }, "x")).toBe(
-      "Cargo.toml",
-    );
+    expect(findEntryFile({ "src/main.rs": "", "Cargo.toml": "" }, "x")).toBe("Cargo.toml");
     expect(findEntryFile({}, "x")).toBeNull();
   });
 });
@@ -152,12 +137,8 @@ describe("findEntryFile of a MASM project", () => {
   const files = filterSourceFiles(masmNoteWithDependency);
 
   it("opens the [lib] path of the project named after the package", () => {
-    expect(findEntryFile(files, "counter-note")).toBe(
-      "counter-note/counter_note.masm",
-    );
-    expect(findEntryFile(files, "counter-contract")).toBe(
-      "counter-contract/counter_contract.masm",
-    );
+    expect(findEntryFile(files, "counter-note")).toBe("counter-note/counter_note.masm");
+    expect(findEntryFile(files, "counter-contract")).toBe("counter-contract/counter_contract.masm");
   });
 
   it("resolves a [lib] path outside the manifest's directory", () => {
@@ -190,9 +171,7 @@ describe("findEntryFile of a MASM project", () => {
   });
 
   it("falls back to the first MASM module without a match or a [lib] path", () => {
-    expect(findEntryFile(files, "counter-account")).toBe(
-      "counter-contract/counter_contract.masm",
-    );
+    expect(findEntryFile(files, "counter-account")).toBe("counter-contract/counter_contract.masm");
     expect(
       findEntryFile(
         {
@@ -209,10 +188,7 @@ describe("findEntryFile of a MASM project", () => {
       findEntryFile(
         {
           "Cargo.toml": cargoToml("counter-contract"),
-          "miden-project.toml": midenProjectToml(
-            "counter-contract",
-            "lib.masm",
-          ),
+          "miden-project.toml": midenProjectToml("counter-contract", "lib.masm"),
           "lib.masm": "",
           "src/lib.rs": "",
         },
@@ -225,12 +201,7 @@ describe("findEntryFile of a MASM project", () => {
 describe("buildFileTree", () => {
   it("nests paths, folders first and then alphabetically", () => {
     expect(
-      buildFileTree([
-        "src/lib.rs",
-        "miden-project.toml",
-        "src/storage/mod.rs",
-        "Cargo.toml",
-      ]),
+      buildFileTree(["src/lib.rs", "miden-project.toml", "src/storage/mod.rs", "Cargo.toml"]),
     ).toEqual([
       {
         name: "src",
@@ -282,9 +253,7 @@ describe("packageMaspUrl", () => {
   });
 
   it("points at its .debug.masp for the debug build", () => {
-    expect(
-      packageMaspUrl({ networkId: "mtst", commitment, variant: "debug" }),
-    ).toBe(
+    expect(packageMaspUrl({ networkId: "mtst", commitment, variant: "debug" })).toBe(
       `http://localhost:8081/v1/mtst/packages/masp/${commitment}.debug.masp`,
     );
   });

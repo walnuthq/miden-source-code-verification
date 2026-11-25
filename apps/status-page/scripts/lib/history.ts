@@ -6,18 +6,13 @@ import type {
 } from "../../src/lib/types.ts";
 
 export const rollUp = (endpoints: EndpointStatus[]): ServiceHealth => {
-  const healthy = endpoints.filter(
-    (endpoint) => endpoint.health === "healthy",
-  ).length;
+  const healthy = endpoints.filter((endpoint) => endpoint.health === "healthy").length;
   if (healthy === endpoints.length) return "healthy";
   return healthy === 0 ? "unhealthy" : "degraded";
 };
 
 /** Everything a probe can know on its own — the history is added afterwards. */
-export type ProbedService = Omit<
-  ServiceStatus,
-  "previousHealth" | "since" | "previousSince"
->;
+export type ProbedService = Omit<ServiceStatus, "previousHealth" | "since" | "previousSince">;
 
 /**
  * Carries the outage clock forward: `since` only moves when the health changes,

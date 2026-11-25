@@ -3,13 +3,12 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path, { join } from "node:path";
 import { fileURLToPath } from "node:url";
+
 import express from "express";
-import {
-  readProjectFiles,
-  request,
-} from "miden-source-code-verification-test-utils";
+import { readProjectFiles, request } from "miden-source-code-verification-test-utils";
 import { errorHandler } from "miden-source-code-verification-utils/http-errors";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
 import { cargoMidenVersion } from "../src/lib/cargo-miden.ts";
 import { stopPreload } from "../src/lib/compile.ts";
 import { startPreload } from "../src/lib/preload.ts";
@@ -30,22 +29,15 @@ vi.mock("../src/lib/preload.ts", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/lib/preload.ts")>();
   pending.dir = mkdtempSync(join(tmpdir(), "preload-pending-"));
   const script = join(pending.dir, "run");
-  writeFileSync(
-    script,
-    `#!/bin/sh\necho $$ > ${pending.dir}/pid\nexec sleep 60\n`,
-    {
-      mode: 0o755,
-    },
-  );
+  writeFileSync(script, `#!/bin/sh\necho $$ > ${pending.dir}/pid\nexec sleep 60\n`, {
+    mode: 0o755,
+  });
   const startPreload: typeof actual.startPreload = (view, given) => {
     if (given !== undefined) {
       return actual.startPreload(view, given);
     }
     pending.views.push(view);
-    return actual.startPreload(
-      { targetDir: "/none", cargoHome: "/none" },
-      script,
-    );
+    return actual.startPreload({ targetDir: "/none", cargoHome: "/none" }, script);
   };
   return { ...actual, startPreload };
 });
@@ -56,10 +48,7 @@ vi.mock("../src/lib/constants.ts", async (importOriginal) => ({
 }));
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const counterContractDir = path.resolve(
-  __dirname,
-  "../examples/counter-contract/counter-contract",
-);
+const counterContractDir = path.resolve(__dirname, "../examples/counter-contract/counter-contract");
 const view = { targetDir: "/none", cargoHome: "/none" };
 
 // A script for `startPreload` to run, in a directory of its own.
@@ -127,18 +116,13 @@ describe("startPreload", () => {
     await preload.settled;
 
     expect(preload.durationMs()).toBeGreaterThan(0);
-    expect(await readFile(scripts.path("args"), "utf-8")).toBe(
-      "/cache/target /cache/cargo-home\n",
-    );
+    expect(await readFile(scripts.path("args"), "utf-8")).toBe("/cache/target /cache/cargo-home\n");
     expect(info).toHaveBeenCalledWith(expect.stringContaining("(2 MiB)"));
   });
 
   it("logs a failure once and settles all the same", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const script = await scripts.write(
-      "fail",
-      "#!/bin/sh\necho 'nothing to read' >&2\nexit 1\n",
-    );
+    const script = await scripts.write("fail", "#!/bin/sh\necho 'nothing to read' >&2\nexit 1\n");
 
     const preload = startPreload(view, script);
 
@@ -199,8 +183,7 @@ esac
     .use(compileRouter)
     .use(errorHandler);
 
-  const pendingPid = async () =>
-    Number(await readFile(join(pending.dir, "pid"), "utf-8"));
+  const pendingPid = async () => Number(await readFile(join(pending.dir, "pid"), "utf-8"));
 
   afterAll(async () => {
     await stopPreload();

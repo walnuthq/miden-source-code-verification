@@ -1,5 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
 import {
   accounts,
   BANK_ACCOUNT_ID_1,
@@ -18,6 +19,7 @@ import {
   request,
 } from "miden-source-code-verification-test-utils";
 import { describe, expect, it, vi } from "vitest";
+
 import { VerifierError, verify } from "../src/lib/verify.ts";
 import { useFakeTool } from "./fake-tool.ts";
 
@@ -57,12 +59,8 @@ describe("POST /verify", () => {
   // With no Cargo.toml at its entrypoint a files map is a MASM project, which
   // needs a miden-project.toml there.
   it("rejects a files map with neither manifest", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
-    const res = await api
-      .post("/verify")
-      .send({ files: { "src/lib.rs": files["src/lib.rs"] } });
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
+    const res = await api.post("/verify").send({ files: { "src/lib.rs": files["src/lib.rs"] } });
 
     expect(res.status).toBe(400);
 
@@ -70,9 +68,7 @@ describe("POST /verify", () => {
   });
 
   it("rejects requests missing network ID", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     expect(files["Cargo.toml"]).toBeDefined();
 
     const res = await api.post("/verify").send({ files });
@@ -82,9 +78,7 @@ describe("POST /verify", () => {
   });
 
   it("rejects a network ID or a resource ID that isn't a string", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
 
     const badNetwork = await api
       .post("/verify")
@@ -100,9 +94,7 @@ describe("POST /verify", () => {
   });
 
   it("rejects requests missing resource ID", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     expect(files["Cargo.toml"]).toBeDefined();
 
     const res = await api.post("/verify").send({ files, networkId });
@@ -112,38 +104,28 @@ describe("POST /verify", () => {
   });
 
   it("verifies a local counter-contract", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     expect(files["Cargo.toml"]).toBeDefined();
 
     const resourceId = COUNTER_CONTRACT_ID_1;
     const { resource } = accounts[resourceId];
 
-    const res = await api
-      .post("/verify")
-      .send({ files, networkId, resourceId, resource });
+    const res = await api.post("/verify").send({ files, networkId, resourceId, resource });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
-    expect(res.body).toHaveProperty(
-      "root",
-      accounts[COUNTER_CONTRACT_ID_1].code,
-    );
+    expect(res.body).toHaveProperty("root", accounts[COUNTER_CONTRACT_ID_1].code);
     expect(res.body).toHaveProperty("masp");
     expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("manifest");
     expect(res.body.parameters).toEqual({
       '::"miden:counter-contract/counter-contract@0.1.0"::"get-count"': [],
-      '::"miden:counter-contract/counter-contract@0.1.0"::"increment-count"':
-        [],
+      '::"miden:counter-contract/counter-contract@0.1.0"::"increment-count"': [],
     });
   });
 
   it("verifies an on-chain counter-contract", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     expect(files["Cargo.toml"]).toBeDefined();
 
     const res = await api
@@ -152,10 +134,7 @@ describe("POST /verify", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
-    expect(res.body).toHaveProperty(
-      "root",
-      accounts[COUNTER_CONTRACT_ID_1].code,
-    );
+    expect(res.body).toHaveProperty("root", accounts[COUNTER_CONTRACT_ID_1].code);
     expect(res.body).toHaveProperty("masp");
     expect(res.body).toHaveProperty("commitment");
     expect(res.body).toHaveProperty("manifest");
@@ -179,9 +158,7 @@ describe("POST /verify", () => {
   });
 
   it("doesn't verify a counter-contract not found on network", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     expect(files["Cargo.toml"]).toBeDefined();
 
     const res = await api.post("/verify").send({
@@ -195,35 +172,24 @@ describe("POST /verify", () => {
   });
 
   it("doesn't verify a counter-contract if sources don't match", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     expect(files["Cargo.toml"]).toBeDefined();
-    editProjectFile(files, "src/lib.rs", (content) =>
-      content.replaceAll("+", "-"),
-    );
+    editProjectFile(files, "src/lib.rs", (content) => content.replaceAll("+", "-"));
 
     const resourceId = COUNTER_CONTRACT_ID_1;
     const { resource } = accounts[resourceId];
 
-    const res = await api
-      .post("/verify")
-      .send({ files, networkId, resourceId, resource });
+    const res = await api.post("/verify").send({ files, networkId, resourceId, resource });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", false);
-    expect(res.body).toHaveProperty(
-      "root",
-      accounts[COUNTER_CONTRACT_ID_1].code,
-    );
+    expect(res.body).toHaveProperty("root", accounts[COUNTER_CONTRACT_ID_1].code);
   });
 
   // Mainnet has no fixtures: this checks against the public USDCx fee faucet,
   // whose code the counter-contract doesn't match.
   it("doesn't verify a counter-contract against a Mainnet account with other code", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
 
     const res = await api.post("/verify").send({
       files,
@@ -236,9 +202,7 @@ describe("POST /verify", () => {
   });
 
   it("doesn't verify against a network it doesn't serve", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
 
     const res = await api.post("/verify").send({
       files,
@@ -251,9 +215,7 @@ describe("POST /verify", () => {
   });
 
   it("verifies an on-chain auth-component-no-auth", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/auth-component-no-auth`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/auth-component-no-auth`);
     expect(files["Cargo.toml"]).toBeDefined();
 
     const res = await api
@@ -288,9 +250,7 @@ describe("POST /verify", () => {
   });
 
   it("doesn't verify account bytes sent under another account's ID", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     const { resource } = accounts[COUNTER_CONTRACT_ID_1];
 
     const res = await api.post("/verify").send({
@@ -322,9 +282,7 @@ describe("POST /verify", () => {
   });
 
   it("rejects a resource that isn't a string", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
 
     const res = await api.post("/verify").send({
       files,
@@ -416,9 +374,7 @@ describe("POST /verify", () => {
   });
 
   it("verifies a local auth-component-rpo-falcon512", async () => {
-    const files = await readProjectFiles(
-      `${basicWalletDir}/auth-component-rpo-falcon512`,
-    );
+    const files = await readProjectFiles(`${basicWalletDir}/auth-component-rpo-falcon512`);
     expect(files["Cargo.toml"]).toBeDefined();
 
     const resourceId = BASIC_WALLET_ID_1;
@@ -466,9 +422,7 @@ describe("POST /verify", () => {
     const resourceId = BANK_ACCOUNT_ID_1;
     const { resource } = accounts[resourceId];
 
-    const res = await api
-      .post("/verify")
-      .send({ files, networkId, resourceId, resource });
+    const res = await api.post("/verify").send({ files, networkId, resourceId, resource });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
@@ -481,9 +435,7 @@ describe("POST /verify", () => {
     const files = await readProjectFiles(`${bankDir}/bank-account`);
     expect(files["Cargo.toml"]).toBeDefined();
 
-    const res = await api
-      .post("/verify")
-      .send({ files, networkId, resourceId: BANK_ACCOUNT_ID_1 });
+    const res = await api.post("/verify").send({ files, networkId, resourceId: BANK_ACCOUNT_ID_1 });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
@@ -494,13 +446,9 @@ describe("POST /verify", () => {
   });
 
   it("returns the lockfile an on-chain bank-account was verified with", async () => {
-    const { "Cargo.lock": _, ...files } = await readProjectFiles(
-      `${bankDir}/bank-account`,
-    );
+    const { "Cargo.lock": _, ...files } = await readProjectFiles(`${bankDir}/bank-account`);
 
-    const res = await api
-      .post("/verify")
-      .send({ files, networkId, resourceId: BANK_ACCOUNT_ID_1 });
+    const res = await api.post("/verify").send({ files, networkId, resourceId: BANK_ACCOUNT_ID_1 });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
@@ -527,18 +475,13 @@ describe("POST /verify", () => {
     const files = await readProjectFiles(`${bankDir}/bank-account`);
     expect(files["Cargo.toml"]).toBeDefined();
     editProjectFile(files, "src/lib.rs", (content) =>
-      content.replace(
-        "MAX_DEPOSIT_AMOUNT: u64 = 1_000_000",
-        "MAX_DEPOSIT_AMOUNT: u64 = 2_000_000",
-      ),
+      content.replace("MAX_DEPOSIT_AMOUNT: u64 = 1_000_000", "MAX_DEPOSIT_AMOUNT: u64 = 2_000_000"),
     );
 
     const resourceId = BANK_ACCOUNT_ID_1;
     const { resource } = accounts[resourceId];
 
-    const res = await api
-      .post("/verify")
-      .send({ files, networkId, resourceId, resource });
+    const res = await api.post("/verify").send({ files, networkId, resourceId, resource });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", false);
@@ -639,10 +582,7 @@ describe("POST /verify with a MASM project", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
-    expect(res.body).toHaveProperty(
-      "root",
-      masmAccounts[MASM_COUNTER_CONTRACT_ID].code,
-    );
+    expect(res.body).toHaveProperty("root", masmAccounts[MASM_COUNTER_CONTRACT_ID].code);
     expect(res.body).toHaveProperty("masp");
     expect(res.body).toHaveProperty("commitment");
     expect(res.body).not.toHaveProperty("storage");
@@ -680,10 +620,7 @@ describe("POST /verify with a MASM project", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
-    expect(res.body).toHaveProperty(
-      "root",
-      masmNotes[MASM_COUNTER_NOTE_ID].code,
-    );
+    expect(res.body).toHaveProperty("root", masmNotes[MASM_COUNTER_NOTE_ID].code);
     expect(res.body).not.toHaveProperty("noteStorage");
   });
 
@@ -706,14 +643,8 @@ describe("POST /verify with a MASM project", () => {
 
   it("doesn't verify a MASM counter-contract with a changed constant", async () => {
     const files = await readProjectFiles(masmDir);
-    editProjectFile(
-      files,
-      "counter-contract/counter_contract.masm",
-      (content) =>
-        content.replace(
-          'word("counter_contract::count")',
-          'word("counter_contract::other_count")',
-        ),
+    editProjectFile(files, "counter-contract/counter_contract.masm", (content) =>
+      content.replace('word("counter_contract::count")', 'word("counter_contract::other_count")'),
     );
 
     const res = await api.post("/verify").send({

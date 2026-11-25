@@ -1,7 +1,9 @@
 import { link, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
 import { checkBuildOutput, readBuildOutput } from "../src/lib/build-output.ts";
 
 // The owner check needs the container's users; `undefined` skips it on the
@@ -25,9 +27,7 @@ describe("checkBuildOutput", () => {
   it("passes a plain file under the root, and reads it", async () => {
     const path = join(root, "out.masp");
     await writeFile(path, "package");
-    await expect(
-      checkBuildOutput(path, root, NO_OWNER),
-    ).resolves.toBeUndefined();
+    await expect(checkBuildOutput(path, root, NO_OWNER)).resolves.toBeUndefined();
     // readBuildOutput checks against BUILD_USER, unset on the host.
     await expect(readBuildOutput(path, root)).resolves.toBe("package");
   });
@@ -64,9 +64,9 @@ describe("checkBuildOutput", () => {
   it("rejects a file reached through a symlinked directory", async () => {
     await writeFile(join(other, "file"), "secret");
     await symlink(other, join(root, "dir"));
-    await expect(
-      checkBuildOutput(join(root, "dir", "file"), root, NO_OWNER),
-    ).rejects.toThrow("build output is not a plain file");
+    await expect(checkBuildOutput(join(root, "dir", "file"), root, NO_OWNER)).rejects.toThrow(
+      "build output is not a plain file",
+    );
   });
 
   it("rejects a path outside the root", async () => {
@@ -85,9 +85,9 @@ describe("checkBuildOutput", () => {
     const path = join(root, "out.masp");
     await writeFile(path, "package");
     const uid = process.getuid?.() ?? 0;
-    await expect(
-      checkBuildOutput(path, root, { uid: uid + 1, gid: 0 }),
-    ).rejects.toThrow("build output is not a plain file");
+    await expect(checkBuildOutput(path, root, { uid: uid + 1, gid: 0 })).rejects.toThrow(
+      "build output is not a plain file",
+    );
     await expect(
       checkBuildOutput(path, root, { uid, gid: process.getgid?.() ?? 0 }),
     ).resolves.toBeUndefined();
@@ -96,9 +96,7 @@ describe("checkBuildOutput", () => {
   it("doesn't name the path in its error", async () => {
     await mkdir(join(root, "release"));
     const path = join(root, "release", "out.masp");
-    const error = await checkBuildOutput(path, root, NO_OWNER).catch(
-      (e: unknown) => e,
-    );
+    const error = await checkBuildOutput(path, root, NO_OWNER).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).not.toContain(root);
     expect((error as Error).message).not.toContain("out.masp");

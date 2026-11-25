@@ -1,10 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import type {
-  ServiceHealth,
-  ServiceStatus,
-  StatusSnapshot,
-} from "../src/lib/types.ts";
+
+import type { ServiceHealth, ServiceStatus, StatusSnapshot } from "../src/lib/types.ts";
 import { formatDuration, type Reason, reasonToPost } from "./lib/alerts.ts";
 import { statusPageUrl } from "./status-page-url.ts";
 
@@ -44,9 +41,7 @@ const CODE_FENCE = "```";
 
 /** Slack rejects a section whose text exceeds 3000 characters. */
 const truncate = (text: string, limit = 2900) =>
-  text.length <= limit
-    ? text
-    : `${text.slice(0, limit)}\n… truncated${CODE_FENCE}`;
+  text.length <= limit ? text : `${text.slice(0, limit)}\n… truncated${CODE_FENCE}`;
 
 const formatTimestamp = (iso: string) =>
   `${new Intl.DateTimeFormat("en-GB", {
@@ -70,11 +65,7 @@ const headline = (service: ServiceStatus, reason: Reason) => {
     : `${icon} ${service.name} is ${state}`;
 };
 
-const summaryLine = (
-  service: ServiceStatus,
-  reason: Reason,
-  checkedAt: string,
-) => {
+const summaryLine = (service: ServiceStatus, reason: Reason, checkedAt: string) => {
   // The link the reader wants first: the service that is actually broken.
   const link = `<${service.url}|${service.url.replace(/^https?:\/\//, "")}>`;
 
@@ -96,9 +87,7 @@ const summaryLine = (
     return `*${link}* is back — all ${checks} passing${downFor ? ` after ${downFor} down` : ""}.`;
   }
 
-  const failing = service.endpoints.filter(
-    (endpoint) => endpoint.health !== "healthy",
-  ).length;
+  const failing = service.endpoints.filter((endpoint) => endpoint.health !== "healthy").length;
   const when =
     reason.kind === "reminder"
       ? `since ${formatTimestamp(service.since)}`
@@ -112,9 +101,7 @@ const attachmentFor = (
   snapshot: StatusSnapshot,
   links: string,
 ) => {
-  const failing = service.endpoints.filter(
-    (endpoint) => endpoint.health !== "healthy",
-  );
+  const failing = service.endpoints.filter((endpoint) => endpoint.health !== "healthy");
 
   return {
     color: colors[service.health],
@@ -144,9 +131,7 @@ const attachmentFor = (
                 type: "mrkdwn",
                 text: truncate(
                   CODE_FENCE +
-                    failing
-                      .map((endpoint) => `${endpoint.label}: ${endpoint.error}`)
-                      .join("\n") +
+                    failing.map((endpoint) => `${endpoint.label}: ${endpoint.error}`).join("\n") +
                     CODE_FENCE,
                 ),
               },
@@ -155,9 +140,7 @@ const attachmentFor = (
         : []),
       // Omitted entirely when empty: Slack rejects a block whose text is an
       // empty string, which is what running outside Actions produces.
-      ...(links
-        ? [{ type: "context", elements: [{ type: "mrkdwn", text: links }] }]
-        : []),
+      ...(links ? [{ type: "context", elements: [{ type: "mrkdwn", text: links }] }] : []),
     ],
   };
 };
@@ -180,9 +163,7 @@ const contextLinks = () => {
 const readSnapshot = (): StatusSnapshot | null => {
   const file = path.resolve(import.meta.dirname, "..", "public", "status.json");
   try {
-    const snapshot = JSON.parse(
-      fs.readFileSync(file, "utf8"),
-    ) as StatusSnapshot;
+    const snapshot = JSON.parse(fs.readFileSync(file, "utf8")) as StatusSnapshot;
     if (!Array.isArray(snapshot.services)) {
       console.log(`${file} has no services array — nothing to notify about`);
       return null;
@@ -190,9 +171,7 @@ const readSnapshot = (): StatusSnapshot | null => {
     return snapshot;
   } catch (error) {
     console.log(
-      `could not read ${file}: ${
-        error instanceof Error ? error.message : "unknown error"
-      }`,
+      `could not read ${file}: ${error instanceof Error ? error.message : "unknown error"}`,
     );
     console.log("run `pnpm probe` first");
     return null;
@@ -204,15 +183,10 @@ const snapshot = readSnapshot();
 if (snapshot) {
   const posts = snapshot.services
     .map((service) => ({ service, reason: reasonToPost(service, snapshot) }))
-    .filter(
-      (entry): entry is { service: ServiceStatus; reason: Reason } =>
-        entry.reason !== null,
-    );
+    .filter((entry): entry is { service: ServiceStatus; reason: Reason } => entry.reason !== null);
 
   for (const { service, reason } of posts) {
-    console.log(
-      `${service.name}: ${reason.kind} → ${headline(service, reason)}`,
-    );
+    console.log(`${service.name}: ${reason.kind} → ${headline(service, reason)}`);
   }
 
   if (posts.length === 0) {
@@ -221,9 +195,7 @@ if (snapshot) {
     const links = contextLinks();
     const payload = {
       // Shown in notifications and by clients that cannot render blocks.
-      text: posts
-        .map(({ service, reason }) => headline(service, reason))
-        .join(", "),
+      text: posts.map(({ service, reason }) => headline(service, reason)).join(", "),
       attachments: posts.map(({ service, reason }) =>
         attachmentFor(service, reason, snapshot, links),
       ),
@@ -254,9 +226,7 @@ if (snapshot) {
       } catch (error) {
         // A Slack outage must never take the status page down with it.
         console.log(
-          `could not reach Slack: ${
-            error instanceof Error ? error.message : "unknown error"
-          }`,
+          `could not reach Slack: ${error instanceof Error ? error.message : "unknown error"}`,
         );
       }
     }

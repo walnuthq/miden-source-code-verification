@@ -1,5 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
 import {
   COUNTER_CONTRACT_ID_1,
   editProjectFile,
@@ -22,20 +23,12 @@ const api = request(process.env.API_URL ?? "http://localhost:8080");
 const masmExamples = () => readProjectFiles(masmExamplesDir);
 
 // What a MASM answer never has: the cargo path's keys.
-const cargoOnlyKeys = [
-  "storage",
-  "noteStorage",
-  "masm",
-  "debug",
-  "cargoMidenVersion",
-];
+const cargoOnlyKeys = ["storage", "noteStorage", "masm", "debug", "cargoMidenVersion"];
 
 describe("POST /compile a MASM project", () => {
   it("builds the counter, with its package and no diagnostics", async () => {
     const files = await masmExamples();
-    const res = await api
-      .post("/compile")
-      .send({ files, entrypoint: "counter-contract" });
+    const res = await api.post("/compile").send({ files, entrypoint: "counter-contract" });
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
@@ -54,16 +47,12 @@ describe("POST /compile a MASM project", () => {
       },
       parameters: {
         "::counter_contract::get_count": [],
-        "::counter_contract::increment_count": [
-          { name: "amount", type: "felt" },
-        ],
+        "::counter_contract::increment_count": [{ name: "amount", type: "felt" }],
       },
     });
     expect(res.body.masp).toEqual(expect.any(String));
     expect(res.body.commitment).toMatch(/^0x[0-9a-f]{64}$/);
-    expect(res.body.builtWith).toMatch(
-      /^miden-assembly 0\.36\.\d+, miden-protocol 0\.18\.\d+$/,
-    );
+    expect(res.body.builtWith).toMatch(/^miden-assembly 0\.36\.\d+, miden-protocol 0\.18\.\d+$/);
     // The project as sent: there is no lockfile to add.
     expect(res.body.files).toEqual(files);
     for (const key of cargoOnlyKeys) {
@@ -73,9 +62,7 @@ describe("POST /compile a MASM project", () => {
 
   it("ignores masm, warmLockfile and debug", async () => {
     const files = await masmExamples();
-    const plain = await api
-      .post("/compile")
-      .send({ files, entrypoint: "counter-contract" });
+    const plain = await api.post("/compile").send({ files, entrypoint: "counter-contract" });
     const flagged = await api.post("/compile").send({
       files,
       entrypoint: "counter-contract",
@@ -92,9 +79,7 @@ describe("POST /compile a MASM project", () => {
 
   it("builds a note with a path dependency on the counter", async () => {
     const files = await masmExamples();
-    const res = await api
-      .post("/compile")
-      .send({ files, entrypoint: "counter-note" });
+    const res = await api.post("/compile").send({ files, entrypoint: "counter-note" });
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
@@ -109,9 +94,7 @@ describe("POST /compile a MASM project", () => {
 
   it("names the basic wallet's parameters from its source", async () => {
     const files = await masmExamples();
-    const res = await api
-      .post("/compile")
-      .send({ files, entrypoint: "basic-wallet" });
+    const res = await api.post("/compile").send({ files, entrypoint: "basic-wallet" });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("built", true);
@@ -138,9 +121,7 @@ describe("POST /compile a MASM project", () => {
     editProjectFile(files, counterMasm, (content) =>
       content.replace("movup.4 add", "movup.4 addd"),
     );
-    const res = await api
-      .post("/compile")
-      .send({ files, entrypoint: "counter-contract" });
+    const res = await api.post("/compile").send({ files, entrypoint: "counter-contract" });
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ built: false, stdout: "" });
@@ -166,14 +147,9 @@ describe("POST /compile a MASM project", () => {
   it("builds with a warning, returned with its span and rendered", async () => {
     const files = await masmExamples();
     editProjectFile(files, counterMasm, (content) =>
-      content.replace(
-        "use miden::core::sys\n",
-        "use miden::core::sys\nuse miden::core::word\n",
-      ),
+      content.replace("use miden::core::sys\n", "use miden::core::sys\nuse miden::core::word\n"),
     );
-    const res = await api
-      .post("/compile")
-      .send({ files, entrypoint: "counter-contract" });
+    const res = await api.post("/compile").send({ files, entrypoint: "counter-contract" });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("built", true);
@@ -217,9 +193,7 @@ describe("POST /compile a MASM project", () => {
 
   it("reports where the time went in Server-Timing", async () => {
     const files = await masmExamples();
-    const res = await api
-      .post("/compile")
-      .send({ files, entrypoint: "counter-contract" });
+    const res = await api.post("/compile").send({ files, entrypoint: "counter-contract" });
 
     expect(res.status).toBe(200);
     const parts = (res.headers["server-timing"] ?? "")
@@ -243,9 +217,7 @@ describe("POST /compile refuses a files map that isn't a MASM project", () => {
     editProjectFile(files, "counter-contract/miden-project.toml", (content) =>
       content.replace("[package]", "[package"),
     );
-    const res = await api
-      .post("/compile")
-      .send({ files, entrypoint: "counter-contract" });
+    const res = await api.post("/compile").send({ files, entrypoint: "counter-contract" });
 
     expect(res.status).toBe(400);
     expect(res.body).toEqual({

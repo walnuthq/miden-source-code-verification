@@ -14,15 +14,9 @@ export class DatabaseConnectionError extends Error {
 // a failed connection's names the database host and port; the error handler
 // would answer either as is. Mounted just before it: the client gets a fixed
 // message, and the handler still logs the original as the `cause`.
-export const hideQueryErrors: ErrorRequestHandler = (
-  error: unknown,
-  _req,
-  _res,
-  next,
-) => {
+export const hideQueryErrors: ErrorRequestHandler = (error: unknown, _req, _res, next) => {
   next(
-    error instanceof DrizzleQueryError ||
-      error instanceof DatabaseConnectionError
+    error instanceof DrizzleQueryError || error instanceof DatabaseConnectionError
       ? new Error("database query failed", { cause: error })
       : error,
   );

@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
+
 import swaggerJSDoc from "swagger-jsdoc";
+
 import { API_REGISTRY_URL } from "./constants.ts";
 
 // Walk up from this file until we find the monorepo root (the directory that

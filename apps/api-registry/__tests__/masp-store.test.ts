@@ -1,11 +1,12 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
 import { afterEach, describe, expect, it } from "vitest";
+
 import { createFsMaspStore } from "../src/storage/masp-store.ts";
 
-const COMMITMENT =
-  "0xd4ae21452bf89eec3d7156eb9ae870f07c792bf8526329631492ff7ee9862b9d";
+const COMMITMENT = "0xd4ae21452bf89eec3d7156eb9ae870f07c792bf8526329631492ff7ee9862b9d";
 
 describe("createFsMaspStore", () => {
   let dir: string | undefined;

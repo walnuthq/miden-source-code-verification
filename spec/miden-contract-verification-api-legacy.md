@@ -13,11 +13,7 @@ All endpoints accept a JSON body request and return a JSON response.
 Custom types:
 
 ```tsx
-type PackageType =
-  | "account"
-  | "note"
-  | "tx-script"
-  | "authentication-component";
+type PackageType = "account" | "note" | "tx-script" | "authentication-component";
 
 type PackageDependency = {
   id: string;

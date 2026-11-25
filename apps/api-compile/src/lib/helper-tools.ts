@@ -12,11 +12,8 @@ import type {
   StorageSchema,
   TargetType,
 } from "miden-source-code-verification-utils/manifest";
-import {
-  API_USER,
-  MIDEN_CLIENT_CACHE_DIR,
-  MIDEN_TOOL_TIMEOUT_MS,
-} from "./constants.ts";
+
+import { API_USER, MIDEN_CLIENT_CACHE_DIR, MIDEN_TOOL_TIMEOUT_MS } from "./constants.ts";
 import { execFile } from "./utils.ts";
 
 // The helper tools: the four Rust binaries built from `apps/api-compile/crates`
@@ -45,10 +42,7 @@ export type ToolRun<T> =
 // The code a failed `execFile` exited with. Unset when the tool didn't exit on
 // its own: it timed out, or couldn't be spawned.
 const exitCodeOf = (error: unknown) =>
-  typeof error === "object" &&
-  error !== null &&
-  "code" in error &&
-  typeof error.code === "number"
+  typeof error === "object" && error !== null && "code" in error && typeof error.code === "number"
     ? error.code
     : undefined;
 
@@ -83,9 +77,7 @@ const run = async <T>(
   } catch (error) {
     // On a non-zero exit the reason is on stderr. A timeout or a spawn
     // failure has none, and the error's message says what happened.
-    const reason =
-      stderrOf(error) ||
-      (error instanceof Error ? error.message : `${name} failed`);
+    const reason = stderrOf(error) || (error instanceof Error ? error.message : `${name} failed`);
     return {
       error: reason.replace(/^Error:\s*/, ""),
       rejected: exitCodeOf(error) === REJECTED_EXIT_CODE,
@@ -144,18 +136,10 @@ export type PackageMetadata = {
 
 // The resource's root and, for an account, its procedures and the standard
 // components among them, read from its network.
-export const midenImport = ({
-  networkId,
-  resourceId,
-}: {
-  networkId: string;
-  resourceId: string;
-}) =>
-  run<ImportedResource>(
-    "miden-import",
-    ["--network-id", networkId, "--resource-id", resourceId],
-    { cwd: MIDEN_CLIENT_CACHE_DIR },
-  );
+export const midenImport = ({ networkId, resourceId }: { networkId: string; resourceId: string }) =>
+  run<ImportedResource>("miden-import", ["--network-id", networkId, "--resource-id", resourceId], {
+    cwd: MIDEN_CLIENT_CACHE_DIR,
+  });
 
 // The resource's root and what its code is made of, given the package at
 // `maspPath`. The resource is read from its network, or from `resourcePath`, a
@@ -192,10 +176,7 @@ export const midenVerifier = ({
 // are read from its source, as the package has no WIT to give them.
 export const midenPackageMetadata = (
   maspPath: string,
-  {
-    entrypointDir,
-    signal,
-  }: { entrypointDir?: string; signal?: AbortSignal } = {},
+  { entrypointDir, signal }: { entrypointDir?: string; signal?: AbortSignal } = {},
 ) =>
   run<PackageMetadata>(
     "miden-package-metadata",
@@ -229,9 +210,4 @@ export const midenAssemble = ({
   entrypoint: string;
   maspPath: string;
   signal?: AbortSignal;
-}) =>
-  run<MidenAssembleOutput>(
-    "miden-assemble",
-    [projectRoot, entrypoint, maspPath],
-    { signal },
-  );
+}) => run<MidenAssembleOutput>("miden-assemble", [projectRoot, entrypoint, maspPath], { signal });

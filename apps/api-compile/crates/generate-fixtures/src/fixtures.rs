@@ -20,7 +20,7 @@ pub struct Fixtures {
 impl Fixtures {
     /// Renders the file.
     ///
-    /// The layout is biome's own — 2-space indent, 80-column width, double
+    /// The layout is oxfmt's own — 2-space indent, 100-column width, double
     /// quotes — reproduced here so that a freshly generated file is already
     /// formatted: the `resource` blobs and the note ids overflow the line and so
     /// sit on a continuation line, while the shorter account ids do not.

@@ -1,11 +1,10 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import {
-  midenAssemble,
-  midenPackageMetadata,
-} from "../src/lib/helper-tools.ts";
+
+import { midenAssemble, midenPackageMetadata } from "../src/lib/helper-tools.ts";
 import { useFakeTool } from "./fake-tool.ts";
 
 // A tool timeout short enough to trip, and long enough for a cold exec of the

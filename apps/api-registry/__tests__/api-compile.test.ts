@@ -1,8 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  ApiCompileError,
-  createHttpApiCompile,
-} from "../src/lib/api-compile.ts";
+
+import { ApiCompileError, createHttpApiCompile } from "../src/lib/api-compile.ts";
 import {
   API_COMPILE_BUILD_TIMEOUT_MS,
   API_COMPILE_IMPORT_TIMEOUT_MS,
@@ -21,13 +19,10 @@ const verify = () =>
     networkId: "mtst",
     resourceId: "0x01",
   });
-const importResource = () =>
-  apiCompile.importResource({ networkId: "mtst", resourceId: "0x01" });
+const importResource = () => apiCompile.importResource({ networkId: "mtst", resourceId: "0x01" });
 
 const respondWith = (response: globalThis.Response) => {
-  const fetch = vi.fn((_input: unknown, _init?: RequestInit) =>
-    Promise.resolve(response),
-  );
+  const fetch = vi.fn((_input: unknown, _init?: RequestInit) => Promise.resolve(response));
   vi.stubGlobal("fetch", fetch);
   return fetch;
 };
@@ -45,9 +40,7 @@ const hang = () => {
   const fetch = vi.fn(
     (_input: Parameters<typeof globalThis.fetch>[0], init?: RequestInit) =>
       new Promise<globalThis.Response>((_resolve, reject) => {
-        init?.signal?.addEventListener("abort", () =>
-          reject(init.signal?.reason),
-        );
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
       }),
   );
   vi.stubGlobal("fetch", fetch);
@@ -107,9 +100,7 @@ describe("createHttpApiCompile", () => {
       resourceId: "0x01",
       signal: controller.signal,
     });
-    expect(
-      JSON.parse(String(fetch.mock.calls[0]?.[1]?.body)),
-    ).not.toHaveProperty("signal");
+    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).not.toHaveProperty("signal");
   });
 
   it("returns what /verify answers", async () => {

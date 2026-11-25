@@ -1,6 +1,6 @@
 # Coding standards
 
-The judgement rules a review checks a change against. Each rule says what, why, and where the code already does it. Rules that tsc or biome enforce are left to them.
+The judgement rules a review checks a change against. Each rule says what, why, and where the code already does it. Rules that tsc, oxlint or oxfmt enforce are left to them.
 
 ## Errors and outcomes
 
@@ -8,7 +8,7 @@ The judgement rules a review checks a change against. Each rule says what, why, 
 
 Routes in api-compile and api-registry let errors propagate. The shared `errorHandler` (`packages/utils/src/http-errors.ts`, mounted last in both apps) answers an error that carries a `status` with that status, its `headers` and its message, and anything else as a 500. Request validation is the one early answer a route writes itself: `res.status(400).json({ error })`.
 
-Why: one place decides how an error becomes a response, so every route answers the same shape. The 2026-11 error-handler refactor removed 15 route-level `try`/`catch` blocks that each mapped errors their own way. A `try`/`finally` that releases a resource is fine (`apps/api-compile/src/routes/verify.ts`); biome rejects a `catch` in a route (`biome/no-route-catch.grit`).
+Why: one place decides how an error becomes a response, so every route answers the same shape. The 2026-11 error-handler refactor removed 15 route-level `try`/`catch` blocks that each mapped errors their own way. A `try`/`finally` that releases a resource is fine (`apps/api-compile/src/routes/verify.ts`); oxlint rejects a `catch` in a route (`oxlint/no-route-catch.js`).
 
 ### Expected outcomes are values, exceptions are for the unexpected
 

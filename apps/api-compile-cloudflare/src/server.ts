@@ -41,25 +41,17 @@ const CONTAINER_NAME = "compiler-weur";
 const proxy =
   (timeoutMs: number) =>
   async (c: Context<{ Bindings: Env }>): Promise<Response> => {
-    const container = c.env.COMPILER.get(
-      c.env.COMPILER.idFromName(CONTAINER_NAME),
-      { locationHint: "weur" },
-    );
+    const container = c.env.COMPILER.get(c.env.COMPILER.idFromName(CONTAINER_NAME), {
+      locationHint: "weur",
+    });
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<null>((resolve) => {
       timer = setTimeout(() => resolve(null), timeoutMs);
     });
     try {
-      const response = await Promise.race([
-        container.fetch(c.req.raw),
-        timeout,
-      ]);
+      const response = await Promise.race([container.fetch(c.req.raw), timeout]);
       return (
-        response ??
-        c.json(
-          { error: `api-compile did not answer within ${timeoutMs / 1000}s` },
-          504,
-        )
+        response ?? c.json({ error: `api-compile did not answer within ${timeoutMs / 1000}s` }, 504)
       );
     } finally {
       clearTimeout(timer);

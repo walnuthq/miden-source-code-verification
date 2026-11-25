@@ -13,10 +13,7 @@ import {
   FieldLabel,
   Input,
 } from "miden-source-code-verification-ui";
-import {
-  getNetwork,
-  type NetworkId,
-} from "miden-source-code-verification-utils/networks";
+import { getNetwork, type NetworkId } from "miden-source-code-verification-utils/networks";
 import {
   addressNetwork,
   parseResourceId,
@@ -61,17 +58,13 @@ export function BrowseForm() {
     resourceError && (resourceTouched || resourceError.isWrongNetwork)
       ? resourceError.message
       : null;
-  const switchTo = shownResourceError
-    ? addressNetwork(resourceId, network)
-    : null;
+  const switchTo = shownResourceError ? addressNetwork(resourceId, network) : null;
 
   return (
     <main className="flex justify-center px-4 py-10">
       <Card className="w-full max-w-2xl">
         <CardHeader>
-          <CardTitle className="text-center text-xl">
-            Browse Accounts &amp; Notes
-          </CardTitle>
+          <CardTitle className="text-center text-xl">Browse Accounts &amp; Notes</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           <FieldGroup>

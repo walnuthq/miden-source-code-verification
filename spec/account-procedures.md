@@ -69,6 +69,7 @@ Consumers treat an absent key (an older api-compile, or another kind of package)
    - `packages/utils/src/api-compile.ts`: `CompileResponse` gets it, with a doc comment.
 
    Out of scope: the registry (`apps/api-registry/src/lib/verify-resource.ts`) and the web viewer. Nobody needs the field there yet.
+
 6. **api-compile tests** (`apps/api-compile/__tests__/compile.test.ts`, next to the `noteStorage` cases around line 460–531):
    - The counter note fixture returns its `increment` digest, equal to the one in the counter component's manifest.
    - An account component has no `accountProcedures` key.

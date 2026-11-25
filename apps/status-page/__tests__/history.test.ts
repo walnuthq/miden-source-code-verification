@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  type ProbedService,
-  rollUp,
-  withHistory,
-} from "../scripts/lib/history.ts";
+import { type ProbedService, rollUp, withHistory } from "../scripts/lib/history.ts";
 import type {
   EndpointStatus,
   ServiceHealth,
@@ -36,10 +32,7 @@ const probed = (health: ServiceHealth): ProbedService => ({
   endpoints: [],
 });
 
-const previousService = (
-  health: ServiceHealth,
-  since: string | undefined,
-): ServiceStatus =>
+const previousService = (health: ServiceHealth, since: string | undefined): ServiceStatus =>
   ({
     ...probed(health),
     previousHealth: null,
@@ -59,15 +52,11 @@ describe("rollUp", () => {
   });
 
   it("is unhealthy when no endpoint is healthy", () => {
-    expect(rollUp([endpoint("unhealthy"), endpoint("unhealthy")])).toBe(
-      "unhealthy",
-    );
+    expect(rollUp([endpoint("unhealthy"), endpoint("unhealthy")])).toBe("unhealthy");
   });
 
   it("is degraded when only some endpoints are healthy", () => {
-    expect(rollUp([endpoint("healthy"), endpoint("unhealthy")])).toBe(
-      "degraded",
-    );
+    expect(rollUp([endpoint("healthy"), endpoint("unhealthy")])).toBe("degraded");
   });
 });
 

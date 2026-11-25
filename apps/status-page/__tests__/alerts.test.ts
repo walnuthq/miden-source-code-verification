@@ -1,17 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { formatDuration, reasonToPost } from "../scripts/lib/alerts.ts";
-import type {
-  ServiceHealth,
-  ServiceStatus,
-  StatusSnapshot,
-} from "../src/lib/types.ts";
+import type { ServiceHealth, ServiceStatus, StatusSnapshot } from "../src/lib/types.ts";
 
 const SINCE = "2026-11-10T00:00:00.000Z";
 const hoursAfterSince = (hours: number, minutes = 0) =>
-  new Date(
-    new Date(SINCE).getTime() + (hours * 60 + minutes) * 60_000,
-  ).toISOString();
+  new Date(new Date(SINCE).getTime() + (hours * 60 + minutes) * 60_000).toISOString();
 
 const service = (
   health: ServiceHealth,
@@ -29,48 +23,38 @@ const service = (
   endpoints: [],
 });
 
-const snapshot = (
-  checkedAt: string,
-  previousCheckedAt: string | null,
-): StatusSnapshot => ({ checkedAt, previousCheckedAt, services: [] });
+const snapshot = (checkedAt: string, previousCheckedAt: string | null): StatusSnapshot => ({
+  checkedAt,
+  previousCheckedAt,
+  services: [],
+});
 
 describe("reasonToPost", () => {
   it("stays quiet about a healthy service with no previous health", () => {
-    expect(
-      reasonToPost(service("healthy", null), snapshot(SINCE, null)),
-    ).toBeNull();
+    expect(reasonToPost(service("healthy", null), snapshot(SINCE, null))).toBeNull();
   });
 
   it("announces an unhealthy service with no previous health", () => {
-    expect(
-      reasonToPost(service("unhealthy", null), snapshot(SINCE, null)),
-    ).toEqual({ kind: "first-sighting" });
+    expect(reasonToPost(service("unhealthy", null), snapshot(SINCE, null))).toEqual({
+      kind: "first-sighting",
+    });
   });
 
   it("announces a service going from healthy to unhealthy", () => {
     expect(
-      reasonToPost(
-        service("unhealthy", "healthy"),
-        snapshot(SINCE, hoursAfterSince(-1)),
-      ),
+      reasonToPost(service("unhealthy", "healthy"), snapshot(SINCE, hoursAfterSince(-1))),
     ).toEqual({ kind: "changed" });
   });
 
   it("announces a service going from unhealthy to healthy", () => {
     expect(
-      reasonToPost(
-        service("healthy", "unhealthy"),
-        snapshot(SINCE, hoursAfterSince(-1)),
-      ),
+      reasonToPost(service("healthy", "unhealthy"), snapshot(SINCE, hoursAfterSince(-1))),
     ).toEqual({ kind: "changed" });
   });
 
   it("stays quiet about a service that remains healthy", () => {
     expect(
-      reasonToPost(
-        service("healthy", "healthy"),
-        snapshot(hoursAfterSince(1), SINCE),
-      ),
+      reasonToPost(service("healthy", "healthy"), snapshot(hoursAfterSince(1), SINCE)),
     ).toBeNull();
   });
 
@@ -103,10 +87,7 @@ describe("reasonToPost", () => {
 
   it("stays quiet about an ongoing outage with no previous check time", () => {
     expect(
-      reasonToPost(
-        service("unhealthy", "unhealthy"),
-        snapshot(hoursAfterSince(6, 20), null),
-      ),
+      reasonToPost(service("unhealthy", "unhealthy"), snapshot(hoursAfterSince(6, 20), null)),
     ).toBeNull();
   });
 

@@ -32,10 +32,7 @@ export function PackageSection({
       <Card className="gap-0 py-0 has-[h3:target]:ring-2 has-[h3:target]:ring-primary">
         <CardHeader className="border-b pt-(--card-spacing)">
           <CardTitle>
-            <h3
-              id={pkg.name}
-              className="scroll-mt-8 font-mono text-sm md:text-base"
-            >
+            <h3 id={pkg.name} className="scroll-mt-8 font-mono text-sm md:text-base">
               <Link
                 to={`#${pkg.name}`}
                 className="group inline-flex items-center gap-2 hover:underline"

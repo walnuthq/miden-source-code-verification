@@ -118,9 +118,7 @@ fields forward:
 {
   "checkedAt": "2026-08-13T12:00:00.000Z",
   "previousCheckedAt": "2026-08-13T11:30:00.000Z",
-  "services": [
-    { "health": "unhealthy", "previousHealth": "healthy", "since": "…" }
-  ]
+  "services": [{ "health": "unhealthy", "previousHealth": "healthy", "since": "…" }],
 }
 ```
 
@@ -128,8 +126,7 @@ Reminders are then _derived_ rather than stored — a reminder is due when this 
 is the first past a 6-hour multiple of `since`:
 
 ```ts
-Math.floor((checkedAt - since) / SIX_HOURS) >
-  Math.floor((previousCheckedAt - since) / SIX_HOURS);
+Math.floor((checkedAt - since) / SIX_HOURS) > Math.floor((previousCheckedAt - since) / SIX_HOURS);
 ```
 
 That is worth the paragraph it takes to explain, because it means nothing can

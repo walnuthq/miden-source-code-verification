@@ -1,5 +1,4 @@
 import { Settings } from "lucide-react";
-
 import {
   Button,
   Dialog,
@@ -20,10 +19,7 @@ type SettingsDialogProps = {
   onVerifierUrlChange: (verifierUrl: string) => void;
 };
 
-export function SettingsDialog({
-  verifierUrl,
-  onVerifierUrlChange,
-}: SettingsDialogProps) {
+export function SettingsDialog({ verifierUrl, onVerifierUrlChange }: SettingsDialogProps) {
   return (
     <Dialog>
       <DialogTrigger render={<Button variant="ghost" size="sm" />}>

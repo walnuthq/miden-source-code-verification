@@ -168,8 +168,8 @@ Run from the repository root — each fans out across every workspace package:
 
 ```bash
 pnpm test         # run all test suites (Vitest)
-pnpm lint         # Biome lint + format check
-pnpm format       # apply Biome fixes
+pnpm lint         # oxlint + oxfmt check
+pnpm format       # apply oxlint fixes and oxfmt
 pnpm typecheck    # type-check every package, tests included
 pnpm build        # build every package
 pnpm check        # what CI runs: lint, typecheck, and only the suites that need no server

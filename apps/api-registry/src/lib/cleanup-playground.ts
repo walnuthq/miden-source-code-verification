@@ -1,4 +1,5 @@
 import { and, eq, inArray, lt, notExists } from "drizzle-orm";
+
 import db from "../db/index.ts";
 import {
   packagesTable,
@@ -70,9 +71,7 @@ export const cleanupPlaygroundResources = async ({
           .returning({ id: verifiedAccountCodeTable.id })
       : [];
 
-    const packageIds = unique(
-      [...components, ...notes].map(({ packageId }) => packageId),
-    );
+    const packageIds = unique([...components, ...notes].map(({ packageId }) => packageId));
     const packages = packageIds.length
       ? await tx
           .delete(packagesTable)
@@ -83,20 +82,13 @@ export const cleanupPlaygroundResources = async ({
                 tx
                   .select({ id: verifiedAccountComponentTable.id })
                   .from(verifiedAccountComponentTable)
-                  .where(
-                    eq(
-                      verifiedAccountComponentTable.packageId,
-                      packagesTable.id,
-                    ),
-                  ),
+                  .where(eq(verifiedAccountComponentTable.packageId, packagesTable.id)),
               ),
               notExists(
                 tx
                   .select({ id: verifiedNoteScriptTable.id })
                   .from(verifiedNoteScriptTable)
-                  .where(
-                    eq(verifiedNoteScriptTable.packageId, packagesTable.id),
-                  ),
+                  .where(eq(verifiedNoteScriptTable.packageId, packagesTable.id)),
               ),
             ),
           )

@@ -1,6 +1,8 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
+
 import { API_USER, WORK_DIR } from "./constants.ts";
 import { midenVerifier } from "./helper-tools.ts";
 import { chownTree } from "./utils.ts";
@@ -61,8 +63,6 @@ export const verify = async ({
   const { output } = run;
   const target = `Custom(${commitment})`;
   const verified =
-    output.type === "account"
-      ? output.components.includes(target)
-      : output.script === target;
+    output.type === "account" ? output.components.includes(target) : output.script === target;
   return { verified, root: output.code };
 };

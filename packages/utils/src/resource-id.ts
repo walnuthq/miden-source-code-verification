@@ -27,17 +27,12 @@ const ACCOUNT_ADDRESS_LENGTH = 16;
 // [address type, ...account ID bytes] as data, optionally followed by
 // "_<routing parameters>". Returns null for anything else, including a bad
 // checksum.
-export function decodeAddress(
-  value: string,
-): { networkId: string; accountId: string } | null {
+export function decodeAddress(value: string): { networkId: string; accountId: string } | null {
   // Routing parameters don't change which account the address points to.
   const [encodedId = ""] = value.trim().split("_");
   try {
     const { prefix, bytes } = bech32m.decodeToBytes(encodedId);
-    if (
-      bytes.length !== ACCOUNT_ADDRESS_LENGTH ||
-      bytes[0] !== ACCOUNT_ID_ADDRESS_TYPE
-    ) {
+    if (bytes.length !== ACCOUNT_ADDRESS_LENGTH || bytes[0] !== ACCOUNT_ID_ADDRESS_TYPE) {
       return null;
     }
     return { networkId: prefix, accountId: `0x${hex.encode(bytes.slice(1))}` };
@@ -49,27 +44,18 @@ export function decodeAddress(
 // Encodes a hex account ID as its Miden account address on the given network
 // (the inverse of `decodeAddress`, without routing parameters). Returns null
 // when the value isn't a hex account ID.
-export function encodeAddress(
-  networkId: string,
-  accountId: string,
-): string | null {
+export function encodeAddress(networkId: string, accountId: string): string | null {
   if (!ACCOUNT_ID_REGEX.test(accountId)) {
     return null;
   }
   const bytes = hex.decode(accountId.slice(2).toLowerCase());
-  return bech32m.encodeFromBytes(
-    networkId,
-    Uint8Array.from([ACCOUNT_ID_ADDRESS_TYPE, ...bytes]),
-  );
+  return bech32m.encodeFromBytes(networkId, Uint8Array.from([ACCOUNT_ID_ADDRESS_TYPE, ...bytes]));
 }
 
 // The network a mismatched address belongs to, when the registry serves it, so
 // the forms can offer to switch to it. Null for anything else, including an
 // address on `network` itself.
-export function addressNetwork(
-  value: string,
-  network: NetworkId,
-): NetworkId | null {
+export function addressNetwork(value: string, network: NetworkId): NetworkId | null {
   const networkId = decodeAddress(value)?.networkId;
   return isNetworkId(networkId) && networkId !== network ? networkId : null;
 }
@@ -101,9 +87,7 @@ export function resourceIdError(
   return null;
 }
 
-export type ResourceId =
-  | { kind: "account"; accountId: string }
-  | { kind: "note"; noteId: string };
+export type ResourceId = { kind: "account"; accountId: string } | { kind: "note"; noteId: string };
 
 // The resource a Resource ID points to, or null when it isn't one. Account IDs
 // are in canonical hex: an address is resolved to the account ID it encodes.

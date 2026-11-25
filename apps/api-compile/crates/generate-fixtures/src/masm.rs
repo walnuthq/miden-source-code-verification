@@ -223,7 +223,7 @@ async fn assemble_counter_contract(
 }
 
 impl Fixtures {
-    /// Renders `packages/test-utils/src/masm-fixtures.ts`, laid out as biome
+    /// Renders `packages/test-utils/src/masm-fixtures.ts`, laid out as oxfmt
     /// formats it (see `crate::fixtures`).
     pub fn render(&self) -> String {
         let account = &self.counter_contract;

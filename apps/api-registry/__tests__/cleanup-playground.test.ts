@@ -1,7 +1,9 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
 import db from "../src/db/index.ts";
 import {
   packagesTable,
@@ -11,10 +13,7 @@ import {
 } from "../src/db/schema.ts";
 import { cleanupPlaygroundResources } from "../src/lib/cleanup-playground.ts";
 import { PLAYGROUND_SOURCE } from "../src/lib/playground.ts";
-import {
-  createFsMaspStore,
-  type MaspStore,
-} from "../src/storage/masp-store.ts";
+import { createFsMaspStore, type MaspStore } from "../src/storage/masp-store.ts";
 
 // Runs the cleanup in-process, against the local database and an fs store.
 
@@ -90,9 +89,7 @@ const insertNote = (
 
 const ids = async () => ({
   packages: (await db.select().from(packagesTable)).map((p) => p.commitment),
-  accounts: (await db.select().from(verifiedAccountCodeTable)).map(
-    (a) => a.code,
-  ),
+  accounts: (await db.select().from(verifiedAccountCodeTable)).map((a) => a.code),
   components: (await db.select().from(verifiedAccountComponentTable)).length,
   notes: (await db.select().from(verifiedNoteScriptTable)).map((n) => n.script),
 });
@@ -140,12 +137,7 @@ describe("cleanupPlaygroundResources", () => {
     // A recent playground account.
     const recentAccount = await insertAccount(hex("01"));
     const recentPackage = await insertPackage(maspStore, hex("a1"));
-    await insertComponent(
-      recentAccount,
-      recentPackage,
-      PLAYGROUND_SOURCE,
-      RECENT,
-    );
+    await insertComponent(recentAccount, recentPackage, PLAYGROUND_SOURCE, RECENT);
     // An old account another client verified.
     const otherAccount = await insertAccount(hex("02"));
     const sharedPackage = await insertPackage(maspStore, hex("a2"));
@@ -171,12 +163,7 @@ describe("cleanupPlaygroundResources", () => {
     });
     const after = await ids();
     expect(after.accounts.sort()).toEqual([hex("01"), hex("02"), hex("03")]);
-    expect(after.packages.sort()).toEqual([
-      hex("a1"),
-      hex("a2"),
-      hex("a3"),
-      hex("a4"),
-    ]);
+    expect(after.packages.sort()).toEqual([hex("a1"), hex("a2"), hex("a3"), hex("a4")]);
     expect(after.components).toBe(3);
     expect(after.notes).toEqual([hex("04")]);
     expect(await maspStore.get(hex("a2"))).not.toBeNull();

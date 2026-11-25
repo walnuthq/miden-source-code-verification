@@ -1,17 +1,10 @@
 import cors from "cors";
 import express, { type Express } from "express";
-import {
-  errorHandler,
-  notFound,
-} from "miden-source-code-verification-utils/http-errors";
+import { errorHandler, notFound } from "miden-source-code-verification-utils/http-errors";
+
 import { type Database, dbScope } from "./db/context.ts";
 import { type ApiCompile, createHttpApiCompile } from "./lib/api-compile.ts";
-import {
-  ALLOWED_ORIGINS,
-  API_COMPILE_URL,
-  MASP_STORAGE_DIR,
-  PORT,
-} from "./lib/constants.ts";
+import { ALLOWED_ORIGINS, API_COMPILE_URL, MASP_STORAGE_DIR, PORT } from "./lib/constants.ts";
 import { hideQueryErrors } from "./lib/query-errors.ts";
 import adminRouter from "./routes/admin.ts";
 import packagesRouterV1 from "./routes/v1/packages.ts";

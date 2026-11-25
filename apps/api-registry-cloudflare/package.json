@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "typecheck": "pnpm --filter miden-source-code-verification-api-registry... build && tsc --noEmit",
-    "lint": "biome check .",
-    "format": "biome check --write .",
+    "lint": "oxlint --deny-warnings && oxfmt --check",
+    "format": "oxfmt && oxlint --fix",
     "cf:typegen": "wrangler types",
     "cf:dev": "pnpm --filter miden-source-code-verification-api-registry... build && wrangler dev --port 8081",
     "cf:deploy": "pnpm --filter miden-source-code-verification-api-registry... build && wrangler deploy"

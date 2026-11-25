@@ -1,12 +1,10 @@
 import { Router } from "express";
 import { openProject } from "miden-source-code-verification-utils/project";
+
 import { abortOnClose } from "../../lib/abort-on-close.ts";
 import { getApiCompile } from "../../lib/api-compile.ts";
 import { parseRoot } from "../../lib/roots.ts";
-import {
-  findVerifiedRecord,
-  findVerifiedRecordByRoot,
-} from "../../lib/verified-record.ts";
+import { findVerifiedRecord, findVerifiedRecordByRoot } from "../../lib/verified-record.ts";
 import { verifyResource } from "../../lib/verify-resource.ts";
 import { getMaspStore } from "../../storage/masp-store.ts";
 
@@ -138,8 +136,7 @@ type VerifyNoteRequestBody = {
  *         $ref: '#/components/responses/CompilerUnavailable'
  */
 router.post("/:networkId/verified-notes", async (req, res) => {
-  const { noteId, files, entrypoint, source } =
-    req.body as VerifyNoteRequestBody;
+  const { noteId, files, entrypoint, source } = req.body as VerifyNoteRequestBody;
   if (!noteId) {
     res.status(400).json({ error: "missing noteId" });
     return;
@@ -236,9 +233,7 @@ router.get("/:networkId/verified-notes/script/:script", async (req, res) => {
     res.status(400).json({ error: "invalid script" });
     return;
   }
-  res.json(
-    await findVerifiedRecordByRoot({ networkId, kind: "note", root: script }),
-  );
+  res.json(await findVerifiedRecordByRoot({ networkId, kind: "note", root: script }));
 });
 
 /**

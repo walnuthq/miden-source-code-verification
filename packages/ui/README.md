@@ -70,8 +70,8 @@ npx shadcn@4.16.1 add <component>
 ```
 
 Then re-export it from `src/index.ts`. Generated files land under
-`src/components/ui/`, which Biome deliberately ignores (`"!**/components/ui"` in
-the root `biome.json`) — don't reformat them.
+`src/components/ui/`, which oxlint and oxfmt deliberately ignore (`"**/components/ui"` in
+the root `.oxlintrc.json` and `.oxfmtrc.json`) — don't reformat them.
 
 ## Stylesheet dependencies are devDependencies
 

@@ -1,5 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
 import {
   editProjectFile,
   MASM_COUNTER_CONTRACT_ID,
@@ -35,27 +36,17 @@ const verifyMasm = async (
   entrypoint: string,
 ) => {
   const files = await readProjectFiles(masmDir);
-  const res = await apiV1
-    .post(`/${networkId}/${route}`)
-    .send({ ...resource, files, entrypoint });
+  const res = await apiV1.post(`/${networkId}/${route}`).send({ ...resource, files, entrypoint });
   expect(res.status).toBe(200);
   expect(res.body).toEqual({ verified: true });
   return files;
 };
 
 const verifyCounterContract = () =>
-  verifyMasm(
-    "verified-accounts",
-    { accountId: MASM_COUNTER_CONTRACT_ID },
-    "counter-contract",
-  );
+  verifyMasm("verified-accounts", { accountId: MASM_COUNTER_CONTRACT_ID }, "counter-contract");
 
 const verifyCounterNote = () =>
-  verifyMasm(
-    "verified-notes",
-    { noteId: MASM_COUNTER_NOTE_ID },
-    "counter-note",
-  );
+  verifyMasm("verified-notes", { noteId: MASM_COUNTER_NOTE_ID }, "counter-note");
 
 const getMasp = (file: string) =>
   apiV1.get(`/${networkId}/packages/masp/${file}`).responseType("blob");
@@ -66,9 +57,7 @@ const expectDebugMasp = async (commitment: string, downloadName: string) => {
   const res = await getMasp(`${commitment}.debug.masp`);
   expect(res.status).toBe(200);
   expect(res.headers["x-debug-commitment"]).toBe(commitment);
-  expect(res.headers["content-disposition"]).toBe(
-    `attachment; filename=${downloadName}`,
-  );
+  expect(res.headers["content-disposition"]).toBe(`attachment; filename=${downloadName}`);
   return res;
 };
 
@@ -91,12 +80,8 @@ describe("a MASM account component", () => {
       .get(`/${networkId}/verified-accounts/${MASM_COUNTER_CONTRACT_ID}`)
       .send();
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty(
-      "code",
-      masmAccounts[MASM_COUNTER_CONTRACT_ID].code,
-    );
-    const components: VerifiedAccountComponent[] =
-      res.body.verifiedAccountComponents;
+    expect(res.body).toHaveProperty("code", masmAccounts[MASM_COUNTER_CONTRACT_ID].code);
+    const components: VerifiedAccountComponent[] = res.body.verifiedAccountComponents;
     expect(components).toHaveLength(1);
     const [component] = components;
     if (!component) throw new Error("no component");
@@ -109,9 +94,7 @@ describe("a MASM account component", () => {
     expectMasmPackage(pkg, files);
     expect(pkg.parameters).toEqual(
       expect.objectContaining({
-        "::counter_contract::increment_count": [
-          expect.objectContaining({ name: "amount" }),
-        ],
+        "::counter_contract::increment_count": [expect.objectContaining({ name: "amount" })],
       }),
     );
     // Its debug build is the package itself.
@@ -132,20 +115,14 @@ describe("a MASM account component", () => {
       "attachment; filename=counter_contract.masp",
     );
 
-    const debugRes = await expectDebugMasp(
-      commitment,
-      "counter_contract.debug.masp",
-    );
+    const debugRes = await expectDebugMasp(commitment, "counter_contract.debug.masp");
     expect(debugRes.body).toEqual(releaseRes.body);
   });
 
   it("doesn't verify with a changed constant, and records nothing", async () => {
     const files = await readProjectFiles(masmDir);
     editProjectFile(files, "counter-contract/counter_contract.masm", (source) =>
-      source.replace(
-        'word("counter_contract::count")',
-        'word("counter_contract::other_count")',
-      ),
+      source.replace('word("counter_contract::count")', 'word("counter_contract::other_count")'),
     );
     const res = await apiV1.post(`/${networkId}/verified-accounts`).send({
       accountId: MASM_COUNTER_CONTRACT_ID,
@@ -166,14 +143,9 @@ describe("a MASM note with a path dependency", () => {
   it("verifies and is recorded", async () => {
     const files = await verifyCounterNote();
 
-    const res = await apiV1
-      .get(`/${networkId}/verified-notes/${MASM_COUNTER_NOTE_ID}`)
-      .send();
+    const res = await apiV1.get(`/${networkId}/verified-notes/${MASM_COUNTER_NOTE_ID}`).send();
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty(
-      "script",
-      masmNotes[MASM_COUNTER_NOTE_ID].code,
-    );
+    expect(res.body).toHaveProperty("script", masmNotes[MASM_COUNTER_NOTE_ID].code);
     const pkg: Package = res.body.package;
     expect(pkg).toMatchObject({
       name: "counter-note",

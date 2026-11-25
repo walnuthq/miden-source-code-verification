@@ -35,8 +35,8 @@ export function NotVerified({
         </EmptyMedia>
         <EmptyTitle>{label} not verified</EmptyTitle>
         <EmptyDescription>
-          No verified source code was found for this {kind}. If you have the
-          project it was built from, you can submit it for verification.
+          No verified source code was found for this {kind}. If you have the project it was built
+          from, you can submit it for verification.
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>

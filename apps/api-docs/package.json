@@ -8,8 +8,8 @@
     "preview": "sirv dist --port 8082",
     "dev": "node --env-file-if-exists=.env src/build.ts && sirv dist --port 8082 --dev",
     "typecheck": "tsc --noEmit",
-    "lint": "biome check .",
-    "format": "biome check --write ."
+    "lint": "oxlint --deny-warnings && oxfmt --check",
+    "format": "oxfmt && oxlint --fix"
   },
   "dependencies": {
     "swagger-jsdoc": "6.3.0",

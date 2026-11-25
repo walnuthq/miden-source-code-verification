@@ -36,10 +36,7 @@ export function Navbar({
       <div className="flex shrink-0 items-center gap-1">
         {children}
         {link && (
-          <a
-            href={link.href}
-            className={cn(buttonVariants({ variant: "link" }))}
-          >
+          <a href={link.href} className={cn(buttonVariants({ variant: "link" }))}>
             {link.label}
           </a>
         )}

@@ -40,11 +40,7 @@ function FileTree({ nodes, activePath, onOpen }: FileTreeProps) {
                 <span className="truncate">{node.name}</span>
               </CollapsibleTrigger>
               <CollapsibleContent className="ml-3.5 border-l pl-1">
-                <FileTree
-                  nodes={node.children}
-                  activePath={activePath}
-                  onOpen={onOpen}
-                />
+                <FileTree nodes={node.children} activePath={activePath} onOpen={onOpen} />
               </CollapsibleContent>
             </Collapsible>
           ) : (

@@ -26,10 +26,7 @@ export type Reason =
  * or failed deploy cannot desynchronise the cadence — the next run recomputes
  * it from the same two timestamps.
  */
-export const reasonToPost = (
-  service: ServiceStatus,
-  snapshot: StatusSnapshot,
-): Reason | null => {
+export const reasonToPost = (service: ServiceStatus, snapshot: StatusSnapshot): Reason | null => {
   const { health, previousHealth, since } = service;
 
   if (previousHealth === null) {
@@ -48,17 +45,10 @@ export const reasonToPost = (
   const start = new Date(since).getTime();
   const now = new Date(checkedAt).getTime();
   const before = new Date(previousCheckedAt).getTime();
-  if (
-    !Number.isFinite(start) ||
-    !Number.isFinite(now) ||
-    !Number.isFinite(before)
-  ) {
+  if (!Number.isFinite(start) || !Number.isFinite(now) || !Number.isFinite(before)) {
     return null;
   }
   const crossed =
-    Math.floor((now - start) / SIX_HOURS_MS) >
-    Math.floor((before - start) / SIX_HOURS_MS);
-  return crossed
-    ? { kind: "reminder", downFor: formatDuration(now - start) }
-    : null;
+    Math.floor((now - start) / SIX_HOURS_MS) > Math.floor((before - start) / SIX_HOURS_MS);
+  return crossed ? { kind: "reminder", downFor: formatDuration(now - start) } : null;
 };

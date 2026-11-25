@@ -48,10 +48,7 @@ export function EditorTabs({
           return (
             <div
               key={path}
-              className={cn(
-                "flex shrink-0 items-center border-r",
-                isActive && "bg-background",
-              )}
+              className={cn("flex shrink-0 items-center border-r", isActive && "bg-background")}
             >
               <button
                 type="button"
@@ -63,25 +60,18 @@ export function EditorTabs({
                 onClick={() => onSelect(path)}
                 className={cn(
                   "flex h-full items-center gap-1.5 pr-1 pl-3 text-xs whitespace-nowrap outline-none focus-visible:ring-1 focus-visible:ring-ring/50",
-                  isActive
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
+                  isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 <FileIcon path={path} className="size-3.5" />
                 {name}
-                {isAmbiguous && (
-                  <span className="text-muted-foreground">{dirname(path)}</span>
-                )}
+                {isAmbiguous && <span className="text-muted-foreground">{dirname(path)}</span>}
               </button>
               <button
                 type="button"
                 aria-label={`Close ${path}`}
                 onClick={() => onClose(path)}
-                className={cn(
-                  buttonVariants({ variant: "ghost", size: "icon-xs" }),
-                  "mr-1",
-                )}
+                className={cn(buttonVariants({ variant: "ghost", size: "icon-xs" }), "mr-1")}
               >
                 <X />
               </button>
@@ -96,8 +86,8 @@ export function EditorTabs({
           aria-labelledby={`${id}-tab-${activeIndex}`}
           className="min-h-0 flex-1 overflow-auto text-xs leading-5"
           // Shiki's output, rendered on the server with the source text escaped
-          // (see package-sources.server.ts).
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: see above
+          // (see package-sources.server.ts), so it is safe to inject.
+          // oxlint-disable-next-line react/no-danger
           dangerouslySetInnerHTML={{ __html: activeFile.html }}
         />
       ) : (

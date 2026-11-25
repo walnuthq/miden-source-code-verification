@@ -1,4 +1,5 @@
 import type { StandardAccountComponent } from "miden-source-code-verification-utils/api-compile";
+
 import type { PackageManifest } from "@/lib/api-registry.server";
 
 // How many of an account's procedures are accounted for by a known component.
@@ -27,18 +28,12 @@ export function getVerificationStatus({
       ...standardAccountComponents.flatMap((component) => component.procedures),
       ...manifests.flatMap(({ exports }) =>
         exports.flatMap(({ Procedure }) =>
-          Procedure?.signature?.abi === ACCOUNT_PROCEDURE_ABI
-            ? [Procedure.digest]
-            : [],
+          Procedure?.signature?.abi === ACCOUNT_PROCEDURE_ABI ? [Procedure.digest] : [],
         ),
       ),
     ].map((digest) => digest.toLowerCase()),
   );
-  const accountProcedures = new Set(
-    procedures.map((digest) => digest.toLowerCase()),
-  );
-  const verified = [...accountProcedures].filter((digest) =>
-    known.has(digest),
-  ).length;
+  const accountProcedures = new Set(procedures.map((digest) => digest.toLowerCase()));
+  const verified = [...accountProcedures].filter((digest) => known.has(digest)).length;
   return { verified, total: accountProcedures.size };
 }

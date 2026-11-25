@@ -7,9 +7,7 @@ describe("getExplorerUrl", () => {
     expect(getExplorerUrl("mtst", "account", "mtst1abc")).toBe(
       "https://testnet.midenscan.com/account/mtst1abc",
     );
-    expect(getExplorerUrl("mdev", "note", "0x01")).toBe(
-      "https://devnet.midenscan.com/note/0x01",
-    );
+    expect(getExplorerUrl("mdev", "note", "0x01")).toBe("https://devnet.midenscan.com/note/0x01");
     expect(getExplorerUrl("mm", "account", "mm1abc")).toBe(
       "https://explorer.mainnet.miden.io/account/mm1abc",
     );

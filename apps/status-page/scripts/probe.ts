@@ -14,11 +14,8 @@ import type {
   VerifiedAccountComponent,
   VerifiedNoteById,
 } from "miden-source-code-verification-utils/api-registry";
-import type {
-  CheckSummary,
-  EndpointStatus,
-  StatusSnapshot,
-} from "../src/lib/types.ts";
+
+import type { CheckSummary, EndpointStatus, StatusSnapshot } from "../src/lib/types.ts";
 import { type ProbedService, rollUp, withHistory } from "./lib/history.ts";
 import { statusPageUrl } from "./status-page-url.ts";
 
@@ -38,10 +35,8 @@ import { statusPageUrl } from "./status-page-url.ts";
 // empty string, and an empty URL would fail every check with "Invalid URL"
 // rather than falling back to the documented default.
 const API_COMPILE_URL = process.env.API_COMPILE_URL || "http://localhost:8080";
-const API_REGISTRY_URL =
-  process.env.API_REGISTRY_URL || "http://localhost:8081";
-const WEB_VERIFIER_URL =
-  process.env.WEB_VERIFIER_URL || "http://localhost:5173";
+const API_REGISTRY_URL = process.env.API_REGISTRY_URL || "http://localhost:8081";
+const WEB_VERIFIER_URL = process.env.WEB_VERIFIER_URL || "http://localhost:5173";
 const WEB_VIEWER_URL = process.env.WEB_VIEWER_URL || "http://localhost:5174";
 
 // A plain reachability check. api-compile's `/` proxies into a Cloudflare
@@ -90,12 +85,8 @@ const loadCounterContract = async () => {
 // endpoint answers (the registry's, from utils), so a field the wire doesn't
 // carry fails to typecheck, while a wrong-shaped payload still reads as
 // missing fields rather than throwing.
-const asRecord = <T = Record<string, unknown>>(
-  value: unknown,
-): Partial<Record<keyof T, unknown>> =>
-  typeof value === "object" && value !== null
-    ? (value as Partial<Record<keyof T, unknown>>)
-    : {};
+const asRecord = <T = Record<string, unknown>>(value: unknown): Partial<Record<keyof T, unknown>> =>
+  typeof value === "object" && value !== null ? (value as Partial<Record<keyof T, unknown>>) : {};
 
 const truncateHex = (value: unknown) =>
   typeof value === "string" && value.length > 20
@@ -260,8 +251,7 @@ const verifiedNoteCheck = ({ byId }: { byId: boolean }): EndpointCheck => {
 const apiCompile: ServiceDefinition = {
   id: "api-compile",
   name: "api-compile",
-  description:
-    "Compiles Rust sources to Miden packages and verifies them against on-chain code.",
+  description: "Compiles Rust sources to Miden packages and verifies them against on-chain code.",
   url: API_COMPILE_URL,
   endpoints: [
     rootCheck,
@@ -278,15 +268,10 @@ const apiCompile: ServiceDefinition = {
         return {
           built: body.built === true,
           commitment: truncateHex(body.commitment),
-          exports: Array.isArray(manifest.exports)
-            ? manifest.exports.length
-            : 0,
-          dependencies: Array.isArray(manifest.dependencies)
-            ? manifest.dependencies.length
-            : 0,
+          exports: Array.isArray(manifest.exports) ? manifest.exports.length : 0,
+          dependencies: Array.isArray(manifest.dependencies) ? manifest.dependencies.length : 0,
           "masp chars": typeof body.masp === "string" ? body.masp.length : 0,
-          "stderr chars":
-            typeof body.stderr === "string" ? body.stderr.length : 0,
+          "stderr chars": typeof body.stderr === "string" ? body.stderr.length : 0,
         };
       },
       assert: (payload) => {
@@ -322,9 +307,7 @@ const apiCompile: ServiceDefinition = {
         return {
           verified: body.verified === true,
           commitment: truncateHex(body.commitment),
-          exports: Array.isArray(manifest.exports)
-            ? manifest.exports.length
-            : 0,
+          exports: Array.isArray(manifest.exports) ? manifest.exports.length : 0,
         };
       },
       assert: (payload) =>
@@ -348,12 +331,9 @@ const apiCompile: ServiceDefinition = {
       },
       assert: (payload) => {
         const body = asRecord(payload);
-        if (body.type !== "account")
-          return `expected an account, got ${body.type}`;
+        if (body.type !== "account") return `expected an account, got ${body.type}`;
         const expected = accounts[COUNTER_CONTRACT_ID_1]?.code;
-        return body.code === expected
-          ? null
-          : "code root does not match the known fixture";
+        return body.code === expected ? null : "code root does not match the known fixture";
       },
     },
   ],
@@ -362,8 +342,7 @@ const apiCompile: ServiceDefinition = {
 const apiRegistry: ServiceDefinition = {
   id: "api-registry",
   name: "api-registry",
-  description:
-    "Registry of verified accounts, notes and their source packages.",
+  description: "Registry of verified accounts, notes and their source packages.",
   url: API_REGISTRY_URL,
   // `GET /` only echoes env vars and never touches Postgres, so these four
   // record lookups are what actually prove the registry can serve. All four are
@@ -400,17 +379,9 @@ const webViewer: ServiceDefinition = {
 
 // Cards render in this order. api-compile goes last: it has by far the most
 // checks and the busiest card, so the lighter services read first.
-const services: ServiceDefinition[] = [
-  apiRegistry,
-  webVerifier,
-  webViewer,
-  apiCompile,
-];
+const services: ServiceDefinition[] = [apiRegistry, webVerifier, webViewer, apiCompile];
 
-const probeEndpoint = async (
-  serviceUrl: string,
-  check: EndpointCheck,
-): Promise<EndpointStatus> => {
+const probeEndpoint = async (serviceUrl: string, check: EndpointCheck): Promise<EndpointStatus> => {
   const endpoint = new URL(check.path, serviceUrl).toString();
   const base = {
     id: check.id,
@@ -490,9 +461,7 @@ const probeEndpoint = async (
   }
 };
 
-const probeService = async (
-  service: ServiceDefinition,
-): Promise<ProbedService> => {
+const probeService = async (service: ServiceDefinition): Promise<ProbedService> => {
   // Sequential within a service: `GET /` runs first and wakes api-compile's
   // container, so the compile checks behind it don't each pay a cold start.
   const endpoints: EndpointStatus[] = [];
@@ -511,9 +480,7 @@ const probeService = async (
 const fetchPreviousSnapshot = async (): Promise<StatusSnapshot | null> => {
   const base = statusPageUrl();
   if (!base) {
-    console.log(
-      "no STATUS_PAGE_URL and no GITHUB_REPOSITORY — starting without previous state",
-    );
+    console.log("no STATUS_PAGE_URL and no GITHUB_REPOSITORY — starting without previous state");
     return null;
   }
   // Pages serves status.json with `cache-control: max-age=600`. That is well
@@ -540,9 +507,7 @@ const fetchPreviousSnapshot = async (): Promise<StatusSnapshot | null> => {
     return snapshot;
   } catch (error) {
     console.log(
-      `no previous snapshot: ${
-        error instanceof Error ? error.message : "unknown error"
-      }`,
+      `no previous snapshot: ${error instanceof Error ? error.message : "unknown error"}`,
     );
     return null;
   }
@@ -567,23 +532,13 @@ const snapshot: StatusSnapshot = {
 
 const outDir = path.resolve(import.meta.dirname, "..", "public");
 fs.mkdirSync(outDir, { recursive: true });
-fs.writeFileSync(
-  path.join(outDir, "status.json"),
-  JSON.stringify(snapshot, null, 2),
-);
+fs.writeFileSync(path.join(outDir, "status.json"), JSON.stringify(snapshot, null, 2));
 
 for (const service of snapshot.services) {
-  const healthy = service.endpoints.filter(
-    (endpoint) => endpoint.health === "healthy",
-  ).length;
-  console.log(
-    `${service.name}: ${service.health} (${healthy}/${service.endpoints.length})`,
-  );
+  const healthy = service.endpoints.filter((endpoint) => endpoint.health === "healthy").length;
+  console.log(`${service.name}: ${service.health} (${healthy}/${service.endpoints.length})`);
   for (const endpoint of service.endpoints) {
-    const state =
-      endpoint.health === "healthy" ? "ok" : `FAILED — ${endpoint.error}`;
-    console.log(
-      `  ${endpoint.label} — ${state} in ${endpoint.responseTimeMs}ms`,
-    );
+    const state = endpoint.health === "healthy" ? "ok" : `FAILED — ${endpoint.error}`;
+    console.log(`  ${endpoint.label} — ${state} in ${endpoint.responseTimeMs}ms`);
   }
 }

@@ -58,6 +58,7 @@ a **different** account on the same network that shares the same code.
 
 New response shape:
 
+<!-- prettier-ignore -->
 ```jsonc
 {
   "id": "…",
@@ -78,11 +79,11 @@ New response shape:
       "updatedAt": "2026-02-23T12:34:28.801Z",
       "package": {
         /* Package, see below */
-      }
-    }
+      },
+    },
   ],
   // the id (or address) you queried with, echoed back
-  "accountId": "0xd42901fd1841424000901c7741f24d"
+  "accountId": "0xd42901fd1841424000901c7741f24d",
 }
 ```
 
@@ -110,6 +111,7 @@ another note on the same network sharing that script.
 
 New response shape:
 
+<!-- prettier-ignore -->
 ```jsonc
 {
   "id": "…",
@@ -126,7 +128,7 @@ New response shape:
     /* Package, see below */
   },
   // the id you queried with, echoed back
-  "noteId": "0xcc3f…"
+  "noteId": "0xcc3f…",
 }
 ```
 
@@ -183,7 +185,7 @@ The package shape is shared by both endpoints and is slimmer than before:
     "Cargo.toml": "…",
     "Cargo.lock": "…",
     "miden-project.toml": "…",
-    "src/lib.rs": "RUST_SOURCE_CODE"
+    "src/lib.rs": "RUST_SOURCE_CODE",
   },
   "manifest": {
     // replaces `exports` / `procedureExports` / `dependencies`
@@ -194,21 +196,21 @@ The package shape is shared by both endpoints and is slimmer than before:
           "digest": "0x6370…",
           // null when the compiler could not recover a signature
           "signature": { "abi": 3, "params": ["Felt"], "results": ["Felt"] },
-          "attributes": { "attrs": [] }
-        }
-      }
+          "attributes": { "attrs": [] },
+        },
+      },
     ],
     "dependencies": [
       {
         "name": "counter-account",
         "kind": "account-component",
         "version": "0.1.0",
-        "digest": "0x731c…"
-      }
-    ]
+        "digest": "0x731c…",
+      },
+    ],
   },
   "createdAt": "2026-02-23T…Z",
-  "updatedAt": "2026-02-23T…Z"
+  "updatedAt": "2026-02-23T…Z",
 }
 ```
 

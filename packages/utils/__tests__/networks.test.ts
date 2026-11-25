@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  DEFAULT_NETWORK,
-  getNetworkName,
-  isNetworkId,
-  parseNetwork,
-} from "../src/networks.ts";
+import { DEFAULT_NETWORK, getNetworkName, isNetworkId, parseNetwork } from "../src/networks.ts";
 
 describe("networks", () => {
   it("serves Testnet, Devnet and Mainnet", () => {

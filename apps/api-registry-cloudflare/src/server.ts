@@ -1,6 +1,7 @@
 import { httpServerHandler } from "cloudflare:node";
 import { createApp } from "miden-source-code-verification-api-registry/app";
 import { createDb } from "miden-source-code-verification-api-registry/db";
+
 import { createR2MaspStore } from "./r2-masp-store";
 
 // Cloudflare Workers entrypoint: run the vendor-neutral Express app from

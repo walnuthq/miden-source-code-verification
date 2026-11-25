@@ -4,6 +4,7 @@ import type { VerifyResponse } from "miden-source-code-verification-utils/api-co
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import type { PackageSchemas } from "miden-source-code-verification-utils/manifest";
 import type { Project } from "miden-source-code-verification-utils/project";
+
 import db, { type Database } from "../db/index.ts";
 import { getPackage } from "../db/packages.ts";
 import {
@@ -17,9 +18,7 @@ import type { ApiCompile } from "./api-compile.ts";
 import { PLAYGROUND_SOURCE } from "./playground.ts";
 
 // The on-chain resource a verification or a lookup is for, named by its id.
-export type Resource =
-  | { kind: "account"; accountId: string }
-  | { kind: "note"; noteId: string };
+export type Resource = { kind: "account"; accountId: string } | { kind: "note"; noteId: string };
 
 type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
@@ -31,11 +30,7 @@ type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 const onConflictTakeOverPlayground = <TSet, TInsert>(
   insert: {
     onConflictDoNothing(config: { target: PgColumn[] }): TInsert;
-    onConflictDoUpdate(config: {
-      target: PgColumn[];
-      set: TSet;
-      setWhere: SQL;
-    }): TInsert;
+    onConflictDoUpdate(config: { target: PgColumn[]; set: TSet; setWhere: SQL }): TInsert;
   },
   {
     source,
@@ -60,10 +55,7 @@ const onConflictTakeOverPlayground = <TSet, TInsert>(
 // The `schemas` column of what api-compile read of a package: only the
 // schemas it has, so `{}` for one with none (no keys set to `undefined`), as
 // every MASM package is.
-const schemasOf = ({
-  storage,
-  noteStorage,
-}: PackageSchemas): PackageSchemas => ({
+const schemasOf = ({ storage, noteStorage }: PackageSchemas): PackageSchemas => ({
   ...(storage && { storage }),
   ...(noteStorage && { noteStorage }),
 });
@@ -115,19 +107,12 @@ const insertPackage = async (
 // The account code's verified account: inserted, or found when it exists,
 // whether from an earlier verification or a concurrent one that inserted it
 // since this one started.
-const insertVerifiedAccount = async (
-  tx: Transaction,
-  networkId: string,
-  code: string,
-) => {
+const insertVerifiedAccount = async (tx: Transaction, networkId: string, code: string) => {
   const [inserted] = await tx
     .insert(verifiedAccountCodeTable)
     .values({ networkId, code })
     .onConflictDoNothing({
-      target: [
-        verifiedAccountCodeTable.networkId,
-        verifiedAccountCodeTable.code,
-      ],
+      target: [verifiedAccountCodeTable.networkId, verifiedAccountCodeTable.code],
     })
     .returning({ id: verifiedAccountCodeTable.id });
   if (inserted) {
@@ -138,9 +123,7 @@ const insertVerifiedAccount = async (
     where: { networkId, code },
   });
   if (!existing) {
-    throw new Error(
-      "insert verified account conflicted, but no row has its code",
-    );
+    throw new Error("insert verified account conflicted, but no row has its code");
   }
   return existing.id;
 };
@@ -211,10 +194,7 @@ const insertNote = async (
       .values({ networkId, script, source, packageId, packageCommitment }),
     {
       source,
-      target: [
-        verifiedNoteScriptTable.networkId,
-        verifiedNoteScriptTable.script,
-      ],
+      target: [verifiedNoteScriptTable.networkId, verifiedNoteScriptTable.script],
       sourceColumn: verifiedNoteScriptTable.source,
       set: {
         source,
@@ -258,8 +238,7 @@ export const verifyResource = async ({
   /** Aborts the build, as when the client went away. */
   signal?: AbortSignal;
 }) => {
-  const resourceId =
-    resource.kind === "account" ? resource.accountId : resource.noteId;
+  const resourceId = resource.kind === "account" ? resource.accountId : resource.noteId;
   const build = await apiCompile.verify({
     project,
     networkId,

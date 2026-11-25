@@ -15,10 +15,7 @@ export class HttpError extends Error {
   constructor(
     status: number,
     message: string,
-    {
-      headers = {},
-      cause,
-    }: { headers?: Record<string, string>; cause?: unknown } = {},
+    { headers = {}, cause }: { headers?: Record<string, string>; cause?: unknown } = {},
   ) {
     super(message, { cause });
     this.status = status;
@@ -50,10 +47,7 @@ const bodyErrorMessages: Record<string, (error: ThrownError) => string> = {
 // The status an error asks for, when it is an error status; 500 otherwise.
 const statusOf = (error: ThrownError) => {
   const status = error.status ?? error.statusCode;
-  return typeof status === "number" &&
-    Number.isInteger(status) &&
-    status >= 400 &&
-    status <= 599
+  return typeof status === "number" && Number.isInteger(status) && status >= 400 && status <= 599
     ? status
     : 500;
 };
@@ -68,15 +62,9 @@ const headersOf = ({ headers }: ThrownError): Record<string, string> =>
     : {};
 
 const messageOf = (error: ThrownError) =>
-  (typeof error.type === "string" && bodyErrorMessages[error.type]?.(error)) ||
-  error.message;
+  (typeof error.type === "string" && bodyErrorMessages[error.type]?.(error)) || error.message;
 
-export const errorHandler: ErrorRequestHandler = (
-  error: unknown,
-  _req,
-  res,
-  next,
-) => {
+export const errorHandler: ErrorRequestHandler = (error: unknown, _req, res, next) => {
   if (res.headersSent) {
     next(error);
     return;

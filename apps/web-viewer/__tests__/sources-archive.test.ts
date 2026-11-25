@@ -14,10 +14,7 @@ describe("zipSources", () => {
     const entries = unzipSync(zipSources("counter-contract", files));
     expect(
       Object.fromEntries(
-        Object.entries(entries).map(([path, content]) => [
-          path,
-          strFromU8(content),
-        ]),
+        Object.entries(entries).map(([path, content]) => [path, strFromU8(content)]),
       ),
     ).toEqual({
       "counter-contract/.cargo/config.toml": "[build]\n",

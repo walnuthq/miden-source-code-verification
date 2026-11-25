@@ -3,19 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "scripts": {
-    "dev": "node --env-file-if-exists=.env --watch --conditions development src/server.ts",
-    "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc",
-    "start": "node --env-file-if-exists=.env dist/src/server.js",
-    "test": "vitest run",
-    "test:pure": "vitest run --config vitest.pure.config.ts",
-    "db:push": "drizzle-kit push",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "lint": "biome check .",
-    "format": "biome check --write ."
-  },
   "exports": {
     "./app": {
       "types": "./dist/src/app.d.ts",
@@ -29,6 +16,19 @@
       "types": "./dist/src/storage/masp-store.d.ts",
       "default": "./dist/src/storage/masp-store.js"
     }
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --watch --conditions development src/server.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc",
+    "start": "node --env-file-if-exists=.env dist/src/server.js",
+    "test": "vitest run",
+    "test:pure": "vitest run --config vitest.pure.config.ts",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "lint": "oxlint --deny-warnings && oxfmt --check",
+    "format": "oxfmt && oxlint --fix"
   },
   "dependencies": {
     "cors": "2.8.6",

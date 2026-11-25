@@ -1,5 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
 import {
   editProjectFile,
   projectFile,
@@ -22,35 +23,23 @@ describe("POST /compile", () => {
   // With no Cargo.toml at its entrypoint a files map is a MASM project, which
   // needs a miden-project.toml there.
   it("rejects a files map with neither manifest", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
-    const res = await api
-      .post("/compile")
-      .send({ files: { "src/lib.rs": files["src/lib.rs"] } });
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
+    const res = await api.post("/compile").send({ files: { "src/lib.rs": files["src/lib.rs"] } });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "missing miden-project.toml");
   });
 
   it("rejects a file path that would leave the project", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
-    const res = await api
-      .post("/compile")
-      .send({ files: { ...files, "../evil.rs": "" } });
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
+    const res = await api.post("/compile").send({ files: { ...files, "../evil.rs": "" } });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "invalid file path: ../evil.rs");
   });
 
   it("doesn't compile a buggy counter-contract", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     expect(files["Cargo.toml"]).toBeDefined();
-    editProjectFile(files, "src/lib.rs", (content) =>
-      content.replace(", Word", ""),
-    );
+    editProjectFile(files, "src/lib.rs", (content) => content.replace(", Word", ""));
 
     const res = await api.post("/compile").send({ files });
 
@@ -69,9 +58,7 @@ describe("POST /compile", () => {
   });
 
   it("compiles a counter-contract", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     expect(files["Cargo.toml"]).toBeDefined();
 
     const res = await api.post("/compile").send({ files });
@@ -138,9 +125,7 @@ describe("POST /compile", () => {
   });
 
   it("compiles an auth-component-no-auth", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/auth-component-no-auth`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/auth-component-no-auth`);
     expect(files["Cargo.toml"]).toBeDefined();
 
     const res = await api.post("/compile").send({ files });
@@ -156,9 +141,7 @@ describe("POST /compile", () => {
   });
 
   it("compiles an auth-component-rpo-falcon512", async () => {
-    const files = await readProjectFiles(
-      `${basicWalletDir}/auth-component-rpo-falcon512`,
-    );
+    const files = await readProjectFiles(`${basicWalletDir}/auth-component-rpo-falcon512`);
     expect(files["Cargo.toml"]).toBeDefined();
 
     const res = await api.post("/compile").send({ files });
@@ -332,9 +315,7 @@ describe("POST /compile build isolation", () => {
   // On the host every file is the build's own, so there is nothing foreign to
   // find.
   it("gives build code no file of the warm cache it can write", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     editProjectFile(files, "build.rs", () => CACHE_PROBE_BUILD_RS);
 
     const res = await api.post("/compile").send({ files });
@@ -348,9 +329,7 @@ describe("POST /compile build isolation", () => {
 
 describe("POST /compile timings", () => {
   it("reports where the time went in Server-Timing", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
 
     const res = await api.post("/compile").send({ files });
 
@@ -363,9 +342,7 @@ describe("POST /compile timings", () => {
 
 describe("POST /compile masm", () => {
   it("leaves the masm out unless asked", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
 
     const res = await api.post("/compile").send({ files });
 
@@ -374,9 +351,7 @@ describe("POST /compile masm", () => {
   });
 
   it("returns the release build's masm with masm: true", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     const plain = await api.post("/compile").send({ files });
 
     const res = await api.post("/compile").send({ files, masm: true });
@@ -395,23 +370,15 @@ describe("POST /compile masm", () => {
     const files = await readProjectFiles(counterContractDir);
     const entrypoint = "count-reader";
 
-    const res = await api
-      .post("/compile")
-      .send({ files, entrypoint, masm: true });
+    const res = await api.post("/compile").send({ files, entrypoint, masm: true });
 
     expect(res.status).toBe(200);
-    expect(res.body.masm.source).toContain(
-      'namespace "miden:count-reader/count-reader@0.1.0"',
-    );
+    expect(res.body.masm.source).toContain('namespace "miden:count-reader/count-reader@0.1.0"');
   });
 
   it("has no masm when the build fails", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
-    editProjectFile(files, "src/lib.rs", (content) =>
-      content.replace(", Word", ""),
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
+    editProjectFile(files, "src/lib.rs", (content) => content.replace(", Word", ""));
 
     const res = await api.post("/compile").send({ files, masm: true });
 
@@ -424,9 +391,7 @@ describe("POST /compile masm", () => {
 
 describe("POST /compile readOnly", () => {
   it("tells the counter-contract's getter from its state change", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
 
     const res = await api.post("/compile").send({ files });
 
@@ -444,9 +409,7 @@ describe("POST /compile readOnly", () => {
 
 describe("POST /compile callsForeign", () => {
   it("finds no foreign call in the counter-contract", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
 
     const res = await api.post("/compile").send({ files });
 
@@ -490,9 +453,7 @@ describe("POST /compile parameters", () => {
   });
 
   it("leaves out an export the WIT doesn't declare", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
 
     const res = await api.post("/compile").send({ files });
 
@@ -508,25 +469,19 @@ describe("POST /compile parameters", () => {
   it("names a note script's argument", async () => {
     const files = await readProjectFiles(counterContractDir);
 
-    const res = await api
-      .post("/compile")
-      .send({ files, entrypoint: "counter-note" });
+    const res = await api.post("/compile").send({ files, entrypoint: "counter-note" });
 
     expect(res.status).toBe(200);
     // The WIT escapes it as `%run`.
     expect(res.body.parameters).toEqual({
-      '::"miden:counter-note/miden-counter-note@0.1.0"::run': [
-        { name: "arg", type: "word" },
-      ],
+      '::"miden:counter-note/miden-counter-note@0.1.0"::run': [{ name: "arg", type: "word" }],
     });
   });
 
   it("has no names for a transaction script, which carries no WIT", async () => {
     const files = await readProjectFiles(counterContractDir);
 
-    const res = await api
-      .post("/compile")
-      .send({ files, entrypoint: "counter-script" });
+    const res = await api.post("/compile").send({ files, entrypoint: "counter-script" });
 
     expect(res.status).toBe(200);
     expect(res.body.parameters).toEqual({});
@@ -545,8 +500,7 @@ describe("POST /compile accountProcedures", () => {
   // The digests the counter-contract component exports, by procedure name:
   // what an account's code holds once it has the component.
   const counterDigests = async () => {
-    const { manifest }: { manifest: Manifest } = (await counterComponent())
-      .body;
+    const { manifest }: { manifest: Manifest } = (await counterComponent()).body;
     const component = '::"miden:counter-contract/counter-contract@0.1.0"';
     const procedures = manifest.exports.flatMap((packageExport) =>
       "Procedure" in packageExport ? [packageExport.Procedure] : [],
@@ -561,9 +515,7 @@ describe("POST /compile accountProcedures", () => {
 
   it("has none for an account component", async () => {
     // An account component runs as the account: it calls none.
-    expect((await counterComponent()).body).not.toHaveProperty(
-      "accountProcedures",
-    );
+    expect((await counterComponent()).body).not.toHaveProperty("accountProcedures");
   });
 
   it("returns the counter procedures the counter note calls", async () => {
@@ -578,9 +530,7 @@ describe("POST /compile accountProcedures", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("kind", "note");
-    expect(res.body.accountProcedures).toEqual(
-      [getCount, incrementCount].sort(),
-    );
+    expect(res.body.accountProcedures).toEqual([getCount, incrementCount].sort());
   });
 
   it("returns only increment-count for the counter script", async () => {
@@ -600,9 +550,7 @@ describe("POST /compile accountProcedures", () => {
 
 describe("POST /compile schemas", () => {
   it("returns an account component's map slot", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
 
     const res = await api.post("/compile").send({ files });
 
@@ -657,9 +605,7 @@ describe("POST /compile schemas", () => {
         "struct CounterNote {\n    /// The account that may consume the note.\n    target_account_id: AccountId,\n}",
       ),
     );
-    expect(files[`${entrypoint}/src/lib.rs`]).toContain(
-      "target_account_id: AccountId",
-    );
+    expect(files[`${entrypoint}/src/lib.rs`]).toContain("target_account_id: AccountId");
 
     const res = await api.post("/compile").send({ files, entrypoint });
 
@@ -682,9 +628,7 @@ describe("POST /compile schemas", () => {
   it("returns neither for a transaction script", async () => {
     const files = await readProjectFiles(bankDir);
 
-    const res = await api
-      .post("/compile")
-      .send({ files, entrypoint: "init-tx-script" });
+    const res = await api.post("/compile").send({ files, entrypoint: "init-tx-script" });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("kind", "transaction-script");
@@ -708,9 +652,7 @@ describe("POST /compile returned files", () => {
   });
 
   it("returns the lockfile it was sent", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     expect(files["Cargo.lock"]).toBeDefined();
 
     const res = await api.post("/compile").send({ files });
@@ -730,9 +672,7 @@ describe("POST /compile returned files", () => {
   // every offline resolution after it in the container, the re-resolution
   // below included, would pick that release over the warm one.
   it("builds with a dependency the cache doesn't have", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     const warmSmallvec = smallvecVersion(projectFile(files, "Cargo.lock"));
     expect(warmSmallvec).toBeDefined();
     editProjectFile(files, "Cargo.toml", (content) =>
@@ -755,9 +695,7 @@ describe("POST /compile returned files", () => {
   // which no build downloads) fails offline. `warmLockfile` re-resolves it
   // against the downloaded crates instead of downloading and rebuilding.
   it("re-resolves a stale lockfile offline with warmLockfile", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     const warmSmallvec = smallvecVersion(projectFile(files, "Cargo.lock"));
     expect(warmSmallvec).toBeDefined();
     editProjectFile(files, "Cargo.lock", (content) =>
@@ -784,9 +722,7 @@ describe("POST /compile returned files", () => {
     const res = await api.post("/compile").send({ files, entrypoint });
 
     expect(res.status).toBe(200);
-    expect(res.body.files[`${entrypoint}/Cargo.lock`]).toContain(
-      'name = "count-reader"',
-    );
+    expect(res.body.files[`${entrypoint}/Cargo.lock`]).toContain('name = "count-reader"');
     expect(res.body.files).not.toHaveProperty("Cargo.lock");
   });
 });

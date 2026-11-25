@@ -3,15 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@12.23.0+sha512.02da94ffaf133f46074322afe552f90d40b5f71ae259aefbccdacc5085b1d617e98d65e0131f5748b9b67445978ee5055d7d59a473f1eef0d504854fefcd5975",
-  "engines": {
-    "node": ">=26 <27"
-  },
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
-    "lint": "biome check .",
-    "format": "biome check --write .",
+    "lint": "oxlint --deny-warnings && oxfmt --check",
+    "format": "oxfmt && oxlint --fix",
     "test": "pnpm -r test",
     "test:pure": "pnpm --filter ./packages/utils --filter ./apps/web-viewer --filter ./apps/web-verifier test && pnpm --filter ./apps/api-compile --filter ./apps/api-registry --filter ./apps/status-page test:pure",
     "typecheck": "tsc -p tsconfig.json && pnpm -r typecheck",
@@ -19,8 +15,13 @@
     "watch-deploy": "node scripts/watch-deploy.ts"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.8",
     "@types/node": "26.6.7",
+    "oxfmt": "0.80.0",
+    "oxlint": "1.95.0",
     "typescript": "7.0.2"
-  }
+  },
+  "engines": {
+    "node": ">=26 <27"
+  },
+  "packageManager": "pnpm@12.23.0+sha512.02da94ffaf133f46074322afe552f90d40b5f71ae259aefbccdacc5085b1d617e98d65e0131f5748b9b67445978ee5055d7d59a473f1eef0d504854fefcd5975"
 }

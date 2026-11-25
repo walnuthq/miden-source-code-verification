@@ -1,26 +1,12 @@
-import {
-  chmod,
-  chown,
-  mkdir,
-  mkdtemp,
-  readFile,
-  rm,
-  stat,
-} from "node:fs/promises";
+import { chmod, chown, mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
-import type {
-  BuiltPackage,
-  MasmOutput,
-} from "miden-source-code-verification-utils/api-compile";
+
+import type { BuiltPackage, MasmOutput } from "miden-source-code-verification-utils/api-compile";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import type { Project } from "miden-source-code-verification-utils/project";
+
 import { checkBuildOutput, killBuildUserProcesses } from "./build-output.ts";
-import {
-  cargoMidenBuild,
-  cargoMidenVersion,
-  RELEASE_DIR,
-  readCargoLock,
-} from "./cargo-miden.ts";
+import { cargoMidenBuild, cargoMidenVersion, RELEASE_DIR, readCargoLock } from "./cargo-miden.ts";
 import {
   BUILD_USER,
   CARGO_HOME,
@@ -68,10 +54,7 @@ const errorMessage = (error: unknown, fallback: string) =>
 
 // The release build's Miden Assembly, as a `MasmOutput`: a failure never fails
 // the request it's part of.
-const readMasm = async (
-  masmPath: string,
-  rootDir: string,
-): Promise<MasmOutput> => {
+const readMasm = async (masmPath: string, rootDir: string): Promise<MasmOutput> => {
   try {
     await checkBuildOutput(masmPath, rootDir);
     const { size } = await stat(masmPath);
@@ -164,9 +147,7 @@ const buildProject = async ({
           console.error(error);
           return undefined;
         }),
-        masmDir
-          ? readMasm(`${masmDir}/${packageName}.masm`, midencTargetDir)
-          : undefined,
+        masmDir ? readMasm(`${masmDir}/${packageName}.masm`, midencTargetDir) : undefined,
       ]),
   );
   if ("error" in metadata) {
@@ -202,17 +183,12 @@ const buildProject = async ({
     masm: masmOutput,
     // The sources with the lockfile cargo created or updated, so a client can
     // resubmit them and get the same dependency versions next time.
-    files: cargoLock
-      ? { ...files, [cargoLock.path]: cargoLock.content }
-      : files,
+    files: cargoLock ? { ...files, [cargoLock.path]: cargoLock.content } : files,
   };
 };
 
 const deadlineError = () =>
-  new HttpError(
-    504,
-    `the build did not finish within ${COMPILE_DEADLINE_MS / 1000}s`,
-  );
+  new HttpError(504, `the build did not finish within ${COMPILE_DEADLINE_MS / 1000}s`);
 
 // The build's own view of the image's warm cache, at the paths cargo uses (its
 // fingerprints record them). Undefined on the host, which builds against
@@ -256,11 +232,7 @@ const viewOf = ({ target, cargoHome, buildUser }: WarmCache) => [
 const findWritable = async (dir: string) => {
   const { stdout } = await execFile(
     "find",
-    [
-      dir,
-      ...["(", "!", "-user", "0", "-o", "-perm", "/022", ")"],
-      ...["!", "-type", "l", "-print", "-quit"],
-    ],
+    [dir, "(", "!", "-user", "0", "-o", "-perm", "/022", ")", "!", "-type", "l", "-print", "-quit"],
     {
       cwd: "/",
       env: { PATH: process.env.PATH },
@@ -345,9 +317,7 @@ const prepareWarmCache = async () => {
           ? String(error.stderr).trim()
           : "";
       const reason = stderr || errorMessage(error, "unknown error");
-      console.error(
-        `linking the build cache failed, copying it: ${reason.split("\n")[0]}`,
-      );
+      console.error(`linking the build cache failed, copying it: ${reason.split("\n")[0]}`);
       await copyWarmCache(warmCache);
       outcome = "copied";
     }
@@ -356,9 +326,7 @@ const prepareWarmCache = async () => {
     await removeDirs(destinations);
     throw error;
   }
-  console.info(
-    `build cache ${outcome} in ${Math.round(performance.now() - start)} ms`,
-  );
+  console.info(`build cache ${outcome} in ${Math.round(performance.now() - start)} ms`);
 };
 
 // The view the image ships at the build's paths, so that the first build after
@@ -496,9 +464,7 @@ const compile = async (args: CompileArgs) => {
   };
   // Started once the slot is taken: time spent queued doesn't count.
   const deadline = AbortSignal.timeout(COMPILE_DEADLINE_MS);
-  const signal = args.signal
-    ? AbortSignal.any([args.signal, deadline])
-    : deadline;
+  const signal = args.signal ? AbortSignal.any([args.signal, deadline]) : deadline;
   try {
     const build = await buildProject({
       ...args,
@@ -539,10 +505,7 @@ const limit = createLimiter({
 // warm cache is made, which the next build waits for. Either way the next
 // build starts only once this one's package has been used and deleted. `use`
 // has to be done with `maspPath` when it returns.
-export const queueCompile = async <T>(
-  args: CompileArgs,
-  use: (build: Build) => Promise<T> | T,
-) =>
+export const queueCompile = async <T>(args: CompileArgs, use: (build: Build) => Promise<T> | T) =>
   limit(async () => {
     const { build, cleanup } = await compile(args);
     try {

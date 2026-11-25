@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { CompileResponse } from "miden-source-code-verification-utils/api-compile";
 import { openProject } from "miden-source-code-verification-utils/project";
+
 import { type Assembly, queueAssemble } from "../lib/assemble.ts";
 import { queueCompile } from "../lib/compile.ts";
 import { serverTiming, type Timings } from "../lib/timings.ts";
@@ -27,8 +28,7 @@ type CompileRequestBody = {
 };
 
 router.post("/compile", async (req, res) => {
-  const { files, entrypoint, warmLockfile, masm } =
-    req.body as CompileRequestBody;
+  const { files, entrypoint, warmLockfile, masm } = req.body as CompileRequestBody;
   const opened = openProject(files, entrypoint, { masm: true });
   if ("error" in opened) {
     res.status(400).json({ error: opened.error });

@@ -1,4 +1,5 @@
 import path from "node:path";
+
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
@@ -6,8 +7,7 @@ import { defineConfig } from "vite";
 // The page is published under a subpath of the GitHub Pages site (api-docs owns
 // the root), so every asset URL needs that prefix baked in. Overridable so
 // `vite preview` and other hosts can serve it from the root instead.
-const base =
-  process.env.STATUS_PAGE_BASE ?? "/miden-source-code-verification/status/";
+const base = process.env.STATUS_PAGE_BASE ?? "/miden-source-code-verification/status/";
 
 export default defineConfig({
   base,

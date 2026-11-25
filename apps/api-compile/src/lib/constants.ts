@@ -16,12 +16,8 @@ export const CARGO_HOME = process.env.CARGO_HOME;
 export const WARM_CACHE_DIR = process.env.WARM_CACHE_DIR;
 // The two directories in it (the layout script names them too). An empty
 // WARM_CACHE_DIR counts as unset.
-export const WARM_TARGET_DIR = WARM_CACHE_DIR
-  ? join(WARM_CACHE_DIR, "target")
-  : undefined;
-export const WARM_CARGO_HOME = WARM_CACHE_DIR
-  ? join(WARM_CACHE_DIR, "cargo-home")
-  : undefined;
+export const WARM_TARGET_DIR = WARM_CACHE_DIR ? join(WARM_CACHE_DIR, "target") : undefined;
+export const WARM_CARGO_HOME = WARM_CACHE_DIR ? join(WARM_CACHE_DIR, "cargo-home") : undefined;
 // What lays a view out (scripts/lay-out-warm-cache.sh): the image installs it,
 // and runs it once itself for the view it ships.
 export const WARM_CACHE_LAYOUT =
@@ -42,10 +38,8 @@ export const PRELOAD_TIMEOUT_MS = 120_000;
 // crate versions an offline build finds. `GET /lockfile` serves it, so clients
 // that send their own lockfile can keep it in step.
 export const WARM_CARGO_LOCK =
-  process.env.WARM_CARGO_LOCK ??
-  "/cache/examples/counter-contract/counter-contract/Cargo.lock";
-export const MIDEN_CLIENT_CACHE_DIR =
-  process.env.MIDEN_CLIENT_CACHE_DIR ?? "/cache";
+  process.env.WARM_CARGO_LOCK ?? "/cache/examples/counter-contract/counter-contract/Cargo.lock";
+export const MIDEN_CLIENT_CACHE_DIR = process.env.MIDEN_CLIENT_CACHE_DIR ?? "/cache";
 
 // Subprocess timeouts. A build against the warm cache takes seconds, and the
 // other tools about one; these only trip when something is stuck.
@@ -74,15 +68,9 @@ export const COMPILE_QUEUE_SIZE = Number(process.env.COMPILE_QUEUE_SIZE ?? 8);
 // nor its deadline: a few run at once, more wait, the rest get a 503. The
 // deadline bounds one request's tools together. Assembling takes milliseconds,
 // so most of it is for the verifier's network call, whose own timeout is 60 s.
-export const ASSEMBLE_DEADLINE_MS = Number(
-  process.env.ASSEMBLE_DEADLINE_MS ?? 90_000,
-);
-export const ASSEMBLE_CONCURRENCY = Number(
-  process.env.ASSEMBLE_CONCURRENCY ?? 4,
-);
-export const ASSEMBLE_QUEUE_SIZE = Number(
-  process.env.ASSEMBLE_QUEUE_SIZE ?? 16,
-);
+export const ASSEMBLE_DEADLINE_MS = Number(process.env.ASSEMBLE_DEADLINE_MS ?? 90_000);
+export const ASSEMBLE_CONCURRENCY = Number(process.env.ASSEMBLE_CONCURRENCY ?? 4);
+export const ASSEMBLE_QUEUE_SIZE = Number(process.env.ASSEMBLE_QUEUE_SIZE ?? 16);
 
 // An import is a `miden-import` run: a second or so, a connection to the node
 // and a write to the network's client store. A few at once are fine; a burst
@@ -112,8 +100,7 @@ export const SUBPROCESS_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 // laid out again before each build, nothing the helper tools or the toolchain are
 // made of. See docs/adr/0006-build-isolation.md.
 const idsFrom = (prefix: string) =>
-  process.env[`${prefix}_UID`] !== undefined &&
-  process.env[`${prefix}_GID`] !== undefined
+  process.env[`${prefix}_UID`] !== undefined && process.env[`${prefix}_GID`] !== undefined
     ? {
         uid: Number(process.env[`${prefix}_UID`]),
         gid: Number(process.env[`${prefix}_GID`]),
