@@ -160,6 +160,22 @@ describe("findEntryFile of a MASM project", () => {
     );
   });
 
+  it("resolves a [lib] path outside the manifest's directory", () => {
+    expect(
+      findEntryFile(
+        {
+          "counter-note/miden-project.toml": midenProjectToml(
+            "counter-note",
+            "../shared/./note.masm",
+          ),
+          "counter-note/a.masm": "",
+          "shared/note.masm": "",
+        },
+        "counter-note",
+      ),
+    ).toBe("shared/note.masm");
+  });
+
   it("opens a project at the root", () => {
     expect(
       findEntryFile(

@@ -88,6 +88,15 @@ function rustType(type: Type, fallback = "_"): string {
   return fallback;
 }
 
+// A signature's results after its parameters, the same in Rust and MASM:
+// nothing, ` -> T`, or ` -> (T, U)`, each type written by `typeOf`.
+const resultsOf = (results: Type[], typeOf: (type: Type) => string) =>
+  results.length === 0
+    ? ""
+    : results.length === 1
+      ? ` -> ${typeOf(results[0])}`
+      : ` -> (${results.map((result) => typeOf(result)).join(", ")})`;
+
 // `fn deposit(depositor: AccountId, deposit_asset: Asset);`: the names from the
 // package's WIT, in snake case, the types and results from the manifest's
 // signature, which the WIT names pair with by index. Without names (an export
@@ -105,12 +114,7 @@ function rustSignature(
         : `_: ${rustType(type)}`;
     })
     .join(", ");
-  const returned =
-    results.length === 0
-      ? ""
-      : results.length === 1
-        ? ` -> ${rustType(results[0])}`
-        : ` -> (${results.map((result) => rustType(result)).join(", ")})`;
+  const returned = resultsOf(results, rustType);
   return `fn ${name}(${args})${returned};`;
 }
 
@@ -164,12 +168,7 @@ function masmSignature(
         : masmType(type);
     })
     .join(", ");
-  const returned =
-    results.length === 0
-      ? ""
-      : results.length === 1
-        ? ` -> ${masmType(results[0])}`
-        : ` -> (${results.map((result) => masmType(result)).join(", ")})`;
+  const returned = resultsOf(results, masmType);
   return `pub proc ${name}(${args})${returned}`;
 }
 
@@ -196,11 +195,11 @@ export function packageProcedures({
     }
     const { path, digest } = Procedure;
     const name = kind === "masm" ? lastSegment(path) : procedureName(path);
-    const signatureIn = kind === "masm" ? masmSignature : rustSignature;
+    const writeSignature = kind === "masm" ? masmSignature : rustSignature;
     return [
       {
         name,
-        signature: signatureIn(name, signature, parameters[path]),
+        signature: writeSignature(name, signature, parameters[path]),
         digest,
         readOnly: readOnly[path],
       },

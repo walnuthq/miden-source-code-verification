@@ -19,9 +19,9 @@ import { formatUtcTimestamp } from "@/lib/timestamps";
 // Created on first use and kept for the life of the server instance (Node
 // process or Worker isolate): compiling the grammars is the expensive part.
 // Only the three languages and two themes the pages need are bundled (MASM's
-// grammar is this repo's own, `masm/grammar.ts`), and the
-// JavaScript regex engine replaces Shiki's default Oniguruma WASM one, which
-// Workers can't instantiate from bytes.
+// grammar is this repo's own, `masm/grammar.ts`), and the JavaScript regex
+// engine replaces Shiki's default Oniguruma WASM one, which Workers can't
+// instantiate from bytes.
 let highlighter: Promise<HighlighterCore> | undefined;
 
 function getHighlighter() {

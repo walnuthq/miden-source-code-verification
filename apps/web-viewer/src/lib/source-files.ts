@@ -115,6 +115,21 @@ export function filterSourceFiles(
 const directoryOf = (manifestPath: string, manifest: string) =>
   manifestPath.slice(0, -manifest.length);
 
+// `dir` (`` or ending in `/`) joined with a manifest's relative path, its `.`
+// and `..` segments resolved: `counter-note/` and `../shared/lib.masm` give
+// `shared/lib.masm`.
+const resolvePath = (dir: string, relative: string) => {
+  const segments: string[] = [];
+  for (const segment of `${dir}${relative}`.split("/")) {
+    if (segment === "..") {
+      segments.pop();
+    } else if (segment !== "." && segment !== "") {
+      segments.push(segment);
+    }
+  }
+  return segments.join("/");
+};
+
 const isManifest = (path: string, manifest: string) =>
   path === manifest || path.endsWith(`/${manifest}`);
 
@@ -148,7 +163,7 @@ export function findEntryFile(
         continue;
       }
       const library = midenProjectLibrary(files[path] ?? "");
-      const libPath = library?.libPath && `${dir}${library.libPath}`;
+      const libPath = library?.libPath && resolvePath(dir, library.libPath);
       if (library?.name === packageName && libPath && libPath in files) {
         return libPath;
       }
