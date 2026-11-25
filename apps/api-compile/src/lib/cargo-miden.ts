@@ -1,5 +1,6 @@
 import { realpath } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
+
 import { readBuildOutput } from "./build-output.ts";
 import {
   BUILD_USER,
@@ -41,9 +42,7 @@ const readCargoMidenVersion = async () => {
   const { stdout } = await execFile("cargo", ["miden", "--version"], {
     // Runs outside builds, when the build's view of the cache may not exist
     // (or is being replaced), so it reads the image's read-only cargo home.
-    ...cargoOptions(
-      WARM_CARGO_HOME ? { env: { CARGO_HOME: WARM_CARGO_HOME } } : {},
-    ),
+    ...cargoOptions(WARM_CARGO_HOME ? { env: { CARGO_HOME: WARM_CARGO_HOME } } : {}),
     // The server's own directory isn't readable by the build user.
     cwd: "/",
     timeout: MIDEN_TOOL_TIMEOUT_MS,
@@ -204,8 +203,7 @@ export const cargoMidenBuild = async ({
     });
     return { stdout, stderr };
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "cargo-miden failed";
+    const message = error instanceof Error ? error.message : "cargo-miden failed";
     return { error: message };
   }
 };

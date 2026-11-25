@@ -19,9 +19,7 @@ type ThemeProviderState = {
 const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)";
 const THEME_VALUES: Theme[] = ["dark", "light", "system"];
 
-const ThemeProviderContext = React.createContext<
-  ThemeProviderState | undefined
->(undefined);
+const ThemeProviderContext = React.createContext<ThemeProviderState | undefined>(undefined);
 
 function isTheme(value: string | null): value is Theme {
   if (value === null) {
@@ -67,9 +65,7 @@ function isEditableTarget(target: EventTarget | null) {
     return true;
   }
 
-  const editableParent = target.closest(
-    "input, textarea, select, [contenteditable='true']",
-  );
+  const editableParent = target.closest("input, textarea, select, [contenteditable='true']");
   if (editableParent) {
     return true;
   }
@@ -111,11 +107,8 @@ export function ThemeProvider({
   const applyTheme = React.useCallback(
     (nextTheme: Theme) => {
       const root = document.documentElement;
-      const resolvedTheme =
-        nextTheme === "system" ? getSystemTheme() : nextTheme;
-      const restoreTransitions = disableTransitionOnChange
-        ? disableTransitionsTemporarily()
-        : null;
+      const resolvedTheme = nextTheme === "system" ? getSystemTheme() : nextTheme;
+      const restoreTransitions = disableTransitionOnChange ? disableTransitionsTemporarily() : null;
 
       root.classList.remove("light", "dark");
       root.classList.add(resolvedTheme);
@@ -249,7 +242,7 @@ export function ThemeScript({
     } catch {}
   })();`;
 
-  // biome-ignore lint/security/noDangerouslySetInnerHtml: static script built from our own constants.
+  // Safe to inject: a static script built from our own constants.
   return <script dangerouslySetInnerHTML={{ __html: script }} />;
 }
 

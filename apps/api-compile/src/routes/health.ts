@@ -1,4 +1,5 @@
 import { Router } from "express";
+
 import { cargoMidenVersion } from "../lib/cargo-miden.ts";
 import {
   ALLOWED_ORIGINS,

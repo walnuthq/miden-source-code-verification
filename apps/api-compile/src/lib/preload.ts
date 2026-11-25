@@ -23,10 +23,7 @@ export type Preload = {
 // A failure is logged, once, and changes nothing else: the first build then
 // reads its files itself, as it did before. Nothing starts without a view,
 // which is the host: it has no image to read.
-export const startPreload = (
-  view: View | undefined,
-  script = PRELOAD_SCRIPT,
-): Preload => {
+export const startPreload = (view: View | undefined, script = PRELOAD_SCRIPT): Preload => {
   if (view === undefined) {
     return {
       settled: Promise.resolve(),
@@ -46,9 +43,7 @@ export const startPreload = (
     ({ stdout }) => {
       durationMs = performance.now() - start;
       const megabytes = Math.round(Number(stdout) / 1024 / 1024);
-      console.info(
-        `first build's files read in ${Math.round(durationMs)} ms (${megabytes} MiB)`,
-      );
+      console.info(`first build's files read in ${Math.round(durationMs)} ms (${megabytes} MiB)`);
     },
     (error: unknown) => {
       // Stopped, by the first build or a shutdown: nothing went wrong.

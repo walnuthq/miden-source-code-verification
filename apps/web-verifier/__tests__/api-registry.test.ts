@@ -1,10 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  MAX_BUSY_RETRIES,
-  resourceCollection,
-  verifyResource,
-} from "@/lib/api-registry";
+import { MAX_BUSY_RETRIES, resourceCollection, verifyResource } from "@/lib/api-registry";
 
 const ACCOUNT = {
   kind: "account",
@@ -30,9 +26,7 @@ const busy = (retryAfter?: string) =>
 
 // The registry, answering each request with the next response.
 const registry = (...responses: Response[]) => {
-  const fetch = vi.fn(
-    async () => responses.shift() ?? json({ error: "unexpected request" }, 500),
-  );
+  const fetch = vi.fn(async () => responses.shift() ?? json({ error: "unexpected request" }, 500));
   vi.stubGlobal("fetch", fetch);
   return fetch;
 };
@@ -63,19 +57,16 @@ describe("verifyResource", () => {
   it("posts the project to the account collection, the account id first", async () => {
     const fetch = registry(json({ verified: true }));
     await expect(submit(ACCOUNT).outcome).resolves.toEqual({ verified: true });
-    expect(fetch).toHaveBeenCalledWith(
-      "http://registry.test/v1/mtst/verified-accounts",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          accountId: ACCOUNT.accountId,
-          files,
-          entrypoint: ".",
-          source: "web-verifier",
-        }),
-      },
-    );
+    expect(fetch).toHaveBeenCalledWith("http://registry.test/v1/mtst/verified-accounts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        accountId: ACCOUNT.accountId,
+        files,
+        entrypoint: ".",
+        source: "web-verifier",
+      }),
+    });
   });
 
   it("posts a note to the note collection, by noteId", async () => {
@@ -103,9 +94,7 @@ describe("verifyResource", () => {
   });
 
   it("gives up with the busy message once the retries are spent", async () => {
-    const fetch = registry(
-      ...Array.from({ length: MAX_BUSY_RETRIES + 1 }, () => busy("1")),
-    );
+    const fetch = registry(...Array.from({ length: MAX_BUSY_RETRIES + 1 }, () => busy("1")));
     const { outcome, waits } = submit(ACCOUNT);
     await expect(outcome).resolves.toEqual({ error: BUSY });
     expect(fetch).toHaveBeenCalledTimes(MAX_BUSY_RETRIES + 1);
@@ -115,8 +104,7 @@ describe("verifyResource", () => {
   it("words an outage for the user, whatever the registry said", async () => {
     registry(json({ error: "api-compile is unreachable" }, 502));
     await expect(submit(ACCOUNT).outcome).resolves.toEqual({
-      error:
-        "The verifier could not reach the compiler. Please try again later.",
+      error: "The verifier could not reach the compiler. Please try again later.",
     });
     registry(new Response("upstream request timeout", { status: 504 }));
     await expect(submit(NOTE).outcome).resolves.toEqual({

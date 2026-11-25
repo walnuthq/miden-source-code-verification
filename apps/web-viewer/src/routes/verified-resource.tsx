@@ -1,8 +1,5 @@
 import { getNetworkName } from "miden-source-code-verification-utils/networks";
-import {
-  encodeAddress,
-  type ResourceId,
-} from "miden-source-code-verification-utils/resource-id";
+import { encodeAddress, type ResourceId } from "miden-source-code-verification-utils/resource-id";
 import { isRouteErrorResponse } from "react-router";
 
 import { ErrorPage } from "@/components/error-page";
@@ -11,6 +8,7 @@ import { ResourceHeader } from "@/components/resource-header";
 import { PackageSection } from "@/components/source-code/package-section";
 import { getExplorerUrl } from "@/lib/constants";
 import { loadResourcePage } from "@/lib/resource-page.server";
+
 import type { Route } from "./+types/verified-resource";
 
 // One page for both verified resource kinds: the file is registered under
@@ -89,17 +87,10 @@ export default function VerifiedResource({ loaderData }: Route.ComponentProps) {
       />
       <section className="mt-8 flex flex-col gap-4">
         <h2 className="text-base font-semibold md:text-lg">
-          {kind === "account"
-            ? "Custom Account Component Packages"
-            : "Custom Note Package"}
+          {kind === "account" ? "Custom Account Component Packages" : "Custom Note Package"}
         </h2>
         {packages.map((pkg) => (
-          <PackageSection
-            key={pkg.name}
-            pkg={pkg}
-            networkId={networkId}
-            resourceId={id}
-          />
+          <PackageSection key={pkg.name} pkg={pkg} networkId={networkId} resourceId={id} />
         ))}
       </section>
     </main>

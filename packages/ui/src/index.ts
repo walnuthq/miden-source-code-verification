@@ -6,18 +6,9 @@ export { GithubIcon } from "@ui/components/icons/github-icon";
 export { XIcon } from "@ui/components/icons/x-icon";
 export { Navbar } from "@ui/components/navbar";
 export { NetworkSelect } from "@ui/components/network-select";
-export {
-  ThemeProvider,
-  ThemeScript,
-  useTheme,
-} from "@ui/components/theme-provider";
+export { ThemeProvider, ThemeScript, useTheme } from "@ui/components/theme-provider";
 export { ThemeToggle } from "@ui/components/theme-toggle";
-export {
-  Alert,
-  AlertAction,
-  AlertDescription,
-  AlertTitle,
-} from "@ui/components/ui/alert";
+export { Alert, AlertAction, AlertDescription, AlertTitle } from "@ui/components/ui/alert";
 export { Badge, badgeVariants } from "@ui/components/ui/badge";
 export { Button, buttonVariants } from "@ui/components/ui/button";
 export {
@@ -29,11 +20,7 @@ export {
   CardHeader,
   CardTitle,
 } from "@ui/components/ui/card";
-export {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@ui/components/ui/collapsible";
+export { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@ui/components/ui/collapsible";
 export {
   Dialog,
   DialogClose,

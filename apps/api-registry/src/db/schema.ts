@@ -35,9 +35,7 @@ export const packagesTable = pgTable(
     files: jsonb().notNull().default({}).$type<Record<string, string>>(),
     commitment: varchar({ length: 66 })
       .notNull()
-      .default(
-        "0x0000000000000000000000000000000000000000000000000000000000000000",
-      ),
+      .default("0x0000000000000000000000000000000000000000000000000000000000000000"),
     manifest: jsonb().notNull().default({}).$type<Manifest>(),
     // The project directory within `files` the package was built from (`.` for
     // the root). Null on rows from before it was recorded.
@@ -91,9 +89,7 @@ export const verifiedAccountCodeTable = pgTable(
     networkId: varchar("network_id", { length: 16 }).notNull(),
     code: varchar({ length: 66 })
       .notNull()
-      .default(
-        "0x0000000000000000000000000000000000000000000000000000000000000000",
-      ),
+      .default("0x0000000000000000000000000000000000000000000000000000000000000000"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -103,10 +99,7 @@ export const verifiedAccountCodeTable = pgTable(
     // nothing and then reads the row that won.
     // A unique *index* rather than a bare constraint: it doubles as the index
     // for the `(networkId, code)` lookup both read routes perform.
-    uniqueIndex("verified_accounts_code_network_id_code_idx").on(
-      table.networkId,
-      table.code,
-    ),
+    uniqueIndex("verified_accounts_code_network_id_code_idx").on(table.networkId, table.code),
   ],
 );
 
@@ -122,9 +115,7 @@ export const verifiedAccountComponentTable = pgTable(
       .references(() => packagesTable.id, { onDelete: "cascade" }),
     packageCommitment: varchar({ length: 66 })
       .notNull()
-      .default(
-        "0x0000000000000000000000000000000000000000000000000000000000000000",
-      ),
+      .default("0x0000000000000000000000000000000000000000000000000000000000000000"),
     // The client that verified this component. Kept here rather than on the
     // account code, which later components are verified into, or on the
     // package, which is shared by every resource compiled to the same
@@ -152,27 +143,20 @@ export const verifiedNoteScriptTable = pgTable(
     networkId: varchar("network_id", { length: 16 }).notNull(),
     script: varchar({ length: 66 })
       .notNull()
-      .default(
-        "0x0000000000000000000000000000000000000000000000000000000000000000",
-      ),
+      .default("0x0000000000000000000000000000000000000000000000000000000000000000"),
     source: text().notNull().default("unknown"),
     packageId: uuid("package_id")
       .notNull()
       .references(() => packagesTable.id, { onDelete: "cascade" }),
     packageCommitment: varchar({ length: 66 })
       .notNull()
-      .default(
-        "0x0000000000000000000000000000000000000000000000000000000000000000",
-      ),
+      .default("0x0000000000000000000000000000000000000000000000000000000000000000"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [
     // See the note on `verifiedAccountCodeTable`. Here a conflict on it is the
     // "note already verified" guard in `verifyResource`, concurrent or not.
-    uniqueIndex("verified_notes_script_network_id_script_idx").on(
-      table.networkId,
-      table.script,
-    ),
+    uniqueIndex("verified_notes_script_network_id_script_idx").on(table.networkId, table.script),
   ],
 );

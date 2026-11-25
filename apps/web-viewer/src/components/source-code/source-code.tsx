@@ -17,14 +17,9 @@ export function SourceCode({
   entryPath: string | null;
   action?: ReactNode;
 }) {
-  const [openPaths, setOpenPaths] = useState(() =>
-    entryPath ? [entryPath] : [],
-  );
+  const [openPaths, setOpenPaths] = useState(() => (entryPath ? [entryPath] : []));
   const [activePath, setActivePath] = useState(entryPath);
-  const tree = useMemo(
-    () => buildFileTree(files.map((file) => file.path)),
-    [files],
-  );
+  const tree = useMemo(() => buildFileTree(files.map((file) => file.path)), [files]);
 
   const openFile = (path: string) => {
     if (!openPaths.includes(path)) {
@@ -44,9 +39,7 @@ export function SourceCode({
     }
   };
 
-  const openFiles = openPaths.flatMap(
-    (path) => files.find((file) => file.path === path) ?? [],
-  );
+  const openFiles = openPaths.flatMap((path) => files.find((file) => file.path === path) ?? []);
 
   return (
     <section className="flex flex-col gap-2">

@@ -135,9 +135,7 @@ export const maspKey = (commitment: string, variant: MaspVariant = "release") =>
 const MASP_KEY_PATTERN = /^(0x[0-9a-f]{64})(\.debug)?\.masp$/i;
 
 // The inverse of `maspKey`: `null` when `key` isn't one.
-export const parseMaspKey = (
-  key: string,
-): { commitment: string; variant: MaspVariant } | null => {
+export const parseMaspKey = (key: string): { commitment: string; variant: MaspVariant } | null => {
   const match = MASP_KEY_PATTERN.exec(key);
   if (!match?.[1]) {
     return null;
@@ -163,9 +161,7 @@ export const maspDownloadName = (
   variant: MaspVariant = "release",
 ) => {
   const base = name.replace(/[^A-Za-z0-9.]+/g, "_").replace(/^_+/, "");
-  return base
-    ? `${base}${variant === "debug" ? ".debug" : ""}.masp`
-    : maspKey(commitment, variant);
+  return base ? `${base}${variant === "debug" ? ".debug" : ""}.masp` : maspKey(commitment, variant);
 };
 
 // The registry's path to a package's artifact, for `networkId`.
@@ -202,10 +198,7 @@ const sleep = (seconds: number) =>
 // when it is over; by default it sleeps.
 export async function fetchWhileBusy(
   request: () => Promise<Response>,
-  {
-    maxRetries,
-    wait = sleep,
-  }: { maxRetries: number; wait?: (seconds: number) => Promise<void> },
+  { maxRetries, wait = sleep }: { maxRetries: number; wait?: (seconds: number) => Promise<void> },
 ): Promise<Response> {
   let response = await request();
   for (let retry = 1; response.status === 503 && retry <= maxRetries; retry++) {

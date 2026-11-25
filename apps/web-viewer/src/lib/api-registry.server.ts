@@ -10,10 +10,7 @@ import type {
 import type { ResourceId } from "miden-source-code-verification-utils/resource-id";
 import { data } from "react-router";
 
-import {
-  API_REGISTRY_TIMEOUT_MS,
-  API_REGISTRY_URL,
-} from "@/lib/constants.server";
+import { API_REGISTRY_TIMEOUT_MS, API_REGISTRY_URL } from "@/lib/constants.server";
 
 // The records the pages read are the registry's own wire types
 // (`miden-source-code-verification-utils/api-registry`). Only the manifest is
@@ -50,9 +47,7 @@ const unavailable = (status: number) =>
 // A timeout, whether while waiting for the answer or while reading its body,
 // is a 504; any other failure to get the answer is a 502.
 const unavailableAfter = (error: unknown) =>
-  unavailable(
-    error instanceof Error && error.name === "TimeoutError" ? 504 : 502,
-  );
+  unavailable(error instanceof Error && error.name === "TimeoutError" ? 504 : 502);
 
 // `null` when the registry answers 404: it has no verified record for the
 // resource, which includes ids that don't resolve on-chain. A 502–504 means it
@@ -105,7 +100,5 @@ export function getVerifiedRecord({
     resource.kind === "account"
       ? `verified-accounts/${encodeURIComponent(resource.accountId)}`
       : `verified-notes/${encodeURIComponent(resource.noteId)}`;
-  return getVerifiedResource(
-    `/v1/${encodeURIComponent(networkId)}/${collection}`,
-  );
+  return getVerifiedResource(`/v1/${encodeURIComponent(networkId)}/${collection}`);
 }

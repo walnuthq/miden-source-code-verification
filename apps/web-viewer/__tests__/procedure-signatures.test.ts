@@ -41,30 +41,20 @@ const exported = (
 ): { manifest: PackageManifest; readOnly: ReadOnlyProcedures } => ({
   manifest: {
     exports: exports.map(
-      ([
-        path,
-        digest,
-        abi,
-        ,
-        { params, results } = { params: [], results: [] },
-      ]) => ({
+      ([path, digest, abi, , { params, results } = { params: [], results: [] }]) => ({
         Procedure: { path, digest, signature: { abi, params, results } },
       }),
     ),
     dependencies: [],
   },
-  readOnly: Object.fromEntries(
-    exports.map(([path, , , readOnly = null]) => [path, readOnly]),
-  ),
+  readOnly: Object.fromEntries(exports.map(([path, , , readOnly = null]) => [path, readOnly])),
 });
 
-const counterPath = (name: string) =>
-  `::"miden:counter-contract/counter-contract@0.1.0"::${name}`;
+const counterPath = (name: string) => `::"miden:counter-contract/counter-contract@0.1.0"::${name}`;
 const bankPath = (name: string) => `::"miden:bank-account/bank@0.1.0"::${name}`;
 const notePath = '::"miden:counter-note/miden-counter-note@0.1.0"::run';
 
-const signatures = (procedures: PackageProcedure[]) =>
-  procedures.map(({ signature }) => signature);
+const signatures = (procedures: PackageProcedure[]) => procedures.map(({ signature }) => signature);
 
 // The bank example, as api-compile reads it: exported alphabetically, each
 // with its manifest signature and the names its WIT gives.
@@ -133,8 +123,7 @@ describe("packageProcedures of a Rust package", () => {
       expect(procedures).toEqual([
         {
           name: "get_depositor_balance",
-          signature:
-            "fn get_depositor_balance(depositor: AccountId, asset: Asset) -> Felt;",
+          signature: "fn get_depositor_balance(depositor: AccountId, asset: Asset) -> Felt;",
           digest: "0x01",
           readOnly: true,
         },
@@ -163,13 +152,7 @@ describe("packageProcedures of a Rust package", () => {
     it("writes a note's entrypoint with only the argument it is given", () => {
       const procedures = packageProcedures({
         kind: "rust",
-        ...exported([
-          notePath,
-          "0x01",
-          3,
-          null,
-          { params: [core("word")], results: [] },
-        ]),
+        ...exported([notePath, "0x01", 3, null, { params: [core("word")], results: [] }]),
         parameters: { [notePath]: [{ name: "arg", type: "word" }] },
       });
       expect(signatures(procedures)).toEqual(["fn run(arg: Word);"]);
@@ -214,13 +197,7 @@ describe("packageProcedures of a Rust package", () => {
       const procedures = packageProcedures({
         kind: "rust",
         ...exported(
-          [
-            counterPath('"get-count"'),
-            "0x01",
-            3,
-            true,
-            { params: [], results: [core("felt")] },
-          ],
+          [counterPath('"get-count"'), "0x01", 3, true, { params: [], results: [core("felt")] }],
           [counterPath("init"), "0x03", 0, true],
         ),
         parameters: { [counterPath('"get-count"')]: [] },
@@ -275,13 +252,7 @@ const asset: Type = {
 describe("packageProcedures of a MASM package", () => {
   const counter = exported(
     [masmPath("get_count"), "0x01", 3, true, { params: [], results: ["Felt"] }],
-    [
-      masmPath("increment_count"),
-      "0x02",
-      3,
-      false,
-      { params: ["Felt"], results: [] },
-    ],
+    [masmPath("increment_count"), "0x02", 3, false, { params: ["Felt"], results: [] }],
   );
 
   it("writes each signature from the source's names and types, in manifest order", () => {
@@ -313,13 +284,7 @@ describe("packageProcedures of a MASM package", () => {
     const path = masmPath("move_asset_to_note");
     const procedures = packageProcedures({
       kind: "masm",
-      ...exported([
-        path,
-        "0x01",
-        3,
-        false,
-        { params: [asset, "U16"], results: [] },
-      ]),
+      ...exported([path, "0x01", 3, false, { params: [asset, "U16"], results: [] }]),
       parameters: {
         [path]: [
           { name: "asset", type: "Asset" },
@@ -371,9 +336,6 @@ describe("packageProcedures of a MASM package", () => {
       ),
       parameters: { "::counter_note::main": [] },
     });
-    expect(signatures(procedures)).toEqual([
-      'pub proc "get-count"() -> felt',
-      "pub proc main()",
-    ]);
+    expect(signatures(procedures)).toEqual(['pub proc "get-count"() -> felt', "pub proc main()"]);
   });
 });

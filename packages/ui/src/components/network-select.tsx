@@ -24,10 +24,7 @@ const DOT_CLASS: Record<NetworkId, string> = {
 function NetworkLabel({ network }: { network: NetworkId }) {
   return (
     <span className="flex items-center gap-2">
-      <span
-        aria-hidden
-        className={cn("size-2 rounded-full", DOT_CLASS[network])}
-      />
+      <span aria-hidden className={cn("size-2 rounded-full", DOT_CLASS[network])} />
       {getNetwork(network).label}
     </span>
   );
@@ -51,9 +48,7 @@ export function NetworkSelect({
       }}
     >
       <SelectTrigger aria-label="Network" className="w-28 sm:mr-1 sm:w-32">
-        <SelectValue>
-          {(network: NetworkId) => <NetworkLabel network={network} />}
-        </SelectValue>
+        <SelectValue>{(network: NetworkId) => <NetworkLabel network={network} />}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>

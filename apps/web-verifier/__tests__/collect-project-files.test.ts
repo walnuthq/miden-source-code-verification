@@ -78,10 +78,7 @@ describe("selectProjectFiles on MASM projects", () => {
       "counter-contract/src/notes.txt",
       "counter-contract/target/counter_contract.masp",
     ]);
-    expect(includedPaths).toEqual([
-      "miden-project.toml",
-      "counter_contract.masm",
-    ]);
+    expect(includedPaths).toEqual(["miden-project.toml", "counter_contract.masm"]);
     expect(entrypoints).toEqual(["."]);
   });
 
@@ -208,14 +205,10 @@ describe("collectProjectFiles", () => {
     const result = await collectProjectFiles([
       new File(["[package]"], "counter/Cargo.toml"),
       // Not UTF-8: if it were read first, the result would be the not-text error.
-      new File(
-        [new Uint8Array(MAX_PROJECT_BYTES + 1).fill(0xff)],
-        "counter/src/lib.rs",
-      ),
+      new File([new Uint8Array(MAX_PROJECT_BYTES + 1).fill(0xff)], "counter/src/lib.rs"),
     ]);
     expect(result).toEqual({
-      error:
-        "The selected project is larger than 1 MB, the most the verifier accepts.",
+      error: "The selected project is larger than 1 MB, the most the verifier accepts.",
     });
   });
 

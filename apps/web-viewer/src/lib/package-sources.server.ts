@@ -9,11 +9,7 @@ import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 
 import { masmGrammar } from "@/lib/masm/grammar";
 import { packageProcedures } from "@/lib/procedure-signatures";
-import {
-  filterSourceFiles,
-  findEntryFile,
-  type PackageSources,
-} from "@/lib/source-files";
+import { filterSourceFiles, findEntryFile, type PackageSources } from "@/lib/source-files";
 import { formatUtcTimestamp } from "@/lib/timestamps";
 
 // Created on first use and kept for the life of the server instance (Node

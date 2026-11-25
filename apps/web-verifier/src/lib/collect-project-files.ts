@@ -42,9 +42,7 @@ function stripRoot(path: string): string {
 
 // Mirrors the CLI's walker pruning `target/` and hidden dirs other than `.cargo`.
 function isSkippedDir(parents: string[]): boolean {
-  return parents.some(
-    (part) => part === "target" || (part.startsWith(".") && part !== ".cargo"),
-  );
+  return parents.some((part) => part === "target" || (part.startsWith(".") && part !== ".cargo"));
 }
 
 function isRustBuildInput(name: string, parents: string[]): boolean {
@@ -115,14 +113,12 @@ export function selectProjectFiles(webkitRelativePaths: string[]): {
     .filter(
       ({ name, parents }) =>
         isMasmBuildInput(name) ||
-        (owningProjectKind(parents, projects) !== "masm" &&
-          isRustBuildInput(name, parents)),
+        (owningProjectKind(parents, projects) !== "masm" && isRustBuildInput(name, parents)),
     )
     .map(({ rel }) => rel);
 
   const rootHasManifest = paths.some(
-    ({ name, parents }) =>
-      parents.length === 0 && name === "miden-project.toml",
+    ({ name, parents }) => parents.length === 0 && name === "miden-project.toml",
   );
   const entrypoints = [...projects.keys()]
     .filter((dir) => dir !== "")
@@ -134,9 +130,7 @@ export function selectProjectFiles(webkitRelativePaths: string[]): {
 // Reads a file's text content; `null` when its bytes aren't UTF-8.
 async function readFileText(file: File): Promise<string | null> {
   try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(
-      await file.arrayBuffer(),
-    );
+    return new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer());
   } catch (error) {
     if (error instanceof TypeError) return null; // not UTF-8
     throw error;
@@ -169,8 +163,7 @@ export async function collectProjectFiles(
   const totalBytes = kept.reduce((sum, { file }) => sum + file.size, 0);
   if (totalBytes > MAX_PROJECT_BYTES) {
     return {
-      error:
-        "The selected project is larger than 1 MB, the most the verifier accepts.",
+      error: "The selected project is larger than 1 MB, the most the verifier accepts.",
     };
   }
 

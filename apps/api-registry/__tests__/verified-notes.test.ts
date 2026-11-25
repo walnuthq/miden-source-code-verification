@@ -1,5 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
 import {
   COUNTER_CONTRACT_ID_1,
   COUNTER_NOTE_ID_1,
@@ -13,6 +14,7 @@ import {
 } from "miden-source-code-verification-test-utils";
 import { procedureExportPaths } from "miden-source-code-verification-utils/manifest";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { createApp } from "../src/app.ts";
 import { type ApiCompile, ApiCompileError } from "../src/lib/api-compile.ts";
 import { fakeApiCompile } from "./fake-api-compile.ts";
@@ -43,8 +45,7 @@ const DEPOSIT_NOTE_SCRIPT = notes[DEPOSIT_NOTE_ID_1].code;
 
 // A well-formed script root that is never verified in these tests, used to
 // check that a script-keyed lookup which matches nothing yields a 404.
-const UNVERIFIED_NOTE_SCRIPT =
-  "0x1111111111111111111111111111111111111111111111111111111111111111";
+const UNVERIFIED_NOTE_SCRIPT = "0x1111111111111111111111111111111111111111111111111111111111111111";
 
 describe("POST /:networkId/verified-notes", () => {
   it("rejects requests with no note ID", async () => {
@@ -142,9 +143,7 @@ describe("POST /:networkId/verified-notes", () => {
 
 describe("GET /:networkId/verified-notes/:noteId", () => {
   it("returns 404 for a note absent from the registry", async () => {
-    const res = await apiV1
-      .get(`/${networkId}/verified-notes/${COUNTER_NOTE_ID_1}`)
-      .send();
+    const res = await apiV1.get(`/${networkId}/verified-notes/${COUNTER_NOTE_ID_1}`).send();
     expect(res.status).toBe(404);
   });
 
@@ -160,9 +159,7 @@ describe("GET /:networkId/verified-notes/:noteId", () => {
     expect(res1.status).toBe(200);
     expect(res1.body).toHaveProperty("verified", true);
 
-    const res2 = await apiV1
-      .get(`/${networkId}/verified-notes/${COUNTER_NOTE_ID_1}`)
-      .send();
+    const res2 = await apiV1.get(`/${networkId}/verified-notes/${COUNTER_NOTE_ID_1}`).send();
 
     expect(res2.status).toBe(200);
     expect(res2.body).toHaveProperty("noteId", COUNTER_NOTE_ID_1);
@@ -171,10 +168,7 @@ describe("GET /:networkId/verified-notes/:noteId", () => {
     expect(res2.body).toHaveProperty("package.name", entrypoint);
     expect(res2.body).toHaveProperty("package.type", "note");
     expect(res2.body.package.commitment).toMatch(/^0x[0-9a-f]{64}$/);
-    expect(res2.body).toHaveProperty(
-      "packageCommitment",
-      res2.body.package.commitment,
-    );
+    expect(res2.body).toHaveProperty("packageCommitment", res2.body.package.commitment);
     // The compiled package is served on its own, not inlined in the record.
     expect(res2.body.package).not.toHaveProperty("masp");
     // Whether each of its procedures is read-only, by export path.
@@ -185,9 +179,7 @@ describe("GET /:networkId/verified-notes/:noteId", () => {
     expect(res2.body.package).toHaveProperty("schemas", {});
     // Its entrypoint's argument, named in its WIT.
     expect(res2.body.package.parameters).toEqual({
-      '::"miden:counter-note/miden-counter-note@0.1.0"::run': [
-        { name: "arg", type: "word" },
-      ],
+      '::"miden:counter-note/miden-counter-note@0.1.0"::run': [{ name: "arg", type: "word" }],
     });
 
     const res3 = await apiV1
@@ -213,9 +205,7 @@ describe("GET /:networkId/verified-notes/:noteId", () => {
     expect(res1.body).toHaveProperty("verified", true);
 
     // ...then look up a *different*, never-verified note with the same script.
-    const res2 = await apiV1
-      .get(`/${networkId}/verified-notes/${COUNTER_NOTE_ID_2}`)
-      .send();
+    const res2 = await apiV1.get(`/${networkId}/verified-notes/${COUNTER_NOTE_ID_2}`).send();
 
     expect(res2.status).toBe(200);
     expect(res2.body).toHaveProperty("noteId", COUNTER_NOTE_ID_2);
@@ -238,9 +228,7 @@ describe("GET /:networkId/verified-notes/script/:script", () => {
     expect(res1.status).toBe(200);
     expect(res1.body).toHaveProperty("verified", true);
 
-    const res2 = await apiV1
-      .get(`/${networkId}/verified-notes/script/${NOTE_SCRIPT}`)
-      .send();
+    const res2 = await apiV1.get(`/${networkId}/verified-notes/script/${NOTE_SCRIPT}`).send();
 
     expect(res2.status).toBe(200);
     expect(res2.body).toHaveProperty("script", NOTE_SCRIPT);
@@ -267,9 +255,7 @@ describe("GET /:networkId/verified-notes/script/:script", () => {
 
     // The same script root, but a network it was never verified on. Script
     // roots are network-specific, so this must not resolve to the record above.
-    const res2 = await apiV1
-      .get(`/${otherNetworkId}/verified-notes/script/${NOTE_SCRIPT}`)
-      .send();
+    const res2 = await apiV1.get(`/${otherNetworkId}/verified-notes/script/${NOTE_SCRIPT}`).send();
 
     expect(res2.status).toBe(404);
     expect(res2.body).toHaveProperty("error", "verified note not found");
@@ -288,9 +274,7 @@ describe("GET /:networkId/verified-notes/script/:script", () => {
     expect(res1.body).toHaveProperty("verified", true);
 
     const res2 = await apiV1
-      .get(
-        `/${networkId}/verified-notes/script/0x${NOTE_SCRIPT.slice(2).toUpperCase()}`,
-      )
+      .get(`/${networkId}/verified-notes/script/0x${NOTE_SCRIPT.slice(2).toUpperCase()}`)
       .send();
 
     expect(res2.status).toBe(200);
@@ -320,9 +304,7 @@ describe("GET /:networkId/verified-notes/script/:script", () => {
   });
 
   it("rejects a script that isn't a 32-byte hex root", async () => {
-    const res = await apiV1
-      .get(`/${networkId}/verified-notes/script/0xdeadbeef`)
-      .send();
+    const res = await apiV1.get(`/${networkId}/verified-notes/script/0xdeadbeef`).send();
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "invalid script");
@@ -410,9 +392,7 @@ describe("POST /:networkId/verified-notes with a deposit-note", () => {
 
 describe("GET /:networkId/verified-notes/:noteId with a deposit-note", () => {
   it("returns 404 for a note absent from the registry", async () => {
-    const res = await apiV1
-      .get(`/${networkId}/verified-notes/${DEPOSIT_NOTE_ID_1}`)
-      .send();
+    const res = await apiV1.get(`/${networkId}/verified-notes/${DEPOSIT_NOTE_ID_1}`).send();
     expect(res.status).toBe(404);
   });
 
@@ -428,9 +408,7 @@ describe("GET /:networkId/verified-notes/:noteId with a deposit-note", () => {
     expect(res1.status).toBe(200);
     expect(res1.body).toHaveProperty("verified", true);
 
-    const res2 = await apiV1
-      .get(`/${networkId}/verified-notes/${DEPOSIT_NOTE_ID_1}`)
-      .send();
+    const res2 = await apiV1.get(`/${networkId}/verified-notes/${DEPOSIT_NOTE_ID_1}`).send();
 
     expect(res2.status).toBe(200);
     expect(res2.body).toHaveProperty("noteId", DEPOSIT_NOTE_ID_1);
@@ -464,9 +442,7 @@ describe("GET /:networkId/verified-notes/:noteId with a deposit-note", () => {
     expect(res1.body).toHaveProperty("verified", true);
 
     // ...then look up a *different*, never-verified note with the same script.
-    const res2 = await apiV1
-      .get(`/${networkId}/verified-notes/${DEPOSIT_NOTE_ID_2}`)
-      .send();
+    const res2 = await apiV1.get(`/${networkId}/verified-notes/${DEPOSIT_NOTE_ID_2}`).send();
 
     expect(res2.status).toBe(200);
     expect(res2.body).toHaveProperty("noteId", DEPOSIT_NOTE_ID_2);
@@ -535,12 +511,8 @@ describe("GET /:networkId/verified-notes/:noteId with a faked import", () => {
   });
 
   it("returns 404 for a note api-compile didn't find", async () => {
-    const app = appWhoseImportFails(
-      new ApiCompileError("not found on the network", 404),
-    );
-    const res = await app.get(
-      `/v1/${networkId}/verified-notes/${COUNTER_NOTE_ID_1}`,
-    );
+    const app = appWhoseImportFails(new ApiCompileError("not found on the network", 404));
+    const res = await app.get(`/v1/${networkId}/verified-notes/${COUNTER_NOTE_ID_1}`);
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: "verified note not found" });
   });
@@ -560,9 +532,7 @@ describe("GET /:networkId/verified-notes/:noteId with a faked import", () => {
       standardAccountComponents: [],
       procedures: [],
     }));
-    const res = await app.get(
-      `/v1/${networkId}/verified-notes/${COUNTER_CONTRACT_ID_1}`,
-    );
+    const res = await app.get(`/v1/${networkId}/verified-notes/${COUNTER_CONTRACT_ID_1}`);
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: "verified note not found" });
   });
@@ -573,9 +543,7 @@ describe("GET /:networkId/verified-notes/:noteId with a faked import", () => {
   ])("passes an api-compile %i through", async (status, error) => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const app = appWhoseImportFails(new ApiCompileError(error, status));
-    const res = await app.get(
-      `/v1/${networkId}/verified-notes/${COUNTER_NOTE_ID_1}`,
-    );
+    const res = await app.get(`/v1/${networkId}/verified-notes/${COUNTER_NOTE_ID_1}`);
     expect(res.status).toBe(status);
     expect(res.body).toEqual({ error });
   });

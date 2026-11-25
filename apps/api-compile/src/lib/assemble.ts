@@ -1,11 +1,13 @@
 import { mkdir, mkdtemp, readFile } from "node:fs/promises";
 import { join } from "node:path";
+
 import type {
   AssemblyReport,
   BuiltPackage,
 } from "miden-source-code-verification-utils/api-compile";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import type { Project } from "miden-source-code-verification-utils/project";
+
 import {
   API_USER,
   ASSEMBLE_CONCURRENCY,
@@ -56,10 +58,7 @@ export type Assembly =
       Required<AssemblyReport>);
 
 const deadlineError = () =>
-  new HttpError(
-    504,
-    `the build did not finish within ${ASSEMBLE_DEADLINE_MS / 1000}s`,
-  );
+  new HttpError(504, `the build did not finish within ${ASSEMBLE_DEADLINE_MS / 1000}s`);
 
 // Assembles in a fresh directory: the project in `project/`, the package next
 // to it, outside the project root the assembler is confined to.
@@ -140,9 +139,7 @@ export const queueAssemble = <T>(
 ) =>
   limit(async () => {
     const deadline = AbortSignal.timeout(ASSEMBLE_DEADLINE_MS);
-    const signal = args.signal
-      ? AbortSignal.any([args.signal, deadline])
-      : deadline;
+    const signal = args.signal ? AbortSignal.any([args.signal, deadline]) : deadline;
     await mkdir(join(WORK_DIR, "projects"), { recursive: true });
     const tmpDir = await mkdtemp(join(WORK_DIR, "projects", "miden-masm-"));
     try {

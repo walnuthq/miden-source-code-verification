@@ -1,5 +1,6 @@
 import type { MaspVariant } from "miden-source-code-verification-utils/api-registry";
 import { storedProjectKind } from "miden-source-code-verification-utils/project";
+
 import type { packagesTable } from "../db/schema.ts";
 
 type PackageRow = Pick<

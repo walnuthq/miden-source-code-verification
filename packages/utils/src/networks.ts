@@ -23,7 +23,7 @@ export function parseNetwork(value: string | null | undefined): NetworkId {
 }
 
 export function getNetwork(networkId: NetworkId) {
-  // biome-ignore lint/style/noNonNullAssertion: every NetworkId is in the list
+  // Non-null: every NetworkId is in the list
   return networks.find((network) => network.value === networkId)!;
 }
 

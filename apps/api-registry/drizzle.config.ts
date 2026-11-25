@@ -1,4 +1,5 @@
 import { defineConfig } from "drizzle-kit";
+
 import { DATABASE_URL } from "./src/lib/constants.ts";
 
 export default defineConfig({

@@ -10,6 +10,7 @@ import {
   cargoPackageName,
   midenProjectLibrary,
 } from "miden-source-code-verification-utils/project";
+
 import type { PackageDependency } from "@/lib/api-registry.server";
 import { PUBLIC_API_REGISTRY_URL } from "@/lib/constants";
 import type { PackageProcedure } from "@/lib/procedure-signatures";
@@ -102,12 +103,8 @@ export function isDisplayedSourceFile(path: string): boolean {
   return name.endsWith(".rs") && parts.slice(0, -1).includes("src");
 }
 
-export function filterSourceFiles(
-  files: Record<string, string>,
-): Record<string, string> {
-  return Object.fromEntries(
-    Object.entries(files).filter(([path]) => isDisplayedSourceFile(path)),
-  );
+export function filterSourceFiles(files: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(files).filter(([path]) => isDisplayedSourceFile(path)));
 }
 
 // The directory part of a manifest's path, with its trailing `/`: `` at the
@@ -140,10 +137,7 @@ const isManifest = (path: string, manifest: string) =>
 // project, a `miden-project.toml` with no `Cargo.toml` beside it, the module
 // its `[lib] path` names. Falls back to any `src/lib.rs`, then to the first
 // MASM module, then to the first file.
-export function findEntryFile(
-  files: Record<string, string>,
-  packageName: string,
-): string | null {
+export function findEntryFile(files: Record<string, string>, packageName: string): string | null {
   const paths = Object.keys(files).sort();
   for (const path of paths) {
     if (isManifest(path, CARGO_TOML)) {
@@ -151,10 +145,7 @@ export function findEntryFile(
       // A manifest that doesn't parse, or has no [package], can't be the
       // entry. Both names come from a manifest, so they match exactly or not
       // at all.
-      if (
-        libPath in files &&
-        cargoPackageName(files[path] ?? "") === packageName
-      ) {
+      if (libPath in files && cargoPackageName(files[path] ?? "") === packageName) {
         return libPath;
       }
     } else if (isManifest(path, MIDEN_PROJECT_TOML)) {
@@ -170,9 +161,7 @@ export function findEntryFile(
     }
   }
   return (
-    paths.find(
-      (path) => path === "src/lib.rs" || path.endsWith("/src/lib.rs"),
-    ) ??
+    paths.find((path) => path === "src/lib.rs" || path.endsWith("/src/lib.rs")) ??
     paths.find((path) => path.endsWith(".masm")) ??
     paths[0] ??
     null

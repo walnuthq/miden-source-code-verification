@@ -7,6 +7,7 @@ import type {
   VerifiedNoteById,
 } from "miden-source-code-verification-utils/api-registry";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
+
 import db from "../db/index.ts";
 import type {
   packagesTable,
@@ -22,12 +23,7 @@ import type { Resource } from "./verify-resource.ts";
 type Kind = Resource["kind"];
 
 const notFound = (kind: Kind) =>
-  new HttpError(
-    404,
-    kind === "account"
-      ? "verified account not found"
-      : "verified note not found",
-  );
+  new HttpError(404, kind === "account" ? "verified account not found" : "verified note not found");
 
 // The rows a lookup reads, with the relations it loads.
 type PackageRow = typeof packagesTable.$inferSelect;
@@ -63,9 +59,7 @@ const toPackage = (row: PackageRow): Package => ({
   updatedAt: row.updatedAt.toISOString(),
 });
 
-const toVerifiedAccountComponent = (
-  row: ComponentRow,
-): VerifiedAccountComponent => {
+const toVerifiedAccountComponent = (row: ComponentRow): VerifiedAccountComponent => {
   const debugBuild = debugBuildOf(row.package);
   return {
     id: row.id,
@@ -88,9 +82,7 @@ const toVerifiedAccount = (row: AccountRow): VerifiedAccount => ({
   code: row.code,
   createdAt: row.createdAt.toISOString(),
   updatedAt: row.updatedAt.toISOString(),
-  verifiedAccountComponents: row.verifiedAccountComponents.map(
-    toVerifiedAccountComponent,
-  ),
+  verifiedAccountComponents: row.verifiedAccountComponents.map(toVerifiedAccountComponent),
 });
 
 const toVerifiedNote = (row: NoteRow): VerifiedNote => ({
@@ -106,10 +98,7 @@ const toVerifiedNote = (row: NoteRow): VerifiedNote => ({
 });
 
 // The verified account keyed on `code`, with each component and its package.
-const readVerifiedAccount = async (
-  networkId: string,
-  code: string,
-): Promise<VerifiedAccount> => {
+const readVerifiedAccount = async (networkId: string, code: string): Promise<VerifiedAccount> => {
   const row = await db.query.verifiedAccountCodeTable.findFirst({
     where: { networkId, code },
     with: { verifiedAccountComponents: { with: { package: true } } },
@@ -121,10 +110,7 @@ const readVerifiedAccount = async (
 };
 
 // The verified note keyed on `script`, with its package.
-const readVerifiedNote = async (
-  networkId: string,
-  script: string,
-): Promise<VerifiedNote> => {
+const readVerifiedNote = async (networkId: string, script: string): Promise<VerifiedNote> => {
   const row = await db.query.verifiedNoteScriptTable.findFirst({
     where: { networkId, script },
     with: { package: true },
@@ -193,8 +179,7 @@ export async function findVerifiedRecord({
   resource: Resource;
   apiCompile: ApiCompile;
 }): Promise<VerifiedAccountById | VerifiedNoteById> {
-  const resourceId =
-    resource.kind === "account" ? resource.accountId : resource.noteId;
+  const resourceId = resource.kind === "account" ? resource.accountId : resource.noteId;
   const imported = await apiCompile
     .importResource({ networkId, resourceId })
     .catch((error: unknown) => {

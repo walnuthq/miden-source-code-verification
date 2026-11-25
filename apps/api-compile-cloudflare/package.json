@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "lint": "biome check .",
-    "format": "biome check --write .",
+    "lint": "oxlint --deny-warnings && oxfmt --check",
+    "format": "oxlint --fix && oxfmt",
     "cf:typegen": "wrangler types",
     "cf:deploy": "wrangler deploy",
     "cf:dev": "wrangler dev"

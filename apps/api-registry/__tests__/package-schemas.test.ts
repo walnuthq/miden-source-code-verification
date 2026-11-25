@@ -1,5 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
 import {
   COUNTER_CONTRACT_ID_1,
   readProjectFiles,
@@ -10,10 +11,7 @@ import { describe, expect, it } from "vitest";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const counterContractDir = path.resolve(
-  __dirname,
-  "../../api-compile/examples/counter-contract",
-);
+const counterContractDir = path.resolve(__dirname, "../../api-compile/examples/counter-contract");
 
 const apiUrl = process.env.API_URL ?? "http://localhost:8081";
 const apiV1 = request(`${apiUrl}/v1`);
@@ -35,9 +33,7 @@ const COUNTER_CONTRACT_SCHEMAS = {
 };
 
 const verifyCounterContract = async (): Promise<Package> => {
-  const files = await readProjectFiles(
-    `${counterContractDir}/counter-contract`,
-  );
+  const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
   const verifyRes = await apiV1
     .post(`/${networkId}/verified-accounts`)
     .send({ accountId: COUNTER_CONTRACT_ID_1, files });

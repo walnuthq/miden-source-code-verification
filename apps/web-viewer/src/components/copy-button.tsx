@@ -26,13 +26,7 @@ export function CopyButton({
   };
 
   return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      onClick={copy}
-      aria-label={label}
-      title={label}
-    >
+    <Button variant="ghost" size="icon-sm" onClick={copy} aria-label={label} title={label}>
       {copied ? <Check /> : <Copy />}
     </Button>
   );

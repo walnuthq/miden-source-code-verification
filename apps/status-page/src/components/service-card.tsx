@@ -9,19 +9,12 @@ import {
 } from "miden-source-code-verification-ui";
 
 import { formatTimestamp } from "@/lib/format";
-import type {
-  CheckHealth,
-  EndpointStatus,
-  ServiceHealth,
-  ServiceStatus,
-} from "@/lib/types";
+import type { CheckHealth, EndpointStatus, ServiceHealth, ServiceStatus } from "@/lib/types";
 
 // Same green/amber/destructive triad the verifier uses for its result alerts.
 const healthStyles: Record<ServiceHealth, string> = {
-  healthy:
-    "border-green-600/50 text-green-700 dark:border-green-500/50 dark:text-green-400",
-  degraded:
-    "border-amber-600/50 text-amber-700 dark:border-amber-500/50 dark:text-amber-400",
+  healthy: "border-green-600/50 text-green-700 dark:border-green-500/50 dark:text-green-400",
+  degraded: "border-amber-600/50 text-amber-700 dark:border-amber-500/50 dark:text-amber-400",
   unhealthy: "",
 };
 
@@ -31,22 +24,13 @@ const healthDots: Record<ServiceHealth, string> = {
   unhealthy: "bg-current",
 };
 
-function HealthBadge({
-  health,
-  children,
-}: {
-  health: ServiceHealth;
-  children: React.ReactNode;
-}) {
+function HealthBadge({ health, children }: { health: ServiceHealth; children: React.ReactNode }) {
   return (
     <Badge
       variant={health === "unhealthy" ? "destructive" : "outline"}
       className={healthStyles[health]}
     >
-      <span
-        aria-hidden="true"
-        className={`size-1.5 rounded-full ${healthDots[health]}`}
-      />
+      <span aria-hidden="true" className={`size-1.5 rounded-full ${healthDots[health]}`} />
       {children}
     </Badge>
   );
@@ -60,10 +44,8 @@ function EndpointRow({ endpoint }: { endpoint: EndpointStatus }) {
         <code className="truncate font-mono text-xs">{endpoint.label}</code>
         <div className="flex shrink-0 items-center gap-2">
           <span className="font-mono text-xs text-muted-foreground">
-            {endpoint.httpStatus === null
-              ? "no response"
-              : `HTTP ${endpoint.httpStatus}`}{" "}
-            · {endpoint.responseTimeMs}ms
+            {endpoint.httpStatus === null ? "no response" : `HTTP ${endpoint.httpStatus}`} ·{" "}
+            {endpoint.responseTimeMs}ms
           </span>
           <HealthBadge health={health}>
             {health === "healthy" ? "Healthy" : "Unhealthy"}
@@ -83,11 +65,7 @@ function EndpointRow({ endpoint }: { endpoint: EndpointStatus }) {
               <dd className="truncate font-mono">
                 {typeof value === "boolean" ? (
                   <span
-                    className={
-                      value
-                        ? "text-green-700 dark:text-green-400"
-                        : "text-destructive"
-                    }
+                    className={value ? "text-green-700 dark:text-green-400" : "text-destructive"}
                   >
                     {value ? "✓ true" : "✗ false"}
                   </span>
@@ -110,9 +88,7 @@ function EndpointRow({ endpoint }: { endpoint: EndpointStatus }) {
 }
 
 export function ServiceCard({ service }: { service: ServiceStatus }) {
-  const healthy = service.endpoints.filter(
-    (endpoint) => endpoint.health === "healthy",
-  ).length;
+  const healthy = service.endpoints.filter((endpoint) => endpoint.health === "healthy").length;
   const total = service.endpoints.length;
 
   return (

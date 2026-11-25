@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import {
   cargoPackageName,
   inferEntrypoint,
@@ -100,11 +101,7 @@ describe("openProject", () => {
   });
 
   it("refuses a file path that can't be written", () => {
-    for (const path of [
-      "src/a\u0000.rs",
-      "src/a\n.rs",
-      `src/${"a".repeat(256)}.rs`,
-    ]) {
+    for (const path of ["src/a\u0000.rs", "src/a\n.rs", `src/${"a".repeat(256)}.rs`]) {
       expect(openProject({ ...rootProject, [path]: "" })).toEqual({
         error: `invalid file path: ${path}`,
       });
@@ -117,12 +114,12 @@ describe("openProject", () => {
       error: `invalid file path: ${multiByte}`,
     });
     // The clash key comes first in key order, so it wins over the bad content.
-    expect(openProject({ ...rootProject, src: "", "src/other.rs": 1 })).toEqual(
-      { error: "invalid file path: src" },
+    expect(openProject({ ...rootProject, src: "", "src/other.rs": 1 })).toEqual({
+      error: "invalid file path: src",
+    });
+    expect(openProject({ ...rootProject, [`src/${"a".repeat(255)}`]: "" })).toHaveProperty(
+      "project",
     );
-    expect(
-      openProject({ ...rootProject, [`src/${"a".repeat(255)}`]: "" }),
-    ).toHaveProperty("project");
   });
 
   it("refuses a file whose content isn't text", () => {
@@ -147,23 +144,20 @@ describe("openProject", () => {
   });
 
   it("wants a miden-project.toml next to it", () => {
+    expect(openProject({ "Cargo.toml": cargoToml("x"), "src/lib.rs": "" })).toEqual({
+      error: "missing miden-project.toml",
+    });
     expect(
-      openProject({ "Cargo.toml": cargoToml("x"), "src/lib.rs": "" }),
-    ).toEqual({ error: "missing miden-project.toml" });
-    expect(
-      openProject(
-        { ...workspace, "counter-note/miden-project.toml": undefined },
-        "counter-note",
-      ),
+      openProject({ ...workspace, "counter-note/miden-project.toml": undefined }, "counter-note"),
     ).toEqual({
       error: "invalid file content: counter-note/miden-project.toml",
     });
   });
 
   it("refuses a Cargo.toml that isn't TOML", () => {
-    expect(
-      openProject({ ...rootProject, "Cargo.toml": "not = [toml" }),
-    ).toEqual({ error: "Cargo.toml is not valid TOML" });
+    expect(openProject({ ...rootProject, "Cargo.toml": "not = [toml" })).toEqual({
+      error: "Cargo.toml is not valid TOML",
+    });
   });
 
   it("refuses a workspace root as the entrypoint, naming the file", () => {
@@ -171,10 +165,7 @@ describe("openProject", () => {
       error: "Cargo.toml has no [package]",
     });
     expect(
-      openProject(
-        { ...workspace, "counter-note/Cargo.toml": "[workspace]\n" },
-        "counter-note",
-      ),
+      openProject({ ...workspace, "counter-note/Cargo.toml": "[workspace]\n" }, "counter-note"),
     ).toEqual({ error: "counter-note/Cargo.toml has no [package]" });
   });
 
@@ -188,8 +179,7 @@ describe("openProject", () => {
   });
 });
 
-const midenProjectToml = (name: string) =>
-  `[package]\nname = "${name}"\nversion = "0.1.0"\n`;
+const midenProjectToml = (name: string) => `[package]\nname = "${name}"\nversion = "0.1.0"\n`;
 
 const masmProject = {
   "counter-account/miden-project.toml": midenProjectToml("counter-account"),
@@ -215,17 +205,12 @@ describe("openProject with masm", () => {
 
   it("opens a Rust project as before", () => {
     expect(open(rootProject)).toEqual(openProject(rootProject));
-    expect(open(workspace, "counter-note")).toEqual(
-      openProject(workspace, "counter-note"),
-    );
+    expect(open(workspace, "counter-note")).toEqual(openProject(workspace, "counter-note"));
   });
 
   it("takes a Cargo.toml at the entrypoint, not elsewhere, for Rust", () => {
     const files = { ...masmProject, "Cargo.lock": "", "Cargo.toml": "" };
-    expect(open(files, "increment-note")).toHaveProperty(
-      "project.kind",
-      "masm",
-    );
+    expect(open(files, "increment-note")).toHaveProperty("project.kind", "masm");
   });
 
   it("wants a miden-project.toml at the entrypoint", () => {
@@ -247,9 +232,9 @@ describe("openProject with masm", () => {
   });
 
   it("refuses a miden-project.toml with no [package]", () => {
-    expect(
-      open({ "miden-project.toml": '[workspace]\nmembers = ["a"]\n' }),
-    ).toEqual({ error: "miden-project.toml has no [package]" });
+    expect(open({ "miden-project.toml": '[workspace]\nmembers = ["a"]\n' })).toEqual({
+      error: "miden-project.toml has no [package]",
+    });
   });
 
   it("is off by default: a MASM project is missing its Cargo.toml", () => {
@@ -261,9 +246,7 @@ describe("openProject with masm", () => {
 
 describe("cargoPackageName", () => {
   it("reads the [package] name", () => {
-    expect(cargoPackageName(cargoToml("counter-contract"))).toBe(
-      "counter-contract",
-    );
+    expect(cargoPackageName(cargoToml("counter-contract"))).toBe("counter-contract");
   });
 
   it("is undefined for a workspace root or a file that doesn't parse", () => {
@@ -303,9 +286,7 @@ describe("inferEntrypoint", () => {
   });
 
   it("finds a project in a subdirectory of a workspace", () => {
-    expect(inferEntrypoint(workspace, "counter-contract")).toBe(
-      "counter-contract",
-    );
+    expect(inferEntrypoint(workspace, "counter-contract")).toBe("counter-contract");
   });
 
   it("ignores a crate with that name but no miden-project.toml", () => {

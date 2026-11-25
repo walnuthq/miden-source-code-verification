@@ -1,9 +1,7 @@
 import cors from "cors";
 import express from "express";
-import {
-  errorHandler,
-  notFound,
-} from "miden-source-code-verification-utils/http-errors";
+import { errorHandler, notFound } from "miden-source-code-verification-utils/http-errors";
+
 import { nextLayoutSettled, stopPreload } from "./lib/compile.ts";
 import { ALLOWED_ORIGINS, PORT, SHUTDOWN_TIMEOUT_MS } from "./lib/constants.ts";
 import compileRouter from "./routes/compile.ts";
@@ -63,9 +61,7 @@ const shutdown = (signal: NodeJS.Signals) => {
   const preloadStopped = stopPreload();
   // The last build's files are deleted after its answer: wait for that too.
   server.close(() => {
-    void Promise.all([nextLayoutSettled(), preloadStopped]).finally(() =>
-      process.exit(0),
-    );
+    void Promise.all([nextLayoutSettled(), preloadStopped]).finally(() => process.exit(0));
   });
   server.closeIdleConnections();
   setTimeout(() => {

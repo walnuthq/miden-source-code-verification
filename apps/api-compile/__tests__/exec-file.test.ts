@@ -5,7 +5,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 import { promisify } from "node:util";
+
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
 import { execFile } from "../src/lib/utils.ts";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -78,9 +80,9 @@ describe("execFile", () => {
     // Long enough for the spawner to start its child and write its pid even
     // under a full parallel run: a kill before that leaves no pid to check
     // (the cancel case below waits for the file instead).
-    await expect(
-      execFile(spawner, [pidFile], { timeout: 2_000 }),
-    ).rejects.toThrow(`${spawner} timed out after 2s`);
+    await expect(execFile(spawner, [pidFile], { timeout: 2_000 })).rejects.toThrow(
+      `${spawner} timed out after 2s`,
+    );
     expect(performance.now() - start).toBeLessThan(5_000);
     expect(await waitUntilGone(await readPid(pidFile))).toBe(true);
   }, 10_000);
@@ -93,9 +95,7 @@ describe("execFile", () => {
       timeout: 20_000,
       signal: controller.signal,
     });
-    const rejection = expect(promise).rejects.toThrow(
-      `${spawner} was cancelled`,
-    );
+    const rejection = expect(promise).rejects.toThrow(`${spawner} was cancelled`);
     while (!existsSync(pidFile)) {
       await sleep(50);
     }
@@ -124,15 +124,7 @@ describe("execFile", () => {
   }, 10_000);
 
   it("fails exactly as Node's execFile does when the subprocess exits on its own", async () => {
-    const fields = [
-      "message",
-      "code",
-      "killed",
-      "signal",
-      "cmd",
-      "stdout",
-      "stderr",
-    ] as const;
+    const fields = ["message", "code", "killed", "signal", "cmd", "stdout", "stderr"] as const;
     const catchError = (promise: Promise<unknown>) =>
       promise.then(
         () => {
@@ -146,9 +138,7 @@ describe("execFile", () => {
     ];
     for (const [path, args] of cases) {
       const ours = await catchError(execFile(path, args, { timeout: 5_000 }));
-      const node = await catchError(
-        promisify(execFileCb)(path, args, { encoding: "utf8" }),
-      );
+      const node = await catchError(promisify(execFileCb)(path, args, { encoding: "utf8" }));
       for (const field of fields) {
         expect(ours[field], field).toEqual(node[field]);
       }
@@ -170,19 +160,13 @@ describe("execFile", () => {
   }, 10_000);
 
   it("answers the output of a subprocess that prints 2 MiB", async () => {
-    const big = await script(
-      "big.sh",
-      "head -c 2097152 /dev/zero | tr '\\0' x",
-    );
+    const big = await script("big.sh", "head -c 2097152 /dev/zero | tr '\\0' x");
     const { stdout } = await execFile(big, [], { timeout: 10_000 });
     expect(stdout.length).toBe(2097152);
   }, 15_000);
 
   it("fails, saying so, when the subprocess prints more than the limit", async () => {
-    const big = await script(
-      "big-2m.sh",
-      "head -c 2097152 /dev/zero | tr '\\0' x",
-    );
+    const big = await script("big-2m.sh", "head -c 2097152 /dev/zero | tr '\\0' x");
     // The test lowers the limit to 1 MiB, so the default is not needed to reach
     // it.
     const error = await execFile(big, [], {

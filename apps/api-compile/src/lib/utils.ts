@@ -1,15 +1,15 @@
 import { spawn } from "node:child_process";
 import { lchown, mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+
 import type { Response } from "express";
+
 import { SUBPROCESS_MAX_OUTPUT_BYTES } from "./constants.ts";
 
 // Best effort: a failed cleanup is logged, never turned into a failed request.
 export const removeDirs = async (dirs: string[]) => {
   try {
-    await Promise.all(
-      dirs.map((dir) => rm(dir, { recursive: true, force: true })),
-    );
+    await Promise.all(dirs.map((dir) => rm(dir, { recursive: true, force: true })));
   } catch (error) {
     console.error(error);
   }
@@ -17,10 +17,7 @@ export const removeDirs = async (dirs: string[]) => {
 
 // Writes a project's files under `dir`. Its keys are clean project-relative
 // paths (`openProject` checked them), so every file lands under `dir`.
-export const writeProjectFiles = async (
-  dir: string,
-  files: Record<string, string>,
-) => {
+export const writeProjectFiles = async (dir: string, files: Record<string, string>) => {
   for (const [path, content] of Object.entries(files)) {
     const fullPath = join(dir, path);
     await mkdir(dirname(fullPath), { recursive: true });
@@ -30,10 +27,7 @@ export const writeProjectFiles = async (
 
 // Hands `path` and everything under it to `owner`, when there is one: the
 // server wrote it as root, and the process that works in it is `owner`.
-export const chownTree = async (
-  path: string,
-  owner: { uid: number; gid: number } | undefined,
-) => {
+export const chownTree = async (path: string, owner: { uid: number; gid: number } | undefined) => {
   if (!owner) {
     return;
   }
@@ -109,10 +103,7 @@ export const execFile = (
     };
     const timer = setTimeout(() => {
       killGroup();
-      settle(
-        () => reject(new Error(`${file} timed out after ${timeout / 1000}s`)),
-        true,
-      );
+      settle(() => reject(new Error(`${file} timed out after ${timeout / 1000}s`)), true);
     }, timeout);
     const settle = (done: () => void, destroyPipes = false) => {
       if (settled) {
@@ -143,9 +134,7 @@ export const execFile = (
             () =>
               reject(
                 Object.assign(
-                  new Error(
-                    `${file} printed more than ${maxBuffer / 1024 / 1024} MiB`,
-                  ),
+                  new Error(`${file} printed more than ${maxBuffer / 1024 / 1024} MiB`),
                   {
                     code: "ERR_CHILD_PROCESS_STDIO_MAXBUFFER",
                     cmd,

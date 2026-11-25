@@ -117,8 +117,7 @@ const formatDuration = (ms: number) => {
   return minutes > 0 ? `${minutes}m${seconds % 60}s` : `${seconds}s`;
 };
 
-const runDuration = (r: Run) =>
-  formatDuration(Date.parse(r.updatedAt) - Date.parse(r.createdAt));
+const runDuration = (r: Run) => formatDuration(Date.parse(r.updatedAt) - Date.parse(r.createdAt));
 
 // `gh run list --commit` matches the full 40-character SHA only; a short SHA
 // matches nothing and exits 0.
@@ -136,16 +135,11 @@ const resolveSha = async (input: string) => {
     if (!sha) throw new Error(`PR #${input} has no merge commit yet`);
     return sha;
   }
-  const sha = await exec("git", [
-    "rev-parse",
-    "--verify",
-    "--quiet",
-    `${input}^{commit}`,
-  ]).catch(() => "");
+  const sha = await exec("git", ["rev-parse", "--verify", "--quiet", `${input}^{commit}`]).catch(
+    () => "",
+  );
   if (!sha) {
-    throw new Error(
-      `${input} is not a local commit; run \`git fetch origin main\` first`,
-    );
+    throw new Error(`${input} is not a local commit; run \`git fetch origin main\` first`);
   }
   return sha;
 };
@@ -175,12 +169,7 @@ const failedJobs = async (r: Run) =>
 
 const containers = async <T>(command: "info" | "instances") =>
   JSON.parse(
-    await wrangler(API_COMPILE_DIR, [
-      "containers",
-      command,
-      CONTAINER_APP_ID,
-      "--json",
-    ]),
+    await wrangler(API_COMPILE_DIR, ["containers", command, CONTAINER_APP_ID, "--json"]),
   ) as T;
 
 const containerInfo = () => containers<ContainerInfo>("info");
@@ -201,8 +190,7 @@ const workerDeployment = async (dir: string): Promise<WorkerDeployment> => {
 // minutes old is already complete: no need for the two quiet polls.
 const settled = (runs: Run[]) =>
   runs.length > 0 &&
-  Date.now() - Math.min(...runs.map((r) => Date.parse(r.createdAt))) >
-    SETTLED_MS;
+  Date.now() - Math.min(...runs.map((r) => Date.parse(r.createdAt))) > SETTLED_MS;
 
 // Polls until the set of runs is stable (no new run for two polls, at least
 // 30 s after the first), then until each run completes, printing each one as
@@ -239,9 +227,7 @@ const watchRuns = async (sha: string, onFirstPoll: (runs: Run[]) => void) => {
         }
       }
       const stable =
-        (runs.length > 0 &&
-          quietPolls >= 2 &&
-          Date.now() - start >= STABLE_MIN_MS) ||
+        (runs.length > 0 && quietPolls >= 2 && Date.now() - start >= STABLE_MIN_MS) ||
         settled(runs);
       if (stable && runs.every((r) => r.status === "completed")) return runs;
       if (runs.length === 0 && Date.now() - start > NO_RUNS_TIMEOUT_MS) {
@@ -273,12 +259,9 @@ const watchRollout = async (apiCompile: Run, baseline: number | undefined) => {
       const moved =
         baseline !== undefined
           ? info.version > baseline
-          : Date.parse(info.updated_at) >= runEnded ||
-            Date.now() - runEnded > ROLLOUT_SETTLED_MS;
+          : Date.parse(info.updated_at) >= runEnded || Date.now() - runEnded > ROLLOUT_SETTLED_MS;
       const state = `version ${info.version}, ${
-        info.active_rollout_id
-          ? `rollout ${info.active_rollout_id} active`
-          : "no rollout active"
+        info.active_rollout_id ? `rollout ${info.active_rollout_id} active` : "no rollout active"
       }`;
       if (state !== lastState) log(`container app: ${state}`);
       lastState = state;
@@ -292,8 +275,7 @@ const watchRollout = async (apiCompile: Run, baseline: number | undefined) => {
 };
 
 const reportContainer = async (info: ContainerInfo) => {
-  const instances =
-    (await attempt("containers instances", containerInstances)) ?? [];
+  const instances = (await attempt("containers instances", containerInstances)) ?? [];
   const health = Object.entries(info.health.instances)
     .map(([state, count]) => `${state} ${count}`)
     .join(", ");
@@ -301,9 +283,7 @@ const reportContainer = async (info: ContainerInfo) => {
   log(`  image ${info.configuration.image.split("@")[1] ?? "?"}`);
   log(`  health: ${health}`);
   for (const instance of instances) {
-    log(
-      `  instance ${instance.name}: ${instance.state}, version ${instance.version ?? "none"}`,
-    );
+    log(`  instance ${instance.name}: ${instance.state}, version ${instance.version ?? "none"}`);
   }
   log(
     "One confirming request to production api-compile wakes the instance on the new version; ask the user before sending it.",
@@ -312,9 +292,7 @@ const reportContainer = async (info: ContainerInfo) => {
 };
 
 const printTable = (rows: string[][]) => {
-  const widths = rows[0]?.map((_, i) =>
-    Math.max(...rows.map((row) => row[i]?.length ?? 0)),
-  );
+  const widths = rows[0]?.map((_, i) => Math.max(...rows.map((row) => row[i]?.length ?? 0)));
   for (const row of rows) {
     console.log(
       row
@@ -339,12 +317,10 @@ const main = async () => {
   let baselinePromise: Promise<number | undefined> = Promise.resolve(undefined);
   const runs = await watchRuns(sha, (firstRuns) => {
     const done = firstRuns.some(
-      (r) =>
-        r.workflowName === API_COMPILE_WORKFLOW && r.status === "completed",
+      (r) => r.workflowName === API_COMPILE_WORKFLOW && r.status === "completed",
     );
     const absent =
-      settled(firstRuns) &&
-      !firstRuns.some((r) => r.workflowName === API_COMPILE_WORKFLOW);
+      settled(firstRuns) && !firstRuns.some((r) => r.workflowName === API_COMPILE_WORKFLOW);
     if (done || absent) return;
     baselinePromise = attempt("containers info", containerInfo).then((info) => {
       if (info) log(`container app baseline: version ${info.version}`);
@@ -361,14 +337,12 @@ const main = async () => {
   if (apiCompile?.conclusion === "success") {
     log("waiting for the container rollout");
     // A timeout still prints the Workers and the table, then exits 2.
-    const info = await watchRollout(apiCompile, baseline).catch(
-      (error: unknown) => {
-        if (!(error instanceof Timeout)) throw error;
-        log(error.message);
-        timedOut = true;
-        return undefined;
-      },
-    );
+    const info = await watchRollout(apiCompile, baseline).catch((error: unknown) => {
+      if (!(error instanceof Timeout)) throw error;
+      log(error.message);
+      timedOut = true;
+      return undefined;
+    });
     if (info) {
       await reportContainer(info);
       notes.set("api-compile", `container v${info.version}`);
@@ -379,33 +353,24 @@ const main = async () => {
 
   const workers = SERVICES.flatMap((service) => {
     const r = byWorkflow.get(service.workflow);
-    return r && service.workerDir
-      ? [{ ...service, r, dir: service.workerDir }]
-      : [];
+    return r && service.workerDir ? [{ ...service, r, dir: service.workerDir }] : [];
   });
   const deployments = await Promise.all(
-    workers.map(({ dir }) =>
-      attempt(`deployments status in ${dir}`, () => workerDeployment(dir)),
-    ),
+    workers.map(({ dir }) => attempt(`deployments status in ${dir}`, () => workerDeployment(dir))),
   );
   workers.forEach(({ name, r }, i) => {
     const deployment = deployments[i];
     if (!deployment) return;
     // A deployment older than the run means this merge's deploy didn't land.
     const stale =
-      Date.parse(deployment.created) < Date.parse(r.createdAt)
-        ? " (older than this run)"
-        : "";
+      Date.parse(deployment.created) < Date.parse(r.createdAt) ? " (older than this run)" : "";
     log(
       `${name} Worker: created ${deployment.created}${stale}, version ${deployment.versions.join(", ") || "?"}`,
     );
     const versionId = deployment.versions[0]?.split(" ")[0] ?? "?";
     notes.set(
       name,
-      [
-        notes.get(name),
-        `worker ${versionId.slice(0, 8)} ${deployment.created}${stale}`,
-      ]
+      [notes.get(name), `worker ${versionId.slice(0, 8)} ${deployment.created}${stale}`]
         .filter(Boolean)
         .join(", "),
     );

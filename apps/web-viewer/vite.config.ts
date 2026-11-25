@@ -1,4 +1,5 @@
 import path from "node:path";
+
 import { reactRouter } from "@react-router/dev/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
@@ -18,10 +19,7 @@ export default defineConfig({
     // The server build must compile packages/ui's raw .tsx rather than leave it
     // as a bare import for Node to load at runtime. Same for packages/utils in
     // dev, where its `development` export condition resolves to raw .ts.
-    noExternal: [
-      "miden-source-code-verification-ui",
-      "miden-source-code-verification-utils",
-    ],
+    noExternal: ["miden-source-code-verification-ui", "miden-source-code-verification-utils"],
   },
   // web-verifier owns Vite's default 5173.
   server: { port: 5174 },

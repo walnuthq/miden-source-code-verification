@@ -5,10 +5,8 @@ import type {
 } from "miden-source-code-verification-utils/api-compile";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
 import type { Project } from "miden-source-code-verification-utils/project";
-import {
-  API_COMPILE_BUILD_TIMEOUT_MS,
-  API_COMPILE_IMPORT_TIMEOUT_MS,
-} from "./constants.ts";
+
+import { API_COMPILE_BUILD_TIMEOUT_MS, API_COMPILE_IMPORT_TIMEOUT_MS } from "./constants.ts";
 
 // A failed call to api-compile, answered with the status it answered and its
 // `Retry-After`, so a client can tell a temporary outage (502–504) from a
@@ -46,10 +44,7 @@ export type ApiCompile = {
     signal?: AbortSignal;
   }): Promise<VerifyResponse>;
   /** Fetches the on-chain code of a resource. */
-  importResource(input: {
-    networkId: string;
-    resourceId: string;
-  }): Promise<ImportedResource>;
+  importResource(input: { networkId: string; resourceId: string }): Promise<ImportedResource>;
 };
 
 const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
@@ -65,9 +60,7 @@ const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
     throw new ApiCompileError(`api-compile is unreachable: ${message}`, 502);
   }
   // Error pages from Cloudflare or the container runtime are not JSON.
-  const data = (await response.json().catch(() => undefined)) as
-    | { error?: string }
-    | undefined;
+  const data = (await response.json().catch(() => undefined)) as { error?: string } | undefined;
   if (!response.ok) {
     throw new ApiCompileError(
       data?.error ?? `api-compile responded ${response.status}`,
@@ -95,12 +88,7 @@ const postBuild = <T>(url: string, body: unknown, signal?: AbortSignal) => {
 
 /** The {@link ApiCompile} served at `baseUrl`. */
 export const createHttpApiCompile = (baseUrl: string): ApiCompile => ({
-  verify: async ({
-    project: { files, entrypoint },
-    networkId,
-    resourceId,
-    signal,
-  }) => {
+  verify: async ({ project: { files, entrypoint }, networkId, resourceId, signal }) => {
     const response = await postBuild<VerifyResponse>(
       `${baseUrl}/verify`,
       { files, entrypoint, networkId, resourceId },
@@ -110,20 +98,15 @@ export const createHttpApiCompile = (baseUrl: string): ApiCompile => ({
     // serving during its rollout: without the root there is nothing to key a
     // record on, and the next request may reach the new one.
     if (typeof response.root !== "string") {
-      throw new ApiCompileError(
-        "api-compile answered with no resource root",
-        502,
-      );
+      throw new ApiCompileError("api-compile answered with no resource root", 502);
     }
     return response;
   },
   importResource: ({ networkId, resourceId }) =>
-    fetchJson<ImportedResource>(
-      `${baseUrl}/${networkId}/import/${resourceId}`,
-      { signal: AbortSignal.timeout(API_COMPILE_IMPORT_TIMEOUT_MS) },
-    ),
+    fetchJson<ImportedResource>(`${baseUrl}/${networkId}/import/${resourceId}`, {
+      signal: AbortSignal.timeout(API_COMPILE_IMPORT_TIMEOUT_MS),
+    }),
 });
 
 /** The api-compile `createApp` attached to the app handling `req`. */
-export const getApiCompile = (req: Request): ApiCompile =>
-  req.app.locals.apiCompile;
+export const getApiCompile = (req: Request): ApiCompile => req.app.locals.apiCompile;

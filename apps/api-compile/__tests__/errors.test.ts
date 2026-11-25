@@ -16,9 +16,7 @@ describe("errors raised outside the routes", () => {
   });
 
   it("answers JSON for a body over 1 MB", async () => {
-    const res = await api
-      .post("/compile")
-      .send({ files: { "src/lib.rs": "x".repeat(1_100_000) } });
+    const res = await api.post("/compile").send({ files: { "src/lib.rs": "x".repeat(1_100_000) } });
 
     expect(res.status).toBe(413);
     expect(res.type).toBe("application/json");

@@ -1,7 +1,4 @@
-import {
-  type MaspStore,
-  maspKey,
-} from "miden-source-code-verification-api-registry/storage";
+import { type MaspStore, maspKey } from "miden-source-code-verification-api-registry/storage";
 
 // The registry's MASP store on an R2 bucket. The bucket comes from the
 // per-request `env`, so it is resolved on each call rather than captured here.

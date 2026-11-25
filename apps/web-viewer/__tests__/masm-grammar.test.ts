@@ -29,12 +29,7 @@ beforeAll(async () => {
         explanation.flatMap(({ content, scopes }) =>
           content.trim() === ""
             ? []
-            : [
-                [
-                  content.trim(),
-                  scopes[scopes.length - 1]?.scopeName ?? "",
-                ] as [string, string],
-              ],
+            : [[content.trim(), scopes[scopes.length - 1]?.scopeName ?? ""] as [string, string]],
         ),
       ),
     );
@@ -53,8 +48,7 @@ describe("the MASM grammar", () => {
   });
 
   it("scopes a procedure, its visibility, its attribute and its signature", () => {
-    const code =
-      "@account_procedure\npub proc increment_count(amount: felt) -> word\nend";
+    const code = "@account_procedure\npub proc increment_count(amount: felt) -> word\nend";
     expect(tokenize(code)).toEqual([
       ["@account_procedure", "entity.name.function.decorator.masm"],
       ["pub", "storage.modifier.masm"],
@@ -70,9 +64,7 @@ describe("the MASM grammar", () => {
   });
 
   it("scopes a quoted procedure name", () => {
-    expect(scopeOf('proc "get-count"', '"get-count"')).toBe(
-      "entity.name.function.masm",
-    );
+    expect(scopeOf('proc "get-count"', '"get-count"')).toBe("entity.name.function.masm");
   });
 
   it("scopes `use`, `const`, `begin` and the program's keywords", () => {
@@ -91,12 +83,8 @@ describe("the MASM grammar", () => {
     expect(scopeOf(code, "if")).toBe("keyword.control.masm");
     expect(scopeOf(code, "true")).toBe("constant.language.masm");
     expect(scopeOf(code, "exec")).toBe("keyword.control.masm");
-    expect(scopeOf(code, "active_account::get_item")).toBe(
-      "entity.name.function.masm",
-    );
-    expect(scopeOf(code, "::counter::increment")).toBe(
-      "entity.name.function.masm",
-    );
+    expect(scopeOf(code, "active_account::get_item")).toBe("entity.name.function.masm");
+    expect(scopeOf(code, "::counter::increment")).toBe("entity.name.function.masm");
     expect(scopeOf(code, "else")).toBe("keyword.control.masm");
     expect(scopeOf(code, "while")).toBe("keyword.control.masm");
     expect(scopeOf(code, "repeat")).toBe("keyword.control.masm");
@@ -146,9 +134,7 @@ describe("the MASM grammar", () => {
   });
 
   it("leaves identifiers that only contain a keyword alone", () => {
-    expect(scopeOf("exec.foo::get_count", "foo::get_count")).toBe(
-      "entity.name.function.masm",
-    );
+    expect(scopeOf("exec.foo::get_count", "foo::get_count")).toBe("entity.name.function.masm");
     expect(scopeOf("pushes", "pushes")).toBe("source.masm");
   });
 });

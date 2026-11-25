@@ -50,14 +50,8 @@ describe("decodeAddress", () => {
 
   it("rejects other address types and lengths", () => {
     const id = accountIdBytes(ACCOUNT_ID);
-    expect(
-      decodeAddress(encodeBytes("mtst", Uint8Array.from([0, ...id]))),
-    ).toBeNull();
-    expect(
-      decodeAddress(
-        encodeBytes("mtst", Uint8Array.from([232, ...id.slice(1)])),
-      ),
-    ).toBeNull();
+    expect(decodeAddress(encodeBytes("mtst", Uint8Array.from([0, ...id])))).toBeNull();
+    expect(decodeAddress(encodeBytes("mtst", Uint8Array.from([232, ...id.slice(1)])))).toBeNull();
   });
 
   it("rejects hex IDs and empty input", () => {
@@ -79,12 +73,9 @@ describe("encodeAddress", () => {
   });
 
   it("accepts uppercase hex", () => {
-    expect(
-      encodeAddress(
-        "mm",
-        PROTOCOL_ACCOUNT_ID.toUpperCase().replace("0X", "0x"),
-      ),
-    ).toBe(PROTOCOL_ADDRESS);
+    expect(encodeAddress("mm", PROTOCOL_ACCOUNT_ID.toUpperCase().replace("0X", "0x"))).toBe(
+      PROTOCOL_ADDRESS,
+    );
   });
 
   it("round-trips with decodeAddress", () => {
@@ -104,22 +95,14 @@ describe("encodeAddress", () => {
 
 describe("addressNetwork", () => {
   it("returns the served network of an address on another network", () => {
-    expect(addressNetwork(accountAddress("mdev", ACCOUNT_ID), "mtst")).toBe(
-      "mdev",
-    );
+    expect(addressNetwork(accountAddress("mdev", ACCOUNT_ID), "mtst")).toBe("mdev");
     expect(addressNetwork(PROTOCOL_ADDRESS, "mtst")).toBe("mm");
-    expect(addressNetwork(accountAddress("mtst", ACCOUNT_ID), "mdev")).toBe(
-      "mtst",
-    );
+    expect(addressNetwork(accountAddress("mtst", ACCOUNT_ID), "mdev")).toBe("mtst");
   });
 
   it("returns null for the selected network, unserved networks and non-addresses", () => {
-    expect(
-      addressNetwork(accountAddress("mtst", ACCOUNT_ID), "mtst"),
-    ).toBeNull();
-    expect(
-      addressNetwork(accountAddress("mxx", ACCOUNT_ID), "mtst"),
-    ).toBeNull();
+    expect(addressNetwork(accountAddress("mtst", ACCOUNT_ID), "mtst")).toBeNull();
+    expect(addressNetwork(accountAddress("mxx", ACCOUNT_ID), "mtst")).toBeNull();
     expect(addressNetwork(ACCOUNT_ID, "mtst")).toBeNull();
     expect(addressNetwork("mdev1", "mtst")).toBeNull();
   });
@@ -131,18 +114,14 @@ describe("resourceIdError", () => {
     expect(resourceIdError("  ", "mtst")).toBeNull();
     expect(resourceIdError(ACCOUNT_ID, "mdev")).toBeNull();
     expect(resourceIdError(NOTE_ID, "mdev")).toBeNull();
-    expect(
-      resourceIdError(accountAddress("mtst", ACCOUNT_ID), "mtst"),
-    ).toBeNull();
+    expect(resourceIdError(accountAddress("mtst", ACCOUNT_ID), "mtst")).toBeNull();
   });
 
   it("names the network of an address on a served network", () => {
-    expect(resourceIdError(accountAddress("mdev", ACCOUNT_ID), "mtst")).toEqual(
-      {
-        message: "This is a Devnet address.",
-        isWrongNetwork: true,
-      },
-    );
+    expect(resourceIdError(accountAddress("mdev", ACCOUNT_ID), "mtst")).toEqual({
+      message: "This is a Devnet address.",
+      isWrongNetwork: true,
+    });
   });
 
   it("names Mainnet for a Mainnet address", () => {
@@ -182,9 +161,10 @@ describe("parseResourceId", () => {
   });
 
   it("resolves addresses to their hex account ID", () => {
-    expect(
-      parseResourceId(`${accountAddress("mtst", ACCOUNT_ID)}_qruqqypuyph`),
-    ).toEqual({ kind: "account", accountId: ACCOUNT_ID });
+    expect(parseResourceId(`${accountAddress("mtst", ACCOUNT_ID)}_qruqqypuyph`)).toEqual({
+      kind: "account",
+      accountId: ACCOUNT_ID,
+    });
   });
 
   it("returns null for empty or malformed input", () => {
@@ -200,12 +180,7 @@ describe("RESOURCE_ID_PATTERN", () => {
 
   it("matches every kind of Resource ID", () => {
     const address = accountAddress("mtst", ACCOUNT_ID);
-    for (const value of [
-      ACCOUNT_ID,
-      NOTE_ID,
-      address,
-      `${address}_qruqqypuyph`,
-    ]) {
+    for (const value of [ACCOUNT_ID, NOTE_ID, address, `${address}_qruqqypuyph`]) {
       expect(pattern.test(value)).toBe(true);
     }
   });

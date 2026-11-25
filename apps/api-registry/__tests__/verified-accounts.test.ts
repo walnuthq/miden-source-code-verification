@@ -1,5 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
 import {
   accounts,
   BANK_ACCOUNT_ID_1,
@@ -13,6 +14,7 @@ import {
   request,
 } from "miden-source-code-verification-test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { createApp } from "../src/app.ts";
 import { type ApiCompile, ApiCompileError } from "../src/lib/api-compile.ts";
 import { fakeApiCompile } from "./fake-api-compile.ts";
@@ -56,9 +58,7 @@ describe("POST /:networkId/verified-accounts", () => {
   });
 
   it("rejects a files map with neither manifest", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
 
     const res = await apiV1.post(`/${networkId}/verified-accounts`).send({
       accountId: COUNTER_CONTRACT_ID_1,
@@ -69,9 +69,7 @@ describe("POST /:networkId/verified-accounts", () => {
   });
 
   it("rejects a file path that would leave the project", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
 
     const res = await apiV1.post(`/${networkId}/verified-accounts`).send({
       accountId: COUNTER_CONTRACT_ID_1,
@@ -82,13 +80,9 @@ describe("POST /:networkId/verified-accounts", () => {
   });
 
   it("doesn't verify a buggy counter-contract", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     expect(files["Cargo.toml"]).toBeDefined();
-    editProjectFile(files, "src/lib.rs", (content) =>
-      content.replace(", Word", ""),
-    );
+    editProjectFile(files, "src/lib.rs", (content) => content.replace(", Word", ""));
 
     const res = await apiV1
       .post(`/${networkId}/verified-accounts`)
@@ -98,9 +92,7 @@ describe("POST /:networkId/verified-accounts", () => {
   });
 
   it("verifies a counter-contract", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     expect(files["Cargo.toml"]).toBeDefined();
 
     const res = await apiV1
@@ -112,9 +104,7 @@ describe("POST /:networkId/verified-accounts", () => {
   });
 
   it("doesn't verify a counter-contract whose code is already in the registry", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     expect(files["Cargo.toml"]).toBeDefined();
 
     // First account registers the code + component.
@@ -131,20 +121,13 @@ describe("POST /:networkId/verified-accounts", () => {
       .send({ accountId: COUNTER_CONTRACT_ID_1, files });
 
     expect(res2.status).toBe(409);
-    expect(res2.body).toHaveProperty(
-      "error",
-      "account component already verified",
-    );
+    expect(res2.body).toHaveProperty("error", "account component already verified");
   });
 
   it("doesn't verify a counter-contract if sources don't match", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     expect(files["Cargo.toml"]).toBeDefined();
-    editProjectFile(files, "src/lib.rs", (content) =>
-      content.replaceAll("+", "-"),
-    );
+    editProjectFile(files, "src/lib.rs", (content) => content.replaceAll("+", "-"));
 
     const res = await apiV1
       .post(`/${networkId}/verified-accounts`)
@@ -157,16 +140,12 @@ describe("POST /:networkId/verified-accounts", () => {
 
 describe("GET /:networkId/verified-accounts/:accountId", () => {
   it("returns 404 for an account absent from the registry", async () => {
-    const res = await apiV1
-      .get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`)
-      .send();
+    const res = await apiV1.get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`).send();
     expect(res.status).toBe(404);
   });
 
   it("returns a previously verified account", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     expect(files["Cargo.toml"]).toBeDefined();
 
     const res1 = await apiV1
@@ -176,9 +155,7 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
     expect(res1.status).toBe(200);
     expect(res1.body).toHaveProperty("verified", true);
 
-    const res2 = await apiV1
-      .get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`)
-      .send();
+    const res2 = await apiV1.get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`).send();
 
     expect(res2.status).toBe(200);
     expect(res2.body).toHaveProperty("accountId", COUNTER_CONTRACT_ID_1);
@@ -196,10 +173,7 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
     );
     const [component] = res2.body.verifiedAccountComponents;
     expect(component.package.commitment).toMatch(/^0x[0-9a-f]{64}$/);
-    expect(component).toHaveProperty(
-      "packageCommitment",
-      component.package.commitment,
-    );
+    expect(component).toHaveProperty("packageCommitment", component.package.commitment);
     // The compiled package is served on its own, not inlined in the record.
     expect(component.package).not.toHaveProperty("masp");
 
@@ -224,9 +198,7 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
     expect(res1.status).toBe(200);
     expect(res1.body).toHaveProperty("verified", true);
 
-    const res2 = await apiV1
-      .get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`)
-      .send();
+    const res2 = await apiV1.get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`).send();
 
     expect(res2.status).toBe(200);
     const { "Cargo.lock": cargoLock, ...sources } =
@@ -236,9 +208,7 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
   });
 
   it("forwards the standard components and procedures from the import", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
 
     const res1 = await apiV1
       .post(`/${networkId}/verified-accounts`)
@@ -252,22 +222,16 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
     );
     expect(imported.status).toBe(200);
 
-    const res2 = await apiV1
-      .get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`)
-      .send();
+    const res2 = await apiV1.get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`).send();
 
     expect(res2.status).toBe(200);
     expect(res2.body.procedures).toEqual(imported.body.procedures);
-    expect(res2.body.standardAccountComponents).toEqual(
-      imported.body.standardAccountComponents,
-    );
+    expect(res2.body.standardAccountComponents).toEqual(imported.body.standardAccountComponents);
     expect(res2.body.procedures.length).toBeGreaterThan(0);
   });
 
   it("returns a match for a different account sharing the same code", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     expect(files["Cargo.toml"]).toBeDefined();
 
     // Verify one account...
@@ -279,9 +243,7 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
     expect(res1.body).toHaveProperty("verified", true);
 
     // ...then look up a *different*, never-verified account with the same code.
-    const res2 = await apiV1
-      .get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_2}`)
-      .send();
+    const res2 = await apiV1.get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_2}`).send();
 
     expect(res2.status).toBe(200);
     expect(res2.body).toHaveProperty("accountId", COUNTER_CONTRACT_ID_2);
@@ -313,9 +275,7 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
     expect(res2.status).toBe(200);
     expect(res2.body).toHaveProperty("verified", true);
 
-    const res3 = await apiV1
-      .get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`)
-      .send();
+    const res3 = await apiV1.get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`).send();
 
     expect(res3.status).toBe(200);
     expect(res3.body).toHaveProperty("accountId", COUNTER_CONTRACT_ID_1);
@@ -341,9 +301,7 @@ describe("GET /:networkId/verified-accounts/:accountId", () => {
 
 describe("GET /:networkId/verified-accounts/code/:code", () => {
   it("returns a previously verified account, without an on-chain lookup", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     expect(files["Cargo.toml"]).toBeDefined();
 
     const res1 = await apiV1
@@ -353,9 +311,7 @@ describe("GET /:networkId/verified-accounts/code/:code", () => {
     expect(res1.status).toBe(200);
     expect(res1.body).toHaveProperty("verified", true);
 
-    const res2 = await apiV1
-      .get(`/${networkId}/verified-accounts/code/${ACCOUNT_CODE}`)
-      .send();
+    const res2 = await apiV1.get(`/${networkId}/verified-accounts/code/${ACCOUNT_CODE}`).send();
 
     expect(res2.status).toBe(200);
     expect(res2.body).toHaveProperty("code", ACCOUNT_CODE);
@@ -375,9 +331,7 @@ describe("GET /:networkId/verified-accounts/code/:code", () => {
   });
 
   it("doesn't return an account verified on another network", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     expect(files["Cargo.toml"]).toBeDefined();
 
     const res1 = await apiV1
@@ -398,9 +352,7 @@ describe("GET /:networkId/verified-accounts/code/:code", () => {
   });
 
   it("matches a code case-insensitively", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     expect(files["Cargo.toml"]).toBeDefined();
 
     const res1 = await apiV1
@@ -411,9 +363,7 @@ describe("GET /:networkId/verified-accounts/code/:code", () => {
     expect(res1.body).toHaveProperty("verified", true);
 
     const res2 = await apiV1
-      .get(
-        `/${networkId}/verified-accounts/code/0x${ACCOUNT_CODE.slice(2).toUpperCase()}`,
-      )
+      .get(`/${networkId}/verified-accounts/code/0x${ACCOUNT_CODE.slice(2).toUpperCase()}`)
       .send();
 
     expect(res2.status).toBe(200);
@@ -421,9 +371,7 @@ describe("GET /:networkId/verified-accounts/code/:code", () => {
   });
 
   it("returns 404 for a code absent from the registry", async () => {
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     expect(files["Cargo.toml"]).toBeDefined();
 
     const res1 = await apiV1
@@ -505,20 +453,14 @@ describe("POST /:networkId/verified-accounts with a bank-account", () => {
       .send({ accountId: BANK_ACCOUNT_ID_2, files });
 
     expect(res2.status).toBe(409);
-    expect(res2.body).toHaveProperty(
-      "error",
-      "account component already verified",
-    );
+    expect(res2.body).toHaveProperty("error", "account component already verified");
   });
 
   it("doesn't verify a bank-account if sources don't match", async () => {
     const files = await readProjectFiles(bankAccountDir);
     expect(files["Cargo.toml"]).toBeDefined();
     editProjectFile(files, "src/lib.rs", (content) =>
-      content.replace(
-        "MAX_DEPOSIT_AMOUNT: u64 = 1_000_000",
-        "MAX_DEPOSIT_AMOUNT: u64 = 2_000_000",
-      ),
+      content.replace("MAX_DEPOSIT_AMOUNT: u64 = 1_000_000", "MAX_DEPOSIT_AMOUNT: u64 = 2_000_000"),
     );
 
     const res = await apiV1
@@ -532,9 +474,7 @@ describe("POST /:networkId/verified-accounts with a bank-account", () => {
 
 describe("GET /:networkId/verified-accounts/:accountId with a bank-account", () => {
   it("returns 404 for an account absent from the registry", async () => {
-    const res = await apiV1
-      .get(`/${networkId}/verified-accounts/${BANK_ACCOUNT_ID_1}`)
-      .send();
+    const res = await apiV1.get(`/${networkId}/verified-accounts/${BANK_ACCOUNT_ID_1}`).send();
     expect(res.status).toBe(404);
   });
 
@@ -549,19 +489,14 @@ describe("GET /:networkId/verified-accounts/:accountId with a bank-account", () 
     expect(res1.status).toBe(200);
     expect(res1.body).toHaveProperty("verified", true);
 
-    const res2 = await apiV1
-      .get(`/${networkId}/verified-accounts/${BANK_ACCOUNT_ID_1}`)
-      .send();
+    const res2 = await apiV1.get(`/${networkId}/verified-accounts/${BANK_ACCOUNT_ID_1}`).send();
 
     expect(res2.status).toBe(200);
     expect(res2.body).toHaveProperty("accountId", BANK_ACCOUNT_ID_1);
     expect(res2.body).toHaveProperty("networkId", networkId);
     expect(res2.body).toHaveProperty("code", BANK_ACCOUNT_CODE);
     expect(res2.body.verifiedAccountComponents).toHaveLength(1);
-    expect(res2.body.verifiedAccountComponents[0]).toHaveProperty(
-      "package.name",
-      "bank-account",
-    );
+    expect(res2.body.verifiedAccountComponents[0]).toHaveProperty("package.name", "bank-account");
     expect(res2.body.verifiedAccountComponents[0]).toHaveProperty(
       "package.type",
       "account-component",
@@ -580,8 +515,7 @@ describe("GET /:networkId/verified-accounts/:accountId with a bank-account", () 
   });
 
   it("records the lockfile the build used when none was sent", async () => {
-    const { "Cargo.lock": _, ...files } =
-      await readProjectFiles(bankAccountDir);
+    const { "Cargo.lock": _, ...files } = await readProjectFiles(bankAccountDir);
 
     const res1 = await apiV1
       .post(`/${networkId}/verified-accounts`)
@@ -590,9 +524,7 @@ describe("GET /:networkId/verified-accounts/:accountId with a bank-account", () 
     expect(res1.status).toBe(200);
     expect(res1.body).toHaveProperty("verified", true);
 
-    const res2 = await apiV1
-      .get(`/${networkId}/verified-accounts/${BANK_ACCOUNT_ID_1}`)
-      .send();
+    const res2 = await apiV1.get(`/${networkId}/verified-accounts/${BANK_ACCOUNT_ID_1}`).send();
 
     expect(res2.status).toBe(200);
     const { "Cargo.lock": cargoLock, ...sources } =
@@ -611,25 +543,19 @@ describe("GET /:networkId/verified-accounts/:accountId with a bank-account", () 
     expect(res1.status).toBe(200);
     expect(res1.body).toHaveProperty("verified", true);
 
-    const imported = await request(apiCompileUrl).get(
-      `/${networkId}/import/${BANK_ACCOUNT_ID_1}`,
-    );
+    const imported = await request(apiCompileUrl).get(`/${networkId}/import/${BANK_ACCOUNT_ID_1}`);
     expect(imported.status).toBe(200);
 
-    const res2 = await apiV1
-      .get(`/${networkId}/verified-accounts/${BANK_ACCOUNT_ID_1}`)
-      .send();
+    const res2 = await apiV1.get(`/${networkId}/verified-accounts/${BANK_ACCOUNT_ID_1}`).send();
 
     expect(res2.status).toBe(200);
     expect(res2.body.procedures).toEqual(imported.body.procedures);
-    expect(res2.body.standardAccountComponents).toEqual(
-      imported.body.standardAccountComponents,
-    );
-    expect(
-      res2.body.standardAccountComponents.map(
-        ({ name }: { name: string }) => name,
-      ),
-    ).toEqual(["BasicWallet", "AuthNoAuth", "SchemaCommitment"]);
+    expect(res2.body.standardAccountComponents).toEqual(imported.body.standardAccountComponents);
+    expect(res2.body.standardAccountComponents.map(({ name }: { name: string }) => name)).toEqual([
+      "BasicWallet",
+      "AuthNoAuth",
+      "SchemaCommitment",
+    ]);
   });
 
   it("returns a match for a different account sharing the same code", async () => {
@@ -645,9 +571,7 @@ describe("GET /:networkId/verified-accounts/:accountId with a bank-account", () 
     expect(res1.body).toHaveProperty("verified", true);
 
     // ...then look up a *different*, never-verified account with the same code.
-    const res2 = await apiV1
-      .get(`/${networkId}/verified-accounts/${BANK_ACCOUNT_ID_2}`)
-      .send();
+    const res2 = await apiV1.get(`/${networkId}/verified-accounts/${BANK_ACCOUNT_ID_2}`).send();
 
     expect(res2.status).toBe(200);
     expect(res2.body).toHaveProperty("accountId", BANK_ACCOUNT_ID_2);
@@ -678,10 +602,7 @@ describe("GET /:networkId/verified-accounts/code/:code with a bank-account", () 
     expect(res2.body).toHaveProperty("networkId", networkId);
     expect(res2.body).not.toHaveProperty("accountId");
     expect(res2.body.verifiedAccountComponents).toHaveLength(1);
-    expect(res2.body.verifiedAccountComponents[0]).toHaveProperty(
-      "package.name",
-      "bank-account",
-    );
+    expect(res2.body.verifiedAccountComponents[0]).toHaveProperty("package.name", "bank-account");
   });
 
   it("doesn't return an account verified on another network", async () => {
@@ -717,12 +638,8 @@ describe("GET /:networkId/verified-accounts/:accountId with a faked import", () 
   });
 
   it("returns 404 for an account api-compile didn't find", async () => {
-    const app = appWhoseImportFails(
-      new ApiCompileError("not found on the network", 404),
-    );
-    const res = await app.get(
-      `/v1/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`,
-    );
+    const app = appWhoseImportFails(new ApiCompileError("not found on the network", 404));
+    const res = await app.get(`/v1/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`);
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: "verified account not found" });
   });
@@ -730,9 +647,7 @@ describe("GET /:networkId/verified-accounts/:accountId with a faked import", () 
   it("returns 404 for a note's id, whatever its script", async () => {
     // The script is a verified account code, so the 404 comes from the
     // import's kind, not from a miss on the root.
-    const files = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
+    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
     const res1 = await apiV1
       .post(`/${networkId}/verified-accounts`)
       .send({ files, accountId: COUNTER_CONTRACT_ID_1 });
@@ -742,9 +657,7 @@ describe("GET /:networkId/verified-accounts/:accountId with a faked import", () 
       type: "note",
       code: ACCOUNT_CODE,
     }));
-    const res = await app.get(
-      `/v1/${networkId}/verified-accounts/${COUNTER_NOTE_ID_1}`,
-    );
+    const res = await app.get(`/v1/${networkId}/verified-accounts/${COUNTER_NOTE_ID_1}`);
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: "verified account not found" });
   });
@@ -755,9 +668,7 @@ describe("GET /:networkId/verified-accounts/:accountId with a faked import", () 
   ])("passes an api-compile %i through", async (status, error) => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const app = appWhoseImportFails(new ApiCompileError(error, status));
-    const res = await app.get(
-      `/v1/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`,
-    );
+    const res = await app.get(`/v1/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`);
     expect(res.status).toBe(status);
     expect(res.body).toEqual({ error });
   });

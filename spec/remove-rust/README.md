@@ -37,7 +37,7 @@ Plans 06 and 07 touch different apps and can run at the same time, in separate c
 - Deploying to Testnet, regenerating fixtures, and anything that deletes rows or files need the user's go-ahead in that session, even where the plan describes the step.
 - The api-compile and api-registry suites test what listens on `localhost:8080` and `8081`, normally the docker compose stack: rebuild it (`docker compose up -d --build`) before testing a server change.
 - Kill processes by PID, never with a `pkill -f` pattern.
-- `pnpm check` (lint, typecheck, server-free tests) passes before you report. Run `pnpm exec biome check --write` on Markdown you edit.
+- `pnpm check` (lint, typecheck, server-free tests) passes before you report. Run `pnpm exec oxfmt` on Markdown you edit.
 - When a STOP condition occurs, stop and report. Don't improvise around it.
 - End with a report: what changed, what you verified and how, what you didn't verify, and anything the next plan should know. Update this README's table if a plan's shape changed.
 

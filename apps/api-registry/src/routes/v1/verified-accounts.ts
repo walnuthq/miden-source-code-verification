@@ -1,12 +1,10 @@
 import { Router } from "express";
 import { openProject } from "miden-source-code-verification-utils/project";
+
 import { abortOnClose } from "../../lib/abort-on-close.ts";
 import { getApiCompile } from "../../lib/api-compile.ts";
 import { parseRoot } from "../../lib/roots.ts";
-import {
-  findVerifiedRecord,
-  findVerifiedRecordByRoot,
-} from "../../lib/verified-record.ts";
+import { findVerifiedRecord, findVerifiedRecordByRoot } from "../../lib/verified-record.ts";
 import { verifyResource } from "../../lib/verify-resource.ts";
 import { getMaspStore } from "../../storage/masp-store.ts";
 
@@ -139,8 +137,7 @@ type VerifyAccountRequestBody = {
  *         $ref: '#/components/responses/CompilerUnavailable'
  */
 router.post("/:networkId/verified-accounts", async (req, res) => {
-  const { accountId, files, entrypoint, source } =
-    req.body as VerifyAccountRequestBody;
+  const { accountId, files, entrypoint, source } = req.body as VerifyAccountRequestBody;
   if (!accountId) {
     res.status(400).json({ error: "missing accountId" });
     return;
@@ -238,9 +235,7 @@ router.get("/:networkId/verified-accounts/code/:code", async (req, res) => {
     res.status(400).json({ error: "invalid code" });
     return;
   }
-  res.json(
-    await findVerifiedRecordByRoot({ networkId, kind: "account", root: code }),
-  );
+  res.json(await findVerifiedRecordByRoot({ networkId, kind: "account", root: code }));
 });
 
 /**

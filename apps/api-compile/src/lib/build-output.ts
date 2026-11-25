@@ -1,5 +1,6 @@
 import { lstat, readFile, realpath } from "node:fs/promises";
 import { join, relative } from "node:path";
+
 import { BUILD_USER, MIDEN_TOOL_TIMEOUT_MS } from "./constants.ts";
 import { execFile } from "./utils.ts";
 
@@ -85,16 +86,12 @@ export const killBuildUserProcesses = async () => {
     return true;
   }
   try {
-    await execFile(
-      process.execPath,
-      ["--input-type=commonjs", "-e", KILL_AND_CLEAN_SCRIPT],
-      {
-        ...BUILD_USER,
-        cwd: "/",
-        env: { PATH: process.env.PATH },
-        timeout: MIDEN_TOOL_TIMEOUT_MS,
-      },
-    );
+    await execFile(process.execPath, ["--input-type=commonjs", "-e", KILL_AND_CLEAN_SCRIPT], {
+      ...BUILD_USER,
+      cwd: "/",
+      env: { PATH: process.env.PATH },
+      timeout: MIDEN_TOOL_TIMEOUT_MS,
+    });
     return true;
   } catch (error) {
     console.error(error);

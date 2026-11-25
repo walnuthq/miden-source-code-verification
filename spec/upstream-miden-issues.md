@@ -64,8 +64,7 @@ Expected repository: `0xMiden/miden-client`.
   `NoteImportError(String)` (`src/note/import.rs:200` and `:225`). The account
   side has typed variants (`AccountNotFoundOnChain`, `AccountIsPrivate`), and a
   `NoteNotFoundOnChain` variant exists but this path doesn't use it.
-- **Risk:** a reworded message silently turns "not found" into a retryable
-  502. Our tests fake the tools, so they wouldn't catch it.
+- **Risk:** a reworded message silently turns "not found" into a retryable 502. Our tests fake the tools, so they wouldn't catch it.
 - **Ask:** return `NoteNotFoundOnChain(note_id)` when the node answers with no
   notes, and add a typed variant for a private note (for example
   `NoteIsPrivate(note_id)`).
@@ -112,7 +111,7 @@ Expected repository: `0xMiden/miden-client`.
   note).
 - **What happens:** after a `miden-client` bump, an existing store fails with
   `stored schema at version 1 does not match the schema this client builds for
-that version` (`miden-client-sqlite-store`, `src/db_management/errors.rs:18`).
+  that version` (`miden-client-sqlite-store`, `src/db_management/errors.rs:18`).
   The only fix is deleting the store. In production the container's cache is
   rebuilt with the image, so this bites on the host and would bite any
   long-lived deployment.
@@ -222,7 +221,7 @@ Expected repository: `0xMiden/protocol` (formerly `miden-base`).
 - **Where:** the `SchemaCommitment` entry chained onto the list in
   `miden-import/src/main.rs:162`.
 - **Upstream cause:** `AccountBuilderSchemaCommitmentExt::
-build_with_schema_commitment` is what the CLI and the client's own examples
+  build_with_schema_commitment` is what the CLI and the client's own examples
   build accounts with, and it adds `AccountSchemaCommitment`
   (`get_schema_commitment`). That component has no `StandardAccountComponent`
   or `AccountComponentInterface` variant, so its procedure falls into
@@ -254,8 +253,7 @@ build_with_schema_commitment` is what the CLI and the client's own examples
 - **Upstream cause:** `AccountInterface::new` (and so `from_account` and
   `from_code`) asserts that exactly one auth component is present
   (`src/account/interface/mod.rs:38`). The verifier runs on accounts read from
-  a public network or deserialized from request bytes, where a panic becomes a
-  502.
+  a public network or deserialized from request bytes, where a panic becomes a 502.
 - **Status:** 0.17.1 counts `CustomAuth` as an auth component, so the
   assertion holds for the accounts we verify. We still avoid the constructor,
   because it panics on input it considers malformed.

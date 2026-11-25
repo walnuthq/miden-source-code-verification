@@ -1,7 +1,9 @@
 import { dirname } from "node:path";
+
 import { Router } from "express";
 import type { VerifyResponse } from "miden-source-code-verification-utils/api-compile";
 import { openProject } from "miden-source-code-verification-utils/project";
+
 import { type Assembly, queueAssemble } from "../lib/assemble.ts";
 import { queueCompile } from "../lib/compile.ts";
 import { abortOnClose, removeDirs } from "../lib/utils.ts";
@@ -32,13 +34,7 @@ const verifyAssembly = async ({
   }
   // The package as the answer carries it: no path on disk, and no build
   // output, which a verification doesn't answer.
-  const {
-    maspPath,
-    built: _built,
-    stdout: _stdout,
-    stderr: _stderr,
-    ...answer
-  } = assembly;
+  const { maspPath, built: _built, stdout: _stdout, stderr: _stderr, ...answer } = assembly;
   const resourcePath = resource ? await writeResourceFile(resource) : undefined;
   try {
     const { verified, root } = await verify({
@@ -66,8 +62,7 @@ type VerifyRequestBody = {
 };
 
 router.post("/verify", async (req, res) => {
-  const { files, entrypoint, networkId, resourceId, resource } =
-    req.body as VerifyRequestBody;
+  const { files, entrypoint, networkId, resourceId, resource } = req.body as VerifyRequestBody;
   const opened = openProject(files, entrypoint, { masm: true });
   if ("error" in opened) {
     res.status(400).json({ error: opened.error });
@@ -132,9 +127,7 @@ router.post("/verify", async (req, res) => {
         files: compiledFiles,
         cargoMidenVersion,
       } = build;
-      const resourcePath = resource
-        ? await writeResourceFile(resource)
-        : undefined;
+      const resourcePath = resource ? await writeResourceFile(resource) : undefined;
       try {
         const { verified, root } = await verify({
           networkId,

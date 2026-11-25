@@ -1,10 +1,4 @@
-import {
-  CircleAlert,
-  CircleCheck,
-  Info,
-  Loader2,
-  TriangleAlert,
-} from "lucide-react";
+import { CircleAlert, CircleCheck, Info, Loader2, TriangleAlert } from "lucide-react";
 import {
   Alert,
   AlertAction,
@@ -23,10 +17,7 @@ import {
   FieldLabel,
   Input,
 } from "miden-source-code-verification-ui";
-import {
-  getNetwork,
-  type NetworkId,
-} from "miden-source-code-verification-utils/networks";
+import { getNetwork, type NetworkId } from "miden-source-code-verification-utils/networks";
 import {
   addressNetwork,
   parseResourceId,
@@ -64,14 +55,10 @@ export function VerifyForm({
   const [params] = useState(() => new URLSearchParams(window.location.search));
   // The verification server endpoint, configurable via the Settings dialog.
   const [verifierUrl, setVerifierUrl] = useState(API_REGISTRY_URL);
-  const [resourceId, setResourceId] = useState(
-    () => params.get("resource") ?? "",
-  );
+  const [resourceId, setResourceId] = useState(() => params.get("resource") ?? "");
   // Whether to report a malformed Resource ID: once the field is left, or right
   // away for one seeded from the URL, which the user never typed.
-  const [resourceTouched, setResourceTouched] = useState(() =>
-    params.has("resource"),
-  );
+  const [resourceTouched, setResourceTouched] = useState(() => params.has("resource"));
   // Optional override for the request `source`; defaults to DEFAULT_SOURCE.
   const [source] = useState(() => params.get("source") || DEFAULT_SOURCE);
   // Filtered project sources and the entrypoints found within them, kept for
@@ -107,19 +94,14 @@ export function VerifyForm({
   // file was imported. Entrypoint always has a valid default.
   const resource = parseResourceId(resourceId);
   const resourceError = resourceIdError(resourceId, network);
-  const isFormValid =
-    resource !== null &&
-    resourceError === null &&
-    Object.keys(files).length > 0;
+  const isFormValid = resource !== null && resourceError === null && Object.keys(files).length > 0;
   // A malformed value waits until the field is left; an address on another
   // network shows right away, with a button to switch when it's served.
   const shownResourceError =
     resourceError && (resourceTouched || resourceError.isWrongNetwork)
       ? resourceError.message
       : null;
-  const switchTo = shownResourceError
-    ? addressNetwork(resourceId, network)
-    : null;
+  const switchTo = shownResourceError ? addressNetwork(resourceId, network) : null;
 
   // A 64-hex-digit ID is a note; anything else is treated as an account.
   const kind = resource?.kind ?? "account";
@@ -145,8 +127,7 @@ export function VerifyForm({
       } else if (outcome.verified) {
         // The resource's page on the web-viewer: the same collection, the
         // canonical id the request carried.
-        const id =
-          resource.kind === "note" ? resource.noteId : resource.accountId;
+        const id = resource.kind === "note" ? resource.noteId : resource.accountId;
         setResult({
           status: "success",
           kind,
@@ -158,10 +139,7 @@ export function VerifyForm({
     } catch (error) {
       setResult({
         status: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Verification request failed",
+        message: error instanceof Error ? error.message : "Verification request failed",
       });
     } finally {
       setVerifying(false);
@@ -173,16 +151,11 @@ export function VerifyForm({
     <main className="flex justify-center px-4 py-10">
       <Card className="w-full max-w-2xl">
         <CardHeader>
-          <CardTitle className="text-center text-xl">
-            Verify Accounts &amp; Notes
-          </CardTitle>
+          <CardTitle className="text-center text-xl">Verify Accounts &amp; Notes</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           <div className="flex justify-end">
-            <SettingsDialog
-              verifierUrl={verifierUrl}
-              onVerifierUrlChange={setVerifierUrl}
-            />
+            <SettingsDialog verifierUrl={verifierUrl} onVerifierUrlChange={setVerifierUrl} />
           </div>
 
           <form className="flex flex-col gap-6" onSubmit={onSubmit}>
@@ -199,9 +172,7 @@ export function VerifyForm({
                   onBlur={() => setResourceTouched(true)}
                   onChange={(event) => setResourceId(event.target.value)}
                 />
-                <FieldDescription>
-                  The account or note to verify.
-                </FieldDescription>
+                <FieldDescription>The account or note to verify.</FieldDescription>
                 {shownResourceError && (
                   <FieldError>
                     {shownResourceError}
@@ -230,17 +201,11 @@ export function VerifyForm({
               onEntrypointChange={setEntrypoint}
             />
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={!isFormValid || verifying}
-            >
+            <Button type="submit" className="w-full" disabled={!isFormValid || verifying}>
               {verifying ? (
                 <>
                   <Loader2 className="animate-spin" />
-                  {retryIn === null
-                    ? "Verifying…"
-                    : `Verifier busy, retrying in ${retryIn}s…`}
+                  {retryIn === null ? "Verifying…" : `Verifier busy, retrying in ${retryIn}s…`}
                 </>
               ) : (
                 "Verify Resource"
@@ -290,10 +255,9 @@ export function VerifyForm({
               <Info />
               <AlertTitle>Upload source code to verify this {kind}</AlertTitle>
               <AlertDescription className="text-blue-700/90 dark:text-blue-400/90">
-                Select the folder of the Miden project to verify. If the project
-                has local dependencies, select the parent directory containing
-                both the project and its dependencies, then choose the project
-                as the entrypoint.
+                Select the folder of the Miden project to verify. If the project has local
+                dependencies, select the parent directory containing both the project and its
+                dependencies, then choose the project as the entrypoint.
               </AlertDescription>
             </Alert>
           </form>

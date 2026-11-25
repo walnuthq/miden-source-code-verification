@@ -50,8 +50,7 @@ const pascalCase = (name: string) =>
 
 // A manifest type's name as the Rust SDK spells it: its last segment,
 // `miden:base/core-types@1.0.0/account-id` → `AccountId`.
-const typeName = (name: string) =>
-  pascalCase(name.slice(name.lastIndexOf("/") + 1));
+const typeName = (name: string) => pascalCase(name.slice(name.lastIndexOf("/") + 1));
 
 // A type of the manifest's signature as the Rust SDK names it: a struct or enum
 // by the last segment of its name (`miden:base/core-types@1.0.0/account-id` →
@@ -163,9 +162,7 @@ function masmSignature(
   const args = params
     .map((type, index) => {
       const parameter = parameters?.[index];
-      return parameter
-        ? `${parameter.name}: ${parameter.type}`
-        : masmType(type);
+      return parameter ? `${parameter.name}: ${parameter.type}` : masmType(type);
     })
     .join(", ");
   const returned = resultsOf(results, masmType);

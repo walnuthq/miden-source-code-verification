@@ -20,7 +20,7 @@ export type TestResponse = {
   // Parsed JSON for a JSON response, a Buffer for a binary one (or for any
   // response after `.responseType("blob")`), and `{}` for text or no body
   // (read `text`), as supertest does.
-  // biome-ignore lint/suspicious/noExplicitAny: tests assert on arbitrary shapes.
+  // `any`: tests assert on arbitrary shapes.
   body: any;
   text: string;
 };
@@ -66,7 +66,7 @@ class TestRequest implements PromiseLike<TestResponse> {
     return this;
   }
 
-  // biome-ignore lint/suspicious/noThenProperty: awaiting the builder sends it, as with supertest.
+  // oxlint-disable-next-line unicorn/no-thenable -- awaiting the builder sends it, as with supertest.
   then<T = TestResponse, E = never>(
     onfulfilled?: ((value: TestResponse) => T | PromiseLike<T>) | null,
     onrejected?: ((reason: unknown) => E | PromiseLike<E>) | null,
@@ -78,9 +78,7 @@ class TestRequest implements PromiseLike<TestResponse> {
     if (typeof this.#target === "string") return this.#fetch(this.#target);
 
     const server = createServer(this.#target);
-    await new Promise<void>((resolve) =>
-      server.listen(0, "127.0.0.1", resolve),
-    );
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     try {
       const { port } = server.address() as AddressInfo;
       return await this.#fetch(`http://127.0.0.1:${port}`);

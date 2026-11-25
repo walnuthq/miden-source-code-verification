@@ -75,14 +75,8 @@ export function PackageHeader({
     {
       label: "Package MASP",
       icon: FileBox,
-      value: (
-        <code className="font-mono break-all">
-          {maspDownloadName(name, commitment)}
-        </code>
-      ),
-      action: (
-        <MaspDownloadButton href={packageMaspUrl({ networkId, commitment })} />
-      ),
+      value: <code className="font-mono break-all">{maspDownloadName(name, commitment)}</code>,
+      action: <MaspDownloadButton href={packageMaspUrl({ networkId, commitment })} />,
     },
   ];
   // The same sources built with the dev profile, whose debug info names
@@ -92,9 +86,7 @@ export function PackageHeader({
       label: "Package Debug MASP",
       icon: Bug,
       value: (
-        <code className="font-mono break-all">
-          {maspDownloadName(name, commitment, "debug")}
-        </code>
+        <code className="font-mono break-all">{maspDownloadName(name, commitment, "debug")}</code>
       ),
       action: (
         <MaspDownloadButton
@@ -140,9 +132,7 @@ export function PackageHeader({
         {verifiedAt}{" "}
         {/* Kept on one line so a narrow screen wraps it whole rather than
             at the hyphen of a source like `web-verifier`. */}
-        <span className="whitespace-nowrap text-muted-foreground">
-          (source: {source})
-        </span>
+        <span className="whitespace-nowrap text-muted-foreground">(source: {source})</span>
       </>
     ),
   });
@@ -153,18 +143,9 @@ export function PackageHeader({
 // the file is served by the web-viewer itself.
 // A plain link to the registry: its `Content-Disposition` makes the browser
 // save the file, under the package's name, rather than navigate to it.
-function MaspDownloadButton({
-  href,
-  label = "Download MASP",
-}: {
-  href: string;
-  label?: string;
-}) {
+function MaspDownloadButton({ href, label = "Download MASP" }: { href: string; label?: string }) {
   return (
-    <a
-      href={href}
-      className={buttonVariants({ variant: "outline", size: "sm" })}
-    >
+    <a href={href} className={buttonVariants({ variant: "outline", size: "sm" })}>
       <Download data-icon="inline-start" />
       {label}
     </a>
@@ -222,9 +203,7 @@ function ReadOnlyBadge({ readOnly }: { readOnly: boolean | null }) {
 function StorageSlotTable({ slots }: { slots: StorageSlotSchema[] }) {
   const described = slots.some(({ description }) => description);
   return (
-    <SchemaTable
-      headings={["Slot", "Kind", "Type", ...(described ? ["Description"] : [])]}
-    >
+    <SchemaTable headings={["Slot", "Kind", "Type", ...(described ? ["Description"] : [])]}>
       {slots.map((slot) => (
         <TableRow key={slot.name}>
           <SchemaCell className="font-mono wrap-break-word">
@@ -241,9 +220,7 @@ function StorageSlotTable({ slots }: { slots: StorageSlotSchema[] }) {
                 {slot.valueType}
                 {slot.defaultValue && (
                   <span className="flex items-center gap-1 text-muted-foreground">
-                    <span title={slot.defaultValue}>
-                      default {shortWord(slot.defaultValue)}
-                    </span>
+                    <span title={slot.defaultValue}>default {shortWord(slot.defaultValue)}</span>
                     <CopyButton
                       value={slot.defaultValue}
                       label={`Copy ${slot.name} default value`}
@@ -264,7 +241,7 @@ function StorageSlotTable({ slots }: { slots: StorageSlotSchema[] }) {
 // within a word.
 function SlotName({ name }: { name: string }) {
   return name.split("::").map((part, index) => (
-    // biome-ignore lint/suspicious/noArrayIndexKey: the parts never reorder.
+    // Keyed by index: the parts never reorder.
     <Fragment key={index}>
       {index > 0 && (
         <>
@@ -289,24 +266,13 @@ const shortWord = (word: string) =>
 function NoteStorageTable({ fields }: { fields: NoteStorageField[] }) {
   const described = fields.some(({ description }) => description);
   return (
-    <SchemaTable
-      headings={[
-        "Field",
-        "Type",
-        "Felts",
-        ...(described ? ["Description"] : []),
-      ]}
-    >
+    <SchemaTable headings={["Field", "Type", "Felts", ...(described ? ["Description"] : [])]}>
       {fields.map((field) => (
         <TableRow key={field.name}>
-          <SchemaCell className="font-mono wrap-break-word">
-            {field.name}
-          </SchemaCell>
+          <SchemaCell className="font-mono wrap-break-word">{field.name}</SchemaCell>
           <SchemaCell className="font-mono">{field.type}</SchemaCell>
           <SchemaCell className="tabular-nums">
-            {field.width ?? (
-              <span className="text-muted-foreground">varies</span>
-            )}
+            {field.width ?? <span className="text-muted-foreground">varies</span>}
           </SchemaCell>
           {described && <SchemaCell>{field.description}</SchemaCell>}
         </TableRow>
@@ -318,22 +284,13 @@ function NoteStorageTable({ fields }: { fields: NoteStorageField[] }) {
 // A storage schema's table, compact enough to sit in a details row: its first
 // column lines up with the other rows' values, and the cells wrap rather than
 // scroll, as a slot name or a description can be long.
-function SchemaTable({
-  headings,
-  children,
-}: {
-  headings: string[];
-  children: ReactNode;
-}) {
+function SchemaTable({ headings, children }: { headings: string[]; children: ReactNode }) {
   return (
     <Table className="text-sm">
       <TableHeader>
         <TableRow className="hover:bg-transparent">
           {headings.map((heading) => (
-            <TableHead
-              key={heading}
-              className="h-8 font-normal text-muted-foreground first:pl-0"
-            >
+            <TableHead key={heading} className="h-8 font-normal text-muted-foreground first:pl-0">
               {heading}
             </TableHead>
           ))}
@@ -346,20 +303,13 @@ function SchemaTable({
 
 function SchemaCell({ className, ...props }: ComponentProps<"td">) {
   return (
-    <TableCell
-      className={cn("align-top whitespace-normal first:pl-0", className)}
-      {...props}
-    />
+    <TableCell className={cn("align-top whitespace-normal first:pl-0", className)} {...props} />
   );
 }
 
 // Each dependency as `name@version`; its copy button copies the digest, which
 // is what pins the exact build.
-function DependencyList({
-  dependencies,
-}: {
-  dependencies: PackageDependency[];
-}) {
+function DependencyList({ dependencies }: { dependencies: PackageDependency[] }) {
   return (
     <ul className="flex flex-col">
       {dependencies.map(({ name, version, digest }) => (

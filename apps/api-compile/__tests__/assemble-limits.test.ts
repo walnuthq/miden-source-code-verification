@@ -2,6 +2,7 @@ import express from "express";
 import { request } from "miden-source-code-verification-test-utils";
 import { errorHandler } from "miden-source-code-verification-utils/http-errors";
 import { describe, expect, it, vi } from "vitest";
+
 import compileRouter from "../src/routes/compile.ts";
 import { useFakeTool } from "./fake-tool.ts";
 
@@ -73,9 +74,7 @@ echo '{"commitment":"0x01","kind":"account-component","manifest":{},"parameters"
   );
 
   it("answers the package and the report, without schemas", async () => {
-    const res = await request(app)
-      .post("/compile")
-      .send({ files: project, masm: true });
+    const res = await request(app).post("/compile").send({ files: project, masm: true });
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({

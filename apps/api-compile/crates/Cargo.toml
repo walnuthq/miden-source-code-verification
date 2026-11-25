@@ -4,9 +4,9 @@
 [workspace]
 resolver = "3"
 members = [
-    "generate-fixtures",
-    "miden-assemble",
-    "miden-import",
-    "miden-package-metadata",
-    "miden-verifier",
+  "generate-fixtures",
+  "miden-assemble",
+  "miden-import",
+  "miden-package-metadata",
+  "miden-verifier",
 ]

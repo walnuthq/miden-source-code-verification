@@ -1,8 +1,9 @@
+import { ThemeProvider } from "miden-source-code-verification-ui";
 import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
 
 import "./index.css";
-import { ThemeProvider } from "miden-source-code-verification-ui";
+import { createRoot } from "react-dom/client";
+
 import App from "./App.tsx";
 
 const rootElement = document.getElementById("root");

@@ -1,0 +1,40 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import", "react", "jsx-a11y"],
+  "jsPlugins": ["./oxlint/no-route-catch.js"],
+  "ignorePatterns": [
+    "**/worker-configuration.d.ts",
+    "**/drizzle",
+    "**/components/ui",
+    "**/.agents",
+    "**/.claude"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "apps/api-compile/**",
+        "apps/api-registry/**",
+        "apps/api-docs/**",
+        "apps/status-page/scripts/**",
+        "scripts/**",
+        "packages/utils/**",
+        "packages/test-utils/**"
+      ],
+      "rules": {
+        "import/extensions": [
+          "error",
+          "always",
+          {
+            "ignorePackages": true
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/api-compile/src/routes/**", "apps/api-registry/src/routes/**"],
+      "rules": {
+        "miden/no-route-catch": "error"
+      }
+    }
+  ]
+}

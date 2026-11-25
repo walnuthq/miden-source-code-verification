@@ -10,13 +10,11 @@ import { API_REGISTRY_TIMEOUT_MS } from "@/lib/constants.server";
 import { loadResourcePage } from "@/lib/resource-page.server";
 
 const ACCOUNT_ID = "0x7db388f2c58f4251104a1aa6a7c2d4";
-const NOTE_ID =
-  "0xb080e8318dfdf8230bda5d8acd67119621aacfe89eab1d08deb3114cc87ac606";
+const NOTE_ID = "0xb080e8318dfdf8230bda5d8acd67119621aacfe89eab1d08deb3114cc87ac606";
 const UNAVAILABLE =
   "The verification status could not be checked right now. Please try again in a minute.";
 
-const digest = (n: number) =>
-  `0x${n.toString(16).padStart(64, "0")}` as `0x${string}`;
+const digest = (n: number) => `0x${n.toString(16).padStart(64, "0")}` as `0x${string}`;
 const at = "2026-11-06T20:33:09.307Z";
 
 // A package exporting `digests` as account procedures (abi 3), with the crate
@@ -24,9 +22,7 @@ const at = "2026-11-06T20:33:09.307Z";
 const pkg = (name: string, ...digests: `0x${string}`[]): Package => {
   // Paths as the compiler spells them: the crate's WIT world, then the
   // kebab-cased, quoted procedure name.
-  const paths = digests.map(
-    (_, i) => `::"miden:${name}/${name}@0.1.0"::"proc-${i}"`,
-  );
+  const paths = digests.map((_, i) => `::"miden:${name}/${name}@0.1.0"::"proc-${i}"`);
   return {
     id: `${name}-id`,
     name,
@@ -62,10 +58,7 @@ const pkg = (name: string, ...digests: `0x${string}`[]): Package => {
   };
 };
 
-const component = (
-  verifiedPackage: Package,
-  source: string,
-): VerifiedAccountComponent => ({
+const component = (verifiedPackage: Package, source: string): VerifiedAccountComponent => ({
   id: `${verifiedPackage.id}-component`,
   verifiedAccountId: "account-record",
   packageId: verifiedPackage.id,
@@ -90,9 +83,7 @@ const account: VerifiedAccountById = {
     component(pkg("other", digest(9)), "web-verifier"),
   ],
   accountId: ACCOUNT_ID,
-  standardAccountComponents: [
-    { name: "BasicWallet", procedures: [digest(1), digest(2)] },
-  ],
+  standardAccountComponents: [{ name: "BasicWallet", procedures: [digest(1), digest(2)] }],
   procedures: [digest(1), digest(2), digest(3), digest(4)],
 };
 
@@ -185,9 +176,7 @@ describe("loadResourcePage", () => {
       vi.fn(
         (_input: Parameters<typeof globalThis.fetch>[0], init?: RequestInit) =>
           new Promise<globalThis.Response>((_resolve, reject) => {
-            init?.signal?.addEventListener("abort", () =>
-              reject(init.signal?.reason),
-            );
+            init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
           }),
       ),
     );
@@ -208,20 +197,19 @@ describe("loadResourcePage", () => {
     vi.spyOn(AbortSignal, "timeout").mockImplementation(() => timeout(10));
     vi.stubGlobal(
       "fetch",
-      vi.fn(
-        (_input: Parameters<typeof globalThis.fetch>[0], init?: RequestInit) =>
-          Promise.resolve(
-            new Response(
-              new ReadableStream({
-                start(controller) {
-                  init?.signal?.addEventListener("abort", () =>
-                    controller.error(init.signal?.reason),
-                  );
-                },
-              }),
-              { status: 200 },
-            ),
+      vi.fn((_input: Parameters<typeof globalThis.fetch>[0], init?: RequestInit) =>
+        Promise.resolve(
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                init?.signal?.addEventListener("abort", () =>
+                  controller.error(init.signal?.reason),
+                );
+              },
+            }),
+            { status: 200 },
           ),
+        ),
       ),
     );
     await expect(
@@ -259,18 +247,13 @@ describe("loadResourcePage", () => {
     expect(page.networkName).toBe("Testnet");
     expect(page.verificationStatus).toEqual({ verified: 3, total: 4 });
     expect(page.standardAccountComponents).toEqual(["BasicWallet"]);
-    expect(page.packages.map(({ name, source }) => ({ name, source }))).toEqual(
-      [
-        { name: "counter-contract", source: "miden-verify" },
-        { name: "other", source: "web-verifier" },
-      ],
-    );
+    expect(page.packages.map(({ name, source }) => ({ name, source }))).toEqual([
+      { name: "counter-contract", source: "miden-verify" },
+      { name: "other", source: "web-verifier" },
+    ]);
     const [counter] = page.packages;
     // The displayed sources, highlighted, without the lockfile; every file raw.
-    expect(counter.files.map(({ path }) => path)).toEqual([
-      "Cargo.toml",
-      "src/lib.rs",
-    ]);
+    expect(counter.files.map(({ path }) => path)).toEqual(["Cargo.toml", "src/lib.rs"]);
     expect(counter.files[1].html).toContain("proc_0");
     expect(counter.entryPath).toBe("src/lib.rs");
     expect(Object.keys(counter.rawFiles)).toContain("Cargo.lock");
@@ -297,8 +280,8 @@ describe("loadResourcePage", () => {
     expect(page.networkName).toBe("Testnet");
     expect(page.verificationStatus).toEqual({ verified: 1, total: 1 });
     expect(page.standardAccountComponents).toEqual([]);
-    expect(page.packages.map(({ name, source }) => ({ name, source }))).toEqual(
-      [{ name: "counter-note", source: "web-verifier" }],
-    );
+    expect(page.packages.map(({ name, source }) => ({ name, source }))).toEqual([
+      { name: "counter-note", source: "web-verifier" },
+    ]);
   });
 });

@@ -73,9 +73,7 @@ export function ResourceHeader({
 }) {
   const label = kind === "account" ? "Account" : "Note";
   const fields: DetailField[] = [
-    ...(address
-      ? [{ label: `${label} Address`, icon: AtSign, value: address }]
-      : []),
+    ...(address ? [{ label: `${label} Address`, icon: AtSign, value: address }] : []),
     { label: `${label} ID`, icon: Hash, value: id },
   ].map((field, index) => ({
     ...field,
@@ -112,9 +110,7 @@ export function ResourceHeader({
 
   return (
     <header className="mt-3 mb-2 flex flex-col gap-3">
-      <h1 className="text-lg font-semibold md:text-xl">
-        {verified ? `Verified ${label}` : label}
-      </h1>
+      <h1 className="text-lg font-semibold md:text-xl">{verified ? `Verified ${label}` : label}</h1>
       <DetailsCard fields={fields} />
     </header>
   );

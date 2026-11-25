@@ -1,10 +1,5 @@
 import { Loader2 } from "lucide-react";
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-  Navbar,
-} from "miden-source-code-verification-ui";
+import { Alert, AlertDescription, AlertTitle, Navbar } from "miden-source-code-verification-ui";
 import { useEffect, useState } from "react";
 
 import { OverallStatus } from "@/components/overall-status";
@@ -52,10 +47,7 @@ export function App() {
 
   return (
     <div className="min-h-svh bg-muted/20">
-      <Navbar
-        title="Miden Source Code Verification Status"
-        homeHref={DOCS_URL}
-      />
+      <Navbar title="Miden Source Code Verification Status" homeHref={DOCS_URL} />
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10">
         {state.phase === "loading" && (
           <div className="flex items-center justify-center gap-2 py-16 text-xs text-muted-foreground">
@@ -85,9 +77,8 @@ export function App() {
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              Checks run every 30 minutes from GitHub Actions, using the same
-              fixtures as the test suite. This page is a snapshot from the last
-              run, not a live probe.
+              Checks run every 30 minutes from GitHub Actions, using the same fixtures as the test
+              suite. This page is a snapshot from the last run, not a live probe.
             </p>
           </>
         )}
