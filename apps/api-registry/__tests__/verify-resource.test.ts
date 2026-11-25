@@ -536,6 +536,7 @@ describe("verifyResource", () => {
       expect(await getPackage(COMMITMENT)).toHaveProperty("parameters", {});
     });
   });
+
   describe("a MASM project", () => {
     const MASM_COMMITMENT = `0x${"bb".repeat(32)}`;
     const masmFiles = {

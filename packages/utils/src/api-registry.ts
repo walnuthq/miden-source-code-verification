@@ -35,7 +35,7 @@ export type Package = {
   entrypoint: string | null;
   // The toolchain that built it, when known: cargo-miden's version for a Rust
   // package, the versions the assembler was built with for a MASM one
-  // (`miden-assembly 0.36.4, miden-protocol 0.18.0, …`).
+  // (`miden-assembly 0.36.4, miden-protocol 0.18.0`).
   builtWith: string | null;
   // The debug build of the same sources: its own commitment, served at
   // `packageMaspPath(…, "debug")`, and the cargo-miden that built it. Null

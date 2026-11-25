@@ -53,7 +53,7 @@ _Avoid_: dev build, debug package
 ### Sources
 
 **Project**:
-A files map plus an entrypoint that builds into one package. A Rust project has a `Cargo.toml` with a `[package]` at its entrypoint, and a `miden-project.toml` next to it; any other project is a MASM project, with a `miden-project.toml` with a `[package]` at its entrypoint. The package name is that `[package]` name. The registry accepts Rust projects only, until it learns to store MASM ones.
+A files map plus an entrypoint that builds into one package. A Rust project has a `Cargo.toml` with a `[package]` at its entrypoint, and a `miden-project.toml` next to it; any other project is a MASM project, with a `miden-project.toml` with a `[package]` at its entrypoint. The package name is that `[package]` name. The registry stores both kinds, and tells a stored one apart by the `Cargo.toml` at its entrypoint.
 _Avoid_: files map, upload, sources (for the whole)
 
 **Entrypoint**:

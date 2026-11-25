@@ -15,7 +15,7 @@ import type {
 } from "miden-source-code-verification-utils/api-registry";
 import { describe, expect, it } from "vitest";
 
-// The MASM fixtures, deployed by `generate-fixtures --mode masm` from the
+// The MASM fixtures, deployed by `pnpm generate-masm-fixtures` from the
 // projects in `examples/masm`. The note's project depends on
 // `../counter-contract`, so both are sent with `examples/masm` as the root.
 const __filename = fileURLToPath(import.meta.url);
@@ -27,32 +27,50 @@ const apiV1 = request(`${apiUrl}/v1`);
 
 const networkId = process.env.NETWORK_ID ?? "mtst";
 
-const verifyCounterContract = async () => {
+// Verifies a fixture with the project in `examples/masm` at `entrypoint`, and
+// returns the files sent.
+const verifyMasm = async (
+  route: "verified-accounts" | "verified-notes",
+  resource: { accountId: string } | { noteId: string },
+  entrypoint: string,
+) => {
   const files = await readProjectFiles(masmDir);
-  const res = await apiV1.post(`/${networkId}/verified-accounts`).send({
-    accountId: MASM_COUNTER_CONTRACT_ID,
-    files,
-    entrypoint: "counter-contract",
-  });
+  const res = await apiV1
+    .post(`/${networkId}/${route}`)
+    .send({ ...resource, files, entrypoint });
   expect(res.status).toBe(200);
   expect(res.body).toEqual({ verified: true });
   return files;
 };
 
-const verifyCounterNote = async () => {
-  const files = await readProjectFiles(masmDir);
-  const res = await apiV1.post(`/${networkId}/verified-notes`).send({
-    noteId: MASM_COUNTER_NOTE_ID,
-    files,
-    entrypoint: "counter-note",
-  });
-  expect(res.status).toBe(200);
-  expect(res.body).toEqual({ verified: true });
-  return files;
-};
+const verifyCounterContract = () =>
+  verifyMasm(
+    "verified-accounts",
+    { accountId: MASM_COUNTER_CONTRACT_ID },
+    "counter-contract",
+  );
+
+const verifyCounterNote = () =>
+  verifyMasm(
+    "verified-notes",
+    { noteId: MASM_COUNTER_NOTE_ID },
+    "counter-note",
+  );
 
 const getMasp = (file: string) =>
   apiV1.get(`/${networkId}/packages/masp/${file}`).responseType("blob");
+
+// A MASM package's `.debug.masp` is the package itself, under its own
+// commitment. Returns the response, for its body.
+const expectDebugMasp = async (commitment: string, downloadName: string) => {
+  const res = await getMasp(`${commitment}.debug.masp`);
+  expect(res.status).toBe(200);
+  expect(res.headers["x-debug-commitment"]).toBe(commitment);
+  expect(res.headers["content-disposition"]).toBe(
+    `attachment; filename=${downloadName}`,
+  );
+  return res;
+};
 
 // What every MASM package's row holds in place of a Rust one's: the
 // assembler's versions, no debug build of its own and no schemas.
@@ -114,11 +132,9 @@ describe("a MASM account component", () => {
       "attachment; filename=counter_contract.masp",
     );
 
-    const debugRes = await getMasp(`${commitment}.debug.masp`);
-    expect(debugRes.status).toBe(200);
-    expect(debugRes.headers["x-debug-commitment"]).toBe(commitment);
-    expect(debugRes.headers["content-disposition"]).toBe(
-      "attachment; filename=counter_contract.debug.masp",
+    const debugRes = await expectDebugMasp(
+      commitment,
+      "counter_contract.debug.masp",
     );
     expect(debugRes.body).toEqual(releaseRes.body);
   });
@@ -167,11 +183,6 @@ describe("a MASM note with a path dependency", () => {
     });
     expectMasmPackage(pkg, files);
 
-    const debugRes = await getMasp(`${pkg.commitment}.debug.masp`);
-    expect(debugRes.status).toBe(200);
-    expect(debugRes.headers["x-debug-commitment"]).toBe(pkg.commitment);
-    expect(debugRes.headers["content-disposition"]).toBe(
-      "attachment; filename=counter_note.debug.masp",
-    );
+    await expectDebugMasp(pkg.commitment, "counter_note.debug.masp");
   });
 });

@@ -41,13 +41,6 @@ type NoteRow = typeof verifiedNoteScriptTable.$inferSelect & {
   package: PackageRow;
 };
 
-// The commitment of a package's debug build, as the `.debug.masp` route
-// sends it, or null when it has none.
-const debugCommitmentOf = (row: PackageRow) => {
-  const debugBuild = debugBuildOf(row);
-  return debugBuild ? { commitment: debugBuild.commitment } : null;
-};
-
 // What the registry answers for each row, field by field: the wire format is
 // named in `miden-source-code-verification-utils/api-registry`, so a column
 // added to a table reaches the wire only when it is added here too. Timestamps
@@ -72,19 +65,22 @@ const toPackage = (row: PackageRow): Package => ({
 
 const toVerifiedAccountComponent = (
   row: ComponentRow,
-): VerifiedAccountComponent => ({
-  id: row.id,
-  verifiedAccountId: row.verifiedAccountId,
-  packageId: row.packageId,
-  packageCommitment: row.packageCommitment,
-  source: row.source,
-  createdAt: row.createdAt.toISOString(),
-  updatedAt: row.updatedAt.toISOString(),
-  package: toPackage(row.package),
-  // Whether the simulator can name the component's call-trace frames, without
-  // fetching its debug build first: a MASM package is its own.
-  debugPackage: debugCommitmentOf(row.package),
-});
+): VerifiedAccountComponent => {
+  const debugBuild = debugBuildOf(row.package);
+  return {
+    id: row.id,
+    verifiedAccountId: row.verifiedAccountId,
+    packageId: row.packageId,
+    packageCommitment: row.packageCommitment,
+    source: row.source,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+    package: toPackage(row.package),
+    // Whether the simulator can name the component's call-trace frames, without
+    // fetching its debug build first: a MASM package is its own.
+    debugPackage: debugBuild ? { commitment: debugBuild.commitment } : null,
+  };
+};
 
 const toVerifiedAccount = (row: AccountRow): VerifiedAccount => ({
   id: row.id,
