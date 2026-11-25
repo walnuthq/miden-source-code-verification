@@ -4,4 +4,7 @@ use counter_account
 pub proc main()
     push.2
     call.counter_account::increment_count
+    # The call leaves its 16 outputs over the amount: drop one, so the
+    # script ends at the depth of 16 it started with.
+    drop
 end

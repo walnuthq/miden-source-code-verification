@@ -24,11 +24,15 @@
 //! On a chain that charges a transaction fee every account that transacts also
 //! carries the standard `BasicWallet`, and is funded from the public faucet
 //! before it does. `fee` explains why that is unavoidable.
+//!
+//! `--mode masm` deploys the MASM fixtures instead, and writes them to a file
+//! of their own: see `masm`.
 
 mod account;
 mod build;
 mod fee;
 mod fixtures;
+mod masm;
 mod note;
 
 use std::collections::BTreeMap;
@@ -36,7 +40,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use miden_client::account::component::BasicWallet;
 use miden_client::account::component::NoAuth;
 use miden_client::account::{Account, AccountComponent};
@@ -64,9 +68,23 @@ const TESTNET_FAUCET_URL: &str = "https://faucet-api.testnet.miden.io";
 
 // --- CLI ---
 
+/// Which fixtures a run deploys.
+#[derive(ValueEnum, Clone, Copy, Debug)]
+enum Mode {
+    /// The Rust examples, built with `cargo miden`: the whole of `fixtures.ts`.
+    Rust,
+    /// The MASM examples under `examples/masm`, assembled in-process: the
+    /// whole of `masm-fixtures.ts`.
+    Masm,
+}
+
 #[derive(Parser, Debug)]
 #[command(version, about)]
 struct Args {
+    /// Which fixtures to deploy.
+    #[arg(long, value_enum, default_value = "rust")]
+    mode: Mode,
+
     /// Network to deploy to: `mtst`, `mdev` or `mlcl`. Defaults to testnet,
     /// which is the network every fixture consumer asserts against.
     #[arg(long, default_value = "mtst")]
@@ -266,12 +284,10 @@ async fn assemble_banks(
         .unwrap_or_else(|_| unreachable!("the loop pushes exactly two accounts")))
 }
 
-fn write_fixtures(fixtures: &Fixtures, out: Option<PathBuf>) -> Result<()> {
-    let rendered = fixtures.render();
-
+fn write_fixtures(rendered: &str, out: Option<PathBuf>) -> Result<()> {
     match out {
         Some(path) => {
-            std::fs::write(&path, &rendered)
+            std::fs::write(&path, rendered)
                 .with_context(|| format!("failed to write {}", path.display()))?;
             eprintln!("Wrote {}", path.display());
         }
@@ -288,6 +304,10 @@ async fn main() -> Result<()> {
         .with_context(|| format!("`{}` is not a valid network id", args.network_id))?;
     let examples_dir = args.examples_dir.unwrap_or_else(default_examples_dir);
 
+    if let Mode::Masm = args.mode {
+        return run_masm(&network_id, &examples_dir, args.faucet_url, args.out).await;
+    }
+
     // Everything transient — the store, the keystore and, unless the caller asked
     // for them elsewhere, the midenc build artifacts — lives under one temporary
     // directory that goes away on exit.
@@ -298,21 +318,7 @@ async fn main() -> Result<()> {
 
     let packages = Packages::build(&examples_dir, &midenc_target_dir)?;
 
-    let mut client = connect(&network_id, workdir.path()).await?;
-    let summary = client.sync_state().await.context("failed to sync state")?;
-    eprintln!(
-        "Connected to {network_id}. Latest block: {}",
-        summary.block_num
-    );
-
-    let fees = FeeContext::detect(&client).await?;
-    match &fees {
-        Some(fees) => eprintln!(
-            "Chain charges fees; every transaction pays {}",
-            fees.fee_note_amount()
-        ),
-        None => eprintln!("Chain charges no fees; nothing needs funding"),
-    }
+    let (mut client, fees) = connect_and_detect_fees(&network_id, workdir.path()).await?;
 
     let counter_contracts =
         assemble_counter_contracts(&mut client, &packages, fees.as_ref()).await?;
@@ -403,7 +409,63 @@ async fn main() -> Result<()> {
             bank_accounts,
             counter_notes: notes.fixtures,
             deposit_notes: notes.deposits,
-        },
+        }
+        .render(),
         args.out,
     )
+}
+
+/// Connects to the network and reads what it charges, for either mode.
+async fn connect_and_detect_fees(
+    network_id: &NetworkId,
+    workdir: &Path,
+) -> Result<(Client<FilesystemKeyStore>, Option<FeeContext>)> {
+    let mut client = connect(network_id, workdir).await?;
+    let summary = client.sync_state().await.context("failed to sync state")?;
+    eprintln!(
+        "Connected to {network_id}. Latest block: {}",
+        summary.block_num
+    );
+
+    let fees = FeeContext::detect(&client).await?;
+    match &fees {
+        Some(fees) => eprintln!(
+            "Chain charges fees; every transaction pays {}",
+            fees.fee_note_amount()
+        ),
+        None => eprintln!("Chain charges no fees; nothing needs funding"),
+    }
+    Ok((client, fees))
+}
+
+/// `--mode masm`: assembles the MASM examples, deploys them and writes
+/// `masm-fixtures.ts`.
+async fn run_masm(
+    network_id: &NetworkId,
+    examples_dir: &Path,
+    faucet_url_arg: Option<String>,
+    out: Option<PathBuf>,
+) -> Result<()> {
+    // Assembling moves the process into the examples, so a relative `--out` is
+    // resolved first.
+    let out = out.map(std::path::absolute).transpose()?;
+    let packages = masm::Packages::build(examples_dir)?;
+
+    let workdir = tempfile::tempdir().context("failed to create a temporary working directory")?;
+    let (mut client, fees) = connect_and_detect_fees(network_id, workdir.path()).await?;
+    let faucet_url = match (&fees, faucet_url_arg) {
+        (None, _) => None,
+        (Some(_), Some(url)) => Some(url),
+        (Some(_), None) => Some(faucet_url(network_id)?),
+    };
+
+    let fixtures = masm::deploy(
+        &mut client,
+        &packages,
+        network_id,
+        fees.as_ref(),
+        faucet_url.as_deref(),
+    )
+    .await?;
+    write_fixtures(&fixtures.render(), out)
 }

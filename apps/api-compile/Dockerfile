@@ -75,7 +75,7 @@ COPY apps/api-compile/crates/miden-verifier/src miden-verifier/src
 # so cargo sees them as changed and rebuilds the four crates.
 RUN --mount=type=cache,id=cargo-registry-helpers,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git-helpers,target=/usr/local/cargo/git \
-    touch miden-assemble/src/main.rs miden-import/src/main.rs miden-package-metadata/src/main.rs miden-verifier/src/main.rs \
+    touch miden-assemble/src/main.rs miden-assemble/src/lib.rs miden-import/src/main.rs miden-package-metadata/src/main.rs miden-verifier/src/main.rs \
  && cargo build --release --locked --bin miden-assemble --bin miden-import --bin miden-package-metadata --bin miden-verifier \
  && strip target/release/miden-assemble target/release/miden-import target/release/miden-package-metadata target/release/miden-verifier
 

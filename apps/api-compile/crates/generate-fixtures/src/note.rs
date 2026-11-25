@@ -157,7 +157,7 @@ pub async fn create_factory(client: &mut Client<FilesystemKeyStore>) -> Result<A
     Ok(account.id())
 }
 
-fn build_note(
+pub fn build_note(
     rng: &mut ClientRng,
     script: &NoteScript,
     sender: AccountId,
