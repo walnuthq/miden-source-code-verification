@@ -1,6 +1,6 @@
 # Miden Source Code Verification
 
-Services that verify that on-chain Miden accounts and notes were compiled from a given Rust source project, and that record and show the result.
+Services that verify that on-chain Miden accounts and notes were built from a given project, MASM or Rust (until Rust's removal), and that record and show the result.
 
 ## Language
 

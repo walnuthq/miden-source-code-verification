@@ -36,6 +36,27 @@ const noteWithDependency = {
   "counter-note/src/lib.rs": "",
 };
 
+const midenProjectToml = (name: string, path?: string) =>
+  `[package]\nname = "${name}"\nversion = "0.1.0"\n${
+    path ? `\n[lib]\nkind = "note"\npath = "${path}"\n` : ""
+  }`;
+
+// A MASM note uploaded with the account component it depends on by path.
+const masmNoteWithDependency = {
+  "counter-contract/counter_contract.masm": "",
+  "counter-contract/miden-project.toml": midenProjectToml(
+    "counter-contract",
+    "counter_contract.masm",
+  ),
+  "counter-note/counter_note.masm": "",
+  "counter-note/lib/helpers.masm": "",
+  "counter-note/miden-project.toml": midenProjectToml(
+    "counter-note",
+    "./counter_note.masm",
+  ),
+  "counter-note/notes.txt": "",
+};
+
 describe("filterSourceFiles", () => {
   it("keeps the manifests and the Rust sources under src/", () => {
     expect(Object.keys(filterSourceFiles(rootProject)).sort()).toEqual([
@@ -64,6 +85,20 @@ describe("filterSourceFiles", () => {
     };
     expect(Object.keys(filterSourceFiles(files))).toEqual([
       "src/storage/mod.rs",
+    ]);
+  });
+});
+
+describe("filterSourceFiles of a MASM project", () => {
+  it("keeps the manifests and every MASM module, at any depth", () => {
+    expect(
+      Object.keys(filterSourceFiles(masmNoteWithDependency)).sort(),
+    ).toEqual([
+      "counter-contract/counter_contract.masm",
+      "counter-contract/miden-project.toml",
+      "counter-note/counter_note.masm",
+      "counter-note/lib/helpers.masm",
+      "counter-note/miden-project.toml",
     ]);
   });
 });
@@ -110,6 +145,64 @@ describe("findEntryFile", () => {
       "Cargo.toml",
     );
     expect(findEntryFile({}, "x")).toBeNull();
+  });
+});
+
+describe("findEntryFile of a MASM project", () => {
+  const files = filterSourceFiles(masmNoteWithDependency);
+
+  it("opens the [lib] path of the project named after the package", () => {
+    expect(findEntryFile(files, "counter-note")).toBe(
+      "counter-note/counter_note.masm",
+    );
+    expect(findEntryFile(files, "counter-contract")).toBe(
+      "counter-contract/counter_contract.masm",
+    );
+  });
+
+  it("opens a project at the root", () => {
+    expect(
+      findEntryFile(
+        {
+          "miden-project.toml": midenProjectToml("counter-note", "main.masm"),
+          "main.masm": "",
+          "a.masm": "",
+        },
+        "counter-note",
+      ),
+    ).toBe("main.masm");
+  });
+
+  it("falls back to the first MASM module without a match or a [lib] path", () => {
+    expect(findEntryFile(files, "counter-account")).toBe(
+      "counter-contract/counter_contract.masm",
+    );
+    expect(
+      findEntryFile(
+        {
+          "miden-project.toml": midenProjectToml("counter-note"),
+          "main.masm": "",
+        },
+        "counter-note",
+      ),
+    ).toBe("main.masm");
+  });
+
+  it("reads a miden-project.toml beside a Cargo.toml as a Rust project's", () => {
+    expect(
+      findEntryFile(
+        {
+          "Cargo.toml": cargoToml("counter-contract"),
+          "miden-project.toml": midenProjectToml(
+            "counter-contract",
+            "lib.masm",
+          ),
+          "lib.masm": "",
+          "src/lib.rs": "",
+        },
+        "counter-contract",
+      ),
+    ).toBe("src/lib.rs");
   });
 });
 

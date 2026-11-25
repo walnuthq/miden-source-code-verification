@@ -4,12 +4,14 @@ import type {
   ReadOnlyProcedures,
   Type,
 } from "miden-source-code-verification-utils/manifest";
+import type { ProjectKind } from "miden-source-code-verification-utils/project";
 
 import type { PackageManifest } from "@/lib/api-registry.server";
 
 // A procedure a package installs in its account (or a note's entrypoint), as
-// its card lists it: its Rust name, its signature, its digest, and whether it
-// is read-only (`null` when that can't be told).
+// its card lists it: its name and signature in the language of the project it
+// was built from, its digest, and whether it is read-only (`null` when that
+// can't be told).
 export type PackageProcedure = {
   name: string;
   signature: string;
@@ -28,12 +30,15 @@ function snakeCase(name: string): string {
   return name.replaceAll("-", "_");
 }
 
+// The last segment of an export's path: the procedure's name as the package
+// spells it, quoted when it has to be (`"get-count"`).
+const lastSegment = (path: string) => path.slice(path.lastIndexOf("::") + 2);
+
 // The Rust name of an exported procedure: the last segment of its path, which
 // the compiler kebab-cases and quotes when it has to, e.g.
 // `::"miden:counter-contract/counter-contract@0.1.0"::"get-count"` → `get_count`.
 export function procedureName(path: string): string {
-  const segment = path.slice(path.lastIndexOf("::") + 2);
-  return snakeCase(segment.replace(/^"|"$/g, ""));
+  return snakeCase(lastSegment(path).replace(/^"|"$/g, ""));
 }
 
 // `account-id` → `AccountId`.
@@ -87,7 +92,7 @@ function rustType(type: Type, fallback = "_"): string {
 // package's WIT, in snake case, the types and results from the manifest's
 // signature, which the WIT names pair with by index. Without names (an export
 // `parameters` leaves out), each parameter is `_`.
-function signatureOf(
+function rustSignature(
   name: string,
   { params, results }: { params: Type[]; results: Type[] },
   parameters: ProcedureParameter[] | undefined,
@@ -109,15 +114,77 @@ function signatureOf(
   return `fn ${name}(${args})${returned};`;
 }
 
+// A type of the manifest's signature as MASM spells it: its primitives in
+// lower case, a `[felt; 4]` as `word`, other arrays as `[T; N]`, a pointer as
+// `ptr<T>`, a struct or enum by its name as declared. `fallback` names a type
+// the manifest leaves unnamed, or that MASM can't write (a list).
+function masmType(type: Type, fallback = "_"): string {
+  if (typeof type === "string") {
+    switch (type) {
+      case "Unknown":
+      case "Never":
+        return fallback;
+      case "Variadic":
+        return "...";
+      default:
+        return type.toLowerCase();
+    }
+  }
+  if ("Struct" in type || "Enum" in type) {
+    return ("Struct" in type ? type.Struct.name : type.Enum.name) ?? fallback;
+  }
+  if ("Rec" in type) {
+    return type.Rec ?? fallback;
+  }
+  if ("Array" in type) {
+    const { ty, len } = type.Array;
+    return ty === "Felt" && len === 4 ? "word" : `[${masmType(ty)}; ${len}]`;
+  }
+  if ("Ptr" in type) {
+    return `ptr<${masmType(type.Ptr.pointee)}>`;
+  }
+  return fallback;
+}
+
+// `pub proc increment_count(amount: felt)`, `pub proc get_count() -> felt`:
+// the names and types as the MASM source declares them, the results from the
+// manifest's signature, whose types the source's names pair with by index.
+// Without names (an export `parameters` leaves out), the manifest's types
+// alone.
+function masmSignature(
+  name: string,
+  { params, results }: { params: Type[]; results: Type[] },
+  parameters: ProcedureParameter[] | undefined,
+): string {
+  const args = params
+    .map((type, index) => {
+      const parameter = parameters?.[index];
+      return parameter
+        ? `${parameter.name}: ${parameter.type}`
+        : masmType(type);
+    })
+    .join(", ");
+  const returned =
+    results.length === 0
+      ? ""
+      : results.length === 1
+        ? ` -> ${masmType(results[0])}`
+        : ` -> (${results.map((result) => masmType(result)).join(", ")})`;
+  return `pub proc ${name}(${args})${returned}`;
+}
+
 // The package's account procedures (or a note's entrypoint), in the manifest's
-// order, each signature written from the parameter names the package's WIT
-// gives (`parameters`) and the manifest's types. `readOnly` has every exported
-// procedure's path.
+// order, each signature written in the language of the project the package
+// was built from (`kind`), from the parameter names the package's WIT or MASM
+// source gives (`parameters`) and the manifest's types. `readOnly` has every
+// exported procedure's path.
 export function packageProcedures({
+  kind,
   manifest,
   readOnly,
   parameters,
 }: {
+  kind: ProjectKind;
   manifest: PackageManifest;
   readOnly: ReadOnlyProcedures;
   parameters: ProcedureParameters;
@@ -128,11 +195,12 @@ export function packageProcedures({
       return [];
     }
     const { path, digest } = Procedure;
-    const name = procedureName(path);
+    const name = kind === "masm" ? lastSegment(path) : procedureName(path);
+    const signatureIn = kind === "masm" ? masmSignature : rustSignature;
     return [
       {
         name,
-        signature: signatureOf(name, signature, parameters[path]),
+        signature: signatureIn(name, signature, parameters[path]),
         digest,
         readOnly: readOnly[path],
       },

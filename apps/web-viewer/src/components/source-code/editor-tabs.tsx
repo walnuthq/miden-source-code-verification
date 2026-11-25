@@ -39,8 +39,9 @@ export function EditorTabs({
         {openFiles.map(({ path }, index) => {
           const isActive = index === activeIndex;
           const name = basename(path);
-          // Like VS Code, tell apart open files sharing a name (the lib.rs of
-          // each crate in an upload) by their directory.
+          // Like VS Code, tell apart open files sharing a name (the
+          // miden-project.toml of each project in an upload) by their
+          // directory.
           const isAmbiguous = openFiles.some(
             (file) => file.path !== path && basename(file.path) === name,
           );

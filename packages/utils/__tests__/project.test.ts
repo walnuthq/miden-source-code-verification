@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   cargoPackageName,
   inferEntrypoint,
+  midenProjectLibrary,
   openProject,
   storedProjectKind,
 } from "../src/project.ts";
@@ -268,6 +269,31 @@ describe("cargoPackageName", () => {
   it("is undefined for a workspace root or a file that doesn't parse", () => {
     expect(cargoPackageName("[workspace]\nmembers = []\n")).toBeUndefined();
     expect(cargoPackageName("not = [toml")).toBeUndefined();
+  });
+});
+
+describe("midenProjectLibrary", () => {
+  it("reads the [package] name and the [lib] path", () => {
+    expect(
+      midenProjectLibrary(
+        '[package]\nname = "counter-account"\n\n[lib]\nkind = "account-component"\npath = "./src/counter_account.masm"\n',
+      ),
+    ).toEqual({
+      name: "counter-account",
+      libPath: "src/counter_account.masm",
+    });
+  });
+
+  it("has no lib path without a [lib] path", () => {
+    expect(midenProjectLibrary('[package]\nname = "note"\n')).toEqual({
+      name: "note",
+      libPath: undefined,
+    });
+  });
+
+  it("is undefined without a [package] or for a file that doesn't parse", () => {
+    expect(midenProjectLibrary('[lib]\npath = "a.masm"\n')).toBeUndefined();
+    expect(midenProjectLibrary("not = [toml")).toBeUndefined();
   });
 });
 

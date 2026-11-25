@@ -5,8 +5,9 @@ import { parse } from "smol-toml";
 // `Cargo.toml` with a `[package]` at its entrypoint, and a `miden-project.toml`
 // next to it; cargo-miden builds it. Any other project is a MASM project: a
 // `miden-project.toml` with a `[package]` at its entrypoint, which the
-// assembler builds. This module is the only reader of `Cargo.toml` in the
-// repo, and the one place that says why a submitted files map isn't a project.
+// assembler builds. This module is the only reader of `Cargo.toml` and
+// `miden-project.toml` in the repo, and the one place that says why a
+// submitted files map isn't a project.
 export type Project = {
   files: Record<string, string>;
   // `.` for the root, otherwise a relative directory with no leading `./` and
@@ -129,6 +130,32 @@ const packageError = (path: string, error: "invalid toml" | "no package") =>
 export const cargoPackageName = (cargoToml: string) => {
   const cargoPackage = readPackageName(cargoToml);
   return "name" in cargoPackage ? cargoPackage.name : undefined;
+};
+
+// The `[package] name` and `[lib] path` of a `miden-project.toml`: the
+// package and the module its library target is built from, relative to the
+// manifest's directory, with no leading `./`. Undefined when the manifest has
+// no `[package]` or doesn't parse; `libPath` is undefined when it names no
+// `[lib] path`. For callers that open a MASM project's root module.
+export const midenProjectLibrary = (
+  midenProjectToml: string,
+): { name: string; libPath: string | undefined } | undefined => {
+  const masmPackage = readPackageName(midenProjectToml);
+  if ("error" in masmPackage) {
+    return undefined;
+  }
+  // Parsed again: `readPackageName` keeps only the name.
+  const lib = (parse(midenProjectToml) as { lib?: unknown }).lib;
+  const path =
+    typeof lib === "object" && lib !== null
+      ? (lib as { path?: unknown }).path
+      : undefined;
+  const libPath =
+    typeof path === "string" ? path.replace(/^(?:\.\/)+/, "") : "";
+  return {
+    name: masmPackage.name,
+    libPath: libPath === "" ? undefined : libPath,
+  };
 };
 
 // Opens the project a client submitted: `files` and `entrypoint` as they came
