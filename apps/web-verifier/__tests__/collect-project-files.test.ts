@@ -70,7 +70,7 @@ describe("selectProjectFiles", () => {
 });
 
 describe("selectProjectFiles on MASM projects", () => {
-  it("keeps only the manifest and the MASM files of a single MASM package", () => {
+  it("keeps only the manifest and the MASM files of a single MASM project", () => {
     const { includedPaths, entrypoints } = selectProjectFiles([
       "counter-contract/miden-project.toml",
       "counter-contract/counter_contract.masm",
@@ -82,10 +82,10 @@ describe("selectProjectFiles on MASM projects", () => {
       "miden-project.toml",
       "counter_contract.masm",
     ]);
-    expect(entrypoints).toEqual([]);
+    expect(entrypoints).toEqual(["."]);
   });
 
-  it("keeps MASM sources outside src/, inside the package or above it", () => {
+  it("keeps MASM sources outside src/, inside the project or above it", () => {
     const { includedPaths } = selectProjectFiles([
       "project/shared/math.masm",
       "project/counter/miden-project.toml",
@@ -115,7 +115,7 @@ describe("selectProjectFiles on MASM projects", () => {
     expect(entrypoints).toEqual(["counter-contract", "counter-note"]);
   });
 
-  it("applies each package's own rules in a mixed folder", () => {
+  it("applies each project's own rules in a mixed folder", () => {
     const { includedPaths, entrypoints } = selectProjectFiles([
       "mixed/rust-account/Cargo.toml",
       "mixed/rust-account/miden-project.toml",
@@ -130,13 +130,14 @@ describe("selectProjectFiles on MASM projects", () => {
       "rust-account/Cargo.toml",
       "rust-account/miden-project.toml",
       "rust-account/src/lib.rs",
+      "rust-account/stray.masm",
       "masm-note/miden-project.toml",
       "masm-note/note.masm",
     ]);
     expect(entrypoints).toEqual(["masm-note", "rust-account"]);
   });
 
-  it("gives a MASM package nested in a Rust package the MASM rules", () => {
+  it("gives a MASM project nested in a Rust workspace the MASM rules, root not listed", () => {
     const { includedPaths, entrypoints } = selectProjectFiles([
       "ws/Cargo.toml",
       "ws/src/lib.rs",
@@ -151,6 +152,16 @@ describe("selectProjectFiles on MASM projects", () => {
       "masm/lib.masm",
     ]);
     expect(entrypoints).toEqual(["masm"]);
+  });
+
+  it("lists the root first when it holds a miden-project.toml", () => {
+    const { entrypoints } = selectProjectFiles([
+      "note/miden-project.toml",
+      "note/note.masm",
+      "note/account/miden-project.toml",
+      "note/account/account.masm",
+    ]);
+    expect(entrypoints).toEqual([".", "account"]);
   });
 
   it("ignores manifests under target and hidden directories", () => {
@@ -178,7 +189,7 @@ describe("collectProjectFiles", () => {
     });
   });
 
-  it("reads a MASM package as text", async () => {
+  it("reads a MASM project as text", async () => {
     const result = await collectProjectFiles([
       new File(["[package]"], "counter/miden-project.toml"),
       new File(["pub proc get_count"], "counter/counter.masm"),
@@ -189,7 +200,7 @@ describe("collectProjectFiles", () => {
         "counter.masm": "pub proc get_count",
         "miden-project.toml": "[package]",
       },
-      entrypoints: [],
+      entrypoints: ["."],
     });
   });
 

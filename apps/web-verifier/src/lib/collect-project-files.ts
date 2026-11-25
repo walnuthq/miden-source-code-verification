@@ -1,21 +1,24 @@
 // Filters a directory selected via a `webkitdirectory` input down to the subset
 // the verifier cares about, and reads the kept files into a path -> content map.
 //
-// A package is a directory holding a `miden-project.toml` or a `Cargo.toml`. It
-// is a Rust package when a `Cargo.toml` sits there, a MASM package otherwise.
-// A file belongs to the nearest package above it:
+// A project is a directory holding a `miden-project.toml` or a `Cargo.toml`. It
+// is a Rust project when a `Cargo.toml` sits there, a MASM project otherwise.
+// A file belongs to the nearest project above it. Kept files:
 //
-// - in a MASM package, only `miden-project.toml` and `*.masm` files are kept;
-// - in a Rust package, the rules of the walnuthq/miden-verify CLI
-//   (`is_included`) apply: files under any `src/` dir, plus `Cargo.toml`,
-//   `Cargo.lock`, `build.rs`, `miden-project.toml`, `rust-toolchain.toml` and
+// - every `*.masm` file and every `miden-project.toml`, wherever it sits: a
+//   MASM manifest's `[lib] path` can point anywhere;
+// - in a Rust project, or outside any project, also the rules of the
+//   walnuthq/miden-verify CLI (`is_included`): files under any `src/` dir, plus
+//   `Cargo.toml`, `Cargo.lock`, `build.rs`, `rust-toolchain.toml` and
 //   `.cargo/config.toml`. `Cargo.lock` pins dependency versions, so the
-//   verifier builds what the author built;
-// - outside any package, both sets are kept: a MASM manifest's `[lib] path` can
-//   point anywhere, and a Rust workspace can keep `.cargo/config.toml` above
-//   its crates.
+//   verifier builds what the author built. Outside any project, because a Rust
+//   workspace can keep `.cargo/config.toml` above its crates.
 //
 // `target/` and hidden dirs (except `.cargo`) are pruned everywhere.
+//
+// The entrypoints are the project directories, plus the root (`.`) when it
+// holds a `miden-project.toml`. A root holding only a `Cargo.toml` is a Rust
+// workspace, not something to build, so it stays out of the list.
 
 export type ProjectFiles = {
   files: Record<string, string>;
@@ -50,7 +53,6 @@ function isRustBuildInput(name: string, parents: string[]): boolean {
     name === "Cargo.toml" ||
     name === "Cargo.lock" ||
     name === "build.rs" ||
-    name === "miden-project.toml" ||
     name === "rust-toolchain.toml"
   )
     return true;
@@ -61,29 +63,35 @@ function isMasmBuildInput(name: string): boolean {
   return name === "miden-project.toml" || name.endsWith(".masm");
 }
 
-type PackageKind = "rust" | "masm";
+type ProjectKind = "rust" | "masm";
 
-// The kind of each package directory, keyed by its path ("" for the root).
-function findPackages(rels: string[]): Map<string, PackageKind> {
-  const packages = new Map<string, PackageKind>();
-  for (const rel of rels) {
-    const parts = rel.split("/");
-    const name = parts[parts.length - 1];
-    if (name !== "Cargo.toml" && name !== "miden-project.toml") continue;
-    const dir = parts.slice(0, -1).join("/");
-    if (name === "Cargo.toml") packages.set(dir, "rust");
-    else if (!packages.has(dir)) packages.set(dir, "masm");
-  }
-  return packages;
+type SplitPath = { rel: string; name: string; parents: string[] };
+
+function splitPath(rel: string): SplitPath {
+  const parts = rel.split("/");
+  return { rel, name: parts[parts.length - 1], parents: parts.slice(0, -1) };
 }
 
-// The kind of the nearest package holding the file, or null outside any.
-function owningPackage(
+// The kind of each project directory, keyed by its path ("" for the root).
+function findProjects(paths: SplitPath[]): Map<string, ProjectKind> {
+  const projects = new Map<string, ProjectKind>();
+  for (const { name, parents } of paths) {
+    const dir = parents.join("/");
+    if (name === "Cargo.toml") projects.set(dir, "rust");
+    else if (name === "miden-project.toml" && !projects.has(dir)) {
+      projects.set(dir, "masm");
+    }
+  }
+  return projects;
+}
+
+// The kind of the nearest project holding the file, or null outside any.
+function owningProjectKind(
   parents: string[],
-  packages: Map<string, PackageKind>,
-): PackageKind | null {
+  projects: Map<string, ProjectKind>,
+): ProjectKind | null {
   for (let depth = parents.length; depth >= 0; depth--) {
-    const kind = packages.get(parents.slice(0, depth).join("/"));
+    const kind = projects.get(parents.slice(0, depth).join("/"));
     if (kind) return kind;
   }
   return null;
@@ -91,30 +99,35 @@ function owningPackage(
 
 /**
  * Pure path filtering over raw `webkitRelativePath` strings. Returns the kept
- * paths (relative to the selected folder) and the entrypoints: the package
- * directories of both kinds, as sorted folder paths, with the root excluded.
+ * paths (relative to the selected folder) and the sorted entrypoints.
  */
 export function selectProjectFiles(webkitRelativePaths: string[]): {
   includedPaths: string[];
   entrypoints: string[];
 } {
   // Pruning runs first: a `src` dir or a manifest can exist under `target`.
-  const rels = webkitRelativePaths
-    .map(stripRoot)
-    .filter((rel) => !isSkippedDir(rel.split("/").slice(0, -1)));
-  const packages = findPackages(rels);
+  const paths = webkitRelativePaths
+    .map((path) => splitPath(stripRoot(path)))
+    .filter(({ parents }) => !isSkippedDir(parents));
+  const projects = findProjects(paths);
 
-  const includedPaths = rels.filter((rel) => {
-    const parts = rel.split("/");
-    const name = parts[parts.length - 1];
-    const parents = parts.slice(0, -1);
-    const owner = owningPackage(parents, packages);
-    if (owner === "masm") return isMasmBuildInput(name);
-    if (owner === "rust") return isRustBuildInput(name, parents);
-    return isMasmBuildInput(name) || isRustBuildInput(name, parents);
-  });
+  const includedPaths = paths
+    .filter(
+      ({ name, parents }) =>
+        isMasmBuildInput(name) ||
+        (owningProjectKind(parents, projects) !== "masm" &&
+          isRustBuildInput(name, parents)),
+    )
+    .map(({ rel }) => rel);
 
-  const entrypoints = [...packages.keys()].filter((dir) => dir !== "").sort();
+  const rootHasManifest = paths.some(
+    ({ name, parents }) =>
+      parents.length === 0 && name === "miden-project.toml",
+  );
+  const entrypoints = [...projects.keys()]
+    .filter((dir) => dir !== "")
+    .concat(rootHasManifest ? ["."] : [])
+    .sort();
   return { includedPaths, entrypoints };
 }
 
