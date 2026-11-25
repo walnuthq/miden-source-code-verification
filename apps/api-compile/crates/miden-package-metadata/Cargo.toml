@@ -21,6 +21,9 @@ miden-mast-package = "=0.36.5"
 miden-core = "=0.36.5"
 miden-core-lib = "=0.36.5"
 miden-protocol = "=0.18.0"
+# For `source_parameters.rs`: loads a MASM project's manifest to find its
+# library's root module. Already in the lockfile through `miden-assembly`.
+miden-project = "=0.36.5"
 # Reads a note's storage schema (the WIT `cargo-miden` embeds in the
 # `note_storage_schema` section) and its felt layout: the compiler's own reader,
 # from the same `0.15.0` SDK release `cargo-miden 0.11.0` belongs to.
@@ -32,3 +35,9 @@ serde_json = { version = "1.0", features = ["preserve_order"] }
 # the `wit` section, without resolving the packages it `use`s. Already in the
 # lockfile through `miden-note-schema`, at this version.
 wit-parser = "=0.258.3"
+
+[dev-dependencies]
+# For `tests/masm_packages.rs`, which assembles `miden-assemble`'s test
+# projects as that tool does. Already in the lockfile, at these versions.
+miden-assembly = "=0.36.5"
+miden-package-registry = "=0.36.5"

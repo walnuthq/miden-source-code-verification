@@ -1,4 +1,7 @@
-import type { ImportedResource } from "miden-source-code-verification-utils/api-compile";
+import type {
+  BuildDiagnostic,
+  ImportedResource,
+} from "miden-source-code-verification-utils/api-compile";
 import type {
   AccountProcedures,
   ForeignCallingProcedures,
@@ -16,7 +19,7 @@ import {
 } from "./constants.ts";
 import { execFile } from "./utils.ts";
 
-// The helper tools: the three Rust binaries built from `apps/api-compile/crates`
+// The helper tools: the four Rust binaries built from `apps/api-compile/crates`
 // and found on PATH, which api-compile runs for what Node can't do. Each prints
 // its result as JSON when it exits 0 and writes the reason to stderr otherwise.
 // Only this module runs one, so only it knows how they fail.
@@ -182,6 +185,52 @@ export const midenVerifier = ({
     { cwd: MIDEN_CLIENT_CACHE_DIR },
   );
 
-// The package at `maspPath`, read.
-export const midenPackageMetadata = (maspPath: string, signal?: AbortSignal) =>
-  run<PackageMetadata>("miden-package-metadata", [maspPath], { signal });
+// The package at `maspPath`, read. `entrypointDir` is the directory holding the
+// `miden-project.toml` a MASM package was assembled from: the parameter names
+// are read from its source, as the package has no WIT to give them.
+export const midenPackageMetadata = (
+  maspPath: string,
+  {
+    entrypointDir,
+    signal,
+  }: { entrypointDir?: string; signal?: AbortSignal } = {},
+) =>
+  run<PackageMetadata>(
+    "miden-package-metadata",
+    [maspPath, ...(entrypointDir ? ["--entrypoint-dir", entrypointDir] : [])],
+    { signal },
+  );
+
+// What `miden-assemble` prints. A failed build is an answer, so it exits 0
+// either way: built, with the warnings, or failed, with at least one error and
+// the report as the assembler renders it, paths relative to the project root.
+// `builtWith` names the versions the tool was built with.
+export type MidenAssembleOutput =
+  | { built: true; builtWith: string; diagnostics: BuildDiagnostic[] }
+  | {
+      built: false;
+      builtWith: string;
+      rendered: string;
+      diagnostics: BuildDiagnostic[];
+    };
+
+// The MASM project at `entrypoint` in `projectRoot`, assembled into a dev
+// package (with debug info) written to `maspPath` when it builds. The tool
+// reads nothing outside `projectRoot`: it turns away a manifest that names a
+// path outside it or a git dependency, as a failed build.
+export const midenAssemble = ({
+  projectRoot,
+  entrypoint,
+  maspPath,
+  signal,
+}: {
+  projectRoot: string;
+  entrypoint: string;
+  maspPath: string;
+  signal?: AbortSignal;
+}) =>
+  run<MidenAssembleOutput>(
+    "miden-assemble",
+    [projectRoot, entrypoint, maspPath],
+    { signal },
+  );

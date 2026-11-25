@@ -1,0 +1,13 @@
+[package]
+name = "increment-note"
+version = "0.1.0"
+
+[lib]
+kind = "note"
+namespace = "increment_note"
+path = "increment_note.masm"
+
+[dependencies]
+miden-core = "*"
+miden-protocol = "*"
+counter-account = { path = "../counter-account" }

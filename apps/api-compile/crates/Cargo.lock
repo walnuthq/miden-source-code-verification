@@ -2681,6 +2681,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "miden-assemble"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "miden-assembly 0.36.5",
+ "miden-core-lib 0.36.5",
+ "miden-mast-package 0.36.5",
+ "miden-package-registry 0.36.5",
+ "miden-protocol 0.18.0",
+ "miden-serde-utils 0.36.5",
+ "miden-standards",
+ "serde_json",
+ "toml",
+]
+
+[[package]]
 name = "miden-assembly"
 version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3398,11 +3415,14 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "miden-assembly 0.36.5",
  "miden-assembly-syntax 0.36.5",
  "miden-core 0.36.5",
  "miden-core-lib 0.36.5",
  "miden-mast-package 0.36.5",
  "miden-note-schema",
+ "miden-package-registry 0.36.5",
+ "miden-project 0.36.5",
  "miden-protocol 0.18.0",
  "miden-serde-utils 0.36.5",
  "miden-standards",

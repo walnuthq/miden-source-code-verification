@@ -51,6 +51,23 @@ export type BuiltPackage = {
 // so it doesn't reassemble into the package on its own.
 export type MasmOutput = { source: string } | { error: string };
 
+// One problem the assembler found in a MASM project, as `miden-assemble`
+// reports it (`spec/remove-rust/README.md`, "The MASM wire format"). `file` is
+// relative to the project root, `line` and `column` start at 1, and `column`
+// and `length` count characters. The span keys are absent when the problem
+// has no place in a file, such as an unresolvable dependency.
+export type BuildDiagnostic = {
+  severity: "error" | "warning";
+  message: string;
+  file?: string;
+  line?: number;
+  column?: number;
+  length?: number;
+  // What the span is marked with in the rendered report.
+  label?: string;
+  help?: string;
+};
+
 // `POST /compile`: the build's outcome, with cargo-miden's output either way.
 // A failed build is an answer, not a refused request: its diagnostics are what
 // a compile client is after.

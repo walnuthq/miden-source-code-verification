@@ -58,7 +58,7 @@ The `miden-verify` CLI is updated after plan 09. Until then the released CLI upl
 
 ## What the spike established
 
-Run on 2026-11-24. Its code is in `spike/masm-assembly` (untracked): `tool/` is a small Rust program, `projects/` holds a counter account component, a note that calls it and a transaction script that calls it.
+Run on 2026-11-24. Its code was in `spike/masm-assembly` (untracked, removed by plan 02): its assembly and diagnostics logic is now `apps/api-compile/crates/miden-assemble`, and its projects (a counter account component, a note that calls it and a transaction script that calls it) are that crate's `tests/projects`.
 
 - `miden-assembly` 0.36.4 builds a project with `Assembler::for_project_at_path(manifest, registry).assemble(ProjectTargetSelector::Library, profile)`. The registry is an `InMemoryPackageRegistry` seeded with the core library, the protocol library, the transaction kernel package and the standards library. Crate pins that worked: `miden-assembly`, `miden-mast-package`, `miden-package-registry`, `miden-core-lib` at `=0.36.4`; `miden-protocol`, `miden-standards` at `=0.18.0`.
 - A build takes 15 to 18 ms, is reproducible and doesn't depend on the directory it runs in.
@@ -67,7 +67,7 @@ Run on 2026-11-24. Its code is in `spike/masm-assembly` (untracked): `tool/` is 
 - One error per build is the norm: later phases don't run after a failed one.
 - By default warnings print only `one or more warnings were emitted`. `with_warnings_as_errors(true)` returns them as errors with spans.
 - The manifest's signatures carry types, no parameter names. `AccountId` and `Asset` are structs with a bare name; `word` is `Array(Felt, 4)`; `u64`, `u16`, `i1` are primitives.
-- The manifest JSON printed by `miden-package-metadata` has the same shape as for a Rust package, and the `readOnly` and `accountProcedures` analyses work unchanged. `callsForeign` was not exercised.
+- The manifest JSON printed by `miden-package-metadata` has the same shape as for a Rust package, and the `readOnly` and `accountProcedures` analyses work unchanged. `callsForeign` was not exercised by the spike; plan 02's `fpi-account` test project shows it right on a MASM package.
 - `miden-verifier`'s checks pass offline on MASM packages: an account built from the counter package has every export's digest, and `NoteScript::from_package(note).root()` equals the note export's digest. No deploy on a live network was done.
 - The `miden-protocol` and `miden-standards` 0.18.0 crates ship packages versioned 0.17.2, and `miden-core-lib` 0.36.4 ships 0.36.3: a project's dependency version names the package, not the crate. `"*"` resolves.
 - The helper tools in this repo are on `miden-client` 0.17.5 and the 0.35 VM crates. A 0.35-based `miden-package-metadata` reads a 0.36 release package and fails on a dev one: `unsupported debug_info version: 4, expected 3`.

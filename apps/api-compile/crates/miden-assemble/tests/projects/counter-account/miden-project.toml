@@ -1,0 +1,12 @@
+[package]
+name = "counter-account"
+version = "0.1.0"
+
+[lib]
+kind = "account-component"
+namespace = "counter_account"
+path = "counter_account.masm"
+
+[dependencies]
+miden-core = "*"
+miden-protocol = "*"

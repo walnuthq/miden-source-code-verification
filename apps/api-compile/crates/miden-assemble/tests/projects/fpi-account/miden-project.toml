@@ -1,0 +1,12 @@
+[package]
+name = "fpi-account"
+version = "0.1.0"
+
+[lib]
+kind = "account-component"
+namespace = "fpi_account"
+path = "fpi_account.masm"
+
+[dependencies]
+miden-core = "*"
+miden-protocol = "*"

@@ -1,0 +1,13 @@
+[package]
+name = "increment-script"
+version = "0.1.0"
+
+[lib]
+kind = "tx-script"
+namespace = "increment_script"
+path = "increment_script.masm"
+
+[dependencies]
+miden-core = "*"
+miden-protocol = "*"
+counter-account = { path = "../counter-account" }

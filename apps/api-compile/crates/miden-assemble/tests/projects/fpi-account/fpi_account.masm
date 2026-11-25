@@ -1,0 +1,30 @@
+use miden::protocol::tx
+use miden::core::sys
+use {AccountId} from miden::protocol::types
+
+#! Runs the procedure whose root is `foreign_proc_root` on the account
+#! `foreign_account_id`, with no inputs, and returns its first output.
+#!
+#! Inputs:  [foreign_account_id_suffix, foreign_account_id_prefix, FOREIGN_PROC_ROOT, pad(10)]
+#! Outputs: [output, pad(15)]
+@account_procedure
+@locals(8)
+pub proc read_foreign(foreign_account_id: AccountId, foreign_proc_root: word) -> felt
+    loc_store.4 loc_store.5 loc_storew_le.0 dropw
+    # => [pad(16)]
+    padw padw padw padw
+    padw loc_loadw_le.0 loc_load.5 loc_load.4
+    # => [foreign_account_id_suffix, foreign_account_id_prefix, FOREIGN_PROC_ROOT, pad(16)]
+    exec.tx::execute_foreign_procedure
+    # => [outputs(16), pad(16)]
+    exec.sys::truncate_stack
+end
+
+#! Returns `value` unchanged, without a foreign call.
+#!
+#! Inputs:  [value, pad(15)]
+#! Outputs: [value, pad(15)]
+@account_procedure
+pub proc echo(value: felt) -> felt
+    exec.sys::truncate_stack
+end
