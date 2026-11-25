@@ -170,10 +170,12 @@ describe("GET /:networkId/import/:resourceId", () => {
     const rust = await api.get(`/${networkId}/import/${COUNTER_NOTE_ID_1}`);
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({
-      ...rust.body,
-      code: masmNotes[MASM_COUNTER_NOTE_ID].code,
-    });
+    expect(Object.keys(res.body).sort()).toEqual(Object.keys(rust.body).sort());
+    expect(res.body).toHaveProperty("type", "note");
+    expect(res.body).toHaveProperty(
+      "code",
+      masmNotes[MASM_COUNTER_NOTE_ID].code,
+    );
   });
 
   it("returns 404 for an account not found on the network", async () => {

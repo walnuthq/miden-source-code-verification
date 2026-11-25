@@ -141,6 +141,14 @@ fn faucet_url(network_id: &NetworkId) -> Result<String> {
     }
 }
 
+/// `--faucet-url` if given, else the network's public faucet.
+fn faucet_url_or_default(given: Option<String>, network_id: &NetworkId) -> Result<String> {
+    match given {
+        Some(url) => Ok(url),
+        None => faucet_url(network_id),
+    }
+}
+
 /// Builds a client backed by a throwaway store and keystore under `workdir`, so
 /// every run deploys genuinely new resources and no state can leak in from a
 /// previous one. Nothing is ever signed here — every account deployed by this
@@ -331,10 +339,7 @@ async fn main() -> Result<()> {
     // asked for tokens once per run.
     let mut funding = match &fees {
         Some(fees) => {
-            let url = match args.faucet_url {
-                Some(url) => url,
-                None => faucet_url(&network_id)?,
-            };
+            let url = faucet_url_or_default(args.faucet_url, &network_id)?;
             fee::fund(
                 &mut client,
                 fees,
@@ -443,29 +448,19 @@ async fn connect_and_detect_fees(
 async fn run_masm(
     network_id: &NetworkId,
     examples_dir: &Path,
-    faucet_url_arg: Option<String>,
+    given_faucet_url: Option<String>,
     out: Option<PathBuf>,
 ) -> Result<()> {
-    // Assembling moves the process into the examples, so a relative `--out` is
-    // resolved first.
-    let out = out.map(std::path::absolute).transpose()?;
     let packages = masm::Packages::build(examples_dir)?;
 
     let workdir = tempfile::tempdir().context("failed to create a temporary working directory")?;
     let (mut client, fees) = connect_and_detect_fees(network_id, workdir.path()).await?;
-    let faucet_url = match (&fees, faucet_url_arg) {
-        (None, _) => None,
-        (Some(_), Some(url)) => Some(url),
-        (Some(_), None) => Some(faucet_url(network_id)?),
+    let url = match &fees {
+        Some(_) => Some(faucet_url_or_default(given_faucet_url, network_id)?),
+        None => None,
     };
+    let fees = fees.as_ref().zip(url.as_deref());
 
-    let fixtures = masm::deploy(
-        &mut client,
-        &packages,
-        network_id,
-        fees.as_ref(),
-        faucet_url.as_deref(),
-    )
-    .await?;
+    let fixtures = masm::deploy(&mut client, &packages, network_id, fees).await?;
     write_fixtures(&fixtures.render(), out)
 }

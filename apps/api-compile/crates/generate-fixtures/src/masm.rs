@@ -33,6 +33,7 @@ use rand::TryRng;
 
 use crate::account::wait_for_commitment;
 use crate::fee::{self, FeeContext};
+use crate::fixtures::entry;
 use crate::note::{build_note, create_factory};
 use crate::transacting_components;
 
@@ -49,20 +50,28 @@ pub struct Packages {
 impl Packages {
     /// Assembles both, with `<examples>/masm` as the project root: the note's
     /// manifest depends on `../counter-contract`. `miden-assemble` names the
-    /// sources relative to the root, so the process moves into it; the caller
-    /// resolves its own paths first.
+    /// sources relative to the root and reads them from the working directory,
+    /// so the process moves into the root for the build and back out after it.
     pub fn build(examples_dir: &Path) -> Result<Self> {
         let root = examples_dir
             .join("masm")
             .canonicalize()
             .context("failed to read the MASM examples directory")?;
+        let cwd = std::env::current_dir().context("failed to read the working directory")?;
         std::env::set_current_dir(&root)
             .with_context(|| format!("failed to enter {}", root.display()))?;
+        let packages = Self::build_in(&root);
+        std::env::set_current_dir(&cwd)
+            .with_context(|| format!("failed to return to {}", cwd.display()))?;
+        packages
+    }
 
+    /// [`Self::build`], run from `root`.
+    fn build_in(root: &Path) -> Result<Self> {
         let build = |project: &str| -> Result<Package> {
             eprintln!("Assembling masm/{project}…");
             let manifest = root.join(project).join("miden-project.toml");
-            let package = miden_assemble::build(&manifest, &root, false)
+            let package = miden_assemble::build(&manifest, root, false)
                 .map_err(|report| anyhow!("failed to assemble masm/{project}:\n{report:?}"))?;
             Ok(Package::clone(&package))
         };
@@ -81,36 +90,35 @@ pub struct Fixtures {
     pub counter_note: Note,
 }
 
-/// Deploys the MASM fixtures and returns them.
+/// Deploys the MASM fixtures and returns them. `fees` is what the chain
+/// charges and the faucet to draw it from, or `None` on a fee-free chain.
 pub async fn deploy(
     client: &mut Client<FilesystemKeyStore>,
     packages: &Packages,
     network_id: &NetworkId,
-    fees: Option<&FeeContext>,
-    faucet_url: Option<&str>,
+    fees: Option<(&FeeContext, &str)>,
 ) -> Result<Fixtures> {
-    let account = assemble_counter_contract(client, packages, fees).await?;
+    let account = assemble_counter_contract(client, packages, fees.map(|(fees, _)| fees)).await?;
     let account_id = account.id();
     let factory = create_factory(client).await?;
 
-    let mut funding = match (fees, faucet_url) {
-        (Some(fees), Some(url)) => {
+    let mut funding = match fees {
+        Some((fees, url)) => {
             fee::fund(client, fees, network_id, url, &[account_id, factory]).await?
         }
-        (Some(_), None) => bail!("a fee-charging chain needs a faucet URL"),
-        (None, _) => BTreeMap::new(),
+        None => BTreeMap::new(),
     };
 
     let script = NoteScript::from_package(&packages.counter_note)
         .map_err(|err| anyhow!("failed to build the counter-note script: {err}"))?;
-    let fixture = build_note(client.rng(), &script, factory, account_id)?;
-    eprintln!("Created MASM counter-note {}", fixture.id().to_hex());
+    let counter_note = build_note(client.rng(), &script, factory, account_id)?;
+    eprintln!("Created MASM counter-note {}", counter_note.id().to_hex());
     let increment = build_note(client.rng(), &script, factory, account_id)?;
     eprintln!("Created MASM increment note {}", increment.id().to_hex());
 
     let request = TransactionRequestBuilder::new()
         .input_notes(funding.remove(&factory).map(|note| (note, None)))
-        .own_output_notes([fixture.clone(), increment.clone()])
+        .own_output_notes([counter_note.clone(), increment.clone()])
         .build()
         .context("failed to build the note-creating transaction request")?;
     let tx_id = client
@@ -164,7 +172,7 @@ pub async fn deploy(
     Ok(Fixtures {
         network_id: network_id.to_string(),
         counter_contract,
-        counter_note: fixture,
+        counter_note,
     })
 }
 
@@ -249,8 +257,4 @@ impl Fixtures {
         out.push_str("};\n");
         out
     }
-}
-
-fn entry(key: &str, resource: &str, code: &str) -> String {
-    format!("  [{key}]: {{\n    resource:\n      \"{resource}\",\n    code: \"{code}\",\n  }},\n")
 }
