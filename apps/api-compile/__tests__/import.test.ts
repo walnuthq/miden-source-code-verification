@@ -5,6 +5,10 @@ import {
   COUNTER_CONTRACT_ID_1,
   COUNTER_NOTE_ID_1,
   DEPOSIT_NOTE_ID_1,
+  MASM_COUNTER_CONTRACT_ID,
+  MASM_COUNTER_NOTE_ID,
+  masmAccounts,
+  masmNotes,
   notes,
   request,
 } from "miden-source-code-verification-test-utils";
@@ -135,6 +139,41 @@ describe("GET /:networkId/import/:resourceId", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("type", "note");
     expect(res.body).toHaveProperty("code", code);
+  });
+
+  // A MASM-built account answers as a Rust-built one does. It carries no
+  // schema commitment: a MASM package has no storage schema.
+  it("imports an on-chain MASM account", async () => {
+    const res = await api.get(
+      `/${networkId}/import/${MASM_COUNTER_CONTRACT_ID}`,
+    );
+    const rust = await api.get(`/${networkId}/import/${COUNTER_CONTRACT_ID_1}`);
+
+    expect(res.status).toBe(200);
+    expect(Object.keys(res.body).sort()).toEqual(Object.keys(rust.body).sort());
+    expect(res.body).toHaveProperty("type", "account");
+    expect(res.body).toHaveProperty(
+      "code",
+      masmAccounts[MASM_COUNTER_CONTRACT_ID].code,
+    );
+    const { standardAccountComponents } = res.body as {
+      standardAccountComponents: { name: string }[];
+    };
+    expect(standardAccountComponents.map(({ name }) => name)).toEqual([
+      "BasicWallet",
+      "AuthNoAuth",
+    ]);
+  });
+
+  it("imports an on-chain MASM note", async () => {
+    const res = await api.get(`/${networkId}/import/${MASM_COUNTER_NOTE_ID}`);
+    const rust = await api.get(`/${networkId}/import/${COUNTER_NOTE_ID_1}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      ...rust.body,
+      code: masmNotes[MASM_COUNTER_NOTE_ID].code,
+    });
   });
 
   it("returns 404 for an account not found on the network", async () => {

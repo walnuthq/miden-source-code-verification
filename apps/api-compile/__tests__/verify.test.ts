@@ -9,6 +9,10 @@ import {
   COUNTER_NOTE_ID_1,
   DEPOSIT_NOTE_ID_1,
   editProjectFile,
+  MASM_COUNTER_CONTRACT_ID,
+  MASM_COUNTER_NOTE_ID,
+  masmAccounts,
+  masmNotes,
   notes,
   readProjectFiles,
   request,
@@ -23,6 +27,7 @@ const examplesDir = path.resolve(__dirname, "../examples");
 const counterContractDir = `${examplesDir}/counter-contract`;
 const basicWalletDir = `${examplesDir}/basic-wallet`;
 const bankDir = `${examplesDir}/miden-bank`;
+const masmDir = `${examplesDir}/masm`;
 
 const api = request(process.env.API_URL ?? "http://localhost:8080");
 
@@ -610,6 +615,113 @@ describe("POST /verify", () => {
     const res = await api
       .post("/verify")
       .send({ files, entrypoint, networkId, resourceId, resource });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("verified", false);
+  });
+});
+
+// The MASM fixtures, deployed by `generate-fixtures --mode masm` from the
+// projects in `examples/masm`. The note's project depends on
+// `../counter-contract`, so both are sent with `examples/masm` as the root.
+describe("POST /verify with a MASM project", () => {
+  it("verifies an on-chain MASM counter-contract", async () => {
+    const files = await readProjectFiles(masmDir);
+    const entrypoint = "counter-contract";
+    expect(files[`${entrypoint}/miden-project.toml`]).toBeDefined();
+
+    const res = await api.post("/verify").send({
+      files,
+      entrypoint,
+      networkId,
+      resourceId: MASM_COUNTER_CONTRACT_ID,
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("verified", true);
+    expect(res.body).toHaveProperty(
+      "root",
+      masmAccounts[MASM_COUNTER_CONTRACT_ID].code,
+    );
+    expect(res.body).toHaveProperty("masp");
+    expect(res.body).toHaveProperty("commitment");
+    expect(res.body).not.toHaveProperty("storage");
+    expect(res.body.files).toEqual(files);
+  });
+
+  it("verifies a local MASM counter-contract", async () => {
+    const files = await readProjectFiles(masmDir);
+    const resourceId = MASM_COUNTER_CONTRACT_ID;
+    const { resource } = masmAccounts[resourceId];
+
+    const res = await api.post("/verify").send({
+      files,
+      entrypoint: "counter-contract",
+      networkId,
+      resourceId,
+      resource,
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("verified", true);
+  });
+
+  it("verifies an on-chain MASM counter-note with its dependency", async () => {
+    const files = await readProjectFiles(masmDir);
+    const entrypoint = "counter-note";
+    expect(files[`${entrypoint}/miden-project.toml`]).toBeDefined();
+
+    const res = await api.post("/verify").send({
+      files,
+      entrypoint,
+      networkId,
+      resourceId: MASM_COUNTER_NOTE_ID,
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("verified", true);
+    expect(res.body).toHaveProperty(
+      "root",
+      masmNotes[MASM_COUNTER_NOTE_ID].code,
+    );
+    expect(res.body).not.toHaveProperty("noteStorage");
+  });
+
+  it("verifies a local MASM counter-note", async () => {
+    const files = await readProjectFiles(masmDir);
+    const resourceId = MASM_COUNTER_NOTE_ID;
+    const { resource } = masmNotes[resourceId];
+
+    const res = await api.post("/verify").send({
+      files,
+      entrypoint: "counter-note",
+      networkId,
+      resourceId,
+      resource,
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("verified", true);
+  });
+
+  it("doesn't verify a MASM counter-contract with a changed constant", async () => {
+    const files = await readProjectFiles(masmDir);
+    editProjectFile(
+      files,
+      "counter-contract/counter_contract.masm",
+      (content) =>
+        content.replace(
+          'word("counter_contract::count")',
+          'word("counter_contract::other_count")',
+        ),
+    );
+
+    const res = await api.post("/verify").send({
+      files,
+      entrypoint: "counter-contract",
+      networkId,
+      resourceId: MASM_COUNTER_CONTRACT_ID,
+    });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", false);
