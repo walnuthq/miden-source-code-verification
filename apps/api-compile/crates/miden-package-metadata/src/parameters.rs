@@ -28,8 +28,7 @@ const WIT_SECTION: &str = "wit";
 /// of parameters than its signature, so the two lists pair by index. An empty
 /// map for a package without the section, `None` for one that can't be read.
 pub fn package(package: &Package) -> Option<Map<String, Value>> {
-    let id = SectionId::custom(WIT_SECTION).expect("a valid section id");
-    let Some(section) = package.sections.iter().find(|section| section.id == id) else {
+    let Some(section) = section(package) else {
         return Some(Map::new());
     };
     let source = std::str::from_utf8(&section.data)
@@ -75,6 +74,16 @@ pub fn package(package: &Package) -> Option<Map<String, Value>> {
         parameters.insert(procedure.path.to_string(), json!(params));
     }
     Some(parameters)
+}
+
+/// Whether the package carries the WIT section: a package `cargo-miden` built.
+pub fn has_section(package: &Package) -> bool {
+    section(package).is_some()
+}
+
+fn section(package: &Package) -> Option<&miden_mast_package::Section> {
+    let id = SectionId::custom(WIT_SECTION).expect("a valid section id");
+    package.sections.iter().find(|section| section.id == id)
 }
 
 /// The package's own interfaces, which its exports' paths name.

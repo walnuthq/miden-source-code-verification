@@ -163,7 +163,7 @@ const buildProject = async ({
     () =>
       Promise.all([
         readFile(maspPath),
-        midenPackageMetadata(maspPath, signal),
+        midenPackageMetadata(maspPath, { signal }),
         readCargoLock({ projectDir, rootDir: tmpDir, signal }),
         // No signal: the version is asked once per process and shared.
         cargoMidenVersion().catch((error) => {

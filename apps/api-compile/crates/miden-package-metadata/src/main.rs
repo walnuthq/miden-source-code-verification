@@ -18,6 +18,7 @@ mod libraries;
 mod parameters;
 mod read_only;
 mod schemas;
+mod source_parameters;
 
 /// Extracts and prints metadata from a Miden package (.masp) file as JSON.
 #[derive(Parser)]
@@ -25,6 +26,11 @@ mod schemas;
 struct Args {
     /// Path to the .masp file
     masp_path: PathBuf,
+    /// The directory holding the `miden-project.toml` the package was
+    /// assembled from, for the parameter names of a package without a WIT
+    /// section: they are read from its MASM source.
+    #[arg(long)]
+    sources: Option<PathBuf>,
 }
 
 // The JSON below is the contract `packages/utils/src/manifest.ts` documents.
@@ -111,13 +117,22 @@ fn main() -> Result<()> {
         metadata["noteStorage"] = note_storage;
     }
     // Each exported procedure's parameters, by export path, in order:
-    // `[{ "name", "type" }]`, both as the package's WIT spells them (kebab
-    // case). An export is listed only when its WIT function was found with as
-    // many parameters as its signature, so the two pair by index. `{}` for a
-    // package without the WIT section (a transaction script, or a package
-    // built before `cargo-miden` 0.10); absent when the section can't be
-    // read. `parameters.rs` reads them.
-    if let Some(parameters) = parameters::package(&package) {
+    // `[{ "name", "type" }]`. From the package's WIT when it has the section
+    // (a `cargo-miden` package), both as the WIT spells them (kebab case);
+    // otherwise from the MASM source when `--sources` names it, both as the
+    // source spells them. An export is listed only when its WIT function or
+    // procedure was found with as many named parameters as its signature, so
+    // the two pair by index. `{}` for a package without the WIT section and
+    // no sources (a Rust transaction script, or a package built before
+    // `cargo-miden` 0.10); absent when the section or the sources can't be
+    // read. `parameters.rs` and `source_parameters.rs` read them.
+    let parameters = match &args.sources {
+        Some(sources) if !parameters::has_section(&package) => {
+            source_parameters::package(&package, sources)
+        }
+        _ => parameters::package(&package),
+    };
+    if let Some(parameters) = parameters {
         metadata["parameters"] = Value::Object(parameters);
     }
 

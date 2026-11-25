@@ -1,0 +1,8 @@
+use counter_account
+
+#! Increments the counter of the consuming account by one.
+@note_script
+pub proc main()
+    push.1
+    call.counter_account::increment_count
+end

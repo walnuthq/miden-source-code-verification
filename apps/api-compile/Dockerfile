@@ -57,25 +57,27 @@ FROM rust AS helpers-builder
 WORKDIR /home/node/crates
 COPY apps/api-compile/crates/Cargo.toml apps/api-compile/crates/Cargo.lock apps/api-compile/crates/rust-toolchain.toml ./
 COPY apps/api-compile/crates/generate-fixtures/Cargo.toml generate-fixtures/
+COPY apps/api-compile/crates/miden-assemble/Cargo.toml apps/api-compile/crates/miden-assemble/build.rs miden-assemble/
 COPY apps/api-compile/crates/miden-import/Cargo.toml miden-import/
 COPY apps/api-compile/crates/miden-package-metadata/Cargo.toml miden-package-metadata/
 COPY apps/api-compile/crates/miden-verifier/Cargo.toml miden-verifier/
-RUN for crate in generate-fixtures miden-import miden-package-metadata miden-verifier; do \
+RUN for crate in generate-fixtures miden-assemble miden-import miden-package-metadata miden-verifier; do \
       mkdir -p $crate/src && echo 'fn main() {}' > $crate/src/main.rs; \
     done
 RUN --mount=type=cache,id=cargo-registry-helpers,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git-helpers,target=/usr/local/cargo/git \
-    cargo build --release --locked --bin miden-import --bin miden-package-metadata --bin miden-verifier
+    cargo build --release --locked --bin miden-assemble --bin miden-import --bin miden-package-metadata --bin miden-verifier
+COPY apps/api-compile/crates/miden-assemble/src miden-assemble/src
 COPY apps/api-compile/crates/miden-import/src miden-import/src
 COPY apps/api-compile/crates/miden-package-metadata/src miden-package-metadata/src
 COPY apps/api-compile/crates/miden-verifier/src miden-verifier/src
 # COPY keeps the sources' mtimes, which can predate the stub build: touch them
-# so cargo sees them as changed and rebuilds the three crates.
+# so cargo sees them as changed and rebuilds the four crates.
 RUN --mount=type=cache,id=cargo-registry-helpers,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git-helpers,target=/usr/local/cargo/git \
-    touch miden-import/src/main.rs miden-package-metadata/src/main.rs miden-verifier/src/main.rs \
- && cargo build --release --locked --bin miden-import --bin miden-package-metadata --bin miden-verifier \
- && strip target/release/miden-import target/release/miden-package-metadata target/release/miden-verifier
+    touch miden-assemble/src/main.rs miden-import/src/main.rs miden-package-metadata/src/main.rs miden-verifier/src/main.rs \
+ && cargo build --release --locked --bin miden-assemble --bin miden-import --bin miden-package-metadata --bin miden-verifier \
+ && strip target/release/miden-assemble target/release/miden-import target/release/miden-package-metadata target/release/miden-verifier
 
 # Build the API (TypeScript -> JS) from the pnpm workspace — runs in parallel with the Rust stages
 FROM base AS api-builder
@@ -203,6 +205,7 @@ RUN chown root:root /home/builder && chmod 0755 /home/builder
 # The API's helper binaries, copied after the warm-up builds, which don't use
 # them: a change to one of these crates then doesn't redo the warm-up.
 COPY --from=helpers-builder \
+     /home/node/crates/target/release/miden-assemble \
      /home/node/crates/target/release/miden-import \
      /home/node/crates/target/release/miden-package-metadata \
      /home/node/crates/target/release/miden-verifier \

@@ -1,0 +1,26 @@
+[package]
+name = "miden-assemble"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4.6", features = ["derive"] }
+# The assembler and the four packages a project's dependencies resolve
+# against: the core library, the protocol library, the transaction kernel and
+# the standards library. Pinned to the versions the other tools resolve, so the
+# packages it builds link the libraries they read.
+miden-assembly = "=0.36.5"
+miden-core-lib = "=0.36.5"
+miden-mast-package = "=0.36.5"
+miden-package-registry = "=0.36.5"
+miden-protocol = "=0.18.0"
+miden-standards = "=0.18.0"
+serde_json = { version = "1.0", features = ["preserve_order"] }
+# For `confine.rs`, which reads the project's manifests before the assembler
+# does. Already in the lockfile through `miden-project`, at this version.
+toml = "1.0"
+
+[dev-dependencies]
+# For `tests/assemble.rs`, which reads the packages the binary writes.
+miden-serde-utils = "=0.36.5"

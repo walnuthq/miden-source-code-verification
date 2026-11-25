@@ -2,7 +2,10 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { midenPackageMetadata } from "../src/lib/helper-tools.ts";
+import {
+  midenAssemble,
+  midenPackageMetadata,
+} from "../src/lib/helper-tools.ts";
 import { useFakeTool } from "./fake-tool.ts";
 
 // A tool timeout short enough to trip, and long enough for a cold exec of the
@@ -86,6 +89,43 @@ describe("a helper tool", () => {
     await expect(midenPackageMetadata("garbled")).resolves.toEqual({
       error: "miden-package-metadata printed something that isn't JSON",
       rejected: false,
+    });
+  });
+});
+
+// Fakes that print the arguments they were given, in a field of their result.
+const ECHO_ARGUMENTS = `#!/bin/sh
+printf '{"built":true,"builtWith":"%s","diagnostics":[]}' "$*"
+`;
+
+describe("the arguments a tool is given", () => {
+  useFakeTool("miden-assemble", ECHO_ARGUMENTS);
+  useFakeTool("miden-package-metadata", ECHO_ARGUMENTS);
+
+  it("are the project root, the entrypoint and the package path for miden-assemble", async () => {
+    await expect(
+      midenAssemble({
+        projectRoot: "/work/project",
+        entrypoint: "contracts/counter",
+        maspPath: "/work/out.masp",
+      }),
+    ).resolves.toEqual({
+      output: {
+        built: true,
+        builtWith: "/work/project contracts/counter /work/out.masp",
+        diagnostics: [],
+      },
+    });
+  });
+
+  it("name the sources to miden-package-metadata when given", async () => {
+    await expect(midenPackageMetadata("a.masp")).resolves.toMatchObject({
+      output: { builtWith: "a.masp" },
+    });
+    await expect(
+      midenPackageMetadata("a.masp", { sources: "/work/project/counter" }),
+    ).resolves.toMatchObject({
+      output: { builtWith: "a.masp --sources /work/project/counter" },
     });
   });
 });
