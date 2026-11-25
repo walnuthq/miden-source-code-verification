@@ -1,4 +1,4 @@
-//! The libraries the 0.17 toolchain links a package against, and how an
+//! The libraries a package links against (the 0.18 protocol's), and how an
 //! external node in a package's MAST resolves to one of their procedures.
 
 use std::sync::Arc;

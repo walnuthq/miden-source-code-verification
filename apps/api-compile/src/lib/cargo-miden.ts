@@ -104,8 +104,7 @@ export const readCargoLock = async ({
   }
 };
 
-// The package's directory under `MIDENC_TARGET_DIR`: the release profile's
-// name.
+// The package's directory under `MIDENC_TARGET_DIR`: the release profile.
 export const RELEASE_DIR = "release";
 
 // Cargo and midenc name `--offline` in every failure it causes: a crate that

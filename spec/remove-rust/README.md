@@ -12,7 +12,7 @@ Each plan is written for one agent in one session and ends in one PR. Start a se
 
 | Plan                                                                    | Rollout step | Depends on                | Needs a go-ahead from the user         |
 | ----------------------------------------------------------------------- | ------------ | ------------------------- | -------------------------------------- |
-| [01 Helper tools on the 0.18 crates](01-helper-tools-on-0.18.md)        | 2            | none                      | no (done: also retired debug builds)   |
+| [01 Helper tools on the 0.18 crates](01-helper-tools-on-0.18.md)        | 2            | none                      | no                                     |
 | [02 The `miden-assemble` helper tool](02-miden-assemble-tool.md)        | 2            | 01                        | no                                     |
 | [03 api-compile builds MASM projects](03-api-compile-masm-path.md)      | 2            | 02                        | no                                     |
 | [04 MASM fixtures on Testnet](04-testnet-masm-fixtures.md)              | 2            | 03                        | yes: Testnet deploys                   |

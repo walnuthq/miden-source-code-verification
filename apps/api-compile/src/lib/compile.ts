@@ -56,11 +56,10 @@ type CompileArgs = {
   masm?: boolean;
   // Filled with how long each part took: `layout` (waiting for the build's
   // view of the warm cache), `cargo` (the release build), `tools` (reading the
-  // package) and `cleanup`. Two are not
-  // part of the request. `prepare`: how long the view this build took had
-  // taken to make, after the build before it. `preload`, on the first build
-  // of a process only: how long reading that build's files at startup took,
-  // when it was over before the build began.
+  // package) and `cleanup`. Two are not part of the request. `prepare`: how
+  // long the view this build took had taken to make, after the build before
+  // it. `preload`, on the first build of a process only: how long reading that
+  // build's files at startup took, when it was over before the build began.
   timings?: Timings;
   signal?: AbortSignal;
 };

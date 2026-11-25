@@ -16,7 +16,7 @@ The registry verifies, stores and serves a MASM project as it does a Rust one. R
 
 - `apps/api-registry/src/lib/verify-resource.ts` sends a project to api-compile's `/verify` and writes the record (`verified-record.ts`, `db/packages.ts`). `lib/api-compile.ts` is the port to api-compile.
 - `db/schema.ts`, `packages` table: `built_with` and `debug_built_with` are documented as cargo-miden versions, `parameters` as read from WIT, `schemas` holds the storage schemas, `files` holds the sources with `Cargo.lock`.
-- The `.debug.masp` route serves the debug packages stored before plan 01, which stopped making them; `storage/masp-store.ts` stores both files.
+- The `.debug.masp` route serves the debug builds stored before plan 01, which stopped making them; `storage/masp-store.ts` stores both files.
 - `packageMaspPath` names the download as Rust spells the crate (`counter_contract.masp`).
 - The OpenAPI annotations in `app.ts` and `routes/v1/*.ts` describe a "compiled Rust source package", `Cargo.toml` and `Cargo.lock`. `apps/api-docs` publishes them.
 - The registry validates uploaded projects with `packages/utils/src/project.ts`, which plan 03 taught about MASM projects.

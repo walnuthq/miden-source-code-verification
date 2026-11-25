@@ -12,6 +12,8 @@
 
 `miden-import`, `miden-verifier`, `miden-package-metadata` and `generate-fixtures` build against the crates of the 0.18 protocol (the 0.36 VM crates), so they can read a MASM package that carries debug info. Nothing else changes: Rust projects still build with `cargo-miden` 0.11.0 and every existing suite passes.
 
+> Amended on 2026-11-25 while executing: the bumped tools can't read a `cargo-miden` 0.11.0 dev package, so the user chose to retire Rust debug builds in this plan too. See decision 4 in `README.md`.
+
 ## Why
 
 A 0.35-based `miden-package-metadata` fails on a dev package built by `miden-assembly` 0.36: `unsupported debug_info version: 4, expected 3`. Plans 02 and 03 keep the dev package (decision 5), so the tools must be bumped first.
