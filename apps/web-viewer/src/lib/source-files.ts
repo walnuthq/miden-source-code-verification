@@ -6,7 +6,10 @@ import type {
   NoteStorageField,
   StorageSlotSchema,
 } from "miden-source-code-verification-utils/manifest";
-import { cargoPackageName } from "miden-source-code-verification-utils/project";
+import {
+  cargoPackageName,
+  midenProjectLibrary,
+} from "miden-source-code-verification-utils/project";
 import type { PackageDependency } from "@/lib/api-registry.server";
 import { PUBLIC_API_REGISTRY_URL } from "@/lib/constants";
 import type { PackageProcedure } from "@/lib/procedure-signatures";
@@ -80,17 +83,20 @@ export type FileTreeNode = {
   children?: FileTreeNode[];
 };
 
-const MANIFESTS = ["Cargo.toml", "miden-project.toml"];
+const CARGO_TOML = "Cargo.toml";
+const MIDEN_PROJECT_TOML = "miden-project.toml";
+const MANIFESTS = [CARGO_TOML, MIDEN_PROJECT_TOML];
 
-// The files a package's Source Code section shows: its manifests and the Rust
-// sources under a `src/` dir. Paths can be prefixed by a project dir when the
-// upload held local dependencies too (`counter-note/src/lib.rs`), so both are
+// The files a package's Source Code section shows: its manifests, the MASM
+// modules, and the Rust sources under a `src/` dir. Paths can be prefixed by a
+// project dir when the upload held local dependencies too
+// (`counter-note/src/lib.rs`, `counter-note/counter_note.masm`), so all are
 // matched at any depth. The rest of what the verifier kept (lockfiles, build
 // scripts, toolchain and Cargo config) is dropped.
 export function isDisplayedSourceFile(path: string): boolean {
   const parts = path.split("/");
   const name = parts[parts.length - 1];
-  if (MANIFESTS.includes(name)) {
+  if (MANIFESTS.includes(name) || name.endsWith(".masm")) {
     return true;
   }
   return name.endsWith(".rs") && parts.slice(0, -1).includes("src");
@@ -104,33 +110,70 @@ export function filterSourceFiles(
   );
 }
 
-// The file a package's viewer opens first: the `src/lib.rs` of the crate the
-// package was built from, i.e. the one whose Cargo.toml carries the package's
-// name, since an upload can also hold the crate's local dependencies. Falls
-// back to any `src/lib.rs`, then to the first file.
+// The directory part of a manifest's path, with its trailing `/`: `` at the
+// root.
+const directoryOf = (manifestPath: string, manifest: string) =>
+  manifestPath.slice(0, -manifest.length);
+
+// `dir` (`` or ending in `/`) joined with a manifest's relative path, its `.`
+// and `..` segments resolved: `counter-note/` and `../shared/lib.masm` give
+// `shared/lib.masm`.
+const resolvePath = (dir: string, relative: string) => {
+  const segments: string[] = [];
+  for (const segment of `${dir}${relative}`.split("/")) {
+    if (segment === "..") {
+      segments.pop();
+    } else if (segment !== "." && segment !== "") {
+      segments.push(segment);
+    }
+  }
+  return segments.join("/");
+};
+
+const isManifest = (path: string, manifest: string) =>
+  path === manifest || path.endsWith(`/${manifest}`);
+
+// The file a package's viewer opens first: the root module of the project the
+// package was built from, i.e. the one whose manifest carries the package's
+// name, since an upload can also hold the project's local dependencies. For a
+// Rust project that's the `src/lib.rs` next to its `Cargo.toml`; for a MASM
+// project, a `miden-project.toml` with no `Cargo.toml` beside it, the module
+// its `[lib] path` names. Falls back to any `src/lib.rs`, then to the first
+// MASM module, then to the first file.
 export function findEntryFile(
   files: Record<string, string>,
   packageName: string,
 ): string | null {
   const paths = Object.keys(files).sort();
   for (const path of paths) {
-    if (path !== "Cargo.toml" && !path.endsWith("/Cargo.toml")) {
-      continue;
-    }
-    const libPath = `${path.slice(0, -"Cargo.toml".length)}src/lib.rs`;
-    // A manifest that doesn't parse, or has no [package], can't be the entry.
-    // Both names come from a Cargo.toml, so they match exactly or not at all.
-    if (
-      libPath in files &&
-      cargoPackageName(files[path] ?? "") === packageName
-    ) {
-      return libPath;
+    if (isManifest(path, CARGO_TOML)) {
+      const libPath = `${directoryOf(path, CARGO_TOML)}src/lib.rs`;
+      // A manifest that doesn't parse, or has no [package], can't be the
+      // entry. Both names come from a manifest, so they match exactly or not
+      // at all.
+      if (
+        libPath in files &&
+        cargoPackageName(files[path] ?? "") === packageName
+      ) {
+        return libPath;
+      }
+    } else if (isManifest(path, MIDEN_PROJECT_TOML)) {
+      const dir = directoryOf(path, MIDEN_PROJECT_TOML);
+      if (`${dir}${CARGO_TOML}` in files) {
+        continue;
+      }
+      const library = midenProjectLibrary(files[path] ?? "");
+      const libPath = library?.libPath && resolvePath(dir, library.libPath);
+      if (library?.name === packageName && libPath && libPath in files) {
+        return libPath;
+      }
     }
   }
   return (
     paths.find(
       (path) => path === "src/lib.rs" || path.endsWith("/src/lib.rs"),
     ) ??
+    paths.find((path) => path.endsWith(".masm")) ??
     paths[0] ??
     null
   );

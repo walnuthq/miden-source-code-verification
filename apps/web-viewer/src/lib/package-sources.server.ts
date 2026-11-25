@@ -3,9 +3,11 @@ import toml from "@shikijs/langs/toml";
 import githubDark from "@shikijs/themes/github-dark";
 import githubLight from "@shikijs/themes/github-light";
 import type { Package } from "miden-source-code-verification-utils/api-registry";
+import { storedProjectKind } from "miden-source-code-verification-utils/project";
 import { createHighlighterCore, type HighlighterCore } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 
+import { masmGrammar } from "@/lib/masm/grammar";
 import { packageProcedures } from "@/lib/procedure-signatures";
 import {
   filterSourceFiles,
@@ -16,19 +18,25 @@ import { formatUtcTimestamp } from "@/lib/timestamps";
 
 // Created on first use and kept for the life of the server instance (Node
 // process or Worker isolate): compiling the grammars is the expensive part.
-// Only the two languages and themes the pages need are bundled, and the
-// JavaScript regex engine replaces Shiki's default Oniguruma WASM one, which
-// Workers can't instantiate from bytes.
+// Only the three languages and two themes the pages need are bundled (MASM's
+// grammar is this repo's own, `masm/grammar.ts`), and the JavaScript regex
+// engine replaces Shiki's default Oniguruma WASM one, which Workers can't
+// instantiate from bytes.
 let highlighter: Promise<HighlighterCore> | undefined;
 
 function getHighlighter() {
   highlighter ??= createHighlighterCore({
     themes: [githubLight, githubDark],
-    langs: [rust, toml],
+    langs: [masmGrammar, rust, toml],
     engine: createJavaScriptRegexEngine(),
   });
   return highlighter;
 }
+
+// The language a displayed file is highlighted as: the only other files shown
+// are manifests (see `isDisplayedSourceFile`).
+const languageOf = (path: string) =>
+  path.endsWith(".masm") ? "masm" : path.endsWith(".rs") ? "rust" : "toml";
 
 // A package's sources as its Source Code section renders them: the displayed
 // files, highlighted here so no highlighter ships to the browser, plus every
@@ -41,6 +49,7 @@ export async function loadPackageSources(
     name,
     commitment,
     files,
+    entrypoint,
     manifest,
     readOnly,
     parameters,
@@ -59,6 +68,7 @@ export async function loadPackageSources(
     commitment,
     hasDebugBuild: debugCommitment !== null,
     procedures: packageProcedures({
+      kind: storedProjectKind(files, entrypoint),
       manifest,
       readOnly,
       parameters,
@@ -78,7 +88,7 @@ export async function loadPackageSources(
       .map((path) => ({
         path,
         html: codeToHtml(displayedFiles[path], {
-          lang: path.endsWith(".rs") ? "rust" : "toml",
+          lang: languageOf(path),
           themes: { light: "github-light", dark: "github-dark" },
           defaultColor: false,
         }),

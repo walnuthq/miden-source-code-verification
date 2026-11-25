@@ -1,6 +1,7 @@
 import { FileCode, FileCog } from "lucide-react";
 
-// Rust sources get a code icon, manifests (the only other files shown) a cog.
+// MASM and Rust sources get a code icon, manifests (the only other files
+// shown) a cog.
 export function FileIcon({
   path,
   className,
@@ -8,6 +9,7 @@ export function FileIcon({
   path: string;
   className?: string;
 }) {
-  const Icon = path.endsWith(".rs") ? FileCode : FileCog;
+  const Icon =
+    path.endsWith(".masm") || path.endsWith(".rs") ? FileCode : FileCog;
   return <Icon className={className} data-icon="inline-start" />;
 }

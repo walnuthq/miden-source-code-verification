@@ -122,10 +122,11 @@ describe("procedureName", () => {
   });
 });
 
-describe("packageProcedures", () => {
+describe("packageProcedures of a Rust package", () => {
   describe("with the WIT's names", () => {
     it("writes each signature from the names and the manifest's types, in manifest order", () => {
       const procedures = packageProcedures({
+        kind: "rust",
         ...bank,
         parameters: bankParameters,
       });
@@ -161,6 +162,7 @@ describe("packageProcedures", () => {
 
     it("writes a note's entrypoint with only the argument it is given", () => {
       const procedures = packageProcedures({
+        kind: "rust",
         ...exported([
           notePath,
           "0x01",
@@ -176,6 +178,7 @@ describe("packageProcedures", () => {
     it("writes Rust's integers, arrays, lists, and a type the manifest leaves unnamed", () => {
       const path = counterPath("mix");
       const procedures = packageProcedures({
+        kind: "rust",
         ...exported([
           path,
           "0x01",
@@ -209,6 +212,7 @@ describe("packageProcedures", () => {
 
     it("leaves out exports that aren't account procedures", () => {
       const procedures = packageProcedures({
+        kind: "rust",
         ...exported(
           [
             counterPath('"get-count"'),
@@ -227,12 +231,149 @@ describe("packageProcedures", () => {
 
   it("writes `_` for each parameter of an export the names leave out", () => {
     const { [bankPath("deposit")]: _, ...parameters } = bankParameters;
-    const procedures = packageProcedures({ ...bank, parameters });
+    const procedures = packageProcedures({
+      kind: "rust",
+      ...bank,
+      parameters,
+    });
     expect(signatures(procedures)).toEqual([
       "fn get_depositor_balance(depositor: AccountId, asset: Asset) -> Felt;",
       "fn deposit(_: AccountId, _: Asset);",
       "fn initialize();",
       "fn withdraw(withdraw_asset: Asset, serial_num: Word, tag: Felt, note_type: Felt);",
+    ]);
+  });
+});
+
+// The MASM examples' exports, as api-compile reads them: paths of the
+// namespace and the procedure, types as the assembler records them.
+const masmPath = (name: string) => `::counter_contract::${name}`;
+const asset: Type = {
+  Struct: {
+    name: "Asset",
+    repr: "Default",
+    size: 32,
+    fields: [
+      {
+        name: "id",
+        index: 0,
+        align: 4,
+        offset: 0,
+        ty: { Array: { ty: "Felt", len: 4 } },
+      },
+      {
+        name: "value",
+        index: 1,
+        align: 4,
+        offset: 16,
+        ty: { Array: { ty: "Felt", len: 4 } },
+      },
+    ],
+  },
+};
+
+describe("packageProcedures of a MASM package", () => {
+  const counter = exported(
+    [masmPath("get_count"), "0x01", 3, true, { params: [], results: ["Felt"] }],
+    [
+      masmPath("increment_count"),
+      "0x02",
+      3,
+      false,
+      { params: ["Felt"], results: [] },
+    ],
+  );
+
+  it("writes each signature from the source's names and types, in manifest order", () => {
+    const procedures = packageProcedures({
+      kind: "masm",
+      ...counter,
+      parameters: {
+        [masmPath("get_count")]: [],
+        [masmPath("increment_count")]: [{ name: "amount", type: "felt" }],
+      },
+    });
+    expect(procedures).toEqual([
+      {
+        name: "get_count",
+        signature: "pub proc get_count() -> felt",
+        digest: "0x01",
+        readOnly: true,
+      },
+      {
+        name: "increment_count",
+        signature: "pub proc increment_count(amount: felt)",
+        digest: "0x02",
+        readOnly: false,
+      },
+    ]);
+  });
+
+  it("writes a struct by its declared name and the integers as MASM's", () => {
+    const path = masmPath("move_asset_to_note");
+    const procedures = packageProcedures({
+      kind: "masm",
+      ...exported([
+        path,
+        "0x01",
+        3,
+        false,
+        { params: [asset, "U16"], results: [] },
+      ]),
+      parameters: {
+        [path]: [
+          { name: "asset", type: "Asset" },
+          { name: "note_idx", type: "u16" },
+        ],
+      },
+    });
+    expect(signatures(procedures)).toEqual([
+      "pub proc move_asset_to_note(asset: Asset, note_idx: u16)",
+    ]);
+  });
+
+  it("writes only the types of a procedure without names", () => {
+    const path = masmPath("mix");
+    const procedures = packageProcedures({
+      kind: "masm",
+      ...exported([
+        path,
+        "0x01",
+        3,
+        null,
+        {
+          params: [
+            { Array: { ty: "Felt", len: 4 } },
+            "I1",
+            "U64",
+            asset,
+            { Array: { ty: "U32", len: 2 } },
+            { Ptr: { addrspace: "Element", pointee: "Felt" } },
+            { Struct: { name: null, repr: "Default", size: 8, fields: [] } },
+          ],
+          results: ["Felt", "Felt"],
+        },
+      ]),
+      parameters: {},
+    });
+    expect(signatures(procedures)).toEqual([
+      "pub proc mix(word, i1, u64, Asset, [u32; 2], ptr<felt>, _) -> (felt, felt)",
+    ]);
+  });
+
+  it("keeps a quoted name and writes a note's entrypoint", () => {
+    const quoted = '::counter_contract::"get-count"';
+    const procedures = packageProcedures({
+      kind: "masm",
+      ...exported(
+        [quoted, "0x01", 3, true, { params: [], results: ["Felt"] }],
+        ["::counter_note::main", "0x02", 3, null],
+      ),
+      parameters: { "::counter_note::main": [] },
+    });
+    expect(signatures(procedures)).toEqual([
+      'pub proc "get-count"() -> felt',
+      "pub proc main()",
     ]);
   });
 });

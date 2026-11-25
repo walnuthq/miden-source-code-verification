@@ -171,9 +171,9 @@ function MaspDownloadButton({
   );
 }
 
-// Each procedure as its Rust signature; its copy button copies the digest,
-// which is what the account's code holds. Whether it is read-only sits at the
-// right end, in line with the download buttons above.
+// Each procedure as its signature, in MASM or Rust; its copy button copies the
+// digest, which is what the account's code holds. Whether it is read-only sits
+// at the right end, in line with the download buttons above.
 function ProcedureList({ procedures }: { procedures: PackageProcedure[] }) {
   return (
     <ul className="flex flex-col">
