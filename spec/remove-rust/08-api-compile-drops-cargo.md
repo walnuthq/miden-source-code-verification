@@ -26,7 +26,7 @@ After plan 03 the MASM path lives in `src/lib/assemble.ts` and the cargo path in
 6. Timeouts and queue in `constants.ts` come down to seconds. The Cloudflare Worker's compile timeout (`apps/api-compile-cloudflare`, 420 s) and the registry's follow. Revisit the container's instance type (`standard-2` was chosen for the cache and cargo) and say what you measured.
 7. Examples: delete the Rust projects; move `examples/masm/*` up to `examples/`.
 8. Tests: delete the cargo suites, keep `import`, `limiter`, `helper-tools`, `errors`, `verify` and the MASM suite. Add the 400 of step 1.
-9. Fixtures: `generate-fixtures` loses its cargo mode; the Rust fixtures leave `packages/test-utils/src/fixtures.ts` and the MASM ones take their names. Nothing is deployed: plan 04's resources are reused.
+9. Fixtures: `generate-fixtures` loses its cargo mode; the Rust fixtures leave `packages/test-utils/src/fixtures.ts`, and the MASM ones (`masm-fixtures.ts` since plan 04, from `--mode masm`) move into it and take their names. Nothing is deployed: plan 04's resources are reused.
 10. `apps/status-page`: the probe compiles and verifies the MASM fixture, and its copy stops saying Rust.
 11. `.github/workflows/deploy-api-compile-cloudflare.yml`: drop the image-cache warm-up that exists for the 30-minute cold build, if nothing else needs it.
 12. Supersede ADR 0005 and ADR 0006; delete `docs/claude/warm-lockfile.md` and `debug-builds.md`, and their rows and the lockfile rule in `CLAUDE.md`.

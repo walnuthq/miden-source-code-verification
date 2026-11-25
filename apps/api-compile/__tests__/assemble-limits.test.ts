@@ -6,11 +6,12 @@ import compileRouter from "../src/routes/compile.ts";
 import { useFakeTool } from "./fake-tool.ts";
 
 // The MASM path in-process, with fake tools: its deadline, its queue, and
-// what it answers from what the tools print. One slot, no queue, a one-second
-// deadline.
+// what it answers from what the tools print. One slot, no queue, a 3 s
+// deadline: at 1 s, a cold exec of the two fake tools under a full parallel
+// `pnpm check` missed it (2026-11-25).
 vi.mock("../src/lib/constants.ts", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/lib/constants.ts")>()),
-  ASSEMBLE_DEADLINE_MS: 1_000,
+  ASSEMBLE_DEADLINE_MS: 3_000,
   ASSEMBLE_CONCURRENCY: 1,
   ASSEMBLE_QUEUE_SIZE: 0,
 }));
@@ -45,7 +46,7 @@ describe("POST /compile a MASM project when the assembler hangs", () => {
     const res = await first;
     expect(res.status).toBe(504);
     expect(res.body).toEqual({
-      error: "the build did not finish within 1s",
+      error: "the build did not finish within 3s",
     });
     expect(Date.now() - start).toBeLessThan(10_000);
   }, 15_000);

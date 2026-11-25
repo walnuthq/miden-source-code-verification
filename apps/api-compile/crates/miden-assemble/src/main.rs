@@ -11,24 +11,13 @@
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;
+use miden_assemble::build;
 use miden_assembly::diagnostics::Report;
-use miden_assembly::{Assembler, ProjectTargetSelector, debuginfo::SourceManager};
-use miden_core_lib::CoreLibrary;
-use miden_mast_package::Package;
-use miden_package_registry::{InMemoryPackageRegistry, PackageCache};
-use miden_protocol::{ProtocolLib, transaction::TransactionKernel};
-use miden_standards::StandardsLib;
 use serde_json::{Value, json};
 use std::path::{Component, Path, PathBuf};
-use std::sync::Arc;
 
 mod confine;
 mod diagnostics;
-mod sources;
-
-/// The profile every build uses: the dev one keeps the debug info, and shares
-/// its procedure roots and commitment with a release build.
-const PROFILE: &str = "dev";
 
 /// The versions the tool was built with, read from the lockfile by `build.rs`.
 const BUILT_WITH: &str = env!("MIDEN_ASSEMBLE_BUILT_WITH");
@@ -136,26 +125,4 @@ fn failed(report: &Report, root: &Path, diagnostics: Vec<Value>) -> Value {
         "rendered": diagnostics::render(report, root),
         "diagnostics": diagnostics,
     })
-}
-
-/// One assembly of the project whose manifest is `manifest`, in the project at
-/// `root`, against the core, protocol, transaction kernel and standards
-/// packages. Its sources are named relative to `root`.
-fn build(manifest: &Path, root: &Path, warnings_as_errors: bool) -> Result<Arc<Package>, Report> {
-    let mut registry = InMemoryPackageRegistry::default();
-    for package in [
-        CoreLibrary::default().package(),
-        ProtocolLib::default().package(),
-        TransactionKernel::package(),
-        StandardsLib::default().package(),
-    ] {
-        registry
-            .cache_package(package)
-            .expect("the four packages are distinct");
-    }
-    let source_manager: Arc<dyn SourceManager> = Arc::new(sources::ProjectSourceManager::new(root));
-    Assembler::new(source_manager)
-        .with_warnings_as_errors(warnings_as_errors)
-        .for_project_at_path(manifest, &mut registry)?
-        .assemble(ProjectTargetSelector::Library, PROFILE)
 }

@@ -23,7 +23,7 @@ Close what the spike left open: a MASM-built account and note, deployed on a liv
 1. Read `docs/claude/testing.md` and `generate-fixtures`' source.
 2. Extend `generate-fixtures` with a MASM mode that builds `examples/masm/counter-contract` and `examples/masm/counter-note` with `miden-assemble`'s library code (not through cargo), and deploys one account from the counter component and one note from the counter note. The Rust mode keeps working and its fixtures are not regenerated.
 3. After the user's go-ahead: run the MASM mode against Testnet. Record the account id, the note id and the commitments.
-4. Add them to `packages/test-utils/src/fixtures.ts` as new, MASM-named fixtures. Don't rename or remove the Rust ones.
+4. Add them as new, MASM-named fixtures. Don't rename or remove the Rust ones. Done in a file of their own, `packages/test-utils/src/masm-fixtures.ts` (`pnpm generate-masm-fixtures`), re-exported from the package's index: the Rust mode rewrites all of `fixtures.ts` and would drop them.
 5. Add tests to `apps/api-compile/__tests__/verify.test.ts`: `POST /verify` with the MASM counter project answers `verified: true` for the account, the same for the note with its dependency, and `verified: false` for the counter with a changed constant.
 6. Run `miden-import` on the new account and note through the import route, and check the answer's shape matches a Rust-deployed resource's.
 

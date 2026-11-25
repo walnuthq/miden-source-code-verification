@@ -116,6 +116,7 @@ fn note_entry(key: &str, note: &Note) -> String {
     )
 }
 
-fn entry(key: &str, resource: &str, code: &str) -> String {
+/// One entry of an `accounts` or `notes` map; the MASM file shares it.
+pub(crate) fn entry(key: &str, resource: &str, code: &str) -> String {
     format!("  [{key}]: {{\n    resource:\n      \"{resource}\",\n    code: \"{code}\",\n  }},\n")
 }

@@ -5,4 +5,7 @@ use counter_contract
 pub proc main()
     push.1
     call.counter_contract::increment_count
+    # The call leaves its 16 outputs over the amount: drop one, so the
+    # script ends at the depth of 16 it started with.
+    drop
 end

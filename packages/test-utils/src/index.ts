@@ -6,6 +6,9 @@ import path from "node:path";
 // the api-compile test suite and the status-page probe read them from here, so a
 // change to the dataset reaches both at once.
 export * from "./fixtures.ts";
+// The MASM fixtures, generated apart from the Rust ones by
+// `pnpm generate-masm-fixtures`.
+export * from "./masm-fixtures.ts";
 export * from "./request.ts";
 
 export const readProjectFiles = async (rootDir: string) => {
