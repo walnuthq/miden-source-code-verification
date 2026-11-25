@@ -45,23 +45,10 @@ export type BuiltPackage = {
   files: Record<string, string>;
 };
 
-// A debug build of the same sources: its package with debug info, which names
-// call-trace frames but has other procedure roots than the release build. It
-// never fails the request it's part of, so a failure is an `error`.
-export type DebugBuild =
-  | {
-      masp: string;
-      commitment: string;
-      manifest: Manifest;
-      cargoMidenVersion?: string;
-    }
-  | { error: string };
-
-// The release build's Miden Assembly, as text. Like the debug build, it never
-// fails the request it's part of, so a failure is an `error`. It's for
-// reading: it calls library procedures (`miden::protocol::*`, `intrinsics::*`)
-// without including them, so it doesn't reassemble into the package on its
-// own.
+// The release build's Miden Assembly, as text. It never fails the request
+// it's part of, so a failure is an `error`. It's for reading: it calls library
+// procedures (`miden::protocol::*`, `intrinsics::*`) without including them,
+// so it doesn't reassemble into the package on its own.
 export type MasmOutput = { source: string } | { error: string };
 
 // `POST /compile`: the build's outcome, with cargo-miden's output either way.
@@ -73,8 +60,6 @@ export type CompileResponse =
       built: true;
       stdout: string;
       stderr: string;
-      // Set when `debug` was requested.
-      debug?: DebugBuild;
       // Set when `masm` was requested.
       masm?: MasmOutput;
     } & BuiltPackage);
@@ -89,14 +74,7 @@ export type VerifyResponse = {
   root: string;
   // The cargo-miden that built it. Absent when its version couldn't be read.
   cargoMidenVersion?: string;
-  // Set when `debug` was requested. Its failure is `debug.error`, which never
-  // changes `verified`.
-  debug?: DebugBuild;
 } & BuiltPackage;
-
-// `POST /compile-debug`, when the release build still has the expected
-// commitment (a 409 otherwise, and a 400 for a failed build).
-export type CompileDebugResponse = { debug: DebugBuild };
 
 // A standard account component `miden-import` detected in an account's code,
 // with the procedure roots it claims.

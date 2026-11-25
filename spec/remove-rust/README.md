@@ -12,7 +12,7 @@ Each plan is written for one agent in one session and ends in one PR. Start a se
 
 | Plan                                                                    | Rollout step | Depends on                | Needs a go-ahead from the user         |
 | ----------------------------------------------------------------------- | ------------ | ------------------------- | -------------------------------------- |
-| [01 Helper tools on the 0.18 crates](01-helper-tools-on-0.18.md)        | 2            | none                      | no                                     |
+| [01 Helper tools on the 0.18 crates](01-helper-tools-on-0.18.md)        | 2            | none                      | no (done: also retired debug builds)   |
 | [02 The `miden-assemble` helper tool](02-miden-assemble-tool.md)        | 2            | 01                        | no                                     |
 | [03 api-compile builds MASM projects](03-api-compile-masm-path.md)      | 2            | 02                        | no                                     |
 | [04 MASM fixtures on Testnet](04-testnet-masm-fixtures.md)              | 2            | 03                        | yes: Testnet deploys                   |
@@ -49,6 +49,7 @@ Taken by the user on 2026-11-24 and 2026-11-25. The numbers are those of the Pla
 2. No schemas. A MASM package has no storage schema and no note storage schema, and none is planned upstream (an assumption). api-compile stops returning `storage` and `noteStorage`; the registry stops writing its `schemas` column and drops it later; the viewer's storage listings go.
 3. Parameter names come from the MASM source's AST. The package manifest has the types only.
 4. One package with debug info. A dev and a release assembly share procedure roots, MAST forest commitment and `dependency_commitment` (the commitment api-compile reports). The verified package is the dev one. `POST /compile-debug`, `debugCommitment`, `debugBuiltWith` and the `.debug.masp` route go when cargo goes. Walnut's simulator reads debug builds from the registry: its team is told before that ships.
+   - Changed on 2026-11-25, in plan 01: the 0.36 helper tools can't read a `cargo-miden` 0.11.0 dev package (`unsupported debug_info version: 3, expected 4`), so the user chose to stop making Rust debug builds then. `POST /compile-debug`, the `debug` request flag and answer key, `DebugBuild`, `CompileDebugResponse` and the registry's debug-build backfill are gone; no new row gets a debug build. The `.debug.masp` route, `X-Debug-Commitment`, `debugPackage` and the columns still serve the debug builds stored before, until plans 09 and 10.
 5. Rust-built packages and their verified records are deleted when cargo leaves api-compile, on Mainnet too. No discriminator column. It is a destructive production step, run once on an explicit go-ahead.
 6. A Playground script is one MASM file plus a generated `miden-project.toml`. Projects uploaded to the verifier can have more modules and path dependencies.
 7. Both paths live in api-compile until the Playground has switched: a project with a `Cargo.toml` at its entrypoint is a Rust project, any other is a MASM project. Cargo is removed last.

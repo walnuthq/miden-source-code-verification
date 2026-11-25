@@ -7,7 +7,6 @@ import {
 import { nextLayoutSettled, stopPreload } from "./lib/compile.ts";
 import { ALLOWED_ORIGINS, PORT, SHUTDOWN_TIMEOUT_MS } from "./lib/constants.ts";
 import compileRouter from "./routes/compile.ts";
-import compileDebugRouter from "./routes/compile-debug.ts";
 import healthRouter from "./routes/health.ts";
 import importRouter from "./routes/import.ts";
 import lockfileRouter from "./routes/lockfile.ts";
@@ -40,7 +39,6 @@ app.use(express.json({ limit: "1mb" }));
 
 app.use(healthRouter);
 app.use(compileRouter);
-app.use(compileDebugRouter);
 app.use(verifyRouter);
 app.use(importRouter);
 app.use(lockfileRouter);

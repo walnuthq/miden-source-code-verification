@@ -252,7 +252,8 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *           description: >
  *             Commitment of the package's debug build (32-byte hex), served as
  *             `/v1/{networkId}/packages/masp/{commitment}.debug.masp`. Null
- *             when it has none yet.
+ *             when it has none: packages verified since debug builds were
+ *             retired have none.
  *         debugBuiltWith:
  *           type: [string, "null"]
  *           description: Version of cargo-miden that built the debug build, when known.

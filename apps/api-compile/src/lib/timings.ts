@@ -8,7 +8,6 @@ export type Part =
   | "prepare"
   | "cargo"
   | "tools"
-  | "debug"
   | "cleanup";
 export type Timings = Partial<Record<Part, number>>;
 

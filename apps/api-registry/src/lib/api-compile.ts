@@ -1,6 +1,5 @@
 import type { Request } from "express";
 import type {
-  CompileDebugResponse,
   ImportedResource,
   VerifyResponse,
 } from "miden-source-code-verification-utils/api-compile";
@@ -43,8 +42,6 @@ export type ApiCompile = {
     project: Project;
     networkId: string;
     resourceId: string;
-    /** Whether to build the debug variant too. */
-    debug: boolean;
     /** Aborts the call, as when the registry's own client went away. */
     signal?: AbortSignal;
   }): Promise<VerifyResponse>;
@@ -53,18 +50,6 @@ export type ApiCompile = {
     networkId: string;
     resourceId: string;
   }): Promise<ImportedResource>;
-  /**
-   * Rebuilds a stored package's sources in the dev profile, for the debug
-   * build backfill. api-compile answers 409 when the release build no longer
-   * has `expectedCommitment`.
-   */
-  compileDebug(input: {
-    files: Record<string, string>;
-    entrypoint: string;
-    expectedCommitment: string;
-    /** Aborts the call, as when the registry's own client went away. */
-    signal?: AbortSignal;
-  }): Promise<CompileDebugResponse>;
 };
 
 const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
@@ -114,12 +99,11 @@ export const createHttpApiCompile = (baseUrl: string): ApiCompile => ({
     project: { files, entrypoint },
     networkId,
     resourceId,
-    debug,
     signal,
   }) => {
     const response = await postBuild<VerifyResponse>(
       `${baseUrl}/verify`,
-      { files, entrypoint, networkId, resourceId, debug },
+      { files, entrypoint, networkId, resourceId },
       signal,
     );
     // An api-compile from before `root` was answered, as the one still
@@ -138,8 +122,6 @@ export const createHttpApiCompile = (baseUrl: string): ApiCompile => ({
       `${baseUrl}/${networkId}/import/${resourceId}`,
       { signal: AbortSignal.timeout(API_COMPILE_IMPORT_TIMEOUT_MS) },
     ),
-  compileDebug: ({ signal, ...input }) =>
-    postBuild<CompileDebugResponse>(`${baseUrl}/compile-debug`, input, signal),
 });
 
 /** The api-compile `createApp` attached to the app handling `req`. */

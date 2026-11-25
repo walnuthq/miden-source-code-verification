@@ -26,7 +26,8 @@ const router: Router = Router();
  *       call-trace frames. It has its own commitment, sent in
  *       `X-Debug-Commitment`, and other procedure roots: it isn't the deployed
  *       code and doesn't verify anything. `{packageCommitment}` is still the
- *       release build's.
+ *       release build's. Only packages verified before debug builds were
+ *       retired have one.
  *     parameters:
  *       - in: path
  *         name: networkId

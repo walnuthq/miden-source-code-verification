@@ -14,7 +14,6 @@ import {
 } from "../db/schema.ts";
 import type { MaspStore } from "../storage/masp-store.ts";
 import type { ApiCompile } from "./api-compile.ts";
-import { storeDebugBuild } from "./debug-build.ts";
 import { PLAYGROUND_SOURCE } from "./playground.ts";
 
 // The on-chain resource a verification or a lookup is for, named by its id.
@@ -260,9 +259,6 @@ export const verifyResource = async ({
     project,
     networkId,
     resourceId,
-    // The debug build names call-trace frames in the simulator, which only
-    // runs account procedures.
-    debug: resource.kind === "account",
     signal,
   });
   if (!build.verified) {
@@ -279,7 +275,7 @@ export const verifyResource = async ({
   }
   // The package and its record commit together: a verification is recorded
   // whole or not at all.
-  const packageId = await db.transaction(async (tx) => {
+  await db.transaction(async (tx) => {
     const packageId = stored?.id ?? (await insertPackage(tx, project, build));
     if (resource.kind === "account") {
       await insertAccountComponent(tx, {
@@ -298,18 +294,6 @@ export const verifyResource = async ({
         source,
       });
     }
-    return packageId;
   });
-  // After the commit, so its failure can't undo the record: it is logged and
-  // leaves the package without one, as the release build alone is what
-  // verifies. Also for a package stored before it had a debug build.
-  if (!stored?.debugCommitment) {
-    await storeDebugBuild({
-      maspStore,
-      packageId,
-      commitment,
-      debug: build.debug,
-    }).catch((error) => console.error(error));
-  }
   return true;
 };

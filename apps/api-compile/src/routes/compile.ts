@@ -10,13 +10,12 @@ const router = Router();
 type CompileRequestBody = {
   files?: unknown;
   entrypoint?: unknown;
-  debug?: boolean;
   warmLockfile?: boolean;
   masm?: boolean;
 };
 
 router.post("/compile", async (req, res) => {
-  const { files, entrypoint, debug, warmLockfile, masm } =
+  const { files, entrypoint, warmLockfile, masm } =
     req.body as CompileRequestBody;
   const opened = openProject(files, entrypoint);
   if ("error" in opened) {
@@ -27,7 +26,6 @@ router.post("/compile", async (req, res) => {
   const build = await queueCompile(
     {
       project: opened.project,
-      debug: debug === true,
       warmLockfile: warmLockfile === true,
       masm: masm === true,
       timings,
@@ -61,7 +59,6 @@ router.post("/compile", async (req, res) => {
     storage,
     noteStorage,
     files: compiledFiles,
-    debug: debugBuild,
     masm: masmOutput,
   } = build;
   res.json({
@@ -79,7 +76,6 @@ router.post("/compile", async (req, res) => {
     storage,
     noteStorage,
     files: compiledFiles,
-    debug: debugBuild,
     masm: masmOutput,
   } satisfies CompileResponse);
 });

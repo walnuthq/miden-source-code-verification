@@ -70,8 +70,12 @@ pub fn storage(package: &Package) -> Option<Value> {
 /// has no note storage schema.
 pub fn note_storage(package: &Package) -> Option<Value> {
     let id = SectionId::custom(NOTE_STORAGE_SCHEMA_SECTION).expect("a valid section id");
-    section(package, &id)?;
-    let schema = NoteStorageSchema::from_package(package)
+    let bytes = section(package, &id)?;
+    // `NoteStorageSchema::from_package` takes the 0.35 `Package` the schema
+    // reader is built on, so the section's WIT text is handed over instead.
+    let schema = core::str::from_utf8(bytes)
+        .map_err(|error| error.to_string())
+        .and_then(|text| NoteStorageSchema::from_wit_text(text).map_err(|error| error.to_string()))
         .inspect_err(|error| eprintln!("failed to read the note storage schema: {error}"))
         .ok()?;
     let root = schema.root();

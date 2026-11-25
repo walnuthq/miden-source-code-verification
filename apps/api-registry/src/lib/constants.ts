@@ -18,6 +18,6 @@ export const DATABASE_URL =
 // Directory of the default (filesystem) store for compiled packages. Unused
 // when the deployment supplies its own store (see `createApp`).
 export const MASP_STORAGE_DIR = process.env.MASP_STORAGE_DIR ?? ".masp";
-// Bearer token for the `/admin` routes (the debug-build backfill). They answer
+// Bearer token for the `/admin` routes (the playground cleanup). They answer
 // 404 when it's unset, so a deployment without it exposes none of them.
 export const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "";

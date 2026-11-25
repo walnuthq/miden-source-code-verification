@@ -43,8 +43,8 @@ export const packagesTable = pgTable(
     builtWith: varchar("built_with", { length: 64 }),
     // The debug build of the same sources (a dev-profile build, whose debug info
     // names call-trace frames), stored as `<commitment>.debug.masp`: its own
-    // commitment, and the cargo-miden that built it. Null until it is built,
-    // which makes the row part of the backfill's work list.
+    // commitment, and the cargo-miden that built it. Null for a package with
+    // none: api-compile no longer builds them, so every new row.
     debugCommitment: varchar("debug_commitment", { length: 66 }),
     debugBuiltWith: varchar("debug_built_with", { length: 64 }),
     // Whether each exported procedure is read-only, by export path, as

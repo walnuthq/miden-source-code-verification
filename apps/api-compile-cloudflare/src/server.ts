@@ -70,7 +70,6 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.get("/", proxy(HEALTH_TIMEOUT_MS));
 app.post("/compile", proxy(COMPILE_TIMEOUT_MS));
-app.post("/compile-debug", proxy(COMPILE_TIMEOUT_MS));
 app.get("/:networkId/import/:resourceId", proxy(IMPORT_TIMEOUT_MS));
 // A file read, but it may wake the container: the health probe's allowance.
 app.get("/lockfile", proxy(HEALTH_TIMEOUT_MS));

@@ -104,10 +104,9 @@ export const readCargoLock = async ({
   }
 };
 
-// The package's directory under `MIDENC_TARGET_DIR`: cargo's profile name.
-export const PROFILE_DIRS = { release: "release", debug: "dev" } as const;
-
-export type BuildProfile = keyof typeof PROFILE_DIRS;
+// The package's directory under `MIDENC_TARGET_DIR`: the release profile's
+// name.
+export const RELEASE_DIR = "release";
 
 // Cargo and midenc name `--offline` in every failure it causes: a crate that
 // isn't downloaded, or a missing Wasm target. Read from stderr only, since the
@@ -119,11 +118,6 @@ const failedOffline = (error: unknown) =>
   typeof error.stderr === "string" &&
   error.stderr.includes("--offline");
 
-// `debug` is the dev profile, which keeps the debug info that names call-trace
-// frames. midenc configures that profile itself with `--config` (overflow
-// checks and debug assertions off, panic=abort), so it wraps on overflow like
-// the release build and `CARGO_PROFILE_DEV_*` variables would change nothing.
-//
 // CARGO_TARGET_DIR is the warm cache: without it, midenc nests cargo's output
 // under MIDENC_TARGET_DIR, which is per build, and every build starts cold.
 // MIDENC_PACKAGE_CACHE stays unset, so each build stages its dependency
@@ -152,14 +146,12 @@ const failedOffline = (error: unknown) =>
 export const cargoMidenBuild = async ({
   projectDir,
   midencTargetDir,
-  profile = "release",
   warmLockfile = false,
   masmDir,
   signal,
 }: {
   projectDir: string;
   midencTargetDir: string;
-  profile?: BuildProfile;
   warmLockfile?: boolean;
   masmDir?: string;
   signal?: AbortSignal;
@@ -171,7 +163,7 @@ export const cargoMidenBuild = async ({
       [
         "miden",
         "build",
-        ...(profile === "release" ? ["--release"] : []),
+        "--release",
         ...(offline ? ["--offline"] : []),
         ...(masmDir ? ["--emit", `masm=${masmDir}`] : []),
       ],

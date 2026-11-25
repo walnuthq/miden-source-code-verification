@@ -19,7 +19,6 @@ const verify = () =>
     project,
     networkId: "mtst",
     resourceId: "0x01",
-    debug: true,
   });
 const importResource = () =>
   apiCompile.importResource({ networkId: "mtst", resourceId: "0x01" });
@@ -83,7 +82,7 @@ describe("createHttpApiCompile", () => {
     });
   });
 
-  it("posts the project, the resource and the debug flag to /verify", async () => {
+  it("posts the project and the resource to /verify", async () => {
     const fetch = respondWith(Response.json({ verified: false, root: "0x01" }));
     await verify();
     expect(fetch).toHaveBeenCalledWith(
@@ -95,7 +94,6 @@ describe("createHttpApiCompile", () => {
       entrypoint: ".",
       networkId: "mtst",
       resourceId: "0x01",
-      debug: true,
     });
   });
 
@@ -106,24 +104,11 @@ describe("createHttpApiCompile", () => {
       project,
       networkId: "mtst",
       resourceId: "0x01",
-      debug: true,
       signal: controller.signal,
     });
     expect(
       JSON.parse(String(fetch.mock.calls[0]?.[1]?.body)),
     ).not.toHaveProperty("signal");
-    fetch.mockImplementation(() => Promise.resolve(Response.json({})));
-    await apiCompile.compileDebug({
-      files: {},
-      entrypoint: ".",
-      expectedCommitment: "0x01",
-      signal: controller.signal,
-    });
-    expect(JSON.parse(String(fetch.mock.calls[1]?.[1]?.body))).toEqual({
-      files: {},
-      entrypoint: ".",
-      expectedCommitment: "0x01",
-    });
   });
 
   it("returns what /verify answers", async () => {
@@ -211,24 +196,6 @@ describe("createHttpApiCompile", () => {
     expect(spy).toHaveBeenCalledWith(API_COMPILE_BUILD_TIMEOUT_MS);
   });
 
-  it("gives up on a debug build after the timeout, with a 504", async () => {
-    const spy = shortenTimeouts();
-    hang();
-    const error = await catchError(
-      apiCompile.compileDebug({
-        files: {},
-        entrypoint: ".",
-        expectedCommitment: "0x01",
-      }),
-    );
-    expect(error).toBeInstanceOf(ApiCompileError);
-    expect(error).toMatchObject({
-      status: 504,
-      message: "api-compile did not answer in time",
-    });
-    expect(spy).toHaveBeenCalledWith(API_COMPILE_BUILD_TIMEOUT_MS);
-  });
-
   it("stops a verification when its signal aborts", async () => {
     hang();
     const controller = new AbortController();
@@ -237,7 +204,6 @@ describe("createHttpApiCompile", () => {
         project,
         networkId: "mtst",
         resourceId: "0x01",
-        debug: true,
         signal: controller.signal,
       }),
     );

@@ -12,7 +12,7 @@ Before working in one of these areas, read its file in `docs/claude/`. Their rul
 | After a merge: checking a deploy or an api-compile container rollout, anything that touches production                       | `deploys.md`             |
 | Running api-compile or api-registry on the host, checking UI changes, `wrangler dev` in `apps/*-cloudflare`                  | `local-development.md`   |
 | Bumping dependencies, pnpm or `packageManager`                                                                               | `dependency-bumps.md`    |
-| `POST /compile-debug`, debug packages and their commitments, cargo profiles                                                  | `debug-builds.md`        |
+| Debug packages (`.debug.masp`) and their commitments, cargo profiles                                                         | `debug-builds.md`        |
 
 # Rules that bite outside their area
 

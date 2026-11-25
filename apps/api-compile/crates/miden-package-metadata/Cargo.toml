@@ -9,20 +9,20 @@ clap = { version = "4.6", features = ["derive"] }
 # The VM crates of the 0.17 toolchain: `cargo-miden 0.11.0` writes its packages
 # against these. They no longer derive `serde` for the manifest, so `main.rs`
 # writes the JSON itself, and `miden-assembly-syntax` supplies the types it walks.
-miden-assembly-syntax = "=0.35.0"
-miden-mast-package = "=0.35.0"
+miden-assembly-syntax = "=0.36.5"
+miden-mast-package = "=0.36.5"
 # For `read_only.rs`: the MAST node types, and the libraries a package calls
 # into, which the 0.17 toolchain links them against. Already in the workspace's
 # lockfile through `miden-client`, at these versions.
-miden-core = "=0.35.0"
-miden-core-lib = "=0.35.0"
-miden-protocol = "=0.17.1"
+miden-core = "=0.36.5"
+miden-core-lib = "=0.36.5"
+miden-protocol = "=0.18.0"
 # Reads a note's storage schema (the WIT `cargo-miden` embeds in the
 # `note_storage_schema` section) and its felt layout: the compiler's own reader,
 # from the same `0.15.0` SDK release `cargo-miden 0.11.0` belongs to.
 miden-note-schema = "=0.15.0"
-miden-standards = "=0.17.1"
-miden-serde-utils = "=0.35.0"
+miden-standards = "=0.18.0"
+miden-serde-utils = "=0.36.5"
 serde_json = { version = "1.0", features = ["preserve_order"] }
 # For `parameters.rs`: parses the component's WIT, which `cargo-miden` embeds in
 # the `wit` section, without resolving the packages it `use`s. Already in the
