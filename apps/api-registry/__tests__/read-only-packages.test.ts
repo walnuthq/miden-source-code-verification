@@ -2,37 +2,36 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  COUNTER_CONTRACT_ID_1,
+  COUNTER_CONTRACT_ID,
   readProjectFiles,
   request,
 } from "miden-source-code-verification-test-utils";
 import { describe, expect, it } from "vitest";
 
+// The fixture account, verified from the examples with `examples` as the root.
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const counterContractDir = path.resolve(__dirname, "../../api-compile/examples/counter-contract");
+const examplesDir = path.resolve(__dirname, "../../api-compile/examples");
 
 const apiUrl = process.env.API_URL ?? "http://localhost:8081";
 const apiV1 = request(`${apiUrl}/v1`);
 
 const networkId = process.env.NETWORK_ID ?? "mtst";
 
-const component = '::"miden:counter-contract/counter-contract@0.1.0"';
 const COUNTER_CONTRACT_READ_ONLY = {
-  [`${component}::"get-count"`]: true,
-  [`${component}::"increment-count"`]: false,
-  [`${component}::init`]: true,
+  "::counter_contract::get_count": true,
+  "::counter_contract::increment_count": false,
 };
 
 const verifyCounterContract = async () => {
-  const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
+  const files = await readProjectFiles(examplesDir);
   const verifyRes = await apiV1
     .post(`/${networkId}/verified-accounts`)
-    .send({ accountId: COUNTER_CONTRACT_ID_1, files });
+    .send({ accountId: COUNTER_CONTRACT_ID, files, entrypoint: "counter-contract" });
   expect(verifyRes.status).toBe(200);
   expect(verifyRes.body).toHaveProperty("verified", true);
   const accountRes = await apiV1
-    .get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`)
+    .get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID}`)
     .send();
   expect(accountRes.status).toBe(200);
   const [{ package: dbPackage }] = accountRes.body.verifiedAccountComponents;
@@ -49,12 +48,11 @@ describe("read-only procedures", () => {
     expect(readOnly).toEqual(COUNTER_CONTRACT_READ_ONLY);
   });
 
-  it("stores the names of its procedures' parameters", async () => {
+  it("stores the names of its procedures' parameters, from the source", async () => {
     const { parameters } = await verifyCounterContract();
-    // `init` isn't one of the component's WIT functions.
     expect(parameters).toEqual({
-      [`${component}::"get-count"`]: [],
-      [`${component}::"increment-count"`]: [],
+      "::counter_contract::get_count": [],
+      "::counter_contract::increment_count": [{ name: "amount", type: "felt" }],
     });
   });
 });
