@@ -208,22 +208,3 @@ export const storedProjectKind = (
   entrypoint === null || Object.hasOwn(files, projectPath(entrypoint, CARGO_TOML))
     ? "rust"
     : "masm";
-
-// The inverse of `openProject` for a project stored before its entrypoint was
-// recorded: the one entrypoint in `files` whose `Cargo.toml` names `name` and
-// has a `miden-project.toml` next to it. Null when none or several do.
-export const inferEntrypoint = (files: Record<string, string>, name: string) => {
-  const entrypoints = Object.keys(files).flatMap((path) => {
-    if (path !== CARGO_TOML && !path.endsWith(`/${CARGO_TOML}`)) {
-      return [];
-    }
-    const dir = path === CARGO_TOML ? "." : path.slice(0, -(CARGO_TOML.length + 1));
-    const cargoToml = files[path];
-    const isProject =
-      cargoToml !== undefined &&
-      Object.hasOwn(files, projectPath(dir, MIDEN_PROJECT_TOML)) &&
-      cargoPackageName(cargoToml) === name;
-    return isProject ? [dir] : [];
-  });
-  return entrypoints.length === 1 ? (entrypoints[0] ?? null) : null;
-};

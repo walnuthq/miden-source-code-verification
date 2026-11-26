@@ -9,12 +9,9 @@ export const MIDEN_CLIENT_CACHE_DIR = process.env.MIDEN_CLIENT_CACHE_DIR ?? "/ca
 // network, which takes a second or two. This only trips when one is stuck.
 export const MIDEN_TOOL_TIMEOUT_MS = 30_000;
 
-// A build: `miden-assemble`, then `miden-package-metadata`, and for `/verify`
-// `miden-verifier`. Assembling runs none of the project's code
-// (docs/adr/0007-masm-builds-run-no-project-code.md), so builds share nothing
-// on disk: a few run at once, more wait, the rest get a 503. The deadline
-// bounds one request's tools together, answered with a 504: most of it is for
-// the verifier's network call.
+// Builds (lib/assemble.ts): a few run at once, more wait, the rest get a 503.
+// The deadline bounds one request's tools together, answered with a 504: most
+// of it is for the verifier's network call.
 export const ASSEMBLE_DEADLINE_MS = Number(process.env.ASSEMBLE_DEADLINE_MS ?? 45_000);
 export const ASSEMBLE_CONCURRENCY = Number(process.env.ASSEMBLE_CONCURRENCY ?? 4);
 export const ASSEMBLE_QUEUE_SIZE = Number(process.env.ASSEMBLE_QUEUE_SIZE ?? 16);

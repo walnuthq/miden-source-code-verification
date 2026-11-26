@@ -26,9 +26,10 @@
       // Dockerfile's dir, so point it at the repo root instead.
       "image_build_context": "../../",
       "max_instances": 1,
-      // 1 vCPU, 6 GiB, 12 GB disk. Builds are CPU-bound and standard-1's half
-      // vCPU made them slow; CPU is billed on use, so the cost difference is
-      // mostly the extra memory and disk.
+      // 1 vCPU, 6 GiB, 12 GB disk, chosen for cargo builds and their 1.6 GB
+      // warm cache. Since cargo left (2026-11-26) a build assembles in ~40 ms
+      // and the server peaked at ~31 MiB locally, on a 418 MB image: a smaller
+      // type would do, not yet tried in production.
       "instance_type": "standard-2",
       // Next to the Miden nodes (gateway.fm, Lelystad NL), which every import
       // and verification calls several times. The Durable Object's

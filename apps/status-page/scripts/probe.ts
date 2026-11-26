@@ -320,18 +320,16 @@ const apiCompile: ServiceDefinition = {
       path: `/mtst/import/${COUNTER_CONTRACT_ID}`,
       summarize: (payload) => {
         const body = asRecord(payload);
-        const expected = accounts[COUNTER_CONTRACT_ID]?.code;
         return {
           type: String(body.type ?? "—"),
           code: truncateHex(body.code),
-          matches: body.code === expected,
+          matches: body.code === ACCOUNT_CODE,
         };
       },
       assert: (payload) => {
         const body = asRecord(payload);
         if (body.type !== "account") return `expected an account, got ${body.type}`;
-        const expected = accounts[COUNTER_CONTRACT_ID]?.code;
-        return body.code === expected ? null : "code root does not match the known fixture";
+        return body.code === ACCOUNT_CODE ? null : "code root does not match the known fixture";
       },
     },
   ],

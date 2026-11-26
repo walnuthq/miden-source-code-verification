@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   cargoPackageName,
-  inferEntrypoint,
   midenProjectLibrary,
   openProject,
   RUST_PROJECT_ERROR,
@@ -10,22 +9,6 @@ import {
 } from "../src/project.ts";
 
 const cargoToml = (name: string) => `[package]\nname = "${name}"\n`;
-
-const rootProject = {
-  "Cargo.toml": cargoToml("counter-contract"),
-  "miden-project.toml": "",
-  "src/lib.rs": "",
-};
-
-const workspace = {
-  "Cargo.toml": '[workspace]\nmembers = ["counter-contract", "counter-note"]\n',
-  "counter-contract/Cargo.toml": cargoToml("counter-contract"),
-  "counter-contract/miden-project.toml": "",
-  "counter-contract/src/lib.rs": "",
-  "counter-note/Cargo.toml": cargoToml("counter-note"),
-  "counter-note/miden-project.toml": "",
-  "counter-note/src/lib.rs": "",
-};
 
 const midenProjectToml = (name: string) => `[package]\nname = "${name}"\nversion = "0.1.0"\n`;
 
@@ -224,53 +207,6 @@ describe("midenProjectLibrary", () => {
   it("is undefined without a [package] or for a file that doesn't parse", () => {
     expect(midenProjectLibrary('[lib]\npath = "a.masm"\n')).toBeUndefined();
     expect(midenProjectLibrary("not = [toml")).toBeUndefined();
-  });
-});
-
-describe("inferEntrypoint", () => {
-  it("finds a project at the root", () => {
-    expect(inferEntrypoint(rootProject, "counter-contract")).toBe(".");
-  });
-
-  it("finds a project in a subdirectory of a workspace", () => {
-    expect(inferEntrypoint(workspace, "counter-contract")).toBe("counter-contract");
-  });
-
-  it("ignores a crate with that name but no miden-project.toml", () => {
-    const files = {
-      "a/Cargo.toml": cargoToml("counter-contract"),
-      "b/Cargo.toml": cargoToml("counter-contract"),
-      "b/miden-project.toml": "",
-    };
-    expect(inferEntrypoint(files, "counter-contract")).toBe("b");
-  });
-
-  it("matches the name exactly, not up to - and _", () => {
-    const files = {
-      "a/Cargo.toml": cargoToml("counter_contract"),
-      "a/miden-project.toml": "",
-      "b/Cargo.toml": cargoToml("counter-contract"),
-      "b/miden-project.toml": "",
-    };
-    expect(inferEntrypoint(files, "counter-contract")).toBe("b");
-  });
-
-  it("is null when several projects match", () => {
-    const files = {
-      "a/Cargo.toml": cargoToml("counter-contract"),
-      "a/miden-project.toml": "",
-      "b/Cargo.toml": cargoToml("counter-contract"),
-      "b/miden-project.toml": "",
-    };
-    expect(inferEntrypoint(files, "counter-contract")).toBeNull();
-  });
-
-  it("is null when none matches, or a Cargo.toml doesn't parse", () => {
-    const files = {
-      "Cargo.toml": "not = [toml",
-      "miden-project.toml": "",
-    };
-    expect(inferEntrypoint(files, "counter-contract")).toBeNull();
   });
 });
 
