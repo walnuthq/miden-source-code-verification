@@ -12,9 +12,9 @@ export const fakeApiCompile = (calls: Partial<ApiCompile> = {}): ApiCompile => (
 });
 
 // What `/verify` answers for a MASM project that verified, without its
-// `root`: the assembler's `builtWith` and `diagnostics` where a Rust answer
-// has `cargoMidenVersion`, no `storage` or `noteStorage`, and the files as
-// sent (`spec/remove-rust/README.md`, "The MASM wire format").
+// `root`: the assembler's `builtWith` and `diagnostics`, no storage schemas,
+// and the files as sent (`spec/remove-rust/README.md`, "The MASM wire
+// format").
 export const masmVerified = (
   files: Record<string, string>,
   commitment: string,

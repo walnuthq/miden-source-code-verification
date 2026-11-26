@@ -13,7 +13,6 @@
   },
   "scripts": {
     "generate-fixtures": "cargo run --release --manifest-path ../../apps/api-compile/crates/generate-fixtures/Cargo.toml -- --out src/fixtures.ts",
-    "generate-masm-fixtures": "cargo run --release --manifest-path ../../apps/api-compile/crates/generate-fixtures/Cargo.toml -- --mode masm --out src/masm-fixtures.ts",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --deny-warnings && oxfmt --check",
     "format": "oxfmt && oxlint --fix"

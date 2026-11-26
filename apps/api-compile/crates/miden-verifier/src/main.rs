@@ -178,10 +178,8 @@ fn verify_account_component(account: Account, package: Package) -> Result<Value>
         // Only the procedures exported with the ComponentModel calling
         // convention (`CallConv::ComponentModel`) are installed as account
         // procedures — the same rule `verify_note_script` applies to pick out a
-        // note's entrypoint. Everything else a package exports is internal to
-        // the toolchain: the Wasm-ABI adapter generated around each procedure,
-        // `cabi_realloc`, and `init`. Matching against those too could never
-        // verify, because none of them is part of the account's code.
+        // note's entrypoint. Anything else a package exports is not part of the
+        // account's code, so matching against it could never verify.
         let procedures: Vec<_> = package
             .manifest
             .exports()

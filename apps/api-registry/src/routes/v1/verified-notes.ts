@@ -48,23 +48,18 @@ type VerifyNoteRequestBody = {
  *                 type: object
  *                 description: >
  *                   Map of project-relative file paths to their UTF-8 contents:
- *                   a Miden project, MASM, or Rust until its removal. A MASM
- *                   project has a `miden-project.toml` at the project root (or
- *                   under `entrypoint` when set), and its path dependencies
- *                   anywhere in the map. A Rust project has a `Cargo.toml` and
- *                   a `miden-project.toml` there; include its `Cargo.lock` to
- *                   build with its pinned dependency versions. Without one,
- *                   the latest compatible versions are resolved, and the
- *                   lockfile they produce is stored with the package.
+ *                   a MASM project, with a `miden-project.toml` at the project
+ *                   root (or under `entrypoint` when set), and its path
+ *                   dependencies anywhere in the map. A Rust project, with a
+ *                   `Cargo.toml` there, is refused.
  *                 additionalProperties:
  *                   type: string
  *               entrypoint:
  *                 type: string
  *                 description: >
  *                   Optional subdirectory containing the project to compile.
- *                   When set, `miden-project.toml` (and `Cargo.toml` for a Rust
- *                   project) are read from `<entrypoint>/`. Defaults to the
- *                   project root (`.`).
+ *                   When set, `miden-project.toml` is read from
+ *                   `<entrypoint>/`. Defaults to the project root (`.`).
  *               source:
  *                 type: string
  *                 description: >
@@ -83,9 +78,9 @@ type VerifyNoteRequestBody = {
  *           Invalid request: a body that isn't valid JSON; a missing `noteId`
  *           or `files`; a file path that isn't project-relative (`..`, a
  *           leading `/`), or a file whose content isn't a string; an
- *           `entrypoint` that isn't a relative directory; no
- *           `miden-project.toml` at the entrypoint; a `Cargo.toml` or, with
- *           none, a `miden-project.toml` there that isn't valid TOML or has
+ *           `entrypoint` that isn't a relative directory; a `Cargo.toml` at the
+ *           entrypoint (a Rust project, no longer supported); no
+ *           `miden-project.toml` there, or one that isn't valid TOML or has
  *           no `[package]` (a workspace root). Also a
  *           project the compilation service couldn't build, or a note it
  *           couldn't find on `networkId`, with its message as the error.
@@ -141,7 +136,7 @@ router.post("/:networkId/verified-notes", async (req, res) => {
     res.status(400).json({ error: "missing noteId" });
     return;
   }
-  const opened = openProject(files, entrypoint, { masm: true });
+  const opened = openProject(files, entrypoint);
   if ("error" in opened) {
     res.status(400).json({ error: opened.error });
     return;

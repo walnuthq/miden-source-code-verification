@@ -23,14 +23,13 @@ import { fakeApiCompile, masmVerified } from "./fake-api-compile.ts";
 
 const COMMITMENT = `0x${"aa".repeat(32)}`;
 const files = {
-  "Cargo.toml": '[package]\nname = "counter-contract"\n',
-  "miden-project.toml": "",
+  "miden-project.toml": '[package]\nname = "counter-contract"\n',
+  "counter_contract.masm": "",
 };
 const project = {
   files,
   entrypoint: ".",
   name: "counter-contract",
-  kind: "rust" as const,
 };
 
 const ACCOUNT: Resource = {
@@ -49,7 +48,8 @@ const built = (): Omit<VerifyResponse, "root"> => ({
   readOnly: {},
   callsForeign: {},
   files,
-  cargoMidenVersion: "0.11.0",
+  diagnostics: [],
+  builtWith: "miden-assembly 0.36.5",
 });
 
 describe("verifyResource", () => {
@@ -109,7 +109,7 @@ describe("verifyResource", () => {
     });
     expect(await getPackage(COMMITMENT)).toMatchObject({
       entrypoint: ".",
-      builtWith: "0.11.0",
+      builtWith: "miden-assembly 0.36.5",
       debugCommitment: null,
       debugBuiltWith: null,
     });
@@ -429,25 +429,7 @@ describe("verifyResource", () => {
   });
 
   describe("storage schemas", () => {
-    const storage = {
-      slots: [
-        {
-          name: "counter_contract::counter_contract::count_map",
-          type: "map" as const,
-          keyType: "word",
-          valueType: "felt",
-        },
-      ],
-    };
-
-    it("stores the schemas the build read", async () => {
-      await verifyBuilt(ACCOUNT, { ...built(), storage }, `0x${"41".repeat(32)}`);
-      expect(await getPackage(COMMITMENT)).toHaveProperty("schemas", {
-        storage,
-      });
-    });
-
-    it("stores `{}` for a package with none", async () => {
+    it("stores `{}`: a package has none", async () => {
       await verifyBuilt(ACCOUNT, built(), `0x${"42".repeat(32)}`);
       expect(await getPackage(COMMITMENT)).toHaveProperty("schemas", {});
     });
@@ -488,10 +470,9 @@ describe("verifyResource", () => {
       files: masmFiles,
       entrypoint: ".",
       name: "counter-contract",
-      kind: "masm" as const,
     };
 
-    it("stores its package as a Rust one's, with the assembler as builtWith", async () => {
+    it("stores its package, with the assembler as builtWith", async () => {
       const root = `0x${"61".repeat(32)}`;
       const answer = masmVerified(masmFiles, MASM_COMMITMENT);
       expect(

@@ -2,7 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  COUNTER_CONTRACT_ID_1,
+  COUNTER_CONTRACT_ID,
   readProjectFiles,
   request,
 } from "miden-source-code-verification-test-utils";
@@ -11,7 +11,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const counterContractDir = path.resolve(__dirname, "../../api-compile/examples/counter-contract");
+// The fixture account, verified from the examples with `examples` as the root.
+const examplesDir = path.resolve(__dirname, "../../api-compile/examples");
 
 const apiUrl = process.env.API_URL ?? "http://localhost:8081";
 const apiV1 = request(`${apiUrl}/v1`);
@@ -30,14 +31,14 @@ beforeAll(() => client.connect());
 afterAll(() => client.end());
 
 const verifyCounterContract = async () => {
-  const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
+  const files = await readProjectFiles(examplesDir);
   const verifyRes = await apiV1
     .post(`/${networkId}/verified-accounts`)
-    .send({ accountId: COUNTER_CONTRACT_ID_1, files });
+    .send({ accountId: COUNTER_CONTRACT_ID, files, entrypoint: "counter-contract" });
   expect(verifyRes.status).toBe(200);
   expect(verifyRes.body).toHaveProperty("verified", true);
   const accountRes = await apiV1
-    .get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID_1}`)
+    .get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID}`)
     .send();
   expect(accountRes.status).toBe(200);
   const [component] = accountRes.body.verifiedAccountComponents;
@@ -48,28 +49,9 @@ const getMasp = (file: string) =>
   apiV1.get(`/${networkId}/packages/masp/${file}`).responseType("blob");
 
 describe("debug packages", () => {
-  // api-compile no longer builds one: the route serves only the debug builds
-  // stored before that.
-  it("stores no debug build for a new verification", async () => {
-    const component = await verifyCounterContract();
-    const { commitment, debugCommitment } = component.package;
-
-    expect(debugCommitment).toBeNull();
-    expect(component).toHaveProperty("debugPackage", null);
-    expect(component.package).toHaveProperty("entrypoint", ".");
-    expect(component.package.builtWith).toMatch(/^\d+\.\d+\.\d+$/);
-
-    const debugRes = await getMasp(`${commitment}.debug.masp`);
-    expect(debugRes.status).toBe(404);
-
-    const releaseRes = await getMasp(`${commitment}.masp`);
-    expect(releaseRes.status).toBe(200);
-    expect(releaseRes.headers).not.toHaveProperty("x-debug-commitment");
-    expect(releaseRes.headers["content-disposition"]).toBe(
-      "attachment; filename=counter_contract.masp",
-    );
-  });
-
+  // A MASM package's own debug build is the package itself: see
+  // masm-packages.test.ts. The Rust debug builds stored before are served
+  // until spec/remove-rust plan 09.
   it("names the download after the commitment for a nameless package", async () => {
     const { commitment } = (await verifyCounterContract()).package;
     await client.query("UPDATE packages SET name = '' WHERE commitment = $1", [commitment]);

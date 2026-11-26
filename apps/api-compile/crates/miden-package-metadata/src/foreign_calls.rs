@@ -2,8 +2,8 @@
 //! invocation (FPI), read from its MAST.
 //!
 //! User code reaches FPI through one protocol procedure,
-//! `miden::protocol::tx::execute_foreign_procedure`: the Rust compiler lowers a
-//! call on an `#[account(...)]` binding to an `exec` of it. In a package's MAST
+//! `miden::protocol::tx::execute_foreign_procedure`, which a package `exec`s
+//! to call another account's procedure. In a package's MAST
 //! that is an external node, or a linked-in procedure root, whose digest is
 //! the protocol library's export, so the walk matches it by digest before
 //! looking at a node's kind. The foreign account and procedure are loaded from

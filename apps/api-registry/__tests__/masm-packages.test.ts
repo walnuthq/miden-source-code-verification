@@ -3,10 +3,10 @@ import { fileURLToPath } from "node:url";
 
 import {
   editProjectFile,
-  MASM_COUNTER_CONTRACT_ID,
-  MASM_COUNTER_NOTE_ID,
-  masmAccounts,
-  masmNotes,
+  COUNTER_CONTRACT_ID,
+  COUNTER_NOTE_ID,
+  accounts,
+  notes,
   readProjectFiles,
   request,
 } from "miden-source-code-verification-test-utils";
@@ -16,19 +16,19 @@ import type {
 } from "miden-source-code-verification-utils/api-registry";
 import { describe, expect, it } from "vitest";
 
-// The MASM fixtures, deployed by `pnpm generate-masm-fixtures` from the
-// projects in `examples/masm`. The note's project depends on
-// `../counter-contract`, so both are sent with `examples/masm` as the root.
+// The fixtures, deployed by `pnpm generate-fixtures` from the
+// projects in `examples`. The note's project depends on
+// `../counter-contract`, so both are sent with `examples` as the root.
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const masmDir = path.resolve(__dirname, "../../api-compile/examples/masm");
+const masmDir = path.resolve(__dirname, "../../api-compile/examples");
 
 const apiUrl = process.env.API_URL ?? "http://localhost:8081";
 const apiV1 = request(`${apiUrl}/v1`);
 
 const networkId = process.env.NETWORK_ID ?? "mtst";
 
-// Verifies a fixture with the project in `examples/masm` at `entrypoint`, and
+// Verifies a fixture with the project in `examples` at `entrypoint`, and
 // returns the files sent.
 const verifyMasm = async (
   route: "verified-accounts" | "verified-notes",
@@ -43,10 +43,10 @@ const verifyMasm = async (
 };
 
 const verifyCounterContract = () =>
-  verifyMasm("verified-accounts", { accountId: MASM_COUNTER_CONTRACT_ID }, "counter-contract");
+  verifyMasm("verified-accounts", { accountId: COUNTER_CONTRACT_ID }, "counter-contract");
 
 const verifyCounterNote = () =>
-  verifyMasm("verified-notes", { noteId: MASM_COUNTER_NOTE_ID }, "counter-note");
+  verifyMasm("verified-notes", { noteId: COUNTER_NOTE_ID }, "counter-note");
 
 const getMasp = (file: string) =>
   apiV1.get(`/${networkId}/packages/masp/${file}`).responseType("blob");
@@ -76,11 +76,9 @@ describe("a MASM account component", () => {
   it("verifies and is recorded", async () => {
     const files = await verifyCounterContract();
 
-    const res = await apiV1
-      .get(`/${networkId}/verified-accounts/${MASM_COUNTER_CONTRACT_ID}`)
-      .send();
+    const res = await apiV1.get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID}`).send();
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("code", masmAccounts[MASM_COUNTER_CONTRACT_ID].code);
+    expect(res.body).toHaveProperty("code", accounts[COUNTER_CONTRACT_ID].code);
     const components: VerifiedAccountComponent[] = res.body.verifiedAccountComponents;
     expect(components).toHaveLength(1);
     const [component] = components;
@@ -104,7 +102,7 @@ describe("a MASM account component", () => {
   it("serves its package as both .masp and .debug.masp", async () => {
     await verifyCounterContract();
     const accountRes = await apiV1
-      .get(`/${networkId}/verified-accounts/${MASM_COUNTER_CONTRACT_ID}`)
+      .get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID}`)
       .send();
     const { commitment } = accountRes.body.verifiedAccountComponents[0].package;
 
@@ -125,7 +123,7 @@ describe("a MASM account component", () => {
       source.replace('word("counter_contract::count")', 'word("counter_contract::other_count")'),
     );
     const res = await apiV1.post(`/${networkId}/verified-accounts`).send({
-      accountId: MASM_COUNTER_CONTRACT_ID,
+      accountId: COUNTER_CONTRACT_ID,
       files,
       entrypoint: "counter-contract",
     });
@@ -133,7 +131,7 @@ describe("a MASM account component", () => {
     expect(res.body).toEqual({ verified: false });
 
     const accountRes = await apiV1
-      .get(`/${networkId}/verified-accounts/${MASM_COUNTER_CONTRACT_ID}`)
+      .get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID}`)
       .send();
     expect(accountRes.status).toBe(404);
   });
@@ -143,9 +141,9 @@ describe("a MASM note with a path dependency", () => {
   it("verifies and is recorded", async () => {
     const files = await verifyCounterNote();
 
-    const res = await apiV1.get(`/${networkId}/verified-notes/${MASM_COUNTER_NOTE_ID}`).send();
+    const res = await apiV1.get(`/${networkId}/verified-notes/${COUNTER_NOTE_ID}`).send();
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("script", masmNotes[MASM_COUNTER_NOTE_ID].code);
+    expect(res.body).toHaveProperty("script", notes[COUNTER_NOTE_ID].code);
     const pkg: Package = res.body.package;
     expect(pkg).toMatchObject({
       name: "counter-note",

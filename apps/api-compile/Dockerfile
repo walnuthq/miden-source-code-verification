@@ -4,48 +4,27 @@
 # root (it needs pnpm-lock.yaml + the workspace manifests). See the root
 # .dockerignore for what is excluded from the context.
 
+# What every stage starts from. The helper tools verify the Miden nodes' TLS
+# certificates against the platform's roots, so the runtime needs them too.
 FROM node:26-slim AS base
 RUN apt-get update \
- && apt-get install -y --no-install-recommends curl ca-certificates build-essential \
+ && apt-get install -y --no-install-recommends ca-certificates \
  && rm -rf /var/lib/apt/lists/*
-ENV PNPM_HOME="/pnpm" \
-    PATH="/pnpm:$PATH" \
-    COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-# Node 25+ no longer bundles corepack, so install it from npm (pinned). It
-# pins pnpm via the root package.json "packageManager" field and checks its hash.
-RUN npm install -g corepack@0.36.0 && corepack enable
 
-# Rust toolchain (shared by builder and runtime)
+# The Rust toolchain, a build stage only: the runtime gets the four binaries
+# built with it.
 FROM base AS rust
-
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl build-essential \
+ && rm -rf /var/lib/apt/lists/*
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
     PATH=/usr/local/cargo/bin:$PATH
-
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
   | sh -s -- -y --no-modify-path --profile minimal --default-toolchain nightly-2026-09-01
-# The components the crates' rust-toolchain.toml lists (the examples' list a
-# subset). rustup used to add them on the fly during the crate builds, and the
-# runtime inherited them from there; install them once, up front, so every
-# stage below shares one toolchain and the builds don't modify it. The same
-# goes for the Wasm target the examples list: the runtime disables rustup's
-# auto-install, so nothing installs it later.
-RUN rustup component add rustfmt rust-src clippy rust-analyzer \
- && rustup target add wasm32-wasip2
-
-# cargo-miden and the API's helper binaries build in two stages, so BuildKit
-# builds them in parallel and caches them independently. Each stage gets its
-# own cargo cache (`id=`), since parallel stages sharing one unpack the same
-# crate at once on a cold cache and fail with "File exists (os error 17)". The
-# cache is never persisted in a layer. cargo-miden installs with `--locked`,
-# against the Cargo.lock its crate ships: without it cargo resolves the newest
-# compatible dependencies on every cold build, and a release that needs a newer
-# nightly than the pinned toolchain breaks the image (hashbrown 0.17.2).
-FROM rust AS cargo-miden-builder
-RUN --mount=type=cache,id=cargo-registry-cargo-miden,target=/usr/local/cargo/registry \
-    --mount=type=cache,id=cargo-git-cargo-miden,target=/usr/local/cargo/git \
-    cargo install cargo-miden --version 0.11.0 --locked \
- && strip /usr/local/cargo/bin/cargo-miden
+# The components the crates' rust-toolchain.toml lists, installed up front so
+# the builds below don't modify the toolchain.
+RUN rustup component add rustfmt rust-src clippy rust-analyzer
 
 # The helper binaries are one cargo workspace (apps/api-compile/crates), so the
 # miden-client dependency tree they share compiles once. It compiles in its own
@@ -53,6 +32,7 @@ RUN --mount=type=cache,id=cargo-registry-cargo-miden,target=/usr/local/cargo/reg
 # an edit to a crate's src/ then rebuilds that crate's own code, not its
 # dependencies. generate-fixtures is a workspace member but isn't shipped, so
 # only its manifest comes in (cargo needs every member to load the workspace).
+# The cargo cache is never persisted in a layer.
 FROM rust AS helpers-builder
 WORKDIR /home/node/crates
 COPY apps/api-compile/crates/Cargo.toml apps/api-compile/crates/Cargo.lock apps/api-compile/crates/rust-toolchain.toml ./
@@ -81,6 +61,12 @@ RUN --mount=type=cache,id=cargo-registry-helpers,target=/usr/local/cargo/registr
 
 # Build the API (TypeScript -> JS) from the pnpm workspace — runs in parallel with the Rust stages
 FROM base AS api-builder
+ENV PNPM_HOME="/pnpm" \
+    PATH="/pnpm:$PATH" \
+    COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+# Node 25+ no longer bundles corepack, so install it from npm (pinned). It
+# pins pnpm via the root package.json "packageManager" field and checks its hash.
+RUN npm install -g corepack@0.36.0 && corepack enable
 WORKDIR /repo
 # The install needs only the workspace manifests and the lockfile: copied
 # alone, an edit to source elsewhere in the repo doesn't rerun it. --parents
@@ -112,109 +98,28 @@ RUN pnpm --filter=miden-source-code-verification-api-compile... build
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm deploy --filter=miden-source-code-verification-api-compile --prod /prod/api-compile
 
-# Final runtime image — slim, no build tools
+# Final runtime image: Node and the four helper binaries.
 FROM base AS runtime
 
-# CARGO_HOME is not the toolchain's directory: cargo writes its registry cache
-# and a lock file under it during a build, so it is the build's own fresh view
-# of the image's warm cache (see constants.ts), not the image's. The toolchain
-# and the helper tools in /usr/local/cargo stay root's.
-ENV RUSTUP_HOME=/usr/local/rustup \
-    CARGO_HOME=/cache/cargo-home \
-    PATH=/usr/local/cargo/bin:$PATH \
-    RUSTUP_AUTO_INSTALL=0
-
-# RUSTUP_AUTO_INSTALL=0: a submitted rust-toolchain.toml that pins another
-# toolchain fails the build right away, instead of rustup downloading that
-# toolchain mid-request and the build then running against a cold cache.
-
-# Rust toolchain (cargo + rustc + std) and cargo-miden, needed at runtime to
-# compile user projects
-COPY --from=cargo-miden-builder /usr/local/rustup /usr/local/rustup
-COPY --from=cargo-miden-builder /usr/local/cargo /usr/local/cargo
-
-# Two unprivileged users. The server stays root so it can start each subprocess
-# as one of them (execFile's uid/gid): `builder` runs cargo, so everything build
-# code can write is `builder`'s; `api` runs the helper tools, which own the
-# client stores. Build code can write only its project directory, its home and
-# the build's own /cache/target and /cache/cargo-home, which the server lays
-# out again before every build; /work is root's and traversable only, so no
-# directory it can write is a parent of another request's project.
+# The server stays root, so it can write each request's files and start the
+# helper tools as `api` (execFile's uid/gid), which owns the client stores.
+# /work is root's and traversable only, so no request's directory is listed by
+# another's tools.
 RUN groupadd --system --gid 10001 api \
  && useradd --system --uid 10001 --gid api --create-home --home-dir /home/api api \
- && groupadd --system --gid 10002 builder \
- && useradd --system --uid 10002 --gid builder --create-home --home-dir /home/builder builder \
  && mkdir -p /work/projects /work/resources /cache/stores \
  && chmod 0711 /work /work/projects /work/resources \
  && chown api:api /cache/stores
-ENV BUILD_UID=10002 BUILD_GID=10002 API_UID=10001 API_GID=10001 \
+ENV API_UID=10001 API_GID=10001 \
     WORK_DIR=/work \
-    WARM_CACHE_DIR=/cache/image \
     MIDEN_CLIENT_CACHE_DIR=/cache/stores
 
-# What lays a view of the warm cache out for a build (see the script): the
-# warm-up below runs it once, the server after each build. Copied before the
-# warm-up, so a change to it redoes the warm-up.
-COPY --chmod=755 apps/api-compile/scripts/lay-out-warm-cache.sh /usr/local/bin/lay-out-warm-cache
-
-# Copy project template
-WORKDIR /cache/examples
-COPY apps/api-compile/examples .
-# Warm cargo's dependency cache. The dev-profile build is left over from the
-# debug variant, which api-compile no longer builds: it only adds image size,
-# and goes with the rest of the cargo stages (spec/remove-rust plan 08) rather
-# than force a cold rebuild of this layer now. One example is enough: user builds run in
-# a fresh directory, so all they reuse from here is the compiled registry
-# crates, and every example's Cargo.lock pins the same ones. `--locked`: the
-# downloaded crates are what user builds resolve against (they run
-# `--offline` first), so they must be exactly the ones the lockfile pins.
-WORKDIR /cache/examples/counter-contract/counter-contract
-# Built as root, in a scratch copy of the example, at the paths builds use:
-# cargo records the CARGO_HOME path in its dependency fingerprints, so a cache
-# copied to another path would recompile every dependency. The result then
-# moves, in this same RUN (a later layer would duplicate it), to a read-only
-# /cache/image; before each build the server lays it out again at the original
-# paths, as hard links to the compiled dependencies and downloaded crates, a
-# symbolic link to each crate's sources and copies of the rest, so nothing
-# build code changes reaches a later build. The links are safe only because
-# these files are root's and no one else may write them, which the chmod also
-# ensures; it makes the warm-up's root-only files (lock files) readable too.
-# The first view is laid out here, in the same RUN: its hard links are links
-# only within one layer. The first build after a start then has nothing to
-# wait for. `shipped-view` marks it as unused, with where it is and whose; the
-# server deletes the mark when it claims the view, so a server restarted on the
-# same disk makes its own. The `test` before it is the check the server makes
-# before it lays a view out itself: build code reaches the crate sources in
-# /cache/image through symbolic links, so nothing there may be writable by
-# anyone but root.
-RUN cp -r /cache/examples/counter-contract/counter-contract /tmp/warm \
- && cd /tmp/warm \
- && CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --release --locked \
- && CARGO_TARGET_DIR=/cache/target MIDENC_TARGET_DIR=/cache/target/miden cargo miden build --locked \
- && cd / && rm -rf /tmp/warm \
- && mkdir /cache/image \
- && mv /cache/target /cache/cargo-home /cache/image/ \
- && chmod -R go+rX,go-w /cache/image \
- && test -z "$(find /cache/image \( ! -user 0 -o -perm /022 \) ! -type l -print -quit)" \
- && lay-out-warm-cache /cache/image /cache/target /cache/cargo-home "$BUILD_UID:$BUILD_GID" \
- && echo "/cache/target /cache/cargo-home $BUILD_UID:$BUILD_GID" > /cache/image/shipped-view
-# Each build gets a HOME of its own, deleted after it (see cargo-miden.ts):
-# nothing may persist in the build user's home between builds.
-RUN chown root:root /home/builder && chmod 0755 /home/builder
-
-# The API's helper binaries, copied after the warm-up builds, which don't use
-# them: a change to one of these crates then doesn't redo the warm-up.
 COPY --from=helpers-builder \
      /home/node/crates/target/release/miden-assemble \
      /home/node/crates/target/release/miden-import \
      /home/node/crates/target/release/miden-package-metadata \
      /home/node/crates/target/release/miden-verifier \
-     /usr/local/cargo/bin/
-
-# What reads the first build's files into memory when the server starts (see
-# the script). Copied after the warm-up, which doesn't use it: a change to it
-# doesn't redo the warm-up.
-COPY --chmod=755 apps/api-compile/scripts/preload-first-build.sh /usr/local/bin/preload-first-build
+     /usr/local/bin/
 
 # App: only the built output + production dependencies from the deploy bundle
 WORKDIR /home/node/api
@@ -222,12 +127,13 @@ COPY --from=api-builder /prod/api-compile/package.json .
 COPY --from=api-builder /prod/api-compile/node_modules node_modules
 COPY --from=api-builder /prod/api-compile/dist dist
 
-# Build code runs as `builder`; a setuid binary is its shortest way back to
-# root, and the server, already root, needs none of them.
+# The helper tools parse untrusted input as `api` (ADR 0007, "What remains
+# exposed"): a setuid binary would be the shortest way from a bug in one back
+# to root, and the server, already root, needs none of them.
 RUN find / -xdev -perm /6000 -type f -exec chmod a-s {} +
 
 EXPOSE 8080
-# RLIMIT_NPROC, inherited by every subprocess and counted per user: a fork
-# bomb in build code stops at 4096 tasks instead of taking the container down.
+# RLIMIT_NPROC, inherited by every subprocess and counted per user: a helper
+# tool gone wrong stops at 4096 tasks instead of taking the container down.
 # prlimit execs node, which stays PID 1 and gets SIGTERM directly.
 CMD ["prlimit", "--nproc=4096", "node", "dist/src/server.js"]

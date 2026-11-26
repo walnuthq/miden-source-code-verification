@@ -2,12 +2,10 @@ import cors from "cors";
 import express from "express";
 import { errorHandler, notFound } from "miden-source-code-verification-utils/http-errors";
 
-import { nextLayoutSettled, stopPreload } from "./lib/compile.ts";
 import { ALLOWED_ORIGINS, PORT, SHUTDOWN_TIMEOUT_MS } from "./lib/constants.ts";
 import compileRouter from "./routes/compile.ts";
 import healthRouter from "./routes/health.ts";
 import importRouter from "./routes/import.ts";
-import lockfileRouter from "./routes/lockfile.ts";
 import verifyRouter from "./routes/verify.ts";
 
 const app = express();
@@ -39,7 +37,6 @@ app.use(healthRouter);
 app.use(compileRouter);
 app.use(verifyRouter);
 app.use(importRouter);
-app.use(lockfileRouter);
 app.use(notFound);
 app.use(errorHandler);
 
@@ -49,20 +46,15 @@ const server = app.listen(PORT, () => {
 
 // Node ignores SIGTERM when it runs as PID 1, as it does in the container, so
 // without this a rollout waits out its 15-minute grace period and then kills
-// the server with requests in flight.
+// the server with requests in flight. Each request deletes its own files
+// before it answers, so once the server is closed nothing is left to wait for.
 const shutdown = (signal: NodeJS.Signals) => {
   if (shuttingDown) {
     return;
   }
   shuttingDown = true;
   console.log(`${signal} received, finishing in-flight requests`);
-  // The read started at startup, if it is still running, ends here: no build
-  // is left to come for it.
-  const preloadStopped = stopPreload();
-  // The last build's files are deleted after its answer: wait for that too.
-  server.close(() => {
-    void Promise.all([nextLayoutSettled(), preloadStopped]).finally(() => process.exit(0));
-  });
+  server.close(() => process.exit(0));
   server.closeIdleConnections();
   setTimeout(() => {
     console.error("In-flight requests did not finish in time, exiting");

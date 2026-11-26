@@ -75,18 +75,20 @@ Run on 2026-11-24. Its code was in `spike/masm-assembly` (untracked, removed by 
 
 ## The MASM wire format
 
-Plan 03 implements it and the Playground's plans read it. Change it only by changing this section in the same PR.
+Plan 03 implemented it, the Playground's plans read it, and since plan 08 it is the only format. Change it only by changing this section in the same PR.
 
-A project is a files map plus an entrypoint. It is a Rust project when a `Cargo.toml` sits at the entrypoint, and a MASM project otherwise; a MASM project needs a `miden-project.toml` there.
+A project is a files map plus an entrypoint, with a `miden-project.toml` there. A project with a `Cargo.toml` at the entrypoint is a Rust project: since plan 08 `POST /compile` and `POST /verify` refuse it with a `400`, ``{ "error": "Rust projects are no longer supported: Miden projects are written in MASM (`miden-project.toml`)" }``. Until plan 08 both paths lived in api-compile, and a Rust project's answer had `storage`, `noteStorage`, `masm`, `cargoMidenVersion` and the lockfile in `files`.
 
-`POST /compile` for a MASM project answers the existing `CompileResponse` with these differences:
+`POST /compile` answers `CompileResponse` (`packages/utils/src/api-compile.ts`):
 
 - `masp` is the dev package, with debug info. There is no second build: `debug`, `masm` and `warmLockfile` in the request are accepted and ignored, and the answer has no `debug` and no `masm` key.
 - No `storage` and no `noteStorage` key.
 - `parameters` holds the names read from the source.
 - `files` is the project as sent. There is no lockfile to add.
-- `diagnostics` is new, on both outcomes: a list of `{ severity: "error" | "warning", message, file?, line?, column?, length?, label?, help? }`. `file` is relative to the project root, `line` and `column` start at 1, `length` is in characters. A failed build has at least one error.
+- `diagnostics`, on both outcomes: a list of `{ severity: "error" | "warning", message, file?, line?, column?, length?, label?, help? }`. `file` is relative to the project root, `line` and `column` start at 1, `length` is in characters. A failed build has at least one error.
 - `stderr` holds the same diagnostics as the assembler renders them, with the project directory cut off, for clients that show text. `stdout` is empty.
-- `builtWith` is new: the versions the tool was built with, as one string (for example `miden-assembly 0.36.4, miden-protocol 0.18.0`). `cargoMidenVersion` is absent.
+- `builtWith`: the versions the tool was built with, as one string (for example `miden-assembly 0.36.4, miden-protocol 0.18.0`). There is no `cargoMidenVersion`.
 
-`POST /verify` for a MASM project answers the existing `VerifyResponse` with the same differences. A project that doesn't build is a `400` as for a Rust one, with `error` holding the rendered report (what `stderr` holds for `/compile`) and no `diagnostics`.
+`POST /verify` answers `VerifyResponse` with the same keys, plus `verified` and `root`. A project that doesn't build is a `400`, with `error` holding the rendered report (what `stderr` holds for `/compile`) and no `diagnostics`.
+
+`GET /lockfile` is gone since plan 08, and `GET /` no longer reports `cargoMidenVersion`.

@@ -2,27 +2,28 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  COUNTER_CONTRACT_ID_1,
+  COUNTER_CONTRACT_ID,
   editProjectFile,
   readProjectFiles,
   request,
 } from "miden-source-code-verification-test-utils";
+import { RUST_PROJECT_ERROR } from "miden-source-code-verification-utils/project";
 import { describe, expect, it } from "vitest";
 
-// The MASM path of `/compile` and `/verify`: `miden-assemble` in the compose
-// stack's image, on the MASM examples. The examples sit side by side, as the
-// projects of one root: the note depends on the counter by path.
+// `/compile` and `/verify`: `miden-assemble` in the compose stack's image, on
+// the examples. The examples sit side by side, as the projects of one root:
+// the note depends on the counter by path.
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const masmExamplesDir = path.resolve(__dirname, "../examples/masm");
+const masmExamplesDir = path.resolve(__dirname, "../examples");
 const counterMasm = "counter-contract/counter_contract.masm";
 
 const api = request(process.env.API_URL ?? "http://localhost:8080");
 
-// Every MASM example, keyed by its path under `examples/masm`.
+// Every example, keyed by its path under `examples`.
 const masmExamples = () => readProjectFiles(masmExamplesDir);
 
-// What a MASM answer never has: the cargo path's keys.
+// What an answer no longer has: the keys of a Rust project's.
 const cargoOnlyKeys = ["storage", "noteStorage", "masm", "debug", "cargoMidenVersion"];
 
 describe("POST /compile a MASM project", () => {
@@ -178,7 +179,7 @@ describe("POST /compile a MASM project", () => {
     ]);
   });
 
-  it("takes a project with a stray Cargo.lock but no Cargo.toml as MASM", async () => {
+  it("takes a project with a stray Cargo.lock but no Cargo.toml", async () => {
     const files = {
       ...(await readProjectFiles(`${masmExamplesDir}/basic-wallet`)),
       "Cargo.lock": "# not a cargo project\n",
@@ -187,7 +188,6 @@ describe("POST /compile a MASM project", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("built", true);
-    expect(res.body).not.toHaveProperty("cargoMidenVersion");
     expect(res.body.files).toEqual(files);
   });
 
@@ -204,6 +204,17 @@ describe("POST /compile a MASM project", () => {
 });
 
 describe("POST /compile refuses a files map that isn't a MASM project", () => {
+  it("refuses a Rust project: a Cargo.toml at the entrypoint", async () => {
+    const files = {
+      ...(await masmExamples()),
+      "counter-contract/Cargo.toml": '[package]\nname = "counter-contract"\n',
+    };
+    const res = await api.post("/compile").send({ files, entrypoint: "counter-contract" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: RUST_PROJECT_ERROR });
+  });
+
   it("wants a miden-project.toml at the entrypoint", async () => {
     const files = await masmExamples();
     const res = await api.post("/compile").send({ files });
@@ -247,22 +258,22 @@ describe("POST /verify a MASM project", () => {
       files,
       entrypoint: "counter-contract",
       networkId: "mtst",
-      resourceId: COUNTER_CONTRACT_ID_1,
+      resourceId: COUNTER_CONTRACT_ID,
     });
 
     expect(res.status).toBe(400);
     expect(res.body.error).toContain(counterMasm);
   });
 
-  // The MASM counter isn't the Rust counter's code: the answer is the
-  // verifier's no, with the package and the assembler's report.
-  it("doesn't verify the MASM counter against the Rust counter on Testnet", async () => {
+  // The counter isn't the code of Mainnet's public USDCx fee faucet: the
+  // answer is the verifier's no, with the package and the assembler's report.
+  it("doesn't verify the counter against an account with other code", async () => {
     const files = await masmExamples();
     const res = await api.post("/verify").send({
       files,
       entrypoint: "counter-contract",
-      networkId: "mtst",
-      resourceId: COUNTER_CONTRACT_ID_1,
+      networkId: "mm",
+      resourceId: "0xe69e6ca6e39df1b10c1e5399399feb",
     });
 
     expect(res.status).toBe(200);

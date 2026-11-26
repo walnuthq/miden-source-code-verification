@@ -5,15 +5,13 @@ import type { VerifyResponse } from "miden-source-code-verification-utils/api-co
 import { openProject } from "miden-source-code-verification-utils/project";
 
 import { type Assembly, queueAssemble } from "../lib/assemble.ts";
-import { queueCompile } from "../lib/compile.ts";
 import { abortOnClose, removeDirs } from "../lib/utils.ts";
 import { verify, writeResourceFile } from "../lib/verify.ts";
 
 const router = Router();
 
-// The MASM half of `/verify`, in the assembly's slot, while its package is on
-// disk. The answer is the Rust one's with the assembler's report in place of
-// the schemas and the cargo-miden version.
+// Verifies the assembly's package, in its slot, while the package is on disk.
+// A failed run throws a `VerifierError`, answered with its status.
 const verifyAssembly = async ({
   assembly,
   networkId,
@@ -63,7 +61,7 @@ type VerifyRequestBody = {
 
 router.post("/verify", async (req, res) => {
   const { files, entrypoint, networkId, resourceId, resource } = req.body as VerifyRequestBody;
-  const opened = openProject(files, entrypoint, { masm: true });
+  const opened = openProject(files, entrypoint);
   if ("error" in opened) {
     res.status(400).json({ error: opened.error });
     return;
@@ -80,84 +78,16 @@ router.post("/verify", async (req, res) => {
     res.status(400).json({ error: "invalid resource" });
     return;
   }
-  if (opened.project.kind === "masm") {
-    const result = await queueAssemble(
-      { project: opened.project, signal: abortOnClose(res) },
-      (assembly, signal) =>
-        verifyAssembly({
-          assembly,
-          networkId,
-          resourceId,
-          resource,
-          signal,
-        }),
-    );
-    if ("error" in result) {
-      res.status(400).json({ error: result.error });
-      return;
-    }
-    res.json(result);
-    return;
-  }
-  // Verifying reads the built package from disk, so it runs before the
-  // build's files are deleted. A failed run throws a `VerifierError`, answered
-  // with its status.
-  const result = await queueCompile(
-    // In the build's queue slot, before the next build replaces the cache the
-    // package lives in.
+  const result = await queueAssemble(
     { project: opened.project, signal: abortOnClose(res) },
-    async (build) => {
-      // Without a package there is nothing to check: the failed build's
-      // diagnostics are the error.
-      if (!build.built) {
-        return { error: build.stderr };
-      }
-      const {
-        maspPath,
-        masp,
-        commitment,
-        kind,
-        manifest,
-        readOnly,
-        callsForeign,
-        parameters,
-        accountProcedures,
-        storage,
-        noteStorage,
-        files: compiledFiles,
-        cargoMidenVersion,
-      } = build;
-      const resourcePath = resource ? await writeResourceFile(resource) : undefined;
-      try {
-        const { verified, root } = await verify({
-          networkId,
-          resourceId,
-          resourcePath,
-          maspPath,
-          commitment,
-        });
-        return {
-          verified,
-          root,
-          masp,
-          commitment,
-          kind,
-          manifest,
-          readOnly,
-          callsForeign,
-          parameters,
-          accountProcedures,
-          storage,
-          noteStorage,
-          files: compiledFiles,
-          cargoMidenVersion,
-        } satisfies VerifyResponse;
-      } finally {
-        if (resourcePath) {
-          await removeDirs([dirname(resourcePath)]);
-        }
-      }
-    },
+    (assembly, signal) =>
+      verifyAssembly({
+        assembly,
+        networkId,
+        resourceId,
+        resource,
+        signal,
+      }),
   );
   if ("error" in result) {
     res.status(400).json({ error: result.error });

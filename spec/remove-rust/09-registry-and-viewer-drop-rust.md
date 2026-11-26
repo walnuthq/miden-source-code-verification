@@ -16,6 +16,10 @@ The registry refuses Rust projects, holds no Rust-built package, and no longer h
 
 Every Rust-built package, the verified accounts and notes that point at it, and its stored `.masp` and `.debug.masp` files are deleted, on every network including Mainnet. Those accounts and notes show as not verified afterwards, until someone verifies them again from MASM, which can only succeed for code redeployed from MASM. The user chose this over keeping the records marked as Rust-built.
 
+## Left by plan 08
+
+Plan 08 (`feat/api-compile-drops-cargo`) changed the registry only as far as the shared types forced it: `openProject` now refuses a `Cargo.toml` at the entrypoint with api-compile's message (`RUST_PROJECT_ERROR`, so the registry answers that message until step 1 changes it), `insertPackage` writes `schemas: {}` and the assembler's `builtWith`, and `API_COMPILE_BUILD_TIMEOUT_MS` is 150 s. Plan 08's examples and fixtures are MASM only (`examples/counter-contract`, `counter-note`, `basic-wallet`; `COUNTER_CONTRACT_ID`, `COUNTER_NOTE_ID`, `accounts`, `notes`), so it also ported the registry suites to them: `verified-accounts.test.ts` and `verified-notes.test.ts` lost their bank, deposit-note, lockfile and "second id, same root" cases (the fixtures have one account and one note), `read-only-packages.test.ts` reads the MASM counter, `debug-packages.test.ts` kept only its download-name and 404 cases, and `package-schemas.test.ts` is deleted. Step 8's test work is therefore done except the deletion's own tests.
+
 ## Steps
 
 1. **Refuse Rust.** An upload with a `Cargo.toml` at its entrypoint gets a 400 whose message is written for the `miden-verify` CLI's users, since the released CLI prints it as is: "Rust projects are no longer verified. Miden projects are written in MASM: upload a `miden-project.toml` project. If you use the `miden verify` CLI, upgrade to 0.8.0 or later." Ask the user for the CLI version to name if 0.8.0 isn't released yet; without an answer, leave the version out.
