@@ -19,7 +19,7 @@
     "format": "oxfmt && oxlint --fix"
   },
   "devDependencies": {
-    "@types/node": "26.6.7",
+    "@types/node": "26.6.10",
     "typescript": "7.0.2"
   }
 }
