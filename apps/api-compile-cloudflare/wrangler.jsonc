@@ -14,7 +14,6 @@
   "vars": {
     "PORT": "8080",
     "ALLOWED_ORIGINS": "*",
-    "CARGO_TARGET_DIR": "/cache/target",
     "MIDEN_CLIENT_CACHE_DIR": "/cache/stores",
   },
   "containers": [

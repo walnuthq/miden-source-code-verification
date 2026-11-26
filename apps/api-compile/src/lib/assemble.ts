@@ -20,15 +20,13 @@ import { createLimiter } from "./limiter.ts";
 import { type Timings, timed } from "./timings.ts";
 import { chownTree, removeDirs, writeProjectFiles } from "./utils.ts";
 
-// The MASM path of a build: a MASM project assembled by `miden-assemble` into
-// one dev package, then read by `miden-package-metadata`. It runs no project
-// code (docs/adr/0007-masm-builds-run-no-project-code.md), so it needs none of
-// what isolates a cargo build in compile.ts: no view of the warm cache, no
-// build user, no one-at-a-time slot, no retry, no second build. It is kept
-// apart from compile.ts, whose cargo half goes once the Playground sends MASM.
+// A build: a MASM project assembled by `miden-assemble` into one dev package,
+// then read by `miden-package-metadata`. It runs no project code
+// (docs/adr/0007-masm-builds-run-no-project-code.md): no build user, no shared
+// cache, no one-at-a-time slot, no retry, no second build.
 
 type AssembleArgs = {
-  // Already opened by the route as a MASM project.
+  // Already opened by the route.
   project: Project;
   // Filled with how long each part took: `assemble`, `tools` (reading the
   // package) and `cleanup`.
@@ -36,17 +34,17 @@ type AssembleArgs = {
   signal?: AbortSignal;
 };
 
-// What assembling a MASM project yields: built, with its package, or failed.
+// What assembling a project yields: built, with its package, or failed.
 // Either way `stderr` is the report as the assembler renders it (empty for a
-// build with no warnings) and `stdout` is empty: the wire format keeps the
-// cargo path's two keys. A failed build is an outcome the routes answer, not
-// an error.
+// build with no warnings) and `stdout` is empty: the wire format has kept both
+// keys since Rust projects were built. A failed build is an outcome the routes
+// answer, not an error.
 export type Assembly =
   | ({
       built: false;
       stdout: string;
       stderr: string;
-    } & Required<AssemblyReport>)
+    } & AssemblyReport)
   | ({
       built: true;
       stdout: string;
@@ -55,7 +53,7 @@ export type Assembly =
       // `use` returns.
       maspPath: string;
     } & BuiltPackage &
-      Required<AssemblyReport>);
+      AssemblyReport);
 
 const deadlineError = () =>
   new HttpError(504, `the build did not finish within ${ASSEMBLE_DEADLINE_MS / 1000}s`);
@@ -96,7 +94,6 @@ const assemble = async (
   if ("error" in metadata) {
     throw new Error(metadata.error);
   }
-  // A MASM package has no storage schemas: nothing of them is answered.
   const {
     commitment,
     kind,
@@ -118,7 +115,7 @@ const assemble = async (
     callsForeign,
     parameters,
     accountProcedures,
-    // There is no lockfile to add: the project comes back as sent.
+    // The project comes back as sent.
     files,
   };
 };

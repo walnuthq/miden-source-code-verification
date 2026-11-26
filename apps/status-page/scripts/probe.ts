@@ -3,8 +3,8 @@ import path from "node:path";
 
 import {
   accounts,
-  COUNTER_CONTRACT_ID_1,
-  COUNTER_NOTE_ID_1,
+  COUNTER_CONTRACT_ID,
+  COUNTER_NOTE_ID,
   notes,
   readProjectFiles,
 } from "miden-source-code-verification-test-utils";
@@ -43,14 +43,13 @@ const WEB_VIEWER_URL = process.env.WEB_VIEWER_URL || "http://localhost:5174";
 // Container that may be asleep, and a cold start costs several seconds.
 const DEFAULT_TIMEOUT_MS = 15_000;
 const PREVIOUS_SNAPSHOT_TIMEOUT_MS = 10_000;
-// The compile endpoints do real work (cargo-miden build) and may additionally
-// pay a container cold start, so they get a much longer leash. api-compile runs
-// one build at a time, so a compile can also queue behind someone else's build
-// for up to its 240s build timeout. Waiting longer than the Worker's own 420s
-// limit on these routes (apps/api-compile-cloudflare/src/server.ts) lets the
-// Worker decide: a slow but working service still answers, and a stuck one
-// comes back as the Worker's 504 rather than our own timeout.
-const COMPILE_TIMEOUT_MS = 450_000;
+// The compile endpoints assemble a project, verify reads the account from its
+// network, and either may pay a container cold start, so they get a longer
+// leash. Waiting longer than the Worker's own 120s limit on these routes
+// (apps/api-compile-cloudflare/src/server.ts) lets the Worker decide: a slow
+// but working service still answers, and a stuck one comes back as the
+// Worker's 504 rather than our own timeout.
+const COMPILE_TIMEOUT_MS = 150_000;
 
 const findRepoRoot = (start: string): string => {
   let dir = start;
@@ -66,19 +65,18 @@ const findRepoRoot = (start: string): string => {
   }
 };
 
-// The project the compile/verify checks submit. Same sources the
-// `it compiles a counter-contract` test uses — read from disk rather than
-// inlined so the two stay in step.
-const counterContractDir = path.join(
-  findRepoRoot(import.meta.dirname),
-  "apps/api-compile/examples/counter-contract/counter-contract",
-);
+// The project the compile/verify checks submit: the counter-contract the
+// fixture account was deployed from, with the examples as its root, as the
+// api-compile tests send it. Read from disk rather than inlined so the two
+// stay in step.
+const examplesDir = path.join(findRepoRoot(import.meta.dirname), "apps/api-compile/examples");
+const COUNTER_CONTRACT_ENTRYPOINT = "counter-contract";
 
 // Read once and reused by both POST checks.
-let counterContractFiles: Record<string, string> | undefined;
+let examplesFiles: Record<string, string> | undefined;
 const loadCounterContract = async () => {
-  counterContractFiles ??= await readProjectFiles(counterContractDir);
-  return counterContractFiles;
+  examplesFiles ??= await readProjectFiles(examplesDir);
+  return { files: examplesFiles, entrypoint: COUNTER_CONTRACT_ENTRYPOINT };
 };
 
 // A payload's fields, each read as an unknown. Keyed on the wire type `T` the
@@ -105,7 +103,7 @@ type EndpointCheck = {
   body?: () => Promise<unknown>;
   /**
    * Whether the response body is rendered verbatim. Only safe for small
-   * payloads — `/compile` alone returns ~80 KB.
+   * payloads: `/compile` carries the whole package.
    */
   showPayload?: boolean;
   /** Lifts the few interesting fields out of a large response. */
@@ -134,12 +132,11 @@ const NETWORK_ID = "mtst";
 // The roots the registry keys its records on, alongside the network: an
 // account's code root and a note's script root. Both come from the shared
 // fixtures.
-const ACCOUNT_CODE = accounts[COUNTER_CONTRACT_ID_1]?.code ?? "";
-const NOTE_SCRIPT = notes[COUNTER_NOTE_ID_1]?.code ?? "";
+const ACCOUNT_CODE = accounts[COUNTER_CONTRACT_ID]?.code ?? "";
+const NOTE_SCRIPT = notes[COUNTER_NOTE_ID]?.code ?? "";
 
 // A registry record carries its source package, which bundles every source file
-// plus the compiled masp — 168 KB for the account, 49 KB for the note — so these
-// checks summarize rather than render the body.
+// plus the compiled masp, so these checks summarize rather than render the body.
 
 /**
  * Both verified-account routes return the same record; the by-id one resolves
@@ -150,7 +147,7 @@ const NOTE_SCRIPT = notes[COUNTER_NOTE_ID_1]?.code ?? "";
  */
 const verifiedAccountCheck = ({ byId }: { byId: boolean }): EndpointCheck => {
   const path = byId
-    ? `/v1/${NETWORK_ID}/verified-accounts/${COUNTER_CONTRACT_ID_1}`
+    ? `/v1/${NETWORK_ID}/verified-accounts/${COUNTER_CONTRACT_ID}`
     : `/v1/${NETWORK_ID}/verified-accounts/code/${ACCOUNT_CODE}`;
   return {
     id: byId ? "verified-account-by-id" : "verified-account-by-code",
@@ -193,7 +190,7 @@ const verifiedAccountCheck = ({ byId }: { byId: boolean }): EndpointCheck => {
         ? body.verifiedAccountComponents
         : [];
       if (components.length === 0) return "record has no verified components";
-      if (byId && body.accountId !== COUNTER_CONTRACT_ID_1) {
+      if (byId && body.accountId !== COUNTER_CONTRACT_ID) {
         return "echoed a different accountId";
       }
       return null;
@@ -207,12 +204,12 @@ const verifiedAccountCheck = ({ byId }: { byId: boolean }): EndpointCheck => {
  */
 const verifiedNoteCheck = ({ byId }: { byId: boolean }): EndpointCheck => {
   const path = byId
-    ? `/v1/${NETWORK_ID}/verified-notes/${COUNTER_NOTE_ID_1}`
+    ? `/v1/${NETWORK_ID}/verified-notes/${COUNTER_NOTE_ID}`
     : `/v1/${NETWORK_ID}/verified-notes/script/${NOTE_SCRIPT}`;
   return {
     id: byId ? "verified-note-by-id" : "verified-note-by-script",
     label: byId
-      ? `GET /v1/${NETWORK_ID}/verified-notes/${truncateHex(COUNTER_NOTE_ID_1)}`
+      ? `GET /v1/${NETWORK_ID}/verified-notes/${truncateHex(COUNTER_NOTE_ID)}`
       : `GET /v1/${NETWORK_ID}/verified-notes/script/${truncateHex(NOTE_SCRIPT)}`,
     method: "GET",
     path,
@@ -240,7 +237,7 @@ const verifiedNoteCheck = ({ byId }: { byId: boolean }): EndpointCheck => {
       if (asRecord<Package>(body.package).type !== "note") {
         return "record's package is not a note";
       }
-      if (byId && body.noteId !== COUNTER_NOTE_ID_1) {
+      if (byId && body.noteId !== COUNTER_NOTE_ID) {
         return "echoed a different noteId";
       }
       return null;
@@ -251,7 +248,8 @@ const verifiedNoteCheck = ({ byId }: { byId: boolean }): EndpointCheck => {
 const apiCompile: ServiceDefinition = {
   id: "api-compile",
   name: "api-compile",
-  description: "Compiles Rust sources to Miden packages and verifies them against on-chain code.",
+  description:
+    "Assembles Miden Assembly projects into packages and verifies them against on-chain code.",
   url: API_COMPILE_URL,
   endpoints: [
     rootCheck,
@@ -261,7 +259,7 @@ const apiCompile: ServiceDefinition = {
       method: "POST",
       path: "/compile",
       timeoutMs: COMPILE_TIMEOUT_MS,
-      body: async () => ({ files: await loadCounterContract() }),
+      body: loadCounterContract,
       summarize: (payload) => {
         const body = asRecord(payload);
         const manifest = asRecord(body.manifest);
@@ -278,8 +276,8 @@ const apiCompile: ServiceDefinition = {
         const body = asRecord(payload);
         if (body.built !== true) {
           // A failed build is an outcome: still a 200, with `built: false`
-          // and the compiler's output, so the status code alone would not
-          // catch it.
+          // and the assembler's diagnostics, so the status code alone would
+          // not catch it.
           return "the sources did not build";
         }
         if (typeof body.commitment !== "string") return "missing commitment";
@@ -297,9 +295,9 @@ const apiCompile: ServiceDefinition = {
       // network — this exercises the full on-chain path, mirroring the
       // `it verifies an on-chain counter-contract` test.
       body: async () => ({
-        files: await loadCounterContract(),
+        ...(await loadCounterContract()),
         networkId: "mtst",
-        resourceId: COUNTER_CONTRACT_ID_1,
+        resourceId: COUNTER_CONTRACT_ID,
       }),
       summarize: (payload) => {
         const body = asRecord(payload);
@@ -317,12 +315,12 @@ const apiCompile: ServiceDefinition = {
     },
     {
       id: "import",
-      label: `GET /mtst/import/${COUNTER_CONTRACT_ID_1}`,
+      label: `GET /mtst/import/${COUNTER_CONTRACT_ID}`,
       method: "GET",
-      path: `/mtst/import/${COUNTER_CONTRACT_ID_1}`,
+      path: `/mtst/import/${COUNTER_CONTRACT_ID}`,
       summarize: (payload) => {
         const body = asRecord(payload);
-        const expected = accounts[COUNTER_CONTRACT_ID_1]?.code;
+        const expected = accounts[COUNTER_CONTRACT_ID]?.code;
         return {
           type: String(body.type ?? "—"),
           code: truncateHex(body.code),
@@ -332,7 +330,7 @@ const apiCompile: ServiceDefinition = {
       assert: (payload) => {
         const body = asRecord(payload);
         if (body.type !== "account") return `expected an account, got ${body.type}`;
-        const expected = accounts[COUNTER_CONTRACT_ID_1]?.code;
+        const expected = accounts[COUNTER_CONTRACT_ID]?.code;
         return body.code === expected ? null : "code root does not match the known fixture";
       },
     },

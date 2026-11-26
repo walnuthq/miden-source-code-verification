@@ -1,6 +1,0 @@
-# Debug builds
-
-api-compile no longer makes debug builds: `POST /compile-debug` and the `debug` request flag are gone, since the helper tools are on the 0.36 VM crates, which can't read the debug info in a `cargo-miden` 0.11.0 dev package (`unsupported debug_info version: 3, expected 4`). The registry still serves the debug builds it stored before (`<commitment>.debug.masp`, `debugCommitment`, `debugBuiltWith`), until `spec/remove-rust/09-registry-and-viewer-drop-rust.md` removes them. A MASM package needs no second build: its dev assembly has the release one's procedure roots and commitment, so the one verified package carries the debug info.
-
-- A stored debug build's commitment depended on the architecture: production api-compile (x86_64) and the local compose container (aarch64 on Apple Silicon) gave different debug commitments for the same source, while the release commitment was the same on both. Pair debug builds with their release builds by export path only, and never hard-code a debug commitment in a test.
-- Don't bring the cargo dev profile back to get debug info for a Rust project: it compiles to other procedure roots than the release build, so it can never be the verified package.

@@ -6,35 +6,25 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0"
 clap = { version = "4.6", features = ["derive"] }
-# The VM crates of the 0.18 protocol, which read both the packages
-# `miden-assembly` 0.36 builds and the release packages of `cargo-miden 0.11.0`
-# (0.35), but not the latter's dev packages (their debug info is an older
-# version). They don't derive `serde` for the manifest, so `main.rs` writes the
-# JSON itself, and `miden-assembly-syntax` supplies the types it walks.
+# The VM crates of the 0.18 protocol, which read the packages
+# `miden-assembly` 0.36 builds. They don't derive `serde` for the manifest, so
+# `main.rs` writes the JSON itself, and `miden-assembly-syntax` supplies the
+# types it walks.
 miden-assembly-syntax = "=0.36.5"
 miden-mast-package = "=0.36.5"
 # For `read_only.rs`: the MAST node types, and the libraries a package calls
-# into. A `cargo-miden 0.11.0` package links the 0.17 protocol's libraries: a
-# call whose digest changed in 0.18 no longer resolves, which makes its caller
-# `null` (can't be told), never a wrong `true` or `false`. Already in the
-# workspace's lockfile through `miden-client`, at these versions.
+# into. A call whose digest isn't in them doesn't resolve, which makes its
+# caller `null` (can't be told), never a wrong `true` or `false`. Already in
+# the workspace's lockfile through `miden-client`, at these versions.
 miden-core = "=0.36.5"
 miden-core-lib = "=0.36.5"
 miden-protocol = "=0.18.0"
 # For `source_parameters.rs`: loads a MASM project's manifest to find its
 # library's root module. Already in the lockfile through `miden-assembly`.
 miden-project = "=0.36.5"
-# Reads a note's storage schema (the WIT `cargo-miden` embeds in the
-# `note_storage_schema` section) and its felt layout: the compiler's own reader,
-# from the same `0.15.0` SDK release `cargo-miden 0.11.0` belongs to.
-miden-note-schema = "=0.15.0"
 miden-standards = "=0.18.0"
 miden-serde-utils = "=0.36.5"
 serde_json = { version = "1.0", features = ["preserve_order"] }
-# For `parameters.rs`: parses the component's WIT, which `cargo-miden` embeds in
-# the `wit` section, without resolving the packages it `use`s. Already in the
-# lockfile through `miden-note-schema`, at this version.
-wit-parser = "=0.258.3"
 
 [dev-dependencies]
 # For `tests/masm_packages.rs`, which assembles `miden-assemble`'s test

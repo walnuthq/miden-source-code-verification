@@ -142,7 +142,7 @@ router.post("/:networkId/verified-accounts", async (req, res) => {
     res.status(400).json({ error: "missing accountId" });
     return;
   }
-  const opened = openProject(files, entrypoint, { masm: true });
+  const opened = openProject(files, entrypoint);
   if ("error" in opened) {
     res.status(400).json({ error: opened.error });
     return;

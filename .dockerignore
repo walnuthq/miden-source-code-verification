@@ -30,10 +30,8 @@
 **/keystore
 **/store.sqlite3
 
-# The MASM examples are test input only. The image copies the examples
-# directory before its cargo warm-up, which only uses the Rust ones: keeping
-# these out keeps that layer cached when they change.
-apps/api-compile/examples/masm
+# api-compile's examples are test and fixture input only: no image uses them.
+apps/api-compile/examples
 
 # Not needed for the build
 .github

@@ -2,7 +2,7 @@
 // them hands an empty record to the code it calls and answers with what came
 // back as a `Server-Timing` header: the container's log can't be read from
 // the CLI, a response header can.
-export type Part = "preload" | "layout" | "prepare" | "cargo" | "assemble" | "tools" | "cleanup";
+export type Part = "assemble" | "tools" | "cleanup";
 export type Timings = Partial<Record<Part, number>>;
 
 // Runs `run` and adds its duration to `timings[name]`, when there is a record
@@ -18,7 +18,7 @@ export const timed = async <T>(timings: Timings | undefined, name: Part, run: ()
   }
 };
 
-// The `Server-Timing` header value: `layout;dur=412, cargo;dur=630`.
+// The `Server-Timing` header value: `assemble;dur=21, tools;dur=9`.
 export const serverTiming = (timings: Timings) =>
   Object.entries(timings)
     .map(([name, ms]) => `${name};dur=${Math.round(ms)}`)

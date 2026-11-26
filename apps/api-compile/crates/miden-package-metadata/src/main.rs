@@ -15,9 +15,7 @@ use std::path::PathBuf;
 mod account_procedures;
 mod foreign_calls;
 mod libraries;
-mod parameters;
 mod read_only;
-mod schemas;
 mod source_parameters;
 
 /// Extracts and prints metadata from a Miden package (.masp) file as JSON.
@@ -27,8 +25,8 @@ struct Args {
     /// Path to the .masp file
     masp_path: PathBuf,
     /// The directory holding the `miden-project.toml` the package was
-    /// assembled from, for the parameter names of a package without a WIT
-    /// section: they are read from its MASM source.
+    /// assembled from, for the parameter names: they are read from its MASM
+    /// source, as the manifest has only their types.
     #[arg(long)]
     entrypoint_dir: Option<PathBuf>,
 }
@@ -58,7 +56,7 @@ fn main() -> Result<()> {
         // metadata. Unlike `mast_forest_commitment()`, two packages that compile
         // to the same MAST but differ otherwise get different values. Unlike
         // `commitment()`, it leaves out the source provenance section, which
-        // embeds the absolute path of the build's cargo target directory, so
+        // can embed the absolute path of the directory it was built in, so
         // anyone rebuilding the same sources gets the same value. It is also the
         // `digest` a dependent records for this package in its manifest's
         // `dependencies`.
@@ -107,30 +105,15 @@ fn main() -> Result<()> {
                 .map(|roots| roots.iter().map(Word::to_hex).collect::<Vec<_>>())
         );
     }
-    // An account component's storage slots and a note's storage (its inputs),
-    // from the schemas the toolchain embeds. Absent, not `null`, when the
-    // package has none or the tool can't read it: `schemas.rs` says why.
-    if let Some(storage) = schemas::storage(&package) {
-        metadata["storage"] = storage;
-    }
-    if let Some(note_storage) = schemas::note_storage(&package) {
-        metadata["noteStorage"] = note_storage;
-    }
     // Each exported procedure's parameters, by export path, in order:
-    // `[{ "name", "type" }]`. From the package's WIT when it has the section
-    // (a `cargo-miden` package), both as the WIT spells them (kebab case);
-    // otherwise from the MASM source when `--entrypoint-dir` names its project, both as the
-    // source spells them. An export is listed only when its WIT function or
+    // `[{ "name", "type" }]`, both as the MASM source spells them, from the
+    // project `--entrypoint-dir` names. An export is listed only when its
     // procedure was found with as many named parameters as its signature, so
-    // the two pair by index. `{}` for a package without the WIT section and
-    // `--entrypoint-dir` (a Rust transaction script, or a package built before
-    // `cargo-miden` 0.10); absent when the section or the source can't be
-    // read. `parameters.rs` and `source_parameters.rs` read them.
+    // the two pair by index. `{}` without `--entrypoint-dir`; absent when the
+    // source can't be read. `source_parameters.rs` reads them.
     let parameters = match &args.entrypoint_dir {
-        Some(entrypoint_dir) if !parameters::has_section(&package) => {
-            source_parameters::package(&package, entrypoint_dir)
-        }
-        _ => parameters::package(&package),
+        Some(entrypoint_dir) => source_parameters::package(&package, entrypoint_dir),
+        None => Some(Map::new()),
     };
     if let Some(parameters) = parameters {
         metadata["parameters"] = Value::Object(parameters);

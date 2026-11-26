@@ -2,7 +2,6 @@ import { eq, type SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 import type { VerifyResponse } from "miden-source-code-verification-utils/api-compile";
 import { HttpError } from "miden-source-code-verification-utils/http-errors";
-import type { PackageSchemas } from "miden-source-code-verification-utils/manifest";
 import type { Project } from "miden-source-code-verification-utils/project";
 
 import db, { type Database } from "../db/index.ts";
@@ -52,19 +51,11 @@ const onConflictTakeOverPlayground = <TSet, TInsert>(
         setWhere: eq(sourceColumn, PLAYGROUND_SOURCE),
       });
 
-// The `schemas` column of what api-compile read of a package: only the
-// schemas it has, so `{}` for one with none (no keys set to `undefined`), as
-// every MASM package is.
-const schemasOf = ({ storage, noteStorage }: PackageSchemas): PackageSchemas => ({
-  ...(storage && { storage }),
-  ...(noteStorage && { noteStorage }),
-});
-
 // The package's row: inserted, or found when a concurrent verification of the
 // same new package inserted it since the read outside the transaction.
 const insertPackage = async (
   tx: Transaction,
-  { name, entrypoint, kind }: Project,
+  { name, entrypoint }: Project,
   build: VerifyResponse,
 ) => {
   const [inserted] = await tx
@@ -72,22 +63,21 @@ const insertPackage = async (
     .values({
       name,
       type: build.kind,
-      // For a Rust project, keeps the lockfile with the sources, so the
-      // record pins the dependency versions that produced `commitment`. A
-      // MASM project has none: its files come back as sent.
+      // The project as sent.
       files: build.files,
       commitment: build.commitment,
       manifest: build.manifest,
       readOnly: build.readOnly,
-      schemas: schemasOf(build),
+      // A MASM package has no storage schemas. The column stays until
+      // `spec/remove-rust` plan 10 drops it.
+      schemas: {},
       // `{}` when api-compile answers no names: its tool couldn't parse the
       // package's WIT or MASM source (a package without one already gives
       // `{}`).
       parameters: build.parameters ?? {},
       entrypoint,
-      // The toolchain that built it: cargo-miden's version, or the versions
-      // the assembler was built with.
-      builtWith: kind === "rust" ? build.cargoMidenVersion : build.builtWith,
+      // The versions the assembler was built with.
+      builtWith: build.builtWith,
     })
     .onConflictDoNothing({ target: packagesTable.commitment })
     .returning({ id: packagesTable.id });

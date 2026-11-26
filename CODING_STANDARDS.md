@@ -18,9 +18,9 @@ Why: the type tells the caller which outcomes it must handle, and only an outcom
 
 ### Answered messages are contract
 
-The `error` strings the APIs answer are part of their contract: a refactor keeps them byte-identical (`missing Cargo.toml`, `invalid entrypoint` and the rest listed in `packages/utils/src/project.ts`). A new 400 reason gets its mention in the OpenAPI block and one test (`apps/api-compile/__tests__/compile.test.ts`).
+The `error` strings the APIs answer are part of their contract: a refactor keeps them byte-identical (`missing miden-project.toml`, `invalid entrypoint` and the rest listed in `packages/utils/src/project.ts`). A new 400 reason gets its mention in the OpenAPI block and one test (`apps/api-compile/__tests__/assemble.test.ts`).
 
-Why: clients, the web apps and the status probe match on these strings, and the Playground shows a failed build's `stderr` to its users ([ADR 0005](docs/adr/0005-cargo-miden-stays-off-the-helper-tool-runner.md)).
+Why: clients, the web apps and the status probe match on these strings, and the Playground shows a failed build's `stderr` to its users ([ADR 0001](docs/adr/0001-a-failed-build-is-a-200.md)).
 
 ### Logging belongs to the error handler
 

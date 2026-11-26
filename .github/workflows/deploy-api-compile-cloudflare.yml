@@ -40,12 +40,12 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # Layer caching. wrangler runs a plain `docker build --load` with no cache
-      # flags, so a cold runner would rebuild cargo-miden, the helper crates and
-      # the example warm-up from scratch. Warm a BuildKit builder from the
-      # GitHub Actions cache first: wrangler's build then runs on that builder
-      # (BUILDX_BUILDER below) and finds every unchanged layer locally. Each
-      # Rust binary has its own stage, so editing one crate only rebuilds that
-      # stage.
+      # flags, so a cold runner would install the Rust toolchain and compile the
+      # helper crates' dependency tree (miden-client and the VM crates) from
+      # scratch. Warm a BuildKit builder from the GitHub Actions cache first:
+      # wrangler's build then runs on that builder (BUILDX_BUILDER below) and
+      # finds every unchanged layer locally. The dependency tree compiles in a
+      # layer of its own, so editing a crate's sources only rebuilds the crates.
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v4
@@ -65,8 +65,8 @@ jobs:
           # Loading pulls the layers into the builder.
           load: true
           cache-from: type=gha,scope=api-compile
-          # mode=max also exports the Rust builder stages, not just the final
-          # image's layers: they hold the expensive compiles.
+          # mode=max also exports the Rust builder stage, not just the final
+          # image's layers: it holds the expensive compiles.
           cache-to: type=gha,scope=api-compile,mode=max
 
       # wrangler builds the container image (apps/api-compile/Dockerfile), from

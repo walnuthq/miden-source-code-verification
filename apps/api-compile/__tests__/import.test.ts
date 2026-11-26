@@ -1,14 +1,8 @@
 import express from "express";
 import {
   accounts,
-  BANK_ACCOUNT_ID_1,
-  COUNTER_CONTRACT_ID_1,
-  COUNTER_NOTE_ID_1,
-  DEPOSIT_NOTE_ID_1,
-  MASM_COUNTER_CONTRACT_ID,
-  MASM_COUNTER_NOTE_ID,
-  masmAccounts,
-  masmNotes,
+  COUNTER_CONTRACT_ID,
+  COUNTER_NOTE_ID,
   notes,
   request,
 } from "miden-source-code-verification-test-utils";
@@ -44,9 +38,9 @@ esac
 
 describe("GET /:networkId/import/:resourceId", () => {
   it("imports an on-chain account", async () => {
-    const res = await api.get(`/${networkId}/import/${COUNTER_CONTRACT_ID_1}`);
+    const res = await api.get(`/${networkId}/import/${COUNTER_CONTRACT_ID}`);
 
-    const { code } = accounts[COUNTER_CONTRACT_ID_1];
+    const { code } = accounts[COUNTER_CONTRACT_ID];
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("type", "account");
@@ -54,7 +48,7 @@ describe("GET /:networkId/import/:resourceId", () => {
   });
 
   it("lists an account's procedures and the standard components among them", async () => {
-    const res = await api.get(`/${networkId}/import/${COUNTER_CONTRACT_ID_1}`);
+    const res = await api.get(`/${networkId}/import/${COUNTER_CONTRACT_ID}`);
 
     expect(res.status).toBe(200);
     const { standardAccountComponents, procedures } = res.body as {
@@ -62,11 +56,11 @@ describe("GET /:networkId/import/:resourceId", () => {
       procedures: string[];
     };
 
-    // The counter-contract carries `BasicWallet` to pay fees, and the schema
-    // commitment `build_with_schema_commitment` adds to every account.
+    // The counter carries `BasicWallet` to pay fees and the standard `NoAuth`.
+    // It has no schema commitment: a MASM package has no storage schema.
     expect(standardAccountComponents.map(({ name }) => name)).toEqual([
       "BasicWallet",
-      "SchemaCommitment",
+      "AuthNoAuth",
     ]);
 
     for (const procedure of procedures) {
@@ -80,91 +74,20 @@ describe("GET /:networkId/import/:resourceId", () => {
     for (const procedure of claimed) {
       expect(procedures).toContain(procedure);
     }
-    // The custom counter and no-auth components' procedures are left over.
-    expect(procedures.length).toBeGreaterThan(claimed.length);
-  });
-
-  it("imports an on-chain bank account", async () => {
-    const res = await api.get(`/${networkId}/import/${BANK_ACCOUNT_ID_1}`);
-
-    const { code } = accounts[BANK_ACCOUNT_ID_1];
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("type", "account");
-    expect(res.body).toHaveProperty("code", code);
-  });
-
-  it("lists a bank account's standard components", async () => {
-    const res = await api.get(`/${networkId}/import/${BANK_ACCOUNT_ID_1}`);
-
-    expect(res.status).toBe(200);
-    const { standardAccountComponents, procedures } = res.body as {
-      standardAccountComponents: { name: string; procedures: string[] }[];
-      procedures: string[];
-    };
-
-    // The bank carries `BasicWallet` to receive assets and `NoAuth` to pay its
-    // fee, on top of the schema commitment.
-    expect(standardAccountComponents.map(({ name }) => name)).toEqual([
-      "BasicWallet",
-      "AuthNoAuth",
-      "SchemaCommitment",
-    ]);
-
-    const claimed = standardAccountComponents.flatMap((component) => component.procedures);
-    // The custom bank component's procedures are left over.
+    // The custom counter component's procedures are left over.
     expect(procedures.length).toBeGreaterThan(claimed.length);
   });
 
   it("imports an on-chain note", async () => {
-    const res = await api.get(`/${networkId}/import/${COUNTER_NOTE_ID_1}`);
+    const res = await api.get(`/${networkId}/import/${COUNTER_NOTE_ID}`);
 
-    const { code } = notes[COUNTER_NOTE_ID_1];
+    const { code } = notes[COUNTER_NOTE_ID];
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("type", "note");
     expect(res.body).toHaveProperty("code", code);
     expect(res.body).not.toHaveProperty("standardAccountComponents");
     expect(res.body).not.toHaveProperty("procedures");
-  });
-
-  it("imports an on-chain deposit-note", async () => {
-    const res = await api.get(`/${networkId}/import/${DEPOSIT_NOTE_ID_1}`);
-
-    const { code } = notes[DEPOSIT_NOTE_ID_1];
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("type", "note");
-    expect(res.body).toHaveProperty("code", code);
-  });
-
-  // A MASM-built account answers as a Rust-built one does. It carries no
-  // schema commitment: a MASM package has no storage schema.
-  it("imports an on-chain MASM account", async () => {
-    const res = await api.get(`/${networkId}/import/${MASM_COUNTER_CONTRACT_ID}`);
-    const rust = await api.get(`/${networkId}/import/${COUNTER_CONTRACT_ID_1}`);
-
-    expect(res.status).toBe(200);
-    expect(Object.keys(res.body).sort()).toEqual(Object.keys(rust.body).sort());
-    expect(res.body).toHaveProperty("type", "account");
-    expect(res.body).toHaveProperty("code", masmAccounts[MASM_COUNTER_CONTRACT_ID].code);
-    const { standardAccountComponents } = res.body as {
-      standardAccountComponents: { name: string }[];
-    };
-    expect(standardAccountComponents.map(({ name }) => name)).toEqual([
-      "BasicWallet",
-      "AuthNoAuth",
-    ]);
-  });
-
-  it("imports an on-chain MASM note", async () => {
-    const res = await api.get(`/${networkId}/import/${MASM_COUNTER_NOTE_ID}`);
-    const rust = await api.get(`/${networkId}/import/${COUNTER_NOTE_ID_1}`);
-
-    expect(res.status).toBe(200);
-    expect(Object.keys(res.body).sort()).toEqual(Object.keys(rust.body).sort());
-    expect(res.body).toHaveProperty("type", "note");
-    expect(res.body).toHaveProperty("code", masmNotes[MASM_COUNTER_NOTE_ID].code);
   });
 
   it("returns 404 for an account not found on the network", async () => {

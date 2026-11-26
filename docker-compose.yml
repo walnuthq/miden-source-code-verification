@@ -24,12 +24,11 @@ services:
       # Build context is the monorepo root so pnpm can resolve the workspace.
       context: .
       dockerfile: apps/api-compile/Dockerfile
-    # Self-contained dev config (no .env file needed). CARGO_TARGET_DIR /
-    # MIDEN_CLIENT_CACHE_DIR must match the warm cache paths baked into the image.
+    # Self-contained dev config (no .env file needed). MIDEN_CLIENT_CACHE_DIR
+    # must be the directory the image gives the `api` user.
     environment:
       - PORT=8080
       - ALLOWED_ORIGINS=*
-      - CARGO_TARGET_DIR=/cache/target
       - MIDEN_CLIENT_CACHE_DIR=/cache/stores
     image: miden-source-code-verification-api-compile
     container_name: miden-source-code-verification-api-compile

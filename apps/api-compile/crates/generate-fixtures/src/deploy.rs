@@ -1,10 +1,6 @@
-//! The MASM fixtures: one account built from `examples/masm/counter-contract`
-//! and one note built from `examples/masm/counter-note`, both assembled with
-//! `miden-assemble`'s library rather than through cargo.
-//!
-//! They sit next to the Rust fixtures and don't replace them, so this mode
-//! writes a file of its own (`packages/test-utils/src/masm-fixtures.ts`) and
-//! leaves `fixtures.ts` as it is.
+//! The fixtures: one account built from `examples/counter-contract` and one
+//! note built from `examples/counter-note`, both assembled with
+//! `miden-assemble`'s library.
 //!
 //! The account carries the MASM counter component plus the standard `NoAuth`
 //! and, on a fee-charging chain, the standard `BasicWallet`. The standard
@@ -17,7 +13,6 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use anyhow::{Context, Result, anyhow, bail};
-use base64::prelude::*;
 use miden_client::Client;
 use miden_client::account::component::{AccountComponentMetadata, NoAuth};
 use miden_client::account::{
@@ -25,38 +20,36 @@ use miden_client::account::{
 };
 use miden_client::address::NetworkId;
 use miden_client::keystore::FilesystemKeyStore;
-use miden_client::note::{Note, NoteScript};
+use miden_client::note::NoteScript;
 use miden_client::transaction::TransactionRequestBuilder;
-use miden_client::utils::Serializable;
 use miden_client::vm::Package;
 use rand::TryRng;
 
-use crate::account::wait_for_commitment;
 use crate::fee::{self, FeeContext};
-use crate::fixtures::entry;
+use crate::fixtures::Fixtures;
 use crate::note::{build_note, create_factory};
 use crate::transacting_components;
+use crate::tx::wait_for_commitment;
 
 /// The value slot `counter_contract.masm` keeps its count in. A MASM package
 /// has no storage schema, so the slot is declared here.
 const COUNT_SLOT: &str = "counter_contract::count";
 
-/// The two packages, assembled from `<examples>/masm`.
+/// The two packages, assembled from `<examples>`.
 pub struct Packages {
     pub counter_contract: Package,
     pub counter_note: Package,
 }
 
 impl Packages {
-    /// Assembles both, with `<examples>/masm` as the project root: the note's
+    /// Assembles both, with `<examples>` as the project root: the note's
     /// manifest depends on `../counter-contract`. `miden-assemble` names the
     /// sources relative to the root and reads them from the working directory,
     /// so the process moves into the root for the build and back out after it.
     pub fn build(examples_dir: &Path) -> Result<Self> {
         let root = examples_dir
-            .join("masm")
             .canonicalize()
-            .context("failed to read the MASM examples directory")?;
+            .context("failed to read the examples directory")?;
         let cwd = std::env::current_dir().context("failed to read the working directory")?;
         std::env::set_current_dir(&root)
             .with_context(|| format!("failed to enter {}", root.display()))?;
@@ -69,10 +62,10 @@ impl Packages {
     /// [`Self::build`], run from `root`.
     fn build_in(root: &Path) -> Result<Self> {
         let build = |project: &str| -> Result<Package> {
-            eprintln!("Assembling masm/{project}…");
+            eprintln!("Assembling {project}…");
             let manifest = root.join(project).join("miden-project.toml");
             let package = miden_assemble::build(&manifest, root, false)
-                .map_err(|report| anyhow!("failed to assemble masm/{project}:\n{report:?}"))?;
+                .map_err(|report| anyhow!("failed to assemble {project}:\n{report:?}"))?;
             Ok(Package::clone(&package))
         };
 
@@ -83,14 +76,7 @@ impl Packages {
     }
 }
 
-/// What the generated file is written from.
-pub struct Fixtures {
-    pub network_id: String,
-    pub counter_contract: Account,
-    pub counter_note: Note,
-}
-
-/// Deploys the MASM fixtures and returns them. `fees` is what the chain
+/// Deploys the fixtures and returns them. `fees` is what the chain
 /// charges and the faucet to draw it from, or `None` on a fee-free chain.
 pub async fn deploy(
     client: &mut Client<FilesystemKeyStore>,
@@ -112,9 +98,9 @@ pub async fn deploy(
     let script = NoteScript::from_package(&packages.counter_note)
         .map_err(|err| anyhow!("failed to build the counter-note script: {err}"))?;
     let counter_note = build_note(client.rng(), &script, factory, account_id)?;
-    eprintln!("Created MASM counter-note {}", counter_note.id().to_hex());
+    eprintln!("Created counter-note {}", counter_note.id().to_hex());
     let increment = build_note(client.rng(), &script, factory, account_id)?;
-    eprintln!("Created MASM increment note {}", increment.id().to_hex());
+    eprintln!("Created increment note {}", increment.id().to_hex());
 
     let request = TransactionRequestBuilder::new()
         .input_notes(funding.remove(&factory).map(|note| (note, None)))
@@ -205,8 +191,8 @@ async fn assemble_counter_contract(
     for component in transacting_components(fees) {
         builder = builder.with_component(component);
     }
-    // Plain `build`: the schema commitment slot the Rust fixtures carry commits
-    // to the components' storage schemas, and a MASM package has none.
+    // Plain `build`: a schema commitment slot commits to the components'
+    // storage schemas, and a MASM package has none.
     let account = builder
         .build()
         .context("failed to build the MASM counter account")?;
@@ -215,46 +201,6 @@ async fn assemble_counter_contract(
         .add_account(&account, false)
         .await
         .context("failed to add the account to the client")?;
-    eprintln!(
-        "Created MASM counter-contract account {}",
-        account.id().to_hex()
-    );
+    eprintln!("Created counter-contract account {}", account.id().to_hex());
     Ok(account)
-}
-
-impl Fixtures {
-    /// Renders `packages/test-utils/src/masm-fixtures.ts`, laid out as oxfmt
-    /// formats it (see `crate::fixtures`).
-    pub fn render(&self) -> String {
-        let account = &self.counter_contract;
-        let note = &self.counter_note;
-        let mut out = String::new();
-        out.push_str(&format!(
-            "// Generated by apps/api-compile/crates/generate-fixtures --mode masm against {}.\n",
-            self.network_id
-        ));
-        out.push_str("// Do not edit by hand — regenerate with `pnpm generate-masm-fixtures`.\n\n");
-        out.push_str(&format!(
-            "export const MASM_COUNTER_CONTRACT_ID = \"{}\";\n",
-            account.id().to_hex()
-        ));
-        out.push_str(&format!(
-            "export const MASM_COUNTER_NOTE_ID =\n  \"{}\";\n\n",
-            note.id().to_hex()
-        ));
-        out.push_str("export const masmAccounts = {\n");
-        out.push_str(&entry(
-            "MASM_COUNTER_CONTRACT_ID",
-            &BASE64_STANDARD.encode(account.to_bytes()),
-            &account.code().commitment().to_hex(),
-        ));
-        out.push_str("};\n\nexport const masmNotes = {\n");
-        out.push_str(&entry(
-            "MASM_COUNTER_NOTE_ID",
-            &BASE64_STANDARD.encode(note.to_bytes()),
-            &note.script().root().to_hex(),
-        ));
-        out.push_str("};\n");
-        out
-    }
 }

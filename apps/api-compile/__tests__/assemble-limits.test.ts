@@ -1,13 +1,15 @@
 import express from "express";
 import { request } from "miden-source-code-verification-test-utils";
 import { errorHandler } from "miden-source-code-verification-utils/http-errors";
+import { RUST_PROJECT_ERROR } from "miden-source-code-verification-utils/project";
 import { describe, expect, it, vi } from "vitest";
 
 import compileRouter from "../src/routes/compile.ts";
 import { useFakeTool } from "./fake-tool.ts";
 
-// The MASM path in-process, with fake tools: its deadline, its queue, and
-// what it answers from what the tools print. One slot, no queue, a 3 s
+// `/compile` in-process, with fake tools: its deadline, its queue, what it
+// answers from what the tools print, and the Rust project it refuses before
+// running any. One slot, no queue, a 3 s
 // deadline: at 1 s, a cold exec of the two fake tools under a full parallel
 // `pnpm check` missed it (2026-11-25).
 vi.mock("../src/lib/constants.ts", async (importOriginal) => ({
@@ -114,5 +116,19 @@ printf '%s\\n' '{"built":false,"builtWith":"miden-assembly 0.0.0","rendered":"  
       diagnostics: [{ severity: "error", message: "bad" }],
       builtWith: "miden-assembly 0.0.0",
     });
+  });
+});
+
+describe("POST /compile a Rust project", () => {
+  // Fails the build if the route ever ran it.
+  useFakeTool("miden-assemble", "#!/bin/sh\nexit 1\n");
+
+  it("answers 400 before running a tool", async () => {
+    const res = await request(app)
+      .post("/compile")
+      .send({ files: { ...project, "Cargo.toml": '[package]\nname = "counter"\n' } });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: RUST_PROJECT_ERROR });
   });
 });

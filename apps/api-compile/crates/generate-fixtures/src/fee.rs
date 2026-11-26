@@ -1,31 +1,18 @@
-//! Paying the transaction fee on a fee-charging chain, and the faucet funding
-//! that makes it payable.
+//! The faucet funding that makes a transaction fee payable on a fee-charging
+//! chain.
 //!
 //! A 0.16 node rejects any transaction carrying no non-zero TX_FEE output note
 //! once the chain's `verification_base_fee` is non-zero — see
-//! `ensure_transaction_has_fee` in the node's block producer. That note is
-//! normally created by the account's authentication procedure out of its own
-//! vault, which is not something the counter contracts do: they authenticate
-//! with `examples/counter-contract/auth-component-no-auth`, which creates no
-//! fee note. The Rust SDK has no binding for `miden::standards::fee::pay_fee`,
-//! what the standard auth components call. It does bind the kernel procedures
-//! that one is built on (`tx::compute_fee`, `tx::get_fee_asset_id`,
-//! `output_note::create`, `output_note::add_asset`,
-//! `native_account::remove_asset`), but not the standards helpers it also
-//! calls, and no example auth component pays its fee by hand. Whether one can
-//! is untested.
-//!
-//! The protocol does not require the auth procedure to be the note's *creator*,
-//! though — only that the transaction contains one. So [`FeeContext::fee_note`]
-//! builds one here and the caller hands it to
-//! [`TransactionRequestBuilder::own_output_notes`], which makes the client derive
-//! a send-notes script that creates the note and funds it from the account's
-//! vault. That leaves the vault to fill, which is what [`fund`] is for.
+//! `ensure_transaction_has_fee` in the node's block producer. Every account
+//! this tool deploys authenticates with the standard `NoAuth`, which creates
+//! that note out of the account's own vault. That leaves the vault to fill,
+//! which is what [`fund`] is for.
 
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, anyhow, bail};
+use miden_client::Client;
 use miden_client::account::component::{BasicWallet, NoAuth};
 use miden_client::account::{
     AccountBuilder, AccountBuilderSchemaCommitmentExt, AccountId, AccountType,
@@ -34,13 +21,12 @@ use miden_client::address::{Address, NetworkId};
 use miden_client::asset::FungibleAsset;
 use miden_client::block::BlockNumber;
 use miden_client::keystore::FilesystemKeyStore;
-use miden_client::note::{Note, NoteFile, NoteId, NoteType, P2idNote, TxFeeNote};
+use miden_client::note::{Note, NoteFile, NoteId, NoteType, P2idNote};
 use miden_client::transaction::TransactionRequestBuilder;
-use miden_client::{Client, ClientRng};
 use rand::TryRng;
 use sha2::{Digest, Sha256};
 
-use crate::account::wait_for_commitment;
+use crate::tx::wait_for_commitment;
 
 /// How long to wait for the faucet's mint to show up in the client's store.
 ///
@@ -113,25 +99,6 @@ impl FeeContext {
     fn account_funding(&self) -> u64 {
         self.fee_note_amount() * 4
     }
-
-    /// Builds the TX_FEE note `account_id`'s transaction pays its fee with.
-    ///
-    /// The serial number is drawn rather than derived: `TxFeeNote::derive_serial_number`
-    /// exists so a client can predict the note the *standard* auth components
-    /// create, and nothing on-chain checks it.
-    pub fn fee_note(&self, account_id: AccountId, rng: &mut ClientRng) -> Result<Note> {
-        let asset = FungibleAsset::new(self.fee_faucet_id, self.fee_note_amount())
-            .map_err(|err| anyhow!("failed to build the fee asset: {err}"))?;
-
-        let note = TxFeeNote::builder()
-            .sender(account_id)
-            .asset(asset)
-            .generate_serial_number(rng)
-            .build()
-            .map_err(|err| anyhow!("failed to build the fee note: {err}"))?;
-
-        Ok(note.into())
-    }
 }
 
 // --- Funding ---
@@ -147,8 +114,7 @@ impl FeeContext {
 /// The funds come from a throwaway wallet this function creates and has the
 /// public faucet mint to. Unlike everything else deployed by this tool, that
 /// wallet is assembled from the components `miden-standards` ships: `NoAuth` pays
-/// its own fee out of the faucet note it consumes in the very same transaction,
-/// which is exactly what none of the `examples/` components does.
+/// its own fee out of the faucet note it consumes in the very same transaction.
 pub async fn fund(
     client: &mut Client<FilesystemKeyStore>,
     fees: &FeeContext,

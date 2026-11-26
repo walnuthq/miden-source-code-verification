@@ -6,10 +6,8 @@ import type {
   AccountProcedures,
   ForeignCallingProcedures,
   Manifest,
-  NoteStorageSchema,
   ProcedureParameters,
   ReadOnlyProcedures,
-  StorageSchema,
   TargetType,
 } from "miden-source-code-verification-utils/manifest";
 
@@ -62,8 +60,7 @@ const run = async <T>(
   let stderr: string;
   try {
     ({ stdout, stderr } = await execFile(name, args, {
-      // Not the user that runs cargo: these read what it built, and own the
-      // client stores it can't write.
+      // The user that owns the client stores, not the server's.
       ...API_USER,
       env: {
         PATH: process.env.PATH,
@@ -83,8 +80,8 @@ const run = async <T>(
       rejected: exitCodeOf(error) === REJECTED_EXIT_CODE,
     };
   }
-  // A tool that succeeds can still warn on stderr, e.g. about a schema it
-  // couldn't read and left out of its result: nothing else would show it.
+  // A tool that succeeds can still warn on stderr, e.g. about parameter names
+  // it couldn't read and left out of its result: nothing else would show it.
   if (stderr.trim()) {
     console.warn(`${name}: ${stderr.trim()}`);
   }
@@ -115,10 +112,9 @@ export type MidenVerifierOutput =
 
 // What `miden-package-metadata` prints: the package's commitment and kind, its
 // manifest, whether each exported procedure is read-only and whether it can
-// make a foreign call, its parameters' names, the account
-// procedures a note or transaction script calls, and the schemas of an account
-// component's storage and a note's storage, when the package has them (the JSON
-// `packages/utils/src/manifest.ts` documents).
+// make a foreign call, its parameters' names, and the account procedures a
+// note or transaction script calls (the JSON `packages/utils/src/manifest.ts`
+// documents).
 export type PackageMetadata = {
   commitment: string;
   kind: TargetType;
@@ -127,8 +123,6 @@ export type PackageMetadata = {
   callsForeign?: ForeignCallingProcedures;
   parameters?: ProcedureParameters;
   accountProcedures?: AccountProcedures;
-  storage?: StorageSchema;
-  noteStorage?: NoteStorageSchema;
 };
 
 // `miden-import` and `miden-verifier` keep one client store per network under
@@ -172,8 +166,9 @@ export const midenVerifier = ({
   );
 
 // The package at `maspPath`, read. `entrypointDir` is the directory holding the
-// `miden-project.toml` a MASM package was assembled from: the parameter names
-// are read from its source, as the package has no WIT to give them.
+// `miden-project.toml` the package was assembled from: the parameter names are
+// read from its source, as the package's manifest has only their types.
+// Without it, the package's parameters are `{}`.
 export const midenPackageMetadata = (
   maspPath: string,
   { entrypointDir, signal }: { entrypointDir?: string; signal?: AbortSignal } = {},

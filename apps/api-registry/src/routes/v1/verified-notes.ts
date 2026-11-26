@@ -141,7 +141,7 @@ router.post("/:networkId/verified-notes", async (req, res) => {
     res.status(400).json({ error: "missing noteId" });
     return;
   }
-  const opened = openProject(files, entrypoint, { masm: true });
+  const opened = openProject(files, entrypoint);
   if ("error" in opened) {
     res.status(400).json({ error: opened.error });
     return;

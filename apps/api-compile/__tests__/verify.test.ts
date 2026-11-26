@@ -3,21 +3,14 @@ import { fileURLToPath } from "node:url";
 
 import {
   accounts,
-  BANK_ACCOUNT_ID_1,
-  BASIC_WALLET_ID_1,
-  COUNT_READER_ID,
-  COUNTER_CONTRACT_ID_1,
-  COUNTER_NOTE_ID_1,
-  DEPOSIT_NOTE_ID_1,
+  COUNTER_CONTRACT_ID,
+  COUNTER_NOTE_ID,
   editProjectFile,
-  MASM_COUNTER_CONTRACT_ID,
-  MASM_COUNTER_NOTE_ID,
-  masmAccounts,
-  masmNotes,
   notes,
   readProjectFiles,
   request,
 } from "miden-source-code-verification-test-utils";
+import { RUST_PROJECT_ERROR } from "miden-source-code-verification-utils/project";
 import { describe, expect, it, vi } from "vitest";
 
 import { VerifierError, verify } from "../src/lib/verify.ts";
@@ -25,11 +18,10 @@ import { useFakeTool } from "./fake-tool.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+// The fixtures, deployed by `generate-fixtures` from the projects in
+// `examples`. The note's project depends on `../counter-contract`, so the
+// projects are sent with `examples` as the root.
 const examplesDir = path.resolve(__dirname, "../examples");
-const counterContractDir = `${examplesDir}/counter-contract`;
-const basicWalletDir = `${examplesDir}/basic-wallet`;
-const bankDir = `${examplesDir}/miden-bank`;
-const masmDir = `${examplesDir}/masm`;
 
 const api = request(process.env.API_URL ?? "http://localhost:8080");
 
@@ -55,521 +47,85 @@ case "$4" in
 esac
 `;
 
-describe("POST /verify", () => {
-  // With no Cargo.toml at its entrypoint a files map is a MASM project, which
-  // needs a miden-project.toml there.
-  it("rejects a files map with neither manifest", async () => {
-    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
-    const res = await api.post("/verify").send({ files: { "src/lib.rs": files["src/lib.rs"] } });
+describe("POST /verify refuses", () => {
+  it("a files map with no miden-project.toml", async () => {
+    const res = await api.post("/verify").send({ files: { "src/lib.masm": "" } });
 
     expect(res.status).toBe(400);
-
     expect(res.body).toHaveProperty("error", "missing miden-project.toml");
   });
 
-  it("rejects requests missing network ID", async () => {
-    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
-    expect(files["Cargo.toml"]).toBeDefined();
+  it("a Rust project", async () => {
+    const files = await readProjectFiles(examplesDir);
+    files["counter-contract/Cargo.toml"] = '[package]\nname = "counter-contract"\n';
 
-    const res = await api.post("/verify").send({ files });
+    const res = await api.post("/verify").send({
+      files,
+      entrypoint: "counter-contract",
+      networkId,
+      resourceId: COUNTER_CONTRACT_ID,
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: RUST_PROJECT_ERROR });
+  });
+
+  it("a request with no network ID", async () => {
+    const files = await readProjectFiles(examplesDir);
+
+    const res = await api.post("/verify").send({ files, entrypoint: "counter-contract" });
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "missing networkId");
   });
 
-  it("rejects a network ID or a resource ID that isn't a string", async () => {
-    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
+  it("a network ID or a resource ID that isn't a string", async () => {
+    const files = await readProjectFiles(examplesDir);
+    const entrypoint = "counter-contract";
 
     const badNetwork = await api
       .post("/verify")
-      .send({ files, networkId: ["mtst"], resourceId: "0x1" });
+      .send({ files, entrypoint, networkId: ["mtst"], resourceId: "0x1" });
     expect(badNetwork.status).toBe(400);
     expect(badNetwork.body).toHaveProperty("error", "missing networkId");
 
     const badResource = await api
       .post("/verify")
-      .send({ files, networkId, resourceId: { id: "0x1" } });
+      .send({ files, entrypoint, networkId, resourceId: { id: "0x1" } });
     expect(badResource.status).toBe(400);
     expect(badResource.body).toHaveProperty("error", "missing resourceId");
   });
 
-  it("rejects requests missing resource ID", async () => {
-    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
-    expect(files["Cargo.toml"]).toBeDefined();
+  it("a request with no resource ID", async () => {
+    const files = await readProjectFiles(examplesDir);
 
-    const res = await api.post("/verify").send({ files, networkId });
+    const res = await api
+      .post("/verify")
+      .send({ files, entrypoint: "counter-contract", networkId });
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "missing resourceId");
   });
 
-  it("verifies a local counter-contract", async () => {
-    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
-    expect(files["Cargo.toml"]).toBeDefined();
-
-    const resourceId = COUNTER_CONTRACT_ID_1;
-    const { resource } = accounts[resourceId];
-
-    const res = await api.post("/verify").send({ files, networkId, resourceId, resource });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", true);
-    expect(res.body).toHaveProperty("root", accounts[COUNTER_CONTRACT_ID_1].code);
-    expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("commitment");
-    expect(res.body).toHaveProperty("manifest");
-    expect(res.body.parameters).toEqual({
-      '::"miden:counter-contract/counter-contract@0.1.0"::"get-count"': [],
-      '::"miden:counter-contract/counter-contract@0.1.0"::"increment-count"': [],
-    });
-  });
-
-  it("verifies an on-chain counter-contract", async () => {
-    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
-    expect(files["Cargo.toml"]).toBeDefined();
-
-    const res = await api
-      .post("/verify")
-      .send({ files, networkId, resourceId: COUNTER_CONTRACT_ID_1 });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", true);
-    expect(res.body).toHaveProperty("root", accounts[COUNTER_CONTRACT_ID_1].code);
-    expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("commitment");
-    expect(res.body).toHaveProperty("manifest");
-    expect(res.body.files).toEqual(files);
-  });
-
-  it("returns the lockfile an on-chain counter-contract was verified with", async () => {
-    const { "Cargo.lock": _, ...files } = await readProjectFiles(
-      `${counterContractDir}/counter-contract`,
-    );
-
-    const res = await api
-      .post("/verify")
-      .send({ files, networkId, resourceId: COUNTER_CONTRACT_ID_1 });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", true);
-    const { "Cargo.lock": cargoLock, ...sources } = res.body.files;
-    expect(sources).toEqual(files);
-    expect(cargoLock).toContain('name = "counter-contract"');
-  });
-
-  it("doesn't verify a counter-contract not found on network", async () => {
-    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
-    expect(files["Cargo.toml"]).toBeDefined();
+  it("a resource that isn't a string", async () => {
+    const files = await readProjectFiles(examplesDir);
 
     const res = await api.post("/verify").send({
       files,
+      entrypoint: "counter-contract",
       networkId,
-      resourceId: MISSING_ACCOUNT_ID,
-    });
-
-    expect(res.status).toBe(400);
-    expect(res.body).toHaveProperty("error");
-  });
-
-  it("doesn't verify a counter-contract if sources don't match", async () => {
-    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
-    expect(files["Cargo.toml"]).toBeDefined();
-    editProjectFile(files, "src/lib.rs", (content) => content.replaceAll("+", "-"));
-
-    const resourceId = COUNTER_CONTRACT_ID_1;
-    const { resource } = accounts[resourceId];
-
-    const res = await api.post("/verify").send({ files, networkId, resourceId, resource });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", false);
-    expect(res.body).toHaveProperty("root", accounts[COUNTER_CONTRACT_ID_1].code);
-  });
-
-  // Mainnet has no fixtures: this checks against the public USDCx fee faucet,
-  // whose code the counter-contract doesn't match.
-  it("doesn't verify a counter-contract against a Mainnet account with other code", async () => {
-    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
-
-    const res = await api.post("/verify").send({
-      files,
-      networkId: "mm",
-      resourceId: "0xe69e6ca6e39df1b10c1e5399399feb",
-    });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", false);
-  });
-
-  it("doesn't verify against a network it doesn't serve", async () => {
-    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
-
-    const res = await api.post("/verify").send({
-      files,
-      networkId: "mxx",
-      resourceId: COUNTER_CONTRACT_ID_1,
-    });
-
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/unsupported network ID `mxx`/);
-  });
-
-  it("verifies an on-chain auth-component-no-auth", async () => {
-    const files = await readProjectFiles(`${counterContractDir}/auth-component-no-auth`);
-    expect(files["Cargo.toml"]).toBeDefined();
-
-    const res = await api
-      .post("/verify")
-      .send({ files, networkId, resourceId: COUNTER_CONTRACT_ID_1 });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", true);
-    expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("commitment");
-    expect(res.body).toHaveProperty("manifest");
-  });
-
-  it("verifies a local counter-note", async () => {
-    const files = await readProjectFiles(counterContractDir);
-    const entrypoint = "counter-note";
-    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
-
-    const resourceId = COUNTER_NOTE_ID_1;
-    const { resource } = notes[resourceId];
-
-    const res = await api
-      .post("/verify")
-      .send({ files, entrypoint, networkId, resourceId, resource });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", true);
-    expect(res.body).toHaveProperty("root", notes[COUNTER_NOTE_ID_1].code);
-    expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("commitment");
-    expect(res.body).toHaveProperty("manifest");
-  });
-
-  it("doesn't verify account bytes sent under another account's ID", async () => {
-    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
-    const { resource } = accounts[COUNTER_CONTRACT_ID_1];
-
-    const res = await api.post("/verify").send({
-      files,
-      networkId,
-      resourceId: BANK_ACCOUNT_ID_1,
-      resource,
-    });
-
-    expect(res.status).toBe(400);
-    expect(res.body.error).toContain("resource is not account");
-  });
-
-  it("doesn't verify note bytes sent under another note's ID", async () => {
-    const files = await readProjectFiles(counterContractDir);
-    const entrypoint = "counter-note";
-    const { resource } = notes[COUNTER_NOTE_ID_1];
-
-    const res = await api.post("/verify").send({
-      files,
-      entrypoint,
-      networkId,
-      resourceId: MISSING_NOTE_ID,
-      resource,
-    });
-
-    expect(res.status).toBe(400);
-    expect(res.body.error).toContain("resource is not note");
-  });
-
-  it("rejects a resource that isn't a string", async () => {
-    const files = await readProjectFiles(`${counterContractDir}/counter-contract`);
-
-    const res = await api.post("/verify").send({
-      files,
-      networkId,
-      resourceId: COUNTER_CONTRACT_ID_1,
+      resourceId: COUNTER_CONTRACT_ID,
       resource: 42,
     });
 
     expect(res.status).toBe(400);
     expect(res.body).toEqual({ error: "invalid resource" });
   });
-
-  it("verifies an on-chain counter-note", async () => {
-    const files = await readProjectFiles(counterContractDir);
-    const entrypoint = "counter-note";
-    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
-
-    const res = await api.post("/verify").send({
-      files,
-      entrypoint,
-      networkId,
-      resourceId: COUNTER_NOTE_ID_1,
-    });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", true);
-    expect(res.body).toHaveProperty("root", notes[COUNTER_NOTE_ID_1].code);
-    expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("commitment");
-    expect(res.body).toHaveProperty("manifest");
-  });
-
-  it("doesn't verify a counter-note not found on network", async () => {
-    const files = await readProjectFiles(counterContractDir);
-    const entrypoint = "counter-note";
-    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
-
-    const res = await api.post("/verify").send({
-      files,
-      entrypoint,
-      networkId,
-      resourceId: MISSING_NOTE_ID,
-    });
-
-    expect(res.status).toBe(400);
-    expect(res.body).toHaveProperty("error");
-  });
-
-  it("doesn't verify a counter-note if sources don't match", async () => {
-    const files = await readProjectFiles(counterContractDir);
-    const entrypoint = "counter-note";
-    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
-    editProjectFile(files, `${entrypoint}/src/lib.rs`, (content) =>
-      content.replace("felt!", "Felt::from_u32"),
-    );
-
-    const resourceId = COUNTER_NOTE_ID_1;
-    const { resource } = notes[resourceId];
-
-    const res = await api
-      .post("/verify")
-      .send({ files, entrypoint, networkId, resourceId, resource });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", false);
-  });
-
-  it("verifies a local count-reader", async () => {
-    const files = await readProjectFiles(counterContractDir);
-    const entrypoint = "count-reader";
-    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
-
-    const resourceId = COUNT_READER_ID;
-    const { resource } = accounts[resourceId];
-
-    const res = await api.post("/verify").send({
-      files,
-      entrypoint,
-      networkId,
-      resourceId: COUNT_READER_ID,
-      resource,
-    });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", true);
-    expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("commitment");
-    expect(res.body).toHaveProperty("manifest");
-  });
-
-  it("verifies a local auth-component-rpo-falcon512", async () => {
-    const files = await readProjectFiles(`${basicWalletDir}/auth-component-rpo-falcon512`);
-    expect(files["Cargo.toml"]).toBeDefined();
-
-    const resourceId = BASIC_WALLET_ID_1;
-    const { resource } = accounts[resourceId];
-
-    const res = await api.post("/verify").send({
-      files,
-      networkId,
-      resourceId: BASIC_WALLET_ID_1,
-      resource,
-    });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", true);
-    expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("commitment");
-    expect(res.body).toHaveProperty("manifest");
-  });
-
-  it("verifies a local basic-wallet", async () => {
-    const files = await readProjectFiles(`${basicWalletDir}/basic-wallet`);
-    expect(files["Cargo.toml"]).toBeDefined();
-
-    const resourceId = BASIC_WALLET_ID_1;
-    const { resource } = accounts[resourceId];
-
-    const res = await api.post("/verify").send({
-      files,
-      networkId,
-      resourceId: BASIC_WALLET_ID_1,
-      resource,
-    });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", true);
-    expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("commitment");
-    expect(res.body).toHaveProperty("manifest");
-  });
-
-  it("verifies a local bank-account", async () => {
-    const files = await readProjectFiles(`${bankDir}/bank-account`);
-    expect(files["Cargo.toml"]).toBeDefined();
-
-    const resourceId = BANK_ACCOUNT_ID_1;
-    const { resource } = accounts[resourceId];
-
-    const res = await api.post("/verify").send({ files, networkId, resourceId, resource });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", true);
-    expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("commitment");
-    expect(res.body).toHaveProperty("manifest");
-  });
-
-  it("verifies an on-chain bank-account", async () => {
-    const files = await readProjectFiles(`${bankDir}/bank-account`);
-    expect(files["Cargo.toml"]).toBeDefined();
-
-    const res = await api.post("/verify").send({ files, networkId, resourceId: BANK_ACCOUNT_ID_1 });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", true);
-    expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("commitment");
-    expect(res.body).toHaveProperty("manifest");
-    expect(res.body.files).toEqual(files);
-  });
-
-  it("returns the lockfile an on-chain bank-account was verified with", async () => {
-    const { "Cargo.lock": _, ...files } = await readProjectFiles(`${bankDir}/bank-account`);
-
-    const res = await api.post("/verify").send({ files, networkId, resourceId: BANK_ACCOUNT_ID_1 });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", true);
-    const { "Cargo.lock": cargoLock, ...sources } = res.body.files;
-    expect(sources).toEqual(files);
-    expect(cargoLock).toContain('name = "bank-account"');
-  });
-
-  it("doesn't verify a bank-account not found on network", async () => {
-    const files = await readProjectFiles(`${bankDir}/bank-account`);
-    expect(files["Cargo.toml"]).toBeDefined();
-
-    const res = await api.post("/verify").send({
-      files,
-      networkId,
-      resourceId: MISSING_ACCOUNT_ID,
-    });
-
-    expect(res.status).toBe(400);
-    expect(res.body).toHaveProperty("error");
-  });
-
-  it("doesn't verify a bank-account if sources don't match", async () => {
-    const files = await readProjectFiles(`${bankDir}/bank-account`);
-    expect(files["Cargo.toml"]).toBeDefined();
-    editProjectFile(files, "src/lib.rs", (content) =>
-      content.replace("MAX_DEPOSIT_AMOUNT: u64 = 1_000_000", "MAX_DEPOSIT_AMOUNT: u64 = 2_000_000"),
-    );
-
-    const resourceId = BANK_ACCOUNT_ID_1;
-    const { resource } = accounts[resourceId];
-
-    const res = await api.post("/verify").send({ files, networkId, resourceId, resource });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", false);
-  });
-
-  it("verifies a local deposit-note", async () => {
-    const files = await readProjectFiles(bankDir);
-    const entrypoint = "deposit-note";
-    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
-
-    const resourceId = DEPOSIT_NOTE_ID_1;
-    const { resource } = notes[resourceId];
-
-    const res = await api
-      .post("/verify")
-      .send({ files, entrypoint, networkId, resourceId, resource });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", true);
-    expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("commitment");
-    expect(res.body).toHaveProperty("manifest");
-  });
-
-  it("verifies an on-chain deposit-note", async () => {
-    const files = await readProjectFiles(bankDir);
-    const entrypoint = "deposit-note";
-    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
-
-    const res = await api.post("/verify").send({
-      files,
-      entrypoint,
-      networkId,
-      resourceId: DEPOSIT_NOTE_ID_1,
-    });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", true);
-    expect(res.body).toHaveProperty("masp");
-    expect(res.body).toHaveProperty("commitment");
-    expect(res.body).toHaveProperty("manifest");
-  });
-
-  it("doesn't verify a deposit-note not found on network", async () => {
-    const files = await readProjectFiles(bankDir);
-    const entrypoint = "deposit-note";
-    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
-
-    const res = await api.post("/verify").send({
-      files,
-      entrypoint,
-      networkId,
-      resourceId: MISSING_NOTE_ID,
-    });
-
-    expect(res.status).toBe(400);
-    expect(res.body).toHaveProperty("error");
-  });
-
-  it("doesn't verify a deposit-note if sources don't match", async () => {
-    const files = await readProjectFiles(bankDir);
-    const entrypoint = "deposit-note";
-    expect(files[`${entrypoint}/Cargo.toml`]).toBeDefined();
-    editProjectFile(files, `${entrypoint}/src/lib.rs`, (content) =>
-      content.replace(
-        "account.deposit(depositor, asset);",
-        "account.deposit(depositor, asset);\n            account.deposit(depositor, asset);",
-      ),
-    );
-
-    const resourceId = DEPOSIT_NOTE_ID_1;
-    const { resource } = notes[resourceId];
-
-    const res = await api
-      .post("/verify")
-      .send({ files, entrypoint, networkId, resourceId, resource });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", false);
-  });
 });
 
-// The MASM fixtures, deployed by `generate-fixtures --mode masm` from the
-// projects in `examples/masm`. The note's project depends on
-// `../counter-contract`, so both are sent with `examples/masm` as the root.
-describe("POST /verify with a MASM project", () => {
-  it("verifies an on-chain MASM counter-contract", async () => {
-    const files = await readProjectFiles(masmDir);
+describe("POST /verify", () => {
+  it("verifies an on-chain counter-contract", async () => {
+    const files = await readProjectFiles(examplesDir);
     const entrypoint = "counter-contract";
     expect(files[`${entrypoint}/miden-project.toml`]).toBeDefined();
 
@@ -577,22 +133,25 @@ describe("POST /verify with a MASM project", () => {
       files,
       entrypoint,
       networkId,
-      resourceId: MASM_COUNTER_CONTRACT_ID,
+      resourceId: COUNTER_CONTRACT_ID,
     });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
-    expect(res.body).toHaveProperty("root", masmAccounts[MASM_COUNTER_CONTRACT_ID].code);
+    expect(res.body).toHaveProperty("root", accounts[COUNTER_CONTRACT_ID].code);
     expect(res.body).toHaveProperty("masp");
     expect(res.body).toHaveProperty("commitment");
+    expect(res.body).toHaveProperty("manifest");
+    expect(res.body).toHaveProperty("builtWith");
+    expect(res.body).toHaveProperty("diagnostics", []);
     expect(res.body).not.toHaveProperty("storage");
     expect(res.body.files).toEqual(files);
   });
 
-  it("verifies a local MASM counter-contract", async () => {
-    const files = await readProjectFiles(masmDir);
-    const resourceId = MASM_COUNTER_CONTRACT_ID;
-    const { resource } = masmAccounts[resourceId];
+  it("verifies a local counter-contract", async () => {
+    const files = await readProjectFiles(examplesDir);
+    const resourceId = COUNTER_CONTRACT_ID;
+    const { resource } = accounts[resourceId];
 
     const res = await api.post("/verify").send({
       files,
@@ -606,8 +165,8 @@ describe("POST /verify with a MASM project", () => {
     expect(res.body).toHaveProperty("verified", true);
   });
 
-  it("verifies an on-chain MASM counter-note with its dependency", async () => {
-    const files = await readProjectFiles(masmDir);
+  it("verifies an on-chain counter-note with its dependency", async () => {
+    const files = await readProjectFiles(examplesDir);
     const entrypoint = "counter-note";
     expect(files[`${entrypoint}/miden-project.toml`]).toBeDefined();
 
@@ -615,19 +174,19 @@ describe("POST /verify with a MASM project", () => {
       files,
       entrypoint,
       networkId,
-      resourceId: MASM_COUNTER_NOTE_ID,
+      resourceId: COUNTER_NOTE_ID,
     });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
-    expect(res.body).toHaveProperty("root", masmNotes[MASM_COUNTER_NOTE_ID].code);
+    expect(res.body).toHaveProperty("root", notes[COUNTER_NOTE_ID].code);
     expect(res.body).not.toHaveProperty("noteStorage");
   });
 
-  it("verifies a local MASM counter-note", async () => {
-    const files = await readProjectFiles(masmDir);
-    const resourceId = MASM_COUNTER_NOTE_ID;
-    const { resource } = masmNotes[resourceId];
+  it("verifies a local counter-note", async () => {
+    const files = await readProjectFiles(examplesDir);
+    const resourceId = COUNTER_NOTE_ID;
+    const { resource } = notes[resourceId];
 
     const res = await api.post("/verify").send({
       files,
@@ -641,8 +200,8 @@ describe("POST /verify with a MASM project", () => {
     expect(res.body).toHaveProperty("verified", true);
   });
 
-  it("doesn't verify a MASM counter-contract with a changed constant", async () => {
-    const files = await readProjectFiles(masmDir);
+  it("doesn't verify a counter-contract with a changed constant", async () => {
+    const files = await readProjectFiles(examplesDir);
     editProjectFile(files, "counter-contract/counter_contract.masm", (content) =>
       content.replace('word("counter_contract::count")', 'word("counter_contract::other_count")'),
     );
@@ -651,11 +210,102 @@ describe("POST /verify with a MASM project", () => {
       files,
       entrypoint: "counter-contract",
       networkId,
-      resourceId: MASM_COUNTER_CONTRACT_ID,
+      resourceId: COUNTER_CONTRACT_ID,
     });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", false);
+    expect(res.body).toHaveProperty("root", accounts[COUNTER_CONTRACT_ID].code);
+  });
+
+  it("doesn't verify a counter-contract not found on network", async () => {
+    const files = await readProjectFiles(examplesDir);
+
+    const res = await api.post("/verify").send({
+      files,
+      entrypoint: "counter-contract",
+      networkId,
+      resourceId: MISSING_ACCOUNT_ID,
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("doesn't verify a counter-note not found on network", async () => {
+    const files = await readProjectFiles(examplesDir);
+
+    const res = await api.post("/verify").send({
+      files,
+      entrypoint: "counter-note",
+      networkId,
+      resourceId: MISSING_NOTE_ID,
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  // Mainnet has no fixtures: this checks against the public USDCx fee faucet,
+  // whose code the counter-contract doesn't match.
+  it("doesn't verify a counter-contract against a Mainnet account with other code", async () => {
+    const files = await readProjectFiles(examplesDir);
+
+    const res = await api.post("/verify").send({
+      files,
+      entrypoint: "counter-contract",
+      networkId: "mm",
+      resourceId: "0xe69e6ca6e39df1b10c1e5399399feb",
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("verified", false);
+  });
+
+  it("doesn't verify against a network it doesn't serve", async () => {
+    const files = await readProjectFiles(examplesDir);
+
+    const res = await api.post("/verify").send({
+      files,
+      entrypoint: "counter-contract",
+      networkId: "mxx",
+      resourceId: COUNTER_CONTRACT_ID,
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/unsupported network ID `mxx`/);
+  });
+
+  it("doesn't verify account bytes sent under another account's ID", async () => {
+    const files = await readProjectFiles(examplesDir);
+    const { resource } = accounts[COUNTER_CONTRACT_ID];
+
+    const res = await api.post("/verify").send({
+      files,
+      entrypoint: "counter-contract",
+      networkId,
+      resourceId: MISSING_ACCOUNT_ID,
+      resource,
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("resource is not account");
+  });
+
+  it("doesn't verify note bytes sent under another note's ID", async () => {
+    const files = await readProjectFiles(examplesDir);
+    const { resource } = notes[COUNTER_NOTE_ID];
+
+    const res = await api.post("/verify").send({
+      files,
+      entrypoint: "counter-note",
+      networkId,
+      resourceId: MISSING_NOTE_ID,
+      resource,
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("resource is not note");
   });
 });
 

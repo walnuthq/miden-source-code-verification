@@ -1,6 +1,6 @@
 # Miden Source Code Verification
 
-Services that verify that on-chain Miden accounts and notes were built from a given project, MASM or Rust (until Rust's removal), and that record and show the result.
+Services that verify that on-chain Miden accounts and notes were built from a given MASM project, and that record and show the result. The registry still holds Rust projects verified before Rust's removal, until they are deleted.
 
 ## Language
 
@@ -43,7 +43,7 @@ Who a verification says it comes from (`miden-verify`, `web-verifier`, `miden-pl
 _Avoid_: origin, client
 
 **Build**:
-What compiling a project yields: built, with its package and the toolchain's output, or failed, with the output alone. A failed build is an outcome, not an error: `POST /compile` answers it with `built: false`. A Rust project is built by cargo-miden; a MASM project is assembled by `miden-assemble`, whose report also comes as `diagnostics`.
+What assembling a project yields: built, with its package and the assembler's report, or failed, with the report alone. A failed build is an outcome, not an error: `POST /compile` answers it with `built: false`.
 _Avoid_: compile result, compilation output
 
 **Debug build**:
@@ -53,7 +53,7 @@ _Avoid_: dev build, debug package
 ### Sources
 
 **Project**:
-A files map plus an entrypoint that builds into one package. A Rust project has a `Cargo.toml` with a `[package]` at its entrypoint, and a `miden-project.toml` next to it; any other project is a MASM project, with a `miden-project.toml` with a `[package]` at its entrypoint. The package name is that `[package]` name. The registry stores both kinds, and tells a stored one apart by the `Cargo.toml` at its entrypoint.
+A files map plus an entrypoint that builds into one package: a MASM project, with a `miden-project.toml` with a `[package]` at its entrypoint. The package name is that `[package]` name. A `Cargo.toml` at the entrypoint marks a Rust project, which is no longer built; the registry tells the Rust projects it stored before apart by it.
 _Avoid_: files map, upload, sources (for the whole)
 
 **Entrypoint**:
@@ -61,11 +61,11 @@ The project-relative directory a project is built from, `.` for the root. Files 
 _Avoid_: subdirectory, project dir, package dir
 
 **Workspace root**:
-A `Cargo.toml` with no `[package]`, which only lists members. It is not a project; one of its members, named as the entrypoint, may be.
+A manifest with no `[package]`, which only lists members. It is not a project; one of its members, named as the entrypoint, may be.
 _Avoid_: virtual manifest
 
 ### Tooling
 
 **Helper tool**:
-One of the four Rust binaries built from `apps/api-compile/crates` that api-compile runs for what Node can't do: `miden-assemble` assembles a MASM project into a package; `miden-import` reads a resource's root, and an account's procedures, from its network; `miden-verifier` checks a package against a resource on chain; `miden-package-metadata` reads a package's commitment and manifest. Each prints its result as JSON when it exits 0 and writes the reason to stderr otherwise; a MASM project that fails to assemble is a result, not a failure. `miden-import` and `miden-verifier` exit with 2 when the request can never succeed and with 1 when a retry may pass. cargo-miden is the toolchain, not a helper tool.
+One of the four Rust binaries built from `apps/api-compile/crates` that api-compile runs for what Node can't do: `miden-assemble` assembles a MASM project into a package; `miden-import` reads a resource's root, and an account's procedures, from its network; `miden-verifier` checks a package against a resource on chain; `miden-package-metadata` reads a package's commitment and manifest. Each prints its result as JSON when it exits 0 and writes the reason to stderr otherwise; a MASM project that fails to assemble is a result, not a failure. `miden-import` and `miden-verifier` exit with 2 when the request can never succeed and with 1 when a retry may pass.
 _Avoid_: binary, CLI, subprocess

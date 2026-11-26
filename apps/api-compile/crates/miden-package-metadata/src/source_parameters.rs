@@ -1,11 +1,10 @@
 //! The names of each exported procedure's parameters, from the MASM source of
 //! a package that `miden-assembly` built.
 //!
-//! Such a package has no WIT section, and its manifest's signatures carry the
-//! parameters' types but not their names. The source does:
-//! `pub proc increment_count(amount: felt)`. The library target of the
-//! project's `miden-project.toml` is parsed as the assembler parses it, and
-//! each export is paired with the procedure at its path.
+//! Its manifest's signatures carry the parameters' types but not their names.
+//! The source does: `pub proc increment_count(amount: felt)`. The library
+//! target of the project's `miden-project.toml` is parsed as the assembler
+//! parses it, and each export is paired with the procedure at its path.
 //!
 //! A project that can't be read is reported on stderr and gives `None`, so
 //! names the tool can't read never fail a build.

@@ -48,10 +48,10 @@ export const chownTree = async (path: string, owner: { uid: number; gid: number 
 // The subprocess leads its own process group, so ending it ends everything it
 // started: a signal to the subprocess alone leaves its children holding its
 // output pipes and the call would never settle. The wrapper builds Node's
-// execFile error itself because execFile can't start a process group, and
-// ADR 0005 needs that error unchanged. The size-limit error is the wrapper's
-// own (it names the tool and the limit); only the error of a subprocess that
-// fails on its own is Node's, unchanged.
+// execFile error itself because execFile can't start a process group: the
+// helper-tool runner reads its `code` and `stderr`. The size-limit error is the
+// wrapper's own (it names the tool and the limit); only the error of a
+// subprocess that fails on its own is Node's, unchanged.
 export const execFile = (
   file: string,
   args: string[],
@@ -69,7 +69,7 @@ export const execFile = (
     env?: NodeJS.ProcessEnv;
     signal?: AbortSignal;
     maxBuffer?: number;
-    // The user the subprocess runs as (ADR 0006); the server's own when unset.
+    // The user the subprocess runs as; the server's own when unset.
     uid?: number;
     gid?: number;
   },
@@ -175,7 +175,7 @@ export const execFile = (
   });
 
 // Aborts when the client goes away before the response is sent, so a request
-// nobody is waiting for anymore leaves the compile queue or kills its build.
+// nobody is waiting for anymore leaves the queue or kills its tools.
 export const abortOnClose = (res: Response) => {
   const controller = new AbortController();
   res.on("close", () => {

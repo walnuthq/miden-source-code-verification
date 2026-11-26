@@ -1,60 +1,45 @@
 //! Generates the on-chain fixtures consumed by `packages/test-utils`.
 //!
 //! One run produces the whole of `packages/test-utils/src/fixtures.ts`: it
-//! compiles every example project the fixtures are built from, deploys the
-//! resources the tests read back from the network, assembles the ones they only
-//! ever hand over as a local blob, and prints the file.
+//! assembles the example projects the fixtures are built from, deploys them,
+//! and prints the file.
 //!
 //! What ends up on-chain is only what has to be. `/import`, the on-chain half of
 //! `/verify` and both of api-registry's id-keyed lookups resolve an account's
-//! code root or a note's script root from the node, so the two counter-contract
-//! accounts, the two bank accounts, the two counter-notes and the two
-//! deposit-notes are deployed. `count-reader` and
-//! `basic-wallet` are only ever passed to the verifier alongside their
-//! serialized `resource`, so they are built locally and never submitted.
+//! code root or a note's script root from the node, so one counter-contract
+//! account and one counter-note are deployed: see `deploy`.
 //!
-//! The accounts are assembled from the compiled example crates rather than from
-//! the standard components `miden-standards` ships. That is what makes the
+//! The account is assembled from the example's package rather than from the
+//! standard components `miden-standards` ships. That is what makes the
 //! api-compile verification tests meaningful: they verify those very sources
-//! against these accounts. The exceptions are the throwaway accounts that emit
-//! the notes and pay for everything — see `note::create_factory` and
-//! `fee::fund` — and the bank accounts' wallet and auth, which come from
-//! `miden-standards` too — see `account::deploy_bank`.
+//! against it. The exceptions are the throwaway accounts that emit the notes
+//! and pay for everything — see `note::create_factory` and `fee::fund`.
 //!
 //! On a chain that charges a transaction fee every account that transacts also
 //! carries the standard `BasicWallet`, and is funded from the public faucet
 //! before it does. `fee` explains why that is unavoidable.
-//!
-//! `--mode masm` deploys the MASM fixtures instead, and writes them to a file
-//! of their own: see `masm`.
 
-mod account;
-mod build;
+mod deploy;
 mod fee;
 mod fixtures;
-mod masm;
 mod note;
+mod tx;
 
-use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
-use clap::{Parser, ValueEnum};
+use clap::Parser;
+use miden_client::Client;
+use miden_client::account::AccountComponent;
 use miden_client::account::component::BasicWallet;
-use miden_client::account::component::NoAuth;
-use miden_client::account::{Account, AccountComponent};
 use miden_client::address::NetworkId;
-use miden_client::auth::AuthSecretKey;
 use miden_client::builder::ClientBuilder;
 use miden_client::keystore::FilesystemKeyStore;
 use miden_client::rpc::{Endpoint, GrpcClient};
-use miden_client::{Client, Word};
 use miden_client_sqlite_store::ClientBuilderSqliteExt;
 
-use crate::build::Packages;
 use crate::fee::FeeContext;
-use crate::fixtures::Fixtures;
 
 /// Network id of a locally running node. `miden-client` reaches it through
 /// [`Endpoint::localhost`], but [`NetworkId`] has no variant for it — it parses
@@ -68,23 +53,9 @@ const TESTNET_FAUCET_URL: &str = "https://faucet-api.testnet.miden.io";
 
 // --- CLI ---
 
-/// Which fixtures a run deploys.
-#[derive(ValueEnum, Clone, Copy, Debug)]
-enum Mode {
-    /// The Rust examples, built with `cargo miden`: the whole of `fixtures.ts`.
-    Rust,
-    /// The MASM examples under `examples/masm`, assembled in-process: the
-    /// whole of `masm-fixtures.ts`.
-    Masm,
-}
-
 #[derive(Parser, Debug)]
 #[command(version, about)]
 struct Args {
-    /// Which fixtures to deploy.
-    #[arg(long, value_enum, default_value = "rust")]
-    mode: Mode,
-
     /// Network to deploy to: `mtst`, `mdev` or `mlcl`. Defaults to testnet,
     /// which is the network every fixture consumer asserts against.
     #[arg(long, default_value = "mtst")]
@@ -94,12 +65,6 @@ struct Args {
     /// `apps/api-compile/examples` directory.
     #[arg(long)]
     examples_dir: Option<PathBuf>,
-
-    /// Keep the compiled `.masp` packages here instead of in the temporary
-    /// working directory, so they outlive the run — which is what makes it
-    /// possible to re-check the generated fixtures with `miden-verifier`.
-    #[arg(long)]
-    artifacts_dir: Option<PathBuf>,
 
     /// Faucet to draw the native fee asset from. Only used on a chain that
     /// charges a transaction fee; defaults to the public faucet of the network
@@ -175,121 +140,14 @@ async fn connect(network_id: &NetworkId, workdir: &Path) -> Result<Client<Filesy
 
 /// The standard components an account has to carry to transact on this chain.
 ///
-/// On a fee-charging chain that is `BasicWallet`, twice over: consuming the P2ID
-/// note that funds the account calls its `receive_asset`, and the send-notes
-/// script the client derives for the fee note calls its `move_asset_to_note`.
-/// On a fee-free chain nothing is added, and the fixtures stay exactly what they
-/// were before fees existed.
+/// On a fee-charging chain that is `BasicWallet`: consuming the P2ID note that
+/// funds the account calls its `receive_asset`. On a fee-free chain nothing is
+/// added.
 fn transacting_components(fees: Option<&FeeContext>) -> Vec<AccountComponent> {
     match fees {
         Some(_) => vec![BasicWallet.into()],
         None => vec![],
     }
-}
-
-/// Builds the two accounts the tests never look up on-chain.
-///
-/// `count-reader` authenticates with no-auth like the counter contract does;
-/// `basic-wallet` pairs with the RPO-Falcon512 component, whose public-key slot
-/// is filled from a freshly drawn key. Neither is added to the client: nothing
-/// is ever signed or submitted for them, so neither needs to be able to pay a
-/// fee either.
-fn build_local_accounts(
-    client: &mut Client<FilesystemKeyStore>,
-    packages: &Packages,
-) -> Result<(Account, Account)> {
-    let count_reader = account::assemble(
-        client.rng(),
-        &[&packages.count_reader, &packages.auth_no_auth],
-        None,
-        vec![],
-    )?;
-    eprintln!("Built count-reader account {}", count_reader.id().to_hex());
-
-    let public_key = Word::from(
-        AuthSecretKey::new_falcon512_poseidon2_with_rng(client.rng())
-            .public_key()
-            .to_commitment(),
-    );
-    let basic_wallet = account::assemble(
-        client.rng(),
-        &[&packages.basic_wallet, &packages.auth_rpo_falcon512],
-        Some(public_key),
-        vec![],
-    )?;
-    eprintln!("Built basic-wallet account {}", basic_wallet.id().to_hex());
-
-    Ok((count_reader, basic_wallet))
-}
-
-/// Assembles the two counter-contract accounts and registers them with the
-/// client, without submitting anything.
-///
-/// They exist before any transaction does because the notes that deploy them are
-/// tagged for them, and the note factory has to emit those notes first.
-///
-/// Both are assembled from the same components with the same (empty) initial
-/// storage, so they share a code commitment — which is what lets api-registry
-/// answer a lookup of one with a verification of the other.
-async fn assemble_counter_contracts(
-    client: &mut Client<FilesystemKeyStore>,
-    packages: &Packages,
-    fees: Option<&FeeContext>,
-) -> Result<[Account; 2]> {
-    let mut accounts = Vec::with_capacity(2);
-
-    for _ in 0..2 {
-        let account = account::assemble(
-            client.rng(),
-            &[&packages.counter_contract, &packages.auth_no_auth],
-            None,
-            transacting_components(fees),
-        )?;
-        client
-            .add_account(&account, false)
-            .await
-            .context("failed to add the account to the client")?;
-        eprintln!("Created counter-contract account {}", account.id().to_hex());
-        accounts.push(account);
-    }
-
-    Ok(accounts
-        .try_into()
-        .unwrap_or_else(|_| unreachable!("the loop pushes exactly two accounts")))
-}
-
-/// Assembles the two bank accounts and registers them with the client, without
-/// submitting anything.
-///
-/// Each carries the standard `BasicWallet`, to receive its funding note, and the
-/// standard `NoAuth`, which pays the fee and leaves the transaction script free
-/// for `init-tx-script` — see [`account::deploy_bank`]. Both are assembled from
-/// the same components, so they share a code commitment, as the counter
-/// contracts do.
-async fn assemble_banks(
-    client: &mut Client<FilesystemKeyStore>,
-    packages: &Packages,
-) -> Result<[Account; 2]> {
-    let mut accounts = Vec::with_capacity(2);
-
-    for _ in 0..2 {
-        let account = account::assemble(
-            client.rng(),
-            &[&packages.bank_account],
-            None,
-            vec![BasicWallet.into(), NoAuth.into()],
-        )?;
-        client
-            .add_account(&account, false)
-            .await
-            .context("failed to add the account to the client")?;
-        eprintln!("Created bank account {}", account.id().to_hex());
-        accounts.push(account);
-    }
-
-    Ok(accounts
-        .try_into()
-        .unwrap_or_else(|_| unreachable!("the loop pushes exactly two accounts")))
 }
 
 fn write_fixtures(rendered: &str, out: Option<PathBuf>) -> Result<()> {
@@ -312,115 +170,23 @@ async fn main() -> Result<()> {
         .with_context(|| format!("`{}` is not a valid network id", args.network_id))?;
     let examples_dir = args.examples_dir.unwrap_or_else(default_examples_dir);
 
-    if let Mode::Masm = args.mode {
-        return run_masm(&network_id, &examples_dir, args.faucet_url, args.out).await;
-    }
+    let packages = deploy::Packages::build(&examples_dir)?;
 
-    // Everything transient — the store, the keystore and, unless the caller asked
-    // for them elsewhere, the midenc build artifacts — lives under one temporary
-    // directory that goes away on exit.
+    // The store and the keystore live under one temporary directory that goes
+    // away on exit.
     let workdir = tempfile::tempdir().context("failed to create a temporary working directory")?;
-    let midenc_target_dir = args
-        .artifacts_dir
-        .unwrap_or_else(|| workdir.path().join("midenc"));
-
-    let packages = Packages::build(&examples_dir, &midenc_target_dir)?;
-
     let (mut client, fees) = connect_and_detect_fees(&network_id, workdir.path()).await?;
-
-    let counter_contracts =
-        assemble_counter_contracts(&mut client, &packages, fees.as_ref()).await?;
-    let counter_ids = [counter_contracts[0].id(), counter_contracts[1].id()];
-    let banks = assemble_banks(&mut client, &packages).await?;
-    let bank_ids = [banks[0].id(), banks[1].id()];
-    let factory = note::create_factory(&mut client).await?;
-
-    // Everything that transacts is paid up front, in one go, so the faucet is
-    // asked for tokens once per run.
-    let mut funding = match &fees {
-        Some(fees) => {
-            let url = faucet_url_or_default(args.faucet_url, &network_id)?;
-            fee::fund(
-                &mut client,
-                fees,
-                &network_id,
-                &url,
-                &[
-                    counter_ids[0],
-                    counter_ids[1],
-                    bank_ids[0],
-                    bank_ids[1],
-                    factory,
-                ],
-            )
-            .await?
-        }
-        None => BTreeMap::new(),
+    let url = match &fees {
+        Some(_) => Some(faucet_url_or_default(args.faucet_url, &network_id)?),
+        None => None,
     };
+    let fees = fees.as_ref().zip(url.as_deref());
 
-    let notes = note::emit_notes(
-        &mut client,
-        &packages,
-        factory,
-        counter_ids,
-        bank_ids[0],
-        funding.remove(&factory),
-    )
-    .await?;
-
-    // Deploying reads each account back, so the fixture carries the state the
-    // node actually serves rather than the one assembled above.
-    let mut deployed = Vec::with_capacity(2);
-    for (account_id, increment) in counter_ids.into_iter().zip(notes.increments) {
-        deployed.push(
-            account::deploy_counter_contract(
-                &mut client,
-                account_id,
-                increment,
-                funding.remove(&account_id),
-                fees.as_ref(),
-            )
-            .await?,
-        );
-    }
-    let counter_contracts = deployed
-        .try_into()
-        .unwrap_or_else(|_| unreachable!("the loop pushes exactly two accounts"));
-
-    let mut deployed = Vec::with_capacity(2);
-    for account_id in bank_ids {
-        deployed.push(
-            account::deploy_bank(
-                &mut client,
-                account_id,
-                &packages.init_tx_script,
-                funding.remove(&account_id),
-            )
-            .await?,
-        );
-    }
-    let bank_accounts = deployed
-        .try_into()
-        .unwrap_or_else(|_| unreachable!("the loop pushes exactly two accounts"));
-
-    let (count_reader, basic_wallet) = build_local_accounts(&mut client, &packages)?;
-
-    write_fixtures(
-        &Fixtures {
-            network_id: network_id.to_string(),
-            counter_contracts,
-            count_reader,
-            basic_wallet,
-            bank_accounts,
-            counter_notes: notes.fixtures,
-            deposit_notes: notes.deposits,
-        }
-        .render(),
-        args.out,
-    )
+    let fixtures = deploy::deploy(&mut client, &packages, &network_id, fees).await?;
+    write_fixtures(&fixtures.render(), args.out)
 }
 
-/// Connects to the network and reads what it charges, for either mode.
+/// Connects to the network and reads what it charges.
 async fn connect_and_detect_fees(
     network_id: &NetworkId,
     workdir: &Path,
@@ -441,26 +207,4 @@ async fn connect_and_detect_fees(
         None => eprintln!("Chain charges no fees; nothing needs funding"),
     }
     Ok((client, fees))
-}
-
-/// `--mode masm`: assembles the MASM examples, deploys them and writes
-/// `masm-fixtures.ts`.
-async fn run_masm(
-    network_id: &NetworkId,
-    examples_dir: &Path,
-    given_faucet_url: Option<String>,
-    out: Option<PathBuf>,
-) -> Result<()> {
-    let packages = masm::Packages::build(examples_dir)?;
-
-    let workdir = tempfile::tempdir().context("failed to create a temporary working directory")?;
-    let (mut client, fees) = connect_and_detect_fees(network_id, workdir.path()).await?;
-    let url = match &fees {
-        Some(_) => Some(faucet_url_or_default(given_faucet_url, network_id)?),
-        None => None,
-    };
-    let fees = fees.as_ref().zip(url.as_deref());
-
-    let fixtures = masm::deploy(&mut client, &packages, network_id, fees).await?;
-    write_fixtures(&fixtures.render(), out)
 }
