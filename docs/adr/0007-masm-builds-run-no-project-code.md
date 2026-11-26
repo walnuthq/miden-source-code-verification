@@ -13,7 +13,7 @@ What is kept is what any parser of untrusted input needs:
 - **Time.** One request's tools share a 45 s deadline (`ASSEMBLE_DEADLINE_MS`, 90 s until plan 08), the verifier's network call included, answered with a `504`: assembling takes milliseconds, so the deadline is for the verifier, which reads the resource from its network. Each tool also keeps the runner's own 30 s timeout (60 s until plan 08).
 - **Size.** The server's 1 MB limit on a request body bounds the project.
 - **Confinement.** `miden-assemble` refuses a manifest that names a path outside the project root, a path the assembler would read as a URI, or a git dependency, and a project holding a symbolic link (`confine.rs`). It fails when a `miden-project.toml` sits above the project root, where the assembler would read it as a workspace.
-- **Memory** is not bounded per build, only by the container's (6 GiB on `standard-2`): the helper-tool runner has no memory limit. Nothing measured so far comes near it.
+- **Memory** is not bounded per build, only by the container's (1 GiB on `basic` since 2026-11-27, 6 GiB on `standard-2` before): the helper-tool runner has no memory limit. With every slot busy the container peaked at 364 MiB locally.
 
 ## What remains exposed
 
