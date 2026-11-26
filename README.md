@@ -212,7 +212,7 @@ pnpm --filter miden-source-code-verification-web-verifier-cloudflare cf:deploy
 pnpm --filter miden-source-code-verification-web-viewer-cloudflare cf:deploy
 ```
 
-These wrap the vendor-neutral services; deleting them removes Cloudflare with no impact on the core apps. api-compile runs as a single Cloudflare Container (`max_instances: 1`, instance type `standard-2`: 1 vCPU, 6 GiB of memory, 12 GB of disk), set in `apps/api-compile-cloudflare/wrangler.jsonc`. On push to `main`, a dedicated workflow per service deploys it automatically — and only when that service is affected:
+These wrap the vendor-neutral services; deleting them removes Cloudflare with no impact on the core apps. api-compile runs as a single Cloudflare Container (`max_instances: 1`, instance type `basic`: 1/4 vCPU, 1 GiB of memory, 4 GB of disk), set in `apps/api-compile-cloudflare/wrangler.jsonc`. On push to `main`, a dedicated workflow per service deploys it automatically — and only when that service is affected:
 
 - `.github/workflows/deploy-api-compile-cloudflare.yml`
 - `.github/workflows/deploy-api-registry-cloudflare.yml`
