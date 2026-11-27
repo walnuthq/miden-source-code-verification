@@ -1,0 +1,79 @@
+{
+  "type": "diff",
+  "version": "10",
+  "dialect": "postgres",
+  "id": "71647761-5bac-47fa-af73-5258859720ce",
+  "prevIds": [
+    "db2177f4-3196-47a2-a283-e8f4fb3b973b"
+  ],
+  "footprints": [
+    {
+      "statementType": "drop_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "packages",
+        "debug_commitment"
+      ],
+      "writes": [
+        "s|col|public.packages.debug_commitment",
+        "n|col|public.packages.debug_commitment",
+        "e|col|public.packages.debug_commitment"
+      ],
+      "reads": [
+        "n|tbl|public.packages",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "packages",
+        "debug_built_with"
+      ],
+      "writes": [
+        "s|col|public.packages.debug_built_with",
+        "n|col|public.packages.debug_built_with",
+        "e|col|public.packages.debug_built_with"
+      ],
+      "reads": [
+        "n|tbl|public.packages",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "packages",
+        "schemas"
+      ],
+      "writes": [
+        "s|col|public.packages.schemas",
+        "n|col|public.packages.schemas",
+        "e|col|public.packages.schemas"
+      ],
+      "reads": [
+        "n|tbl|public.packages",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"packages\",\"debug_commitment\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"packages\",\"debug_built_with\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"packages\",\"schemas\"]"
+    }
+  ]
+}
