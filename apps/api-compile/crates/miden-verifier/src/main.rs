@@ -134,13 +134,11 @@ fn parse_resource_id(resource_id: &str) -> Result<Resource> {
 }
 
 fn verify_account_component(account: Account, package: Package) -> Result<Value> {
-    // Classified by the same list `miden-import` names the account's standard
-    // components from, so an account the web-viewer shows as made of standard
-    // components alone is one no package verifies. `AccountInterface::from_account`
-    // would be upstream's call, but it knows only fourteen of the crate's
-    // components, and it asserts that the account has exactly one auth
-    // component, panicking when that doesn't hold: the account may be the
-    // caller's own bytes, and a panic would answer them with a 502.
+    // Classified by the list `miden-import` names standard components from
+    // (see `standard_components`), so an account the web-viewer shows as made
+    // of standard components alone is one no package verifies. Upstream's
+    // `AccountInterface::from_account` also asserts exactly one auth component
+    // and panics otherwise, which the caller's own bytes could trigger (a 502).
     let classification = classify(account.code().procedures());
     let mut components: Vec<_> = classification
         .standard
