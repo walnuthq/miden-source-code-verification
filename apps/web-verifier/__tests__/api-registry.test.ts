@@ -10,7 +10,7 @@ const NOTE = {
   kind: "note",
   noteId: "0xb080e8318dfdf8230bda5d8acd67119621aacfe89eab1d08deb3114cc87ac606",
 } as const;
-const files = { "Cargo.toml": '[package]\nname = "counter-contract"\n' };
+const files = { "miden-project.toml": '[package]\nname = "counter-contract"\n' };
 const BUSY = "The verifier is busy. Please try again in a few minutes.";
 
 const json = (body: unknown, status = 200) =>
@@ -113,9 +113,9 @@ describe("verifyResource", () => {
   });
 
   it("passes the registry's reason through for a refused project", async () => {
-    registry(json({ error: "missing Cargo.toml" }, 400));
+    registry(json({ error: "invalid entrypoint" }, 400));
     await expect(submit(ACCOUNT).outcome).resolves.toEqual({
-      error: "missing Cargo.toml",
+      error: "invalid entrypoint",
     });
   });
 

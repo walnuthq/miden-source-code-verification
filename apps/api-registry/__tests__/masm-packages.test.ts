@@ -51,9 +51,13 @@ const verifyCounterNote = () =>
 const getMasp = (file: string) =>
   apiV1.get(`/${networkId}/packages/masp/${file}`).responseType("blob");
 
-// What every package's row holds: the assembler's versions.
+// What every package's row holds: the assembler's versions, and none of the
+// keys a Rust package once had.
 const expectMasmPackage = (pkg: Package, files: Record<string, string>) => {
   expect(pkg.builtWith).toMatch(/^miden-assembly \d+\.\d+\.\d+, /);
+  for (const key of ["debugCommitment", "debugBuiltWith", "schemas"]) {
+    expect(pkg).not.toHaveProperty(key);
+  }
   // Stored as sent: a MASM project has no lockfile to add.
   expect(pkg.files).toEqual(files);
 };

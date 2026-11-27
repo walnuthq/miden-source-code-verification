@@ -12,7 +12,7 @@
 
 The registry refuses Rust projects, holds no Rust-built package, and no longer has a debug package. The viewer and the verifier form know only MASM. Decisions 5 and 6.
 
-## What the deletion means (decision 6)
+## What the deletion means (decision 5)
 
 Every Rust-built package, the verified accounts and notes that point at it, and its stored `.masp` and `.debug.masp` files are deleted, on every network including Mainnet. Those accounts and notes show as not verified afterwards, until someone verifies them again from MASM, which can only succeed for code redeployed from MASM. The user chose this over keeping the records marked as Rust-built.
 

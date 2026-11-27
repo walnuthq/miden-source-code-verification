@@ -2,8 +2,8 @@
 // stores and serves it: the JSON that api-compile's `miden-package-metadata`
 // crate prints. Each type below mirrors the Rust type of the same name, from
 // the crate versions that crate locks: `miden-mast-package`,
-// `miden-assembly-syntax`, `miden-field` (0.35.0) and `midenc-hir-type`
-// (0.17.0), so a bump of those needs this file re-checked. Those types no
+// `miden-assembly-syntax`, `miden-field` (0.36.5) and `midenc-hir-type`
+// (0.18.0), so a bump of those needs this file re-checked. Those types no
 // longer derive `serde`, so the crate's `main.rs` writes the JSON by hand, in
 // the shape their derives used to produce: Rust enums are externally tagged
 // unless noted, a unit variant being its name and any other
