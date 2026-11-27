@@ -252,6 +252,8 @@ fn note_fixtures(sender: AccountId) -> Result<Vec<NoteFixture>> {
         let num_storage_items = standard
             .map(|standard| {
                 let accepted = standard.num_storage_items();
+                // The smallest storage the note accepts: every standard note
+                // takes a few items, so 1024 only bounds the search.
                 (0..=1024)
                     .find(|&count| accepted.accepts(count))
                     .context("no storage size is accepted")

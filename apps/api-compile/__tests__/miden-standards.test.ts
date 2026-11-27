@@ -34,10 +34,10 @@ let libraryFiles: Record<string, string>;
 
 beforeAll(async () => {
   const files = await readProjectFiles(standardsDir);
-  const under = (prefix: string) =>
+  const filesUnder = (prefix: string) =>
     Object.fromEntries(Object.entries(files).filter(([file]) => file.startsWith(prefix)));
-  componentFiles = under("asm/components/");
-  libraryFiles = under("asm/standards/");
+  componentFiles = filesUnder("asm/components/");
+  libraryFiles = filesUnder("asm/standards/");
 });
 
 describe("the copy of miden-standards", () => {
@@ -51,6 +51,14 @@ describe("the copy of miden-standards", () => {
     expect(res.body).toHaveProperty("kind", "library");
     expect(res.body).toHaveProperty("commitment", standardsLibrary.commitment);
     expect(res.body).toHaveProperty("diagnostics", []);
+    // Named from the library's source: the components only re-export them.
+    expect(res.body.parameters).toMatchObject({
+      "::miden::standards::wallets::basic::move_asset_to_note": [
+        { name: "asset", type: "Asset" },
+        { name: "note_idx", type: "u16" },
+      ],
+      "::miden::standards::wallets::basic::receive_asset": [{ name: "asset", type: "Asset" }],
+    });
   });
 
   it("is the library the server links", async () => {
@@ -64,21 +72,6 @@ describe("the copy of miden-standards", () => {
     expect(res.body.manifest.dependencies).toContainEqual(
       expect.objectContaining({ name: "miden-standards", digest: standardsLibrary.commitment }),
     );
-  });
-
-  it("names the basic wallet's parameters from the library's source", async () => {
-    const res = await api
-      .post("/compile")
-      .send({ files: libraryFiles, entrypoint: standardsLibrary.entrypoint });
-
-    expect(res.status).toBe(200);
-    expect(res.body.parameters).toMatchObject({
-      "::miden::standards::wallets::basic::move_asset_to_note": [
-        { name: "asset", type: "Asset" },
-        { name: "note_idx", type: "u16" },
-      ],
-      "::miden::standards::wallets::basic::receive_asset": [{ name: "asset", type: "Asset" }],
-    });
   });
 });
 

@@ -12,7 +12,7 @@ use miden_client::{
     rpc::{Endpoint, GrpcClient},
     transaction::AccountComponentInterface,
     utils::Deserializable,
-    vm::{Package, PackageExport},
+    vm::{Package, PackageExport, ProcedureExport},
 };
 use miden_client_sqlite_store::ClientBuilderSqliteExt;
 // use miden_standards::account::access::{Authority, Ownable2Step, RoleBasedAccessControl};
@@ -133,6 +133,17 @@ fn parse_resource_id(resource_id: &str) -> Result<Resource> {
     )
 }
 
+/// The procedures `package` exports.
+fn procedures(package: &Package) -> impl Iterator<Item = &ProcedureExport> {
+    package
+        .manifest
+        .exports()
+        .filter_map(|export| match export {
+            PackageExport::Procedure(procedure) => Some(procedure),
+            _ => None,
+        })
+}
+
 fn verify_account_component(account: Account, package: Package) -> Result<Value> {
     // `AccountInterface::from_account` would be the obvious call here, but it
     // asserts that the account has exactly one auth component and panics when
@@ -180,13 +191,7 @@ fn verify_account_component(account: Account, package: Package) -> Result<Value>
     // convention (`CallConv::ComponentModel`) are installed as account
     // procedures. Anything else a package exports is not part of the
     // account's code, so matching against it could never verify.
-    let procedures: Vec<_> = package
-        .manifest
-        .exports()
-        .filter_map(|export| match export {
-            PackageExport::Procedure(procedure) => Some(procedure),
-            _ => None,
-        })
+    let procedures: Vec<_> = procedures(&package)
         .filter(|procedure| {
             procedure
                 .signature
@@ -217,13 +222,7 @@ fn verify_note_script(note_script: &NoteScript, package: Package) -> Result<Valu
     // compiles to their roots, as a script's MAST depends on what else the
     // forest it is assembled in holds.
     let root: Word = note_script.root().into();
-    let entrypoint = package
-        .manifest
-        .exports()
-        .filter_map(|export| match export {
-            PackageExport::Procedure(procedure) => Some(procedure),
-            _ => None,
-        })
+    let entrypoint = procedures(&package)
         .find(|procedure| procedure.attributes.has("note_script") && procedure.digest == root);
     // A standard note the package doesn't verify is still named as such.
     let script = match (entrypoint, StandardNote::from_script(note_script)) {
