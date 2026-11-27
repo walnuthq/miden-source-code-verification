@@ -1,0 +1,13 @@
+[package]
+name = "count-reader"
+version = "0.1.0"
+
+[lib]
+kind = "account-component"
+namespace = "count_reader"
+path = "count_reader.masm"
+
+[dependencies]
+miden-core = "*"
+miden-protocol = "*"
+counter-contract = { path = "../counter-contract" }
