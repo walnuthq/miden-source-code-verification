@@ -226,18 +226,21 @@ describe("the deletion of Rust packages", () => {
     expect(report.networks).toEqual({
       mtst: {
         packages: [RUST_ROOT, RUST_SUBDIR],
+        files: [`${RUST_ROOT}.masp`, `${RUST_ROOT}.debug.masp`, `${RUST_SUBDIR}.masp`],
         verifiedAccounts: [hex("01")],
         mixedAccounts: [],
         verifiedNotes: [hex("04")],
       },
       mdev: {
         packages: [RUST_NO_ENTRYPOINT],
+        files: [`${RUST_NO_ENTRYPOINT}.masp`, `${RUST_NO_ENTRYPOINT}.debug.masp`],
         verifiedAccounts: [hex("02")],
         mixedAccounts: [hex("02")],
         verifiedNotes: [],
       },
       mm: {
         packages: [RUST_SUBDIR],
+        files: [`${RUST_SUBDIR}.masp`],
         verifiedAccounts: [],
         mixedAccounts: [],
         verifiedNotes: [hex("04")],

@@ -60,8 +60,8 @@ export const packagesTable = pgTable(
     schemas: jsonb().notNull().default({}),
     // Each exported procedure's parameter names and types, as api-compile
     // reads them from the MASM source (`ProcedureParameters`): `{}` when it
-    // couldn't. Without a
-    // default, like `readOnly`, so an insert that forgets it fails to compile.
+    // couldn't. Without a default, like `readOnly`, so an insert that forgets
+    // it fails to compile.
     parameters: jsonb().$type<ProcedureParameters>().notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),

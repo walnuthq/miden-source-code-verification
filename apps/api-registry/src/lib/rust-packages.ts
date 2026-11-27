@@ -24,10 +24,12 @@ export const rustPackageCondition = sql`(${packagesTable.entrypoint} IS NULL OR 
 
 // What one network holds that the deletion removes: the code roots of its
 // verified accounts, the script roots of its verified notes, and the Rust
-// packages they were verified with. `mixedAccounts` are the accounts among
-// them with a MASM component too, which goes with the account.
+// packages they were verified with and their files. `mixedAccounts` are the
+// accounts among them with a MASM component too, which goes with the account.
+// A package is on every network it has a record on, and on none without one.
 type NetworkReport = {
   packages: string[];
+  files: string[];
   verifiedAccounts: string[];
   mixedAccounts: string[];
   verifiedNotes: string[];
@@ -37,8 +39,8 @@ export type RustPackagesReport = {
   networks: Record<string, NetworkReport>;
   // Every Rust package, with no verified record or with some, by commitment.
   packages: { commitment: string; name: string }[];
-  // The keys of the stored files that go: each package's `.masp`, and the
-  // `.debug.masp` of one that had a debug build.
+  // The keys of the stored files that go, for every package: each one's
+  // `.masp`, and the `.debug.masp` of one that had a debug build.
   files: string[];
   counts: {
     packages: number;
@@ -49,6 +51,14 @@ export type RustPackagesReport = {
 };
 
 const sorted = (values: Iterable<string>) => [...new Set(values)].sort();
+
+// The ids of the verified accounts with a component built from one of the
+// packages `packageIds`, as a subquery.
+const accountsWithComponentsOf = (query: Pick<typeof db, "select">, packageIds: string[]) =>
+  query
+    .select({ id: verifiedAccountComponentTable.verifiedAccountId })
+    .from(verifiedAccountComponentTable)
+    .where(inArray(verifiedAccountComponentTable.packageId, packageIds));
 
 /** The dry run: what the deletion would remove, per network. Deletes nothing. */
 export const listRustPackages = async (): Promise<RustPackagesReport> => {
@@ -67,10 +77,7 @@ export const listRustPackages = async (): Promise<RustPackagesReport> => {
 
   // Every component of an account with a Rust component, so an account's MASM
   // components show too.
-  const accountsWithRust = db
-    .select({ id: verifiedAccountComponentTable.verifiedAccountId })
-    .from(verifiedAccountComponentTable)
-    .where(inArray(verifiedAccountComponentTable.packageId, ids));
+  const accountsWithRust = accountsWithComponentsOf(db, ids);
   const components = ids.length
     ? await db
         .select({
@@ -100,6 +107,7 @@ export const listRustPackages = async (): Promise<RustPackagesReport> => {
   const network = (networkId: string) =>
     (networks[networkId] ??= {
       packages: [],
+      files: [],
       verifiedAccounts: [],
       mixedAccounts: [],
       verifiedNotes: [],
@@ -122,16 +130,21 @@ export const listRustPackages = async (): Promise<RustPackagesReport> => {
       report.packages.push(commitment);
     }
   }
+  const filesOf = new Map(
+    packages.map(({ commitment, debugCommitment }) => [
+      commitment,
+      debugCommitment ? [maspKey(commitment), debugMaspKey(commitment)] : [maspKey(commitment)],
+    ]),
+  );
   for (const report of Object.values(networks)) {
     report.packages = sorted(report.packages);
+    report.files = report.packages.flatMap((commitment) => filesOf.get(commitment) ?? []);
     report.verifiedAccounts = sorted(report.verifiedAccounts);
     report.mixedAccounts = sorted(report.mixedAccounts);
     report.verifiedNotes = sorted(report.verifiedNotes);
   }
 
-  const files = packages.flatMap(({ commitment, debugCommitment }) =>
-    debugCommitment ? [maspKey(commitment), debugMaspKey(commitment)] : [maspKey(commitment)],
-  );
+  const files = [...filesOf.values()].flat();
   const reports = Object.values(networks);
   return {
     networks,
@@ -184,15 +197,7 @@ export const deleteRustPackages = async ({
     // included.
     const accounts = await tx
       .delete(verifiedAccountCodeTable)
-      .where(
-        inArray(
-          verifiedAccountCodeTable.id,
-          tx
-            .select({ id: verifiedAccountComponentTable.verifiedAccountId })
-            .from(verifiedAccountComponentTable)
-            .where(inArray(verifiedAccountComponentTable.packageId, ids)),
-        ),
-      )
+      .where(inArray(verifiedAccountCodeTable.id, accountsWithComponentsOf(tx, ids)))
       .returning({ id: verifiedAccountCodeTable.id });
     const notes = await tx
       .delete(verifiedNoteScriptTable)

@@ -69,8 +69,7 @@ const insertPackage = async (
       manifest: build.manifest,
       readOnly: build.readOnly,
       // `{}` when api-compile answers no names: its tool couldn't parse the
-      // package's WIT or MASM source (a package without one already gives
-      // `{}`).
+      // project's MASM source.
       parameters: build.parameters ?? {},
       entrypoint,
       // The versions the assembler was built with.
