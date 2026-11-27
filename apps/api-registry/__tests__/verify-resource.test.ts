@@ -425,13 +425,6 @@ describe("verifyResource", () => {
     expect(await getPackage(COMMITMENT)).toBeUndefined();
   });
 
-  describe("storage schemas", () => {
-    it("leaves the column to its `{}` default", async () => {
-      await verifyBuilt(ACCOUNT, built(), `0x${"42".repeat(32)}`);
-      expect(await getPackage(COMMITMENT)).toHaveProperty("schemas", {});
-    });
-  });
-
   describe("parameters", () => {
     const parameters = {
       '::"miden:bank-account/bank@0.1.0"::deposit': [
@@ -504,8 +497,6 @@ describe("verifyResource", () => {
       expect(record.verifiedAccountComponents[0]?.package).toMatchObject({
         commitment: MASM_COMMITMENT,
       });
-      expect(record.verifiedAccountComponents[0]).not.toHaveProperty("debugPackage");
-      expect(record.verifiedAccountComponents[0]?.package).not.toHaveProperty("schemas");
     });
   });
 });

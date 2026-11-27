@@ -26,10 +26,7 @@ export const packagesTable = pgTable(
     name: varchar({ length: 255 }).notNull().default(""),
     type: packageTypeEnum().notNull().default("account-component"),
     // The sources, keyed by project-relative path (the project as sent), and
-    // the manifest, as api-compile answers them. A row stored before cargo
-    // left api-compile is Rust-built when its files hold a `Cargo.toml` at its
-    // entrypoint, or has no entrypoint; the deletion of Rust packages
-    // removes those (`lib/rust-packages.ts`).
+    // the manifest, as api-compile answers them.
     // Typed after the `{}` defaults, which predate both being required: an
     // insert always supplies them.
     files: jsonb().notNull().default({}).$type<Record<string, string>>(),
@@ -41,23 +38,12 @@ export const packagesTable = pgTable(
     // the root). Null on rows from before it was recorded.
     entrypoint: text(),
     // The toolchain of the build: api-compile's `builtWith` (the assembler's
-    // crate versions), or `cargo miden --version` on a Rust package stored
-    // before. Null when unknown.
+    // crate versions). Null when unknown.
     builtWith: varchar("built_with", { length: 64 }),
-    // A Rust package's debug build, stored as `<commitment>.debug.masp` before
-    // debug builds were retired: its own commitment, and the cargo-miden that
-    // built it. Nothing reads or writes them any more; `spec/remove-rust`
-    // plan 10 drops them.
-    debugCommitment: varchar("debug_commitment", { length: 66 }),
-    debugBuiltWith: varchar("debug_built_with", { length: 64 }),
     // Whether each exported procedure is read-only, by export path, as
     // api-compile reads it from the package (`ReadOnlyProcedures`). Without a
     // default, like `networkId`, so an insert that forgets it fails to compile.
     readOnly: jsonb("read_only").$type<ReadOnlyProcedures>().notNull(),
-    // A Rust package's storage schemas. A MASM package has none, so nothing
-    // reads or writes them any more and new rows get the `{}` default;
-    // `spec/remove-rust` plan 10 drops the column.
-    schemas: jsonb().notNull().default({}),
     // Each exported procedure's parameter names and types, as api-compile
     // reads them from the MASM source (`ProcedureParameters`): `{}` when it
     // couldn't. Without a default, like `readOnly`, so an insert that forgets

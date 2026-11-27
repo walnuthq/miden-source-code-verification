@@ -1,8 +1,4 @@
-import {
-  debugMaspKey,
-  type MaspStore,
-  maspKey,
-} from "miden-source-code-verification-api-registry/storage";
+import { type MaspStore, maspKey } from "miden-source-code-verification-api-registry/storage";
 
 // The registry's MASP store on an R2 bucket. The bucket comes from the
 // per-request `env`, so it is resolved on each call rather than captured here.
@@ -17,7 +13,7 @@ export const createR2MaspStore = (getBucket: () => R2Bucket): MaspStore => ({
     return object ? new Uint8Array(await object.arrayBuffer()) : null;
   },
   async delete(commitment) {
-    // One call for both keys: an absent key is no error.
-    await getBucket().delete([maspKey(commitment), debugMaspKey(commitment)]);
+    // An absent key is no error.
+    await getBucket().delete(maspKey(commitment));
   },
 });

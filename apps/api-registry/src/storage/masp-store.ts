@@ -9,12 +9,6 @@ import { maspKey } from "miden-source-code-verification-utils/api-registry";
 // re-exported here for the stores that file artifacts by it.
 export { maspKey };
 
-// Where a Rust package's debug build was stored, next to its artifact, before
-// debug builds were retired. The registry no longer serves them; `delete`
-// removes one with its package. Goes with the Rust packages
-// (`spec/remove-rust`, plan 10).
-export const debugMaspKey = (commitment: string) => `${commitment.toLowerCase()}.debug.masp`;
-
 /**
  * Object storage for compiled packages (`.masp`), keyed by package commitment.
  * Kept out of Postgres so registry responses don't carry the artifact. The
@@ -25,10 +19,7 @@ export type MaspStore = {
   put(commitment: string, masp: Uint8Array): Promise<void>;
   /** `null` when no artifact is stored for `commitment`. */
   get(commitment: string): Promise<Uint8Array | null>;
-  /**
-   * Removes the artifact, and the debug build stored next to it before debug
-   * builds were retired, if either is stored.
-   */
+  /** Removes the artifact; deleting one that isn't stored is no error. */
   delete(commitment: string): Promise<void>;
 };
 
@@ -50,7 +41,6 @@ export const createFsMaspStore = (dir: string): MaspStore => ({
   },
   async delete(commitment) {
     await rm(join(dir, maspKey(commitment)), { force: true });
-    await rm(join(dir, debugMaspKey(commitment)), { force: true });
   },
 });
 
