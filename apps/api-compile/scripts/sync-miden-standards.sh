@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Makes apps/api-compile/miden-standards a verbatim copy of the MASM of the
 # `miden-standards` crate the helper tools lock (crates/Cargo.lock), and
-# regenerates packages/test-utils/src/standard-fixtures.ts from that crate.
+# regenerates packages/test-utils/src/standard-fixtures.ts from that crate, then
+# checks `standard-components` lists every component the copy holds.
 # Run it after every bump of the crate, then the api-compile suite.
 #
 # Reads the crate from cargo's registry: `cargo metadata` downloads it first
@@ -40,5 +41,8 @@ cargo run --release --quiet --manifest-path "$crates/Cargo.toml" \
   -p generate-fixtures --bin standard-fixtures -- \
   --standards-dir "$mirror" --out "$fixtures"
 pnpm --dir "$repo" exec oxfmt "$fixtures" >/dev/null
+# The standard components miden-import names and the verifier refuses to verify
+# alone are every one the copy holds: fails on one they don't list.
+cargo test --release --quiet --manifest-path "$crates/Cargo.toml" -p standard-components
 
 echo "miden-standards $version copied to $mirror; fixtures written to $fixtures"

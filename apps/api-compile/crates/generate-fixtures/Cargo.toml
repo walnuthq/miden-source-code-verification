@@ -28,6 +28,7 @@ miden-assemble = { path = "../miden-assemble" }
 # resolves, so they are the packages the other tools link.
 miden-protocol = "=0.18.0"
 miden-standards = "=0.18.0"
+standard-components = { path = "../standard-components" }
 # For `standard-fixtures`, which reads the mirrored components workspace.
 # Already in the lockfile through `miden-project`, at this version.
 toml = "=1.1.8"

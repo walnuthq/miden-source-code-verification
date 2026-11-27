@@ -14,9 +14,11 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 // `/compile` and `/verify` on `miden-standards`, the verbatim copy of the
 // crate's MASM, against the offline accounts and notes `standard-fixtures`
-// builds from the packages the crate ships. Each standard component and note
-// must verify from its own source even though the verifier also recognises it
-// as standard: being recognised names it, it doesn't verify it.
+// builds from the packages the crate ships. The copy compiles to exactly what
+// the crate ships, but standard code is never verified: an account of standard
+// components alone, or a standard note, has no verified record, whatever
+// package is sent. A standard component in an account with custom code is
+// accounted for by the package that verifies the account, as any procedure.
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const standardsDir = path.resolve(__dirname, "../miden-standards");
@@ -75,10 +77,21 @@ describe("the copy of miden-standards", () => {
   });
 });
 
-describe("POST /verify a standard account component", () => {
+describe("a standard account component", () => {
   it.each(Object.entries(standardComponents))(
-    "verifies %s from its source",
-    async (_, { entrypoint, commitment, accountId, code, resource }) => {
+    "compiles %s to the package the crate ships",
+    async (_, { entrypoint, commitment }) => {
+      const res = await api.post("/compile").send({ files: componentFiles, entrypoint });
+
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty("built", true);
+      expect(res.body).toHaveProperty("commitment", commitment);
+    },
+  );
+
+  it.each(Object.entries(standardComponents))(
+    "doesn't verify an account of standard components alone with %s",
+    async (_, { entrypoint, accountId, code, resource }) => {
       const res = await api.post("/verify").send({
         files: componentFiles,
         entrypoint,
@@ -88,14 +101,15 @@ describe("POST /verify a standard account component", () => {
       });
 
       expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty("verified", true);
+      expect(res.body).toHaveProperty("verified", false);
       expect(res.body).toHaveProperty("root", code);
-      expect(res.body).toHaveProperty("commitment", commitment);
     },
   );
 
-  it("verifies the basic wallet in an account with custom code too", async () => {
+  it("verifies the basic wallet in an account with custom code", async () => {
     // The counter fixture: the counter component, `NoAuth` and `BasicWallet`.
+    // The wallet's package accounts for every procedure it exports, as the
+    // counter's package would for its own.
     const { resource } = accounts[COUNTER_CONTRACT_ID];
     const res = await api.post("/verify").send({
       files: componentFiles,
@@ -108,38 +122,30 @@ describe("POST /verify a standard account component", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("verified", true);
   });
-
-  it("doesn't verify a standard account with another component", async () => {
-    const res = await api.post("/verify").send({
-      files: componentFiles,
-      entrypoint: standardComponents["miden-standards-access-ownable2step"].entrypoint,
-      networkId,
-      resourceId: basicWallet.accountId,
-      resource: basicWallet.resource,
-    });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", false);
-    expect(res.body).toHaveProperty("root", basicWallet.code);
-  });
-
-  it("doesn't verify a standard account with the standards library", async () => {
-    const res = await api.post("/verify").send({
-      files: libraryFiles,
-      entrypoint: standardsLibrary.entrypoint,
-      networkId,
-      resourceId: basicWallet.accountId,
-      resource: basicWallet.resource,
-    });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", false);
-  });
 });
 
-describe("POST /verify a standard note", () => {
+describe("a standard note", () => {
+  it("is a note script of the standards library, at its root", async () => {
+    // A note script's root depends on what else the forest it is assembled in
+    // holds, so it is compiled where the crate compiles it.
+    const res = await api
+      .post("/compile")
+      .send({ files: libraryFiles, entrypoint: standardsLibrary.entrypoint });
+
+    expect(res.status).toBe(200);
+    const exports = new Map(
+      res.body.manifest.exports.flatMap(
+        ({ Procedure }: { Procedure?: { path: string; digest: string } }) =>
+          Procedure ? [[Procedure.path, Procedure.digest]] : [],
+      ),
+    );
+    for (const { path: procedurePath, root } of Object.values(standardNotes)) {
+      expect(exports.get(procedurePath), procedurePath).toBe(root);
+    }
+  });
+
   it.each(Object.entries(standardNotes))(
-    "verifies %s with the standards library",
+    "doesn't verify %s with the standards library",
     async (_, { noteId, root, resource }) => {
       const res = await api.post("/verify").send({
         files: libraryFiles,
@@ -150,24 +156,8 @@ describe("POST /verify a standard note", () => {
       });
 
       expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty("verified", true);
+      expect(res.body).toHaveProperty("verified", false);
       expect(res.body).toHaveProperty("root", root);
-      expect(res.body).toHaveProperty("commitment", standardsLibrary.commitment);
     },
   );
-
-  it("doesn't verify a standard note with a component", async () => {
-    const { noteId, root, resource } = standardNotes.P2ID;
-    const res = await api.post("/verify").send({
-      files: componentFiles,
-      entrypoint: basicWallet.entrypoint,
-      networkId,
-      resourceId: noteId,
-      resource,
-    });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("verified", false);
-    expect(res.body).toHaveProperty("root", root);
-  });
 });

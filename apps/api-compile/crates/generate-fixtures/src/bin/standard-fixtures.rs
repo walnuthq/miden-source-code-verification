@@ -2,16 +2,15 @@
 //! account component `miden-standards` ships, and one note per note script its
 //! library holds, built offline from the packages the crate embeds.
 //!
-//! Nothing here touches a network. The api-compile suite verifies each of them
-//! by sending its serialized bytes as `/verify`'s `resource`, against the
-//! verbatim copy of the crate's MASM in `apps/api-compile/miden-standards`.
-//! Because the accounts and notes come from the crate's own packages and the
-//! copy is compiled by the server, a verification passes only when the copy
-//! still compiles to exactly what upstream ships.
+//! Nothing here touches a network. The api-compile suite compiles the verbatim
+//! copy of the crate's MASM in `apps/api-compile/miden-standards` and checks it
+//! against them: each component package to the commitment the fixture records,
+//! each note script to its note's root. It also sends their serialized bytes
+//! as `/verify`'s `resource`, to check that standard code is never verified.
 //!
 //! The components are listed from the copy's workspace manifest, and each
-//! member must map to a component in `COMPONENTS` below: a component a newer
-//! crate adds fails the run until it is listed there. The notes need no table:
+//! member must map to a component in `standard_components::STANDARD_COMPONENTS`:
+//! a component a newer crate adds fails the run until it is listed there. The notes need no table:
 //! they are the library's exports marked `@note_script`.
 
 use std::collections::BTreeMap;
@@ -32,67 +31,11 @@ use miden_protocol::utils::serde::Serializable;
 use miden_protocol::vm::PackageExport;
 use miden_protocol::{Felt, Word};
 use miden_standards::StandardsLib;
-use miden_standards::account::access::{
-    Authority, Ownable2Step, Pausable, PausableManager, RoleBasedAccessControl,
-};
-use miden_standards::account::auth::{
-    AuthGuardedMultisig, AuthMultisig, AuthMultisigSmart, AuthNetworkAccount, AuthSingleSig,
-    AuthTxFeeCollector, NoAuth,
-};
-use miden_standards::account::faucets::{FungibleFaucet, NonFungibleFaucet};
-use miden_standards::account::fees::{BasicConstantFeePolicy, ConstantFeeManager};
-use miden_standards::account::inspection::{AccountSchemaCommitment, CodeInspection};
-use miden_standards::account::note_creator::NoteCreator;
-use miden_standards::account::oracle::PriceOracle;
-use miden_standards::account::policies::{
-    AllowlistManager, BasicAllowlist, BasicBlocklist, BlocklistManager, BurnAllowAll,
-    BurnOwnerOnly, MinBurnAmount, MintAllowAll, MintOwnerOnly, TokenPolicyManager,
-    TokenPolicyManagerV2, TransferAllowAll,
-};
-use miden_standards::account::upgrade::UpgradeManager;
+use miden_standards::account::auth::NoAuth;
 use miden_standards::account::wallets::BasicWallet;
 use miden_standards::note::StandardNote;
 use sha2::{Digest, Sha256};
-
-/// Every account component package the crate ships, by the accessor of its
-/// code. The package name each one carries is what a workspace member's
-/// manifest names, so the table needs no names of its own.
-const COMPONENTS: &[fn() -> &'static AccountComponentCode] = &[
-    AccountSchemaCommitment::code,
-    AllowlistManager::code,
-    AuthGuardedMultisig::code,
-    AuthMultisig::code,
-    AuthMultisigSmart::code,
-    AuthNetworkAccount::code,
-    AuthSingleSig::code,
-    AuthTxFeeCollector::code,
-    Authority::code,
-    BasicAllowlist::code,
-    BasicBlocklist::code,
-    BasicConstantFeePolicy::code,
-    BasicWallet::code,
-    BlocklistManager::code,
-    BurnAllowAll::code,
-    BurnOwnerOnly::code,
-    CodeInspection::code,
-    ConstantFeeManager::code,
-    FungibleFaucet::code,
-    MinBurnAmount::code,
-    MintAllowAll::code,
-    MintOwnerOnly::code,
-    NoAuth::code,
-    NonFungibleFaucet::code,
-    NoteCreator::code,
-    Ownable2Step::code,
-    Pausable::code,
-    PausableManager::code,
-    PriceOracle::code,
-    RoleBasedAccessControl::code,
-    TokenPolicyManager::code,
-    TokenPolicyManagerV2::code,
-    TransferAllowAll::code,
-    UpgradeManager::code,
-];
+use standard_components::STANDARD_COMPONENTS;
 
 #[derive(Parser, Debug)]
 #[command(about)]
@@ -177,10 +120,10 @@ fn workspace_members(standards_dir: &Path) -> Result<Vec<(String, String)>> {
 
 /// One account per workspace member: the member's component, plus `NoAuth`,
 /// or `BasicWallet` when the component is an auth component. Storage is left
-/// empty: only the code is verified.
+/// empty: only the code is checked.
 fn component_fixtures(standards_dir: &Path) -> Result<Vec<ComponentFixture>> {
     let mut by_package: BTreeMap<String, &'static AccountComponentCode> = BTreeMap::new();
-    for code in COMPONENTS {
+    for (_, code) in STANDARD_COMPONENTS {
         let code = code();
         by_package.insert(code.as_package().name.to_string(), code);
     }
@@ -188,8 +131,8 @@ fn component_fixtures(standards_dir: &Path) -> Result<Vec<ComponentFixture>> {
     for (member, package) in workspace_members(standards_dir)? {
         let Some(code) = by_package.remove(&package) else {
             bail!(
-                "workspace member '{member}' is package '{package}', which COMPONENTS doesn't \
-                 list: add its type's `code` accessor"
+                "workspace member '{member}' is package '{package}', which \
+                 `standard_components::STANDARD_COMPONENTS` doesn't list: add it there"
             );
         };
         let component = component(code, &package)?;
@@ -214,7 +157,7 @@ fn component_fixtures(standards_dir: &Path) -> Result<Vec<ComponentFixture>> {
     }
     if !by_package.is_empty() {
         let missing: Vec<_> = by_package.keys().cloned().collect();
-        bail!("COMPONENTS lists packages the workspace doesn't: {missing:?}");
+        bail!("STANDARD_COMPONENTS lists packages the workspace doesn't: {missing:?}");
     }
     Ok(fixtures)
 }

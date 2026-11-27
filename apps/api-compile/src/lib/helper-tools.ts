@@ -103,10 +103,9 @@ const run = async <T>(
 // What `miden-verifier` prints: the resource's kind and root (`code`), and what
 // its code is made of. An account's `components` are the names of its standard
 // components, plus `Custom(<commitment>)` for the package it was given when
-// the account's code holds every procedure that package exports, standard or
-// not. A note's `script` is `Custom(<commitment>)` when the package exports a
-// `@note_script` procedure whose root is the note's, else a standard note's
-// name, else empty.
+// the account's code holds every procedure that package exports. A note's
+// `script` is a standard note's name, or `Custom(<commitment>)` when the
+// package's entrypoint is the note script.
 export type MidenVerifierOutput =
   | { type: "account"; code: string; components: string[] }
   | { type: "note"; code: string; script: string };

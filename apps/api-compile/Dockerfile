@@ -41,9 +41,11 @@ COPY apps/api-compile/crates/miden-assemble/Cargo.toml apps/api-compile/crates/m
 COPY apps/api-compile/crates/miden-import/Cargo.toml miden-import/
 COPY apps/api-compile/crates/miden-package-metadata/Cargo.toml miden-package-metadata/
 COPY apps/api-compile/crates/miden-verifier/Cargo.toml miden-verifier/
+COPY apps/api-compile/crates/standard-components/Cargo.toml standard-components/
 RUN for crate in generate-fixtures miden-assemble miden-import miden-package-metadata miden-verifier; do \
       mkdir -p $crate/src && echo 'fn main() {}' > $crate/src/main.rs; \
-    done
+    done \
+ && mkdir -p standard-components/src && touch standard-components/src/lib.rs
 RUN --mount=type=cache,id=cargo-registry-helpers,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git-helpers,target=/usr/local/cargo/git \
     cargo build --release --locked --bin miden-assemble --bin miden-import --bin miden-package-metadata --bin miden-verifier
@@ -51,11 +53,12 @@ COPY apps/api-compile/crates/miden-assemble/src miden-assemble/src
 COPY apps/api-compile/crates/miden-import/src miden-import/src
 COPY apps/api-compile/crates/miden-package-metadata/src miden-package-metadata/src
 COPY apps/api-compile/crates/miden-verifier/src miden-verifier/src
+COPY apps/api-compile/crates/standard-components/src standard-components/src
 # COPY keeps the sources' mtimes, which can predate the stub build: touch them
-# so cargo sees them as changed and rebuilds the four crates.
+# so cargo sees them as changed and rebuilds the five crates.
 RUN --mount=type=cache,id=cargo-registry-helpers,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git-helpers,target=/usr/local/cargo/git \
-    touch miden-assemble/src/main.rs miden-assemble/src/lib.rs miden-import/src/main.rs miden-package-metadata/src/main.rs miden-verifier/src/main.rs \
+    touch miden-assemble/src/main.rs miden-assemble/src/lib.rs miden-import/src/main.rs miden-package-metadata/src/main.rs miden-verifier/src/main.rs standard-components/src/lib.rs \
  && cargo build --release --locked --bin miden-assemble --bin miden-import --bin miden-package-metadata --bin miden-verifier \
  && strip target/release/miden-assemble target/release/miden-import target/release/miden-package-metadata target/release/miden-verifier
 

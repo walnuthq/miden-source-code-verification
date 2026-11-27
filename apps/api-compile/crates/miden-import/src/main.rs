@@ -1,8 +1,9 @@
 use anyhow::{Result, anyhow};
 use clap::Parser;
+use miden_client::account::AccountProcedureRoot;
 use miden_client::{
     ClientError,
-    account::{Account, AccountId},
+    account::AccountId,
     address::{Address, AddressId, NetworkId},
     builder::ClientBuilder,
     keystore::FilesystemKeyStore,
@@ -10,11 +11,8 @@ use miden_client::{
     rpc::{Endpoint, GrpcClient},
 };
 use miden_client_sqlite_store::ClientBuilderSqliteExt;
-use miden_standards::account::{
-    components::StandardAccountComponent, inspection::AccountSchemaCommitment,
-};
 use serde_json::{Value, json};
-use std::collections::BTreeSet;
+use standard_components::{StandardComponent, classify};
 use std::fmt;
 use std::process::ExitCode;
 use std::sync::Arc;
@@ -113,69 +111,18 @@ fn parse_resource_id(resource_id: &str) -> Result<Resource> {
 
 /// The standard components an account's procedures make up, each with the
 /// procedure roots it claims.
-///
-/// Mirrors `StandardAccountComponent::extract_standard_components` (which the
-/// verifier reaches through `AccountComponentInterface::from_procedures`), whose
-/// per-component step is private: a component is detected when every one of its
-/// procedures is still unclaimed, and it then claims them. The order is the same
-/// as upstream's and matters — `NoteCreator`'s only procedure is also one of
-/// `BasicWallet`'s, so a full wallet must claim it first.
-///
-/// `SchemaCommitment` is appended to upstream's list, which leaves it out:
-/// `build_with_schema_commitment`, what the miden CLI builds accounts with by
-/// default, adds it to every account, so without it no such account could ever
-/// have all its procedures accounted for.
-fn standard_account_components(account: &Account) -> Vec<Value> {
-    let components = [
-        ("BasicWallet", StandardAccountComponent::BasicWallet),
-        ("NoteCreator", StandardAccountComponent::NoteCreator),
-        ("FungibleFaucet", StandardAccountComponent::FungibleFaucet),
-        ("CodeInspection", StandardAccountComponent::CodeInspection),
-        ("Authority", StandardAccountComponent::Authority),
-        (
-            "RoleBasedAccessControl",
-            StandardAccountComponent::RoleBasedAccessControl,
-        ),
-        ("Ownable2Step", StandardAccountComponent::Ownable2Step),
-        ("AuthSingleSig", StandardAccountComponent::AuthSingleSig),
-        (
-            "AuthGuardedMultisig",
-            StandardAccountComponent::AuthGuardedMultisig,
-        ),
-        ("AuthMultisig", StandardAccountComponent::AuthMultisig),
-        (
-            "AuthMultisigSmart",
-            StandardAccountComponent::AuthMultisigSmart,
-        ),
-        ("AuthNoAuth", StandardAccountComponent::AuthNoAuth),
-        (
-            "AuthNetworkAccount",
-            StandardAccountComponent::AuthNetworkAccount,
-        ),
-        (
-            "AuthTxFeeCollector",
-            StandardAccountComponent::AuthTxFeeCollector,
-        ),
-    ]
-    .into_iter()
-    .map(|(name, component)| (name, component.procedure_roots().collect::<Vec<_>>()))
-    .chain([(
-        "SchemaCommitment",
-        AccountSchemaCommitment::code().procedure_roots().collect(),
-    )]);
-
-    let mut unclaimed = BTreeSet::from_iter(account.code().procedures().iter().copied());
-    let mut detected = Vec::new();
-    for (name, roots) in components {
-        if roots.iter().all(|root| unclaimed.contains(root)) {
-            for root in &roots {
-                unclaimed.remove(root);
-            }
-            let procedures: Vec<_> = roots.iter().map(|root| root.mast_root().to_hex()).collect();
-            detected.push(json!({ "name": name, "procedures": procedures }));
-        }
-    }
-    detected
+fn standard_account_components(procedures: &[AccountProcedureRoot]) -> Vec<Value> {
+    classify(procedures)
+        .standard
+        .into_iter()
+        .map(|StandardComponent { name, procedures }| {
+            let procedures: Vec<_> = procedures
+                .iter()
+                .map(|root| root.mast_root().to_hex())
+                .collect();
+            json!({ "name": name, "procedures": procedures })
+        })
+        .collect()
 }
 
 #[tokio::main]
@@ -263,7 +210,8 @@ async fn run() -> Result<()> {
                 .ok_or_else(|| anyhow!("account '{}' not found", args.resource_id))?;
 
             let code = account.code().commitment().to_hex();
-            let standard_account_components = standard_account_components(&account);
+            let standard_account_components =
+                standard_account_components(account.code().procedures());
             let procedures: Vec<_> = account
                 .code()
                 .procedures()
