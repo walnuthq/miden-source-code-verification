@@ -45,15 +45,15 @@ busy or too slow, they answer 502, 503 or 504, so an outage doesn't read as a
 missing record.
 
 The compile checks submit
-`apps/api-compile/examples/counter-contract/counter-contract` and the on-chain IDs
+the counter-contract project in `apps/api-compile/examples` and the on-chain IDs
 come from `packages/test-utils` — the same sources and fixtures the api-compile
 test suite uses, so a change to either reaches both at once. **Nothing about the
 dataset is duplicated here.** The checks mirror `it compiles a counter-contract`,
 `it verifies an on-chain counter-contract` and `it imports an on-chain account`.
 
-`/compile` and `/verify` each return ~115 KB: ~90 KB of echoed `files` (almost
-all of it the fixture's `Cargo.lock`) and ~20 KB of base64 `masp`. So the probe
-records a small summary rather than the raw body.
+`/compile` and `/verify` each return the echoed `files` of every example project
+and the base64 `masp`. So the probe records a small summary rather than the raw
+body.
 
 A service's checks run **sequentially** so `GET /` wakes api-compile's container
 before the compile checks run and they don't each pay a cold start; services run

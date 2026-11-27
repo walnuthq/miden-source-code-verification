@@ -1,5 +1,7 @@
 # Miden Source Code Verification PRD
 
+> **Historical.** The founding PRD, written when projects were Rust packages built with `cargo-miden`. Since `spec/remove-rust` (2026-11-27) projects are MASM `miden-project.toml` projects that `miden-assemble` builds; `README.md` and `GLOSSARY.md` describe the services as they are.
+
 ## Summary
 
 Miden Source Code Verification is a set of self-hostable services for verifying that on-chain Miden accounts and notes correspond to specific Rust source packages. It extracts the verification logic currently baked into the miden-playground API into an independently deployable monorepo, enabling the broader Miden ecosystem (explorers, wallets, third-party developers) to run their own verifier and reducing reliance on a single hosted instance.

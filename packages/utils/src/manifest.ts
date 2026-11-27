@@ -2,8 +2,8 @@
 // stores and serves it: the JSON that api-compile's `miden-package-metadata`
 // crate prints. Each type below mirrors the Rust type of the same name, from
 // the crate versions that crate locks: `miden-mast-package`,
-// `miden-assembly-syntax`, `miden-field` (0.35.0) and `midenc-hir-type`
-// (0.17.0), so a bump of those needs this file re-checked. Those types no
+// `miden-assembly-syntax`, `miden-field` (0.36.5) and `midenc-hir-type`
+// (0.18.0), so a bump of those needs this file re-checked. Those types no
 // longer derive `serde`, so the crate's `main.rs` writes the JSON by hand, in
 // the shape their derives used to produce: Rust enums are externally tagged
 // unless noted, a unit variant being its name and any other
@@ -196,25 +196,18 @@ export type ReadOnlyProcedures = Record<string, boolean | null>;
 // treat an absent key (an older api-compile) as `null`.
 export type ForeignCallingProcedures = Record<string, boolean | null>;
 
-// One parameter of an exported procedure. For a `cargo-miden` package, its
-// name and type as the package's WIT spells them, in kebab case
-// (`deposit-asset`, `account-id`); `type` is the type's name, or its structural
-// kind when it has none (`list`, `option`, `tuple`). For a MASM package, both
-// as its source spells them (`amount`, `felt`, `word`, `AccountId`). Consumers
-// convert both for display.
+// One parameter of an exported procedure: its name and type as the MASM
+// source spells them (`amount`, `felt`, `word`, `AccountId`).
 export type ProcedureParameter = { name: string; type: string };
 
 // Each exported procedure's parameters, in order, by export path: what
 // `miden-package-metadata` prints as `parameters`, for every package kind, from
-// the component's public WIT `cargo-miden` embeds in the package
-// (`parameters.rs`) or, for a MASM package, from the project's source when
-// api-compile names its entrypoint directory (`source_parameters.rs`). The manifest's signature has
+// the project's source (`source_parameters.rs`). The manifest's signature has
 // the parameters' types but not their names. An export is listed only when its
-// WIT function or procedure was found with as many named parameters as its
-// signature, so the two pair by index. No names is one case however it
-// happens: an absent export, `{}` for a package without the WIT section (a
-// Rust transaction script) and no entrypoint directory, an absent key (a section or source
-// that couldn't be read). Fall back to the signature's types.
+// procedure was found with as many named parameters as its signature, so the
+// two pair by index. No names is one case however it happens: an absent export,
+// or an absent key (a source that couldn't be read). Fall back to the
+// signature's types.
 export type ProcedureParameters = Record<string, ProcedureParameter[]>;
 
 // The account procedures a note or transaction script calls: the digests (hex)

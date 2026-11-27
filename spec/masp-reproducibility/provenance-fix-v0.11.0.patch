@@ -1,3 +1,5 @@
+Historical: a patch to cargo-miden 0.11.0, which api-compile no longer runs (spec/remove-rust, plan 08). See spec/masp-reproducibility.md.
+
 diff --git a/midenc-compile/src/pipeline/frontends/wasm.rs b/midenc-compile/src/pipeline/frontends/wasm.rs
 index c2a3218..80e2e6a 100644
 --- a/midenc-compile/src/pipeline/frontends/wasm.rs

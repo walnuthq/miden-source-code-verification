@@ -34,9 +34,9 @@ The networks served are Testnet (`mtst`, the default), Devnet (`mdev`) and Mainn
 - **Outages are reported as outages.** When api-compile is unreachable, busy or too slow, the registry answers `502`, `503` (keeping `Retry-After`) or `504`, instead of a `500`, or a `404` on the id-keyed reads. The web-verifier retries a `503` up to 3 times, showing a countdown, and the web-viewer shows a `502`–`504` as a temporary error rather than as "not verified".
 - **"Not found" means not found.** `miden-import` and `miden-verifier` exit with `2` when the request can never succeed (the resource isn't on-chain or is private, the ID is invalid, the networks don't match, the package can't be read) and with `1` for anything a retry may fix (a node or RPC error, a store error). api-compile's `GET /:networkId/import/:resourceId` answers `404` only for exit `2`, and `502` for any other failure, including the tool timeout and a run that exited `0` without printing its result. `POST /verify` answers `400` and `502` for the same two cases. A transient failure therefore reaches registry clients as a `502`, not as a missing record.
 
-### Debug builds
+### Debug info
 
-A MASM package carries its debug info, which names a call trace's frames by their source location: its dev and release assemblies have the same procedure roots and commitment, so the one package it verifies with is the one to debug with. The registry serves no separate debug build. It used to store one for each Rust-built account component (`<commitment>.debug.masp`), and those went with the Rust packages (see "Deleting the Rust packages").
+A MASM package carries its debug info, which names a call trace's frames by their source location: its dev and release assemblies have the same procedure roots and commitment, so the one package it verifies with is the one to debug with. The registry serves no separate debug build.
 
 ### Read-only procedures
 
@@ -48,7 +48,7 @@ It also names each exported procedure's parameters (see `source_parameters.rs`),
 
 ### Storage schemas
 
-A MASM package has no storage schema and no note storage schema, so api-compile returns neither and the registry stores none. The `schemas` column of `packages` keeps a `{}` default until `spec/remove-rust` plan 10 drops it.
+A MASM package has no storage schema and no note storage schema, so api-compile returns neither and the registry stores none.
 
 ### Account procedures
 
@@ -218,7 +218,7 @@ These wrap the vendor-neutral services; deleting them removes Cloudflare with no
 
 Each runs only when its own `apps/<service>/**` or `apps/<service>-cloudflare/**` paths change (or a shared `pnpm-lock.yaml` / `pnpm-workspace.yaml`), so an unrelated change never redeploys every service. Each can also be triggered manually via `workflow_dispatch`, and all require the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets.
 
-The api-compile workflow caches the container image's layers in the GitHub Actions cache, so a deploy that leaves the Rust crates untouched skips their compiles. wrangler's own `docker build` takes no cache flags, so the workflow first builds the image on a Buildx builder from that cache, then points wrangler at the same builder (`BUILDX_BUILDER`). The first run after the cache is empty or evicted (unused for 7 days, or over the 10 GB repository cap) builds from scratch.
+The api-compile workflow caches the container image's layers in the GitHub Actions cache, so a deploy that leaves the helper tools' crates untouched skips their compiles. wrangler's own `docker build` takes no cache flags, so the workflow first builds the image on a Buildx builder from that cache, then points wrangler at the same builder (`BUILDX_BUILDER`). The first run after the cache is empty or evicted (unused for 7 days, or over the 10 GB repository cap) builds from scratch.
 
 ### Database migrations
 
@@ -239,24 +239,9 @@ curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
 
 It deletes their verified account components and notes, then the account codes left with no component and the packages nothing references any more. Last come those packages' `.masp` files. A package or account code that another source also verified stays. A playground record that another source verifies again becomes that source's, so it stays too. It answers with the counts: `{ verifiedAccountComponents, verifiedAccounts, verifiedNotes, packages, masps }`.
 
-### Deleting the Rust packages
+### Rust packages
 
-Rust projects are no longer verified (`spec/remove-rust`, decision 6), so the packages `cargo-miden` built are deleted, on every network: a package row whose `files` hold a `Cargo.toml` at its `entrypoint`, or that has no `entrypoint`. With it go every verified account with a component built from one (its MASM components too, as an account can't stay verified with part of its code), every verified note built from one, and the stored `.masp` and `.debug.masp` files. Those accounts and notes show as not verified afterwards. There is no undo short of a database restore.
-
-Two operator routes do it, with the same `ADMIN_TOKEN` as above: `GET /admin/rust-packages` is the dry run, which lists per network what would go and deletes nothing, and `POST /admin/rust-packages/delete` deletes the next batch (`{ "limit": 50 }` by default, at most 200) and answers how many are left. Each batch deletes its rows in one transaction and the files after, so no record points at a missing file. `scripts/delete-rust-packages.ts` drives them:
-
-```bash
-# Dry run: counts per network, accounts that also have a MASM component, and the
-# full listing in the report file.
-REGISTRY_URL=https://miden-source-code-verification-api-registry.walnut.dev ADMIN_TOKEN=… \
-  pnpm --filter miden-source-code-verification-api-registry exec node --conditions development --env-file-if-exists=.env scripts/delete-rust-packages.ts --report=rust-packages.json
-
-# The deletion, then a listing that must be empty (the script exits non-zero otherwise).
-REGISTRY_URL=https://miden-source-code-verification-api-registry.walnut.dev ADMIN_TOKEN=… \
-  pnpm --filter miden-source-code-verification-api-registry exec node --conditions development --env-file-if-exists=.env scripts/delete-rust-packages.ts --apply
-```
-
-Running it again is safe: it finds nothing. A run cut off between a batch's rows and its files leaves those files in the bucket with no row; the dry run's report lists every key.
+The registry held packages that `cargo-miden` built until 2026-11-27, when they were deleted with the verified accounts and notes built from them, on every network (`spec/remove-rust`, decision 5). No record or stored file of a Rust package is left.
 
 ### Front-end URLs on Cloudflare
 

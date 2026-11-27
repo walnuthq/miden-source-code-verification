@@ -8,10 +8,9 @@ import {
 
 const apiCompile = createHttpApiCompile("http://api-compile");
 const project = {
-  files: { "Cargo.toml": "" },
+  files: { "miden-project.toml": "" },
   entrypoint: ".",
   name: "counter-contract",
-  kind: "rust" as const,
 };
 const verify = () =>
   apiCompile.verify({

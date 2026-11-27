@@ -174,28 +174,25 @@ The package shape is shared by both endpoints and is slimmer than before:
 ```jsonc
 {
   "id": "…",
-  "name": "bank-account",
+  "name": "counter-contract",
   // library | executable | kernel | account-component | note | transaction-script.
   // Verification only ever records `account-component` or `note`.
   "type": "account-component",
   "commitment": "0x7f70…",
   "files": {
-    // replaces `rust` + `masm`: the exact project inputs that were compiled,
-    // including the Cargo.lock that pinned their dependency versions
-    "Cargo.toml": "…",
-    "Cargo.lock": "…",
-    "miden-project.toml": "…",
-    "src/lib.rs": "RUST_SOURCE_CODE",
+    // replaces `rust` + `masm`: the MASM project as it was assembled
+    "counter-contract/miden-project.toml": "…",
+    "counter-contract/counter_contract.masm": "MASM_SOURCE_CODE",
   },
   "manifest": {
     // replaces `exports` / `procedureExports` / `dependencies`
     "exports": [
       {
         "Procedure": {
-          "path": "::\"miden:bank-account/bank-account@0.1.0\"::\"get-balance\"",
+          "path": "::counter_contract::get_count",
           "digest": "0x6370…",
-          // null when the compiler could not recover a signature
-          "signature": { "abi": 3, "params": ["Felt"], "results": ["Felt"] },
+          // null when the assembler could not recover a signature
+          "signature": { "abi": 3, "params": [], "results": ["Felt"] },
           "attributes": { "attrs": [] },
         },
       },
@@ -223,7 +220,7 @@ Field mapping from the legacy `Package`:
 
 | Legacy                               | New                                                                                 |
 | ------------------------------------ | ----------------------------------------------------------------------------------- |
-| `rust`                               | read from `files` (e.g. `files["src/lib.rs"]`)                                      |
+| `rust`                               | gone — projects are MASM; read the modules from `files`                             |
 | `masm`                               | gone — the `.masp` is the only build output kept                                    |
 | `exports`                            | `manifest.exports`                                                                  |
 | `procedureExports`                   | gone — every entry of `manifest.exports` is a `Procedure`, so map over `.Procedure` |

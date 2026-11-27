@@ -10,9 +10,9 @@ The Playground will **refuse to simulate a procedure that makes a foreign call**
 
 ## Background: what a foreign call looks like
 
-- User code reaches FPI through one protocol procedure, `miden::protocol::tx::execute_foreign_procedure`. The Rust compiler lowers a call on an `#[account(...)]` binding to `exec.::miden::protocol::tx::execute_foreign_procedure` (`codegen/masm/src/lower/fpi.rs` in 0xMiden/compiler).
+- User code reaches FPI through one protocol procedure, `miden::protocol::tx::execute_foreign_procedure`: a MASM procedure runs `exec.::miden::protocol::tx::execute_foreign_procedure` (`miden-assemble`'s `fpi-account` test project). Packages are MASM since `spec/remove-rust`; when this spec was written they were built with the Rust compiler, which lowered a call on an `#[account(...)]` binding to the same `exec`.
 - In a package's MAST that is an external node, or a linked-in procedure root, whose digest is the protocol library's export. `read_only.rs` already matches protocol procedures by digest in both forms (`protocol_access`), and lists this one in `PROTOCOL_READ_ONLY`.
-- The foreign account id and the foreign procedure's root are **not** recoverable: the compiler stores them in locals and loads them at the call. This spec reports that a foreign call is reachable, not which one.
+- The foreign account id and the foreign procedure's root are **not** recoverable: the code computes them at run time and passes them on the stack. This spec reports that a foreign call is reachable, not which one.
 
 ## Output contract
 

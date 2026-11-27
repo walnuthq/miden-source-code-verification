@@ -1,5 +1,7 @@
 # Upstream Miden gaps found while integrating
 
+> **Historical.** Written against the 0.17 client and 0.35 VM crates, while api-compile still built Rust projects with `cargo-miden`. The helper tools are on 0.18 and 0.36 since `spec/remove-rust`, and cargo is gone: check a finding against the current crates before filing it.
+
 An audit of the workarounds this repository carries because of its Miden
 dependencies, written so each finding can be filed as an upstream issue.
 

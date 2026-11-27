@@ -1,6 +1,6 @@
 # Miden Source Code Verification
 
-Services that verify that on-chain Miden accounts and notes were built from a given MASM project, and that record and show the result. The registry still holds Rust projects verified before Rust's removal, until they are deleted.
+Services that verify that on-chain Miden accounts and notes were built from a given MASM project, and that record and show the result.
 
 ## Language
 
@@ -22,7 +22,8 @@ _Avoid_: code (alone), hash
 
 **Package**:
 The compiled Miden package a project builds to, identified by its commitment. Its bytes are the `.masp` artifact, debug info included, kept under its commitment and downloaded under the package name with underscores (`counter_contract.masp`).
-_Avoid_: artifact (for the package itself), binary
+There is no separate debug build: the package that verifies is the one to debug with.
+_Avoid_: artifact (for the package itself), binary, debug build
 
 **Commitment**:
 The hash that identifies a package. Two builds with the same commitment are the same package.
@@ -46,14 +47,10 @@ _Avoid_: origin, client
 What assembling a project yields: built, with its package and the assembler's report, or failed, with the report alone. A failed build is an outcome, not an error: `POST /compile` answers it with `built: false`.
 _Avoid_: compile result, compilation output
 
-**Debug build**:
-The dev-profile build of a Rust package's sources, kept beside it (`<commitment>.debug.masp`) so a simulator could name call-trace frames. It never decided whether anything is verified. Gone with the Rust packages: a MASM package carries its debug info in the one package that verifies.
-_Avoid_: dev build, debug package
-
 ### Sources
 
 **Project**:
-A files map plus an entrypoint that builds into one package: a MASM project, with a `miden-project.toml` with a `[package]` at its entrypoint. The package name is that `[package]` name. A `Cargo.toml` at the entrypoint marks a Rust project, which is no longer built; the registry tells the Rust projects it stored before apart by it.
+A files map plus an entrypoint that builds into one package: a MASM project, with a `miden-project.toml` with a `[package]` at its entrypoint. The package name is that `[package]` name. A `Cargo.toml` at the entrypoint marks a Rust project, which is refused.
 _Avoid_: files map, upload, sources (for the whole)
 
 **Entrypoint**:

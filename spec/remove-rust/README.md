@@ -1,6 +1,8 @@
 # Remove Rust: sub plans for this repo
 
-Written 2026-11-25 at `ba261ab`. Nothing here is implemented.
+Written 2026-11-25 at `ba261ab`.
+
+Status (2026-11-27): plans 01 to 09 are merged and deployed; plan 09's deletion of the Rust packages has run in production. Plan 10 ships in two releases, because the deployed registry still selected the columns it drops: the first stops selecting them and does the docs cleanup; the second drops `schemas`, `debug_commitment` and `debug_built_with` in a migration, once the first is deployed.
 
 The Miden Rust compiler (`cargo-miden`, `midenc`) is being phased out. Accounts, notes and transaction scripts are written in plain MASM again, as `miden-project.toml` projects that `miden-assembly` builds into `.masp` packages. This repo must stop building, storing and showing Rust projects, and do the same job for MASM projects.
 
@@ -10,18 +12,18 @@ Each plan is written for one agent in one session and ends in one PR. Start a se
 
 ## The plans
 
-| Plan                                                                    | Rollout step | Depends on                | Needs a go-ahead from the user         |
-| ----------------------------------------------------------------------- | ------------ | ------------------------- | -------------------------------------- |
-| [01 Helper tools on the 0.18 crates](01-helper-tools-on-0.18.md)        | 2            | none                      | no                                     |
-| [02 The `miden-assemble` helper tool](02-miden-assemble-tool.md)        | 2            | 01                        | no                                     |
-| [03 api-compile builds MASM projects](03-api-compile-masm-path.md)      | 2            | 02                        | no                                     |
-| [04 MASM fixtures on Testnet](04-testnet-masm-fixtures.md)              | 2            | 03                        | yes: Testnet deploys                   |
-| [05 The registry accepts MASM](05-registry-accepts-masm.md)             | 3            | 03, 04                    | no                                     |
-| [06 web-verifier uploads MASM](06-web-verifier-masm.md)                 | 3            | 05                        | no                                     |
-| [07 web-viewer shows MASM](07-web-viewer-masm.md)                       | 3            | 05                        | no                                     |
-| [08 api-compile drops cargo](08-api-compile-drops-cargo.md)             | 6            | Playground plans 01 to 07 | no                                     |
-| [09 Registry and viewer drop Rust](09-registry-and-viewer-drop-rust.md) | 6            | 08                        | yes: deletes production rows and files |
-| [10 Cleanup](10-cleanup.md)                                             | 7            | 09                        | no                                     |
+| Plan                                                                    | Rollout step | Depends on                | Needs a go-ahead from the user                       |
+| ----------------------------------------------------------------------- | ------------ | ------------------------- | ---------------------------------------------------- |
+| [01 Helper tools on the 0.18 crates](01-helper-tools-on-0.18.md)        | 2            | none                      | no                                                   |
+| [02 The `miden-assemble` helper tool](02-miden-assemble-tool.md)        | 2            | 01                        | no                                                   |
+| [03 api-compile builds MASM projects](03-api-compile-masm-path.md)      | 2            | 02                        | no                                                   |
+| [04 MASM fixtures on Testnet](04-testnet-masm-fixtures.md)              | 2            | 03                        | yes: Testnet deploys                                 |
+| [05 The registry accepts MASM](05-registry-accepts-masm.md)             | 3            | 03, 04                    | no                                                   |
+| [06 web-verifier uploads MASM](06-web-verifier-masm.md)                 | 3            | 05                        | no                                                   |
+| [07 web-viewer shows MASM](07-web-viewer-masm.md)                       | 3            | 05                        | no                                                   |
+| [08 api-compile drops cargo](08-api-compile-drops-cargo.md)             | 6            | Playground plans 01 to 07 | no                                                   |
+| [09 Registry and viewer drop Rust](09-registry-and-viewer-drop-rust.md) | 6            | 08                        | yes: deletes production rows and files               |
+| [10 Cleanup](10-cleanup.md)                                             | 7            | 09                        | no; the column drop ships after the rest is deployed |
 
 Order across repos: plans 01 to 07 here, deployed; then the Playground's plans 01 to 05 (its switch to MASM) and 06 to 07 (its content); then 08 to 10 here; then the Playground's cleanup and the `miden-verify` CLI (`spec/remove-rust.md` in that repo).
 

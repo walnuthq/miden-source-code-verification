@@ -15,7 +15,7 @@ We decided against looking at a script's package **dependencies** instead. A dep
 - Account code is a set of procedures identified by their MAST roots (digests). The web SDK's `AccountCode.hasProcedure(word)` answers "does the account have this root". The Playground already uses it to verify an account's components: a component counts as verified when the account has every one of its procedure-export digests.
 - A note script or a transaction script runs **outside** the account context and reaches account procedures with `call`, which switches context. In the MAST that is a `MastNode::Call` whose `callee` is a node in the same forest. When the callee isn't linked into the package, the callee is a `MastNode::External` that carries only the digest. Kernel procedures are reached with `syscall` (`Call` with `is_syscall()`). Those, and the `miden::protocol` wrappers that do it, are not account procedures.
 - Calls into the standards library's basic wallet (`receive_asset`, `move_asset_to_note`), for example from P2ID, are account procedures too. Their digest also appears as a procedure root of `StandardsLib`.
-- The compiler (cargo-miden 0.11, toolchain 0.17) compiles a Rust note that calls a dependency component's binding into a `call` to that component's export. Step 1 checked this on 2026-11-13; see "Spike result".
+- A MASM note reaches a dependency component's export with a `call` to it. Packages are MASM projects that `miden-assemble` builds since `spec/remove-rust`; the spike below (step 1, 2026-11-13) ran on packages `cargo-miden` 0.11 built from Rust, which lowered a call on a component binding to the same `call`. The analysis reads the MAST, so it doesn't depend on which built it.
 
 ## Output contract
 

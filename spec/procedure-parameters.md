@@ -1,5 +1,7 @@
 # The names of an exported procedure's parameters
 
+> **Historical.** Written while packages were built with `cargo-miden`, whose names came from the package's WIT. Since `spec/remove-rust` every package is MASM and the names come from its source (`source_parameters.rs`); the WIT reader is gone.
+
 Status: **done** (2026-11-17). Feature: PR #143 (e2b60be, api-compile container v115). Cleanup: PR #144 (6f83045, container v116): backfill plumbing removed, `packages.parameters` NOT NULL, the web-viewer's source search deleted; production's counter page still shows `fn get_count() -> Felt;`, `fn increment_count() -> Felt;`, `fn auth_procedure(arg: Word);`, and `POST /package-metadata` answers 404. The production backfill named all 545 stored packages (0 without names, 0 unreadable, 0 failed). Production `POST /compile` of the counter and bank examples returns `parameters` with the names above (`deposit`: `depositor: account-id`, `deposit-asset: asset`), and the counter account's page (`mtst`, `0x7db388f2c58f4251104a1aa6a7c2d4`) shows `fn get_count() -> Felt;`, `fn increment_count() -> Felt;` and `fn auth_procedure(arg: Word);`, without a receiver. The Playground half can start. Checks 1–3 passed; check 4 was dropped (see below).
 
 Check results:
