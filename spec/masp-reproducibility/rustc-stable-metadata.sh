@@ -1,4 +1,6 @@
 #!/bin/sh
+# Historical: for cargo-miden builds, which api-compile no longer runs
+# (spec/remove-rust, plan 08). See spec/masp-reproducibility.md.
 # The real rustc. For crates built for Wasm, replaces cargo's `-C metadata`
 # value with one derived from the crate's name and version only.
 REAL=$(ls /usr/local/rustup/toolchains/*/bin/rustc)

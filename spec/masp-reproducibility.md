@@ -1,5 +1,7 @@
 # MASP reproducibility across build machines
 
+> **Historical.** This is about `.masp` files that `cargo-miden` built from Rust projects, which api-compile no longer builds (`spec/remove-rust`, plan 08). A MASM build doesn't depend on the directory or host it runs on, and the Rust packages were deleted from the registry.
+
 Compiling the same sources produces a different `.masp` locally than in
 production, even though both builds have the same package commitment. This
 document explains where the difference comes from, whether it matters for the

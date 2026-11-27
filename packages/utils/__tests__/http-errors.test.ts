@@ -34,7 +34,7 @@ let gone: express.Response | undefined;
 app.get("/gone", async (_req, res) => {
   gone = res;
   await new Promise((_resolve, reject) => {
-    res.on("close", () => reject(new Error("cargo miden was cancelled")));
+    res.on("close", () => reject(new Error("the build was cancelled")));
   });
 });
 app.post("/echo", (req, res) => {
