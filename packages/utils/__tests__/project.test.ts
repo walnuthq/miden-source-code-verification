@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  isStoredRustProject,
-  midenProjectLibrary,
-  openProject,
-  RUST_PROJECT_ERROR,
-} from "../src/project.ts";
+import { midenProjectLibrary, openProject, RUST_PROJECT_ERROR } from "../src/project.ts";
 
 const midenProjectToml = (name: string) => `[package]\nname = "${name}"\nversion = "0.1.0"\n`;
 
@@ -193,29 +188,5 @@ describe("midenProjectLibrary", () => {
   it("is undefined without a [package] or for a file that doesn't parse", () => {
     expect(midenProjectLibrary('[lib]\npath = "a.masm"\n')).toBeUndefined();
     expect(midenProjectLibrary("not = [toml")).toBeUndefined();
-  });
-});
-
-describe("isStoredRustProject", () => {
-  it("is true with a Cargo.toml at the entrypoint", () => {
-    const files = {
-      "counter-note/Cargo.toml": "",
-      "counter-note/miden-project.toml": "",
-    };
-    expect(isStoredRustProject(files, "counter-note")).toBe(true);
-    expect(isStoredRustProject({ "Cargo.toml": "" }, ".")).toBe(true);
-  });
-
-  it("is false with no Cargo.toml at the entrypoint", () => {
-    const files = {
-      "Cargo.toml": "",
-      "counter-note/miden-project.toml": "",
-    };
-    expect(isStoredRustProject(files, "counter-note")).toBe(false);
-    expect(isStoredRustProject({ "miden-project.toml": "" }, ".")).toBe(false);
-  });
-
-  it("is true for a project stored without its entrypoint", () => {
-    expect(isStoredRustProject({ "miden-project.toml": "" }, null)).toBe(true);
   });
 });

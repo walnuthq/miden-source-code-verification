@@ -17,9 +17,9 @@ import { debugMaspKey, type MaspStore, maspKey } from "../storage/masp-store.ts"
 // with part of its code; a MASM package it used stays. Runs from the admin
 // routes, driven by `scripts/delete-rust-packages.ts`.
 
-// The rows `isStoredRustProject` (in `miden-source-code-verification-utils/
-// project`) calls Rust, in SQL so no row's files leave the database: a
-// `Cargo.toml` at the entrypoint, or no entrypoint recorded.
+// The Rust-built rows, in SQL so no row's files leave the database: a
+// `Cargo.toml` at the entrypoint, or no entrypoint recorded (a row stored
+// before entrypoints were, when every project was a Rust one).
 export const rustPackageCondition = sql`(${packagesTable.entrypoint} IS NULL OR ${packagesTable.files} ? (CASE WHEN ${packagesTable.entrypoint} = '.' THEN 'Cargo.toml' ELSE ${packagesTable.entrypoint} || '/Cargo.toml' END))`;
 
 // What one network holds that the deletion removes: the code roots of its

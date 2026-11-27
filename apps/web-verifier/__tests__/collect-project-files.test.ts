@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   collectProjectFiles,
   MAX_PROJECT_BYTES,
-  RUST_PROJECT_ERROR,
+  RUST_FOLDER_ERROR,
   selectProjectFiles,
 } from "@/lib/collect-project-files";
 
@@ -119,7 +119,7 @@ describe("collectProjectFiles", () => {
       new File(["[package]"], "counter/Cargo.toml"),
       new File(["fn main() {}"], "counter/src/lib.rs"),
     ]);
-    expect(result).toEqual({ error: RUST_PROJECT_ERROR });
+    expect(result).toEqual({ error: RUST_FOLDER_ERROR });
   });
 
   it("refuses a folder larger than the verifier accepts", async () => {

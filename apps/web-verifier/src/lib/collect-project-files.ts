@@ -24,7 +24,7 @@ export const MAX_PROJECT_BYTES = 1_000_000;
 // `error` is why the folder can't be submitted, worded for the user.
 export type ProjectFilesResult = ProjectFiles | { error: string };
 
-export const RUST_PROJECT_ERROR =
+export const RUST_FOLDER_ERROR =
   "This is a Rust project, and Rust projects are no longer verified. Miden projects are written in MASM: pick a folder with a miden-project.toml.";
 
 // The browser prefixes every `webkitRelativePath` with the picked folder's own
@@ -38,8 +38,10 @@ function isSkippedDir(parents: string[]): boolean {
   return parents.some((part) => part === "target" || part.startsWith("."));
 }
 
+const MIDEN_PROJECT_TOML = "miden-project.toml";
+
 function isBuildInput(name: string): boolean {
-  return name === "miden-project.toml" || name.endsWith(".masm");
+  return name === MIDEN_PROJECT_TOML || name.endsWith(".masm");
 }
 
 type SplitPath = { rel: string; name: string; parents: string[] };
@@ -67,7 +69,7 @@ export function selectProjectFiles(webkitRelativePaths: string[]): {
   const includedPaths = paths.filter(({ name }) => isBuildInput(name)).map(({ rel }) => rel);
   const projectDirs = new Set(
     paths
-      .filter(({ name }) => name === "miden-project.toml")
+      .filter(({ name }) => name === MIDEN_PROJECT_TOML)
       .map(({ parents }) => (parents.length === 0 ? "." : parents.join("/"))),
   );
   const isRustProject = projectDirs.size === 0 && paths.some(({ name }) => name === "Cargo.toml");
@@ -98,7 +100,7 @@ export async function collectProjectFiles(
     files.map((file) => file.webkitRelativePath || file.name),
   );
   if (isRustProject) {
-    return { error: RUST_PROJECT_ERROR };
+    return { error: RUST_FOLDER_ERROR };
   }
   const included = new Set(includedPaths);
 

@@ -2,7 +2,6 @@ import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { isStoredRustProject } from "miden-source-code-verification-utils/project";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import db from "../src/db/index.ts";
@@ -21,6 +20,13 @@ import { createFsMaspStore, debugMaspKey, type MaspStore } from "../src/storage/
 
 // Runs the deletion in-process, against the local database (truncated before
 // each test by setup.ts) and an fs store: never against production.
+
+// The spec's rule for a Rust-built row, which `rustPackageCondition` states in
+// SQL: a `Cargo.toml` at the entrypoint, or no entrypoint recorded (a row
+// stored before entrypoints were, when every project was a Rust one).
+const isStoredRustProject = (files: Record<string, string>, entrypoint: string | null) =>
+  entrypoint === null ||
+  Object.hasOwn(files, entrypoint === "." ? "Cargo.toml" : `${entrypoint}/Cargo.toml`);
 
 const hex = (byte: string) => `0x${byte.repeat(32)}`;
 

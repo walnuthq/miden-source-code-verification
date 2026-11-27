@@ -187,11 +187,3 @@ export const openProject = (files: unknown, entrypoint?: unknown): ProjectResult
   }
   return { project: { files: projectFiles, entrypoint: dir, name: masmPackage.name } };
 };
-
-// Whether a project the registry stored is a Rust one, built by cargo-miden
-// before cargo left api-compile: its `files` hold a `Cargo.toml` at its
-// entrypoint. A project stored before its entrypoint was recorded (`null`) is
-// one too: MASM projects came later. The registry's deletion of Rust-built
-// packages selects the same rows in SQL (`rustPackageCondition`).
-export const isStoredRustProject = (files: Record<string, string>, entrypoint: string | null) =>
-  entrypoint === null || Object.hasOwn(files, projectPath(entrypoint, CARGO_TOML));

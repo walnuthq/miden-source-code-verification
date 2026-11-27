@@ -28,7 +28,7 @@ export const packagesTable = pgTable(
     // The sources, keyed by project-relative path (the project as sent), and
     // the manifest, as api-compile answers them. A row stored before cargo
     // left api-compile is Rust-built when its files hold a `Cargo.toml` at its
-    // entrypoint (`isStoredRustProject`); the deletion of Rust packages
+    // entrypoint, or has no entrypoint; the deletion of Rust packages
     // removes those (`lib/rust-packages.ts`).
     // Typed after the `{}` defaults, which predate both being required: an
     // insert always supplies them.

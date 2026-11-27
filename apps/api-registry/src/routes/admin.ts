@@ -51,11 +51,16 @@ const MAX_DELETE_LIMIT = 200;
 // points at them, then answers what it deleted and how many are left.
 router.post("/admin/rust-packages/delete", async (req, res) => {
   const { limit = DEFAULT_DELETE_LIMIT } = (req.body ?? {}) as { limit?: unknown };
-  if (!Number.isInteger(limit) || (limit as number) < 1 || (limit as number) > MAX_DELETE_LIMIT) {
+  if (
+    typeof limit !== "number" ||
+    !Number.isInteger(limit) ||
+    limit < 1 ||
+    limit > MAX_DELETE_LIMIT
+  ) {
     res.status(400).json({ error: `limit must be an integer from 1 to ${MAX_DELETE_LIMIT}` });
     return;
   }
-  res.json(await deleteRustPackages({ maspStore: getMaspStore(req), limit: limit as number }));
+  res.json(await deleteRustPackages({ maspStore: getMaspStore(req), limit }));
 });
 
 export default router;
