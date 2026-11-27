@@ -3,7 +3,7 @@ use base64::prelude::*;
 use clap::Parser;
 use miden_assembly_syntax::ast::types::CallConv;
 use miden_client::{
-    ClientError,
+    ClientError, Word,
     account::{Account, AccountComponentInterfaceExt, AccountId},
     address::{Address, AddressId, NetworkId},
     builder::ClientBuilder,
@@ -142,7 +142,6 @@ fn verify_account_component(account: Account, package: Package) -> Result<Value>
     // constructor.
     let interface = AccountComponentInterface::from_procedures(account.code().procedures());
     let mut components = Vec::new();
-    let mut has_custom_code = false;
     for component in &interface {
         let name = match component {
             AccountComponentInterface::BasicWallet => "BasicWallet",
@@ -160,50 +159,50 @@ fn verify_account_component(account: Account, package: Package) -> Result<Value>
             AccountComponentInterface::AuthNetworkAccount => "AuthNetworkAccount",
             AccountComponentInterface::AuthTxFeeCollector => "AuthTxFeeCollector",
             // A non-standard auth procedure gets its own `CustomAuth` bucket
-            // instead of landing in `Custom` with the rest, so an account whose
-            // only custom code is its auth component has no `Custom` at all.
-            // Both are code a package can account for.
+            // instead of landing in `Custom` with the rest. Neither is a
+            // standard component.
             AccountComponentInterface::CustomAuth(_) | AccountComponentInterface::Custom(_) => {
-                has_custom_code = true;
                 continue;
             }
         };
         components.push(name.to_string());
     }
 
-    if has_custom_code {
-        if package.manifest.num_exports() == 0 {
-            rejected!("Package has no exports");
-        }
-        // Only the procedures exported with the ComponentModel calling
-        // convention (`CallConv::ComponentModel`) are installed as account
-        // procedures — the same rule `verify_note_script` applies to pick out a
-        // note's entrypoint. Anything else a package exports is not part of the
-        // account's code, so matching against it could never verify.
-        let procedures: Vec<_> = package
-            .manifest
-            .exports()
-            .filter_map(|export| match export {
-                PackageExport::Procedure(procedure) => Some(procedure),
-                _ => None,
-            })
-            .filter(|procedure| {
-                procedure
-                    .signature
-                    .as_ref()
-                    .is_some_and(|signature| signature.abi == CallConv::ComponentModel)
-            })
-            .collect();
-        // `all` holds vacuously on an empty iterator, so a package that
-        // exports no account procedures at all — a transaction script, say
-        // — would otherwise report as verified against any account.
-        let verified = !procedures.is_empty()
-            && procedures
-                .iter()
-                .all(|procedure| account.code().has_procedure(procedure.digest));
-        if verified {
-            components.push(format!("Custom({})", package.dependency_commitment()));
-        }
+    // The package is checked whatever the procedures were classified as: the
+    // classification names the standard components for display, while a
+    // package verifies the code it compiles to, standard or not. A copy of a
+    // standard component's source verifies against an account made of
+    // standard components alone, as it does against one with custom code too.
+    if package.manifest.num_exports() == 0 {
+        rejected!("Package has no exports");
+    }
+    // Only the procedures exported with the ComponentModel calling
+    // convention (`CallConv::ComponentModel`) are installed as account
+    // procedures. Anything else a package exports is not part of the
+    // account's code, so matching against it could never verify.
+    let procedures: Vec<_> = package
+        .manifest
+        .exports()
+        .filter_map(|export| match export {
+            PackageExport::Procedure(procedure) => Some(procedure),
+            _ => None,
+        })
+        .filter(|procedure| {
+            procedure
+                .signature
+                .as_ref()
+                .is_some_and(|signature| signature.abi == CallConv::ComponentModel)
+        })
+        .collect();
+    // `all` holds vacuously on an empty iterator, so a package that
+    // exports no account procedures at all — a transaction script, say
+    // — would otherwise report as verified against any account.
+    let verified = !procedures.is_empty()
+        && procedures
+            .iter()
+            .all(|procedure| account.code().has_procedure(procedure.digest));
+    if verified {
+        components.push(format!("Custom({})", package.dependency_commitment()));
     }
 
     let code = account.code().commitment().to_hex();
@@ -211,30 +210,26 @@ fn verify_account_component(account: Account, package: Package) -> Result<Value>
 }
 
 fn verify_note_script(note_script: &NoteScript, package: Package) -> Result<Value> {
-    let script = if let Some(standard_note) = StandardNote::from_script(note_script) {
-        standard_note.name().to_string()
-    } else {
-        // The note script's entrypoint is the procedure exported with the
-        // ComponentModel calling convention (`CallConv::ComponentModel`).
-        let entrypoint = package
-            .manifest
-            .exports()
-            .filter_map(|export| match export {
-                PackageExport::Procedure(procedure) => Some(procedure),
-                _ => None,
-            })
-            .find(|procedure| {
-                procedure
-                    .signature
-                    .as_ref()
-                    .is_some_and(|signature| signature.abi == CallConv::ComponentModel)
-            });
-        match entrypoint {
-            Some(procedure) if procedure.digest == note_script.root().into() => {
-                format!("Custom({})", package.dependency_commitment())
-            }
-            _ => String::new(),
-        }
+    // The package verifies the note when it exports a note script, a
+    // procedure marked `@note_script`, whose root is the note's. A note
+    // project exports one. A library may export several: the standards
+    // library holds every standard note script, and is the only package that
+    // compiles to their roots, as a script's MAST depends on what else the
+    // forest it is assembled in holds.
+    let root: Word = note_script.root().into();
+    let entrypoint = package
+        .manifest
+        .exports()
+        .filter_map(|export| match export {
+            PackageExport::Procedure(procedure) => Some(procedure),
+            _ => None,
+        })
+        .find(|procedure| procedure.attributes.has("note_script") && procedure.digest == root);
+    // A standard note the package doesn't verify is still named as such.
+    let script = match (entrypoint, StandardNote::from_script(note_script)) {
+        (Some(_), _) => format!("Custom({})", package.dependency_commitment()),
+        (None, Some(standard_note)) => standard_note.name().to_string(),
+        (None, None) => String::new(),
     };
     let code = note_script.root().to_hex();
     Ok(json!({ "type": "note", "code": code, "script": script }))

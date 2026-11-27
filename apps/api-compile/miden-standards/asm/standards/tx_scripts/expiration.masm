@@ -1,0 +1,21 @@
+use miden::protocol::tx
+
+pub type ExpirationArgs = struct {
+    delta: u16,
+    padding: [felt; 3]
+}
+
+#! Set the transaction's expiration delta.
+#!
+#! Inputs:  [[delta, 0, 0, 0], pad(12)]
+#! Outputs: [pad(16)]
+#!
+#! Panics if:
+#! - delta is 0 or not a u32 in the range 1..=0xFFFF (ERR_TX_INVALID_EXPIRATION_DELTA).
+#!
+#! Invocation: call
+@transaction_script
+pub proc main(args: ExpirationArgs)
+    exec.tx::update_expiration_block_delta
+    # => [pad(16)]
+end

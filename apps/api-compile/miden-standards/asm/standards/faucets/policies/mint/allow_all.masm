@@ -1,0 +1,21 @@
+use {AssetValue, NoteRecipient, NoteTag, NoteType} from miden::protocol::types
+# Generic mint policy procedures shared by policy manager flows.
+
+# POLICY PROCEDURES
+# ================================================================================================
+
+#! Mint policy that accepts every mint request.
+#!
+#! Inputs:  [ASSET_VALUE, tag, note_type, RECIPIENT, pad(6)]
+#! Outputs: [ASSET_VALUE, tag, note_type, RECIPIENT, pad(6)]
+#!
+#! Invocation: call
+@account_procedure
+pub proc check_policy(
+    asset_value: AssetValue,
+    tag: NoteTag,
+    note_type: NoteType,
+    recipient: NoteRecipient
+) -> (AssetValue, NoteTag, NoteType, NoteRecipient)
+    push.0 drop
+end

@@ -33,7 +33,15 @@ _Avoid_: digest (reserved for procedures), hash
 The record that an account root on a network is made of one or more verified packages, each an account component.
 
 **Verified note**:
-The record that a note root on a network is a verified package.
+The record that a note root on a network is a verified package: one whose note script is that root. A standard note's package is the standards library, which holds every standard note script.
+
+**Standard component**:
+An account component `miden-standards` ships, recognised in an account by its procedure roots and named for display without any verification. Being recognised doesn't verify it: like any component, it is verified by a package that compiles to its procedures.
+_Avoid_: built-in component, known component
+
+**Standard note**:
+A note whose script is one `miden-standards` ships, recognised by its root and named for display (`P2ID`, `MINT`, …). Like a standard component, it is verified only by a package.
+_Avoid_: built-in note, well-known note
 
 **Verified record**:
 A verified account or a verified note: what a lookup by resource id or by root answers.

@@ -1636,6 +1636,8 @@ dependencies = [
  "miden-assemble",
  "miden-client",
  "miden-client-sqlite-store",
+ "miden-protocol",
+ "miden-standards",
  "rand 0.10.3",
  "reqwest",
  "serde",
@@ -1643,6 +1645,7 @@ dependencies = [
  "sha2",
  "tempfile",
  "tokio",
+ "toml",
 ]
 
 [[package]]

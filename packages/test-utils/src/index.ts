@@ -6,6 +6,9 @@ import path from "node:path";
 // the api-compile test suite and the status-page probe read them from here, so a
 // change to the dataset reaches both at once.
 export * from "./fixtures.ts";
+// Offline accounts and notes built from the packages `miden-standards` ships,
+// which the copy of its MASM in `apps/api-compile/miden-standards` verifies.
+export * from "./standard-fixtures.ts";
 export * from "./request.ts";
 
 export const readProjectFiles = async (rootDir: string) => {

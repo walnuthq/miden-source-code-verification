@@ -21,8 +21,8 @@ use rand::TryRng;
 ///
 /// - `own_output_notes` hands script building to the client, and the send-notes
 ///   script is only derivable for an account exposing the *standard* wallet
-///   procedure roots. `examples/basic-wallet` is a component of its own, with
-///   other roots, so no such script exists for it.
+///   procedure roots, so a wallet assembled from source would need all of
+///   them: the factory takes the crate's own.
 /// - `NoAuth` pays the transaction fee out of the account's vault, which is the
 ///   whole reason the factory can transact on a fee-charging chain at all.
 ///   It also bumps the nonce for an account at nonce 0 even when

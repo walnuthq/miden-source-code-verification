@@ -1,0 +1,17 @@
+use {Asset} from miden::protocol::types
+# Generic burn policy procedures shared by policy manager flows.
+
+# POLICY PROCEDURES
+# ================================================================================================
+
+#! Burn policy that accepts every burn request.
+#!
+#! Inputs:  [ASSET_ID, ASSET_VALUE, pad(8)]
+#! Outputs: [pad(16)]
+#!
+#! Invocation: call
+@account_procedure
+pub proc check_policy(asset: Asset)
+    dropw dropw
+    # => [pad(16)]
+end
