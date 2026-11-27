@@ -1,0 +1,13 @@
+[package]
+name = "basic-wallet"
+version.workspace = true
+
+[lib]
+kind = "account-component"
+namespace = "wallets::basic"
+path = "basic.masm"
+
+[dependencies]
+miden-core.workspace = true
+miden-protocol.workspace = true
+miden-standards.workspace = true

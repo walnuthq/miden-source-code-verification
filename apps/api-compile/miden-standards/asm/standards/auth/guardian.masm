@@ -1,0 +1,219 @@
+# State Guardian account component.
+# This component is composed into account auth flows especially for multisig and adds
+# an extra signature check by a dedicated guardian signer.
+#
+# A state guardian can help coordinate state availability for private accounts.
+
+use {Bool} from miden::protocol::types
+use miden::protocol::active_account
+use {AUTH_UNAUTHORIZED_EVENT} from miden::protocol::auth
+use miden::protocol::native_account
+use miden::standards::auth::tx_policy
+use miden::standards::auth::signature
+use {ZERO_WORD} from miden::standards::utils
+
+# IMPORTANT SECURITY NOTES
+# --------------------------------------------------------------------------------
+# - By default, exactly one valid guardian signature is required.
+# - If `update_guardian_public_key` is the only non-auth account procedure called in the current
+#   transaction, `verify_signature` skips the guardian signature check so key rotation can proceed
+#   without the old guardian signer. `assert_rotation_policy` enforces that condition.
+# - `update_guardian_public_key` rotates the guardian public key and corresponding
+#   scheme id using the fixed map key `GUARDIAN_MAP_KEY`.
+
+
+# CONSTANTS
+# =================================================================================================
+
+# Storage Slots
+#
+# This authentication component uses named storage slots.
+# - GUARDIAN_PUBLIC_KEYS_SLOT (map):
+#   GUARDIAN_MAP_KEY => GUARDIAN_PUBLIC_KEY
+#   where: GUARDIAN_MAP_KEY = [0, 0, 0, 0]
+#
+# - GUARDIAN_SCHEME_ID_SLOT (map):
+#   GUARDIAN_MAP_KEY => [scheme_id, 0, 0, 0]
+#   where: GUARDIAN_MAP_KEY = [0, 0, 0, 0]
+
+# The slot in this component's storage layout where the guardian public key map is stored.
+# Map entries: [GUARDIAN_MAP_KEY] => [GUARDIAN_PUBLIC_KEY]
+const GUARDIAN_PUBLIC_KEYS_SLOT = word("miden::standards::auth::guardian::pub_key")
+
+# The slot in this component's storage layout where the scheme id for the corresponding guardian
+# public key map is stored.
+# Map entries: [GUARDIAN_MAP_KEY] => [scheme_id, 0, 0, 0]
+const GUARDIAN_SCHEME_ID_SLOT = word("miden::standards::auth::guardian::scheme")
+
+# Single-entry storage map key where guardian signer data is stored.
+const GUARDIAN_MAP_KEY = ZERO_WORD
+
+# ERRORS
+# =================================================================================================
+
+const ERR_INVALID_GUARDIAN_SIGNATURE = "invalid guardian signature"
+
+# PUBLIC INTERFACE
+# =================================================================================================
+
+#! Updates the guardian public key.
+#!
+#! Inputs:  [new_guardian_scheme_id, NEW_GUARDIAN_PUBLIC_KEY]
+#! Outputs: []
+#!
+#! Notes:
+#! - This procedure only updates the guardian public key and corresponding scheme id.
+#! - `verify_signature` skips guardian verification only when this is the only non-auth account
+#!   procedure called in the transaction, see `assert_rotation_policy`.
+#!
+#! Invocation: call
+@locals(1)
+@account_procedure
+pub proc update_guardian_public_key(new_guardian_scheme_id: felt, new_guardian_public_key: word)
+    # Validate supported signature scheme before committing it to storage.
+    dup exec.signature::assert_supported_scheme
+    # => [new_guardian_scheme_id, NEW_GUARDIAN_PUBLIC_KEY]
+
+    loc_store.0
+    # => [NEW_GUARDIAN_PUBLIC_KEY]
+
+    push.GUARDIAN_MAP_KEY
+    # => [GUARDIAN_MAP_KEY, NEW_GUARDIAN_PUBLIC_KEY]
+
+    push.GUARDIAN_PUBLIC_KEYS_SLOT[0..2]
+    # => [guardian_pubkeys_slot_suffix, guardian_pubkeys_slot_prefix,
+    #     GUARDIAN_MAP_KEY, NEW_GUARDIAN_PUBLIC_KEY]
+
+    exec.native_account::set_map_item
+    # => [OLD_GUARDIAN_PUBLIC_KEY]
+
+    dropw
+    # => []
+
+    # Store new scheme id as [scheme_id, 0, 0, 0] in the single-entry map.
+    loc_load.0
+    # => [scheme_id]
+
+    push.0.0.0 movup.3
+    # => [NEW_GUARDIAN_SCHEME_ID_WORD]
+
+    push.GUARDIAN_MAP_KEY
+    # => [GUARDIAN_MAP_KEY, NEW_GUARDIAN_SCHEME_ID_WORD]
+
+    push.GUARDIAN_SCHEME_ID_SLOT[0..2]
+    # => [guardian_scheme_slot_suffix, guardian_scheme_slot_prefix,
+    #     GUARDIAN_MAP_KEY, NEW_GUARDIAN_SCHEME_ID_WORD]
+
+    exec.native_account::set_map_item
+    # => [OLD_GUARDIAN_SCHEME_ID_WORD]
+
+    dropw
+    # => []
+end
+
+# PUBLIC HELPERS
+# =================================================================================================
+
+#! Returns the currently configured guardian public key.
+#!
+#! Reads the current account state, so the result reflects a rotation performed earlier in the same
+#! transaction.
+#!
+#! Inputs:  []
+#! Outputs: [GUARDIAN_PUBLIC_KEY]
+#!
+#! Invocation: exec
+pub proc get_guardian_public_key() -> word
+    push.GUARDIAN_MAP_KEY
+    # => [GUARDIAN_MAP_KEY]
+
+    push.GUARDIAN_PUBLIC_KEYS_SLOT[0..2]
+    # => [guardian_pubkeys_slot_suffix, guardian_pubkeys_slot_prefix, GUARDIAN_MAP_KEY]
+
+    exec.active_account::get_map_item
+    # => [GUARDIAN_PUBLIC_KEY]
+end
+
+#! Returns whether the transaction rotates the guardian key, and if so asserts that the rotation
+#! is called alone.
+#!
+#! A rotation skips the guardian signature, so it must not touch notes or call another account
+#! procedure. Auth components must run this before they create notes of their own (e.g. the fee
+#! note) and pass the result to `verify_signature`.
+#!
+#! Inputs:  []
+#! Outputs: [is_rotation]
+#!
+#! Where:
+#! - is_rotation is 1 if `update_guardian_public_key` was called, 0 otherwise.
+#!
+#! Panics if:
+#! - `update_guardian_public_key` is called together with input notes, output notes or another
+#!   non-auth account procedure.
+#!
+#! Invocation: exec
+pub proc assert_rotation_policy() -> Bool
+    procref.update_guardian_public_key
+    # => [UPDATE_GUARDIAN_PUBLIC_KEY_ROOT]
+
+    exec.native_account::was_procedure_called
+    # => [is_rotation]
+
+    dup
+    if.true
+        # Check the notes first: creating an output note requires calling `create_note`, which
+        # would also trip `assert_only_one_non_auth_procedure_called`. Running that check last lets
+        # the more specific input/output-note errors surface when notes are present.
+        exec.tx_policy::assert_no_input_notes
+        exec.tx_policy::assert_no_output_notes
+        # => [is_rotation]
+
+        exec.tx_policy::assert_only_one_non_auth_procedure_called
+        # => [is_rotation]
+    end
+    # => [is_rotation]
+end
+
+#! Verifies a guardian signature unless the transaction rotates the guardian key.
+#!
+#! Inputs:  [is_rotation, MSG]
+#! Outputs: []
+#!
+#! Where:
+#! - is_rotation is the output of `assert_rotation_policy`.
+#!
+#! Panics if:
+#! - is_rotation is 0 and a valid guardian signature is missing or invalid.
+#!
+#! Invocation: exec
+pub proc verify_signature(is_rotation: Bool, msg: word)
+    if.true
+        dropw
+        # => []
+    else
+        push.1
+        # => [1, MSG]
+
+        push.GUARDIAN_PUBLIC_KEYS_SLOT[0..2]
+        # => [guardian_pubkeys_slot_suffix, guardian_pubkeys_slot_prefix, 1, MSG]
+
+        push.GUARDIAN_SCHEME_ID_SLOT[0..2]
+        # => [guardian_scheme_slot_suffix, guardian_scheme_slot_prefix,
+        #     guardian_pubkeys_slot_suffix, guardian_pubkeys_slot_prefix, 1, MSG]
+
+        exec.signature::verify_signatures
+        # => [num_verified_signatures, MSG]
+
+        neq.1
+        # => [is_not_exactly_one, MSG]
+
+        if.true
+            emit.AUTH_UNAUTHORIZED_EVENT
+            push.0 assert.err=ERR_INVALID_GUARDIAN_SIGNATURE
+        end
+        # => [MSG]
+
+        dropw
+        # => []
+    end
+end

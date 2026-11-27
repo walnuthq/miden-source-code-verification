@@ -35,6 +35,18 @@ The record that an account root on a network is made of one or more verified pac
 **Verified note**:
 The record that a note root on a network is a verified package.
 
+**Standards library**:
+The library of Miden's standard components and note scripts, which every project links. It holds each standard note script at the root that note carries.
+_Avoid_: stdlib
+
+**Standard component**:
+An account component Miden's standards define, recognised in an account by its procedure roots and named without any verification. An account made of standard components alone is never verified; in an account with custom code, the package that verifies the account may account for one.
+_Avoid_: built-in component, known component
+
+**Standard note**:
+A note whose script is one of the standards library's (`P2ID`, `MINT`, …), recognised by its root. It is never verified.
+_Avoid_: built-in note, well-known note
+
 **Verified record**:
 A verified account or a verified note: what a lookup by resource id or by root answers.
 _Avoid_: entry, row, match

@@ -1636,13 +1636,17 @@ dependencies = [
  "miden-assemble",
  "miden-client",
  "miden-client-sqlite-store",
+ "miden-protocol",
+ "miden-standards",
  "rand 0.10.3",
  "reqwest",
  "serde",
  "serde_json",
  "sha2",
+ "standard-components",
  "tempfile",
  "tokio",
+ "toml",
 ]
 
 [[package]]
@@ -2957,8 +2961,8 @@ dependencies = [
  "clap",
  "miden-client",
  "miden-client-sqlite-store",
- "miden-standards",
  "serde_json",
+ "standard-components",
  "tokio",
 ]
 
@@ -3477,6 +3481,7 @@ dependencies = [
  "miden-standards",
  "rand 0.10.3",
  "serde_json",
+ "standard-components",
  "tokio",
 ]
 
@@ -5350,6 +5355,15 @@ dependencies = [
  "libc",
  "psm",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "standard-components"
+version = "0.1.0"
+dependencies = [
+ "miden-protocol",
+ "miden-standards",
+ "toml",
 ]
 
 [[package]]

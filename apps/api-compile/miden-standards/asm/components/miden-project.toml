@@ -1,0 +1,45 @@
+[workspace]
+members = [
+  "access/authority",
+  "access/ownable2step",
+  "access/pausable",
+  "access/pausable_manager",
+  "access/rbac",
+  "auth/guarded_multisig",
+  "auth/multisig",
+  "auth/multisig_smart",
+  "auth/network_account",
+  "auth/no_auth",
+  "auth/singlesig",
+  "auth/tx_fee_collector",
+  "faucets/fungible_faucet",
+  "faucets/non_fungible_faucet",
+  "faucets/policies/burn/allow_all",
+  "faucets/policies/burn/min_burn_amount",
+  "faucets/policies/burn/owner_controlled/owner_only",
+  "faucets/policies/mint/allow_all",
+  "faucets/policies/mint/owner_controlled/owner_only",
+  "faucets/policies/policy_manager",
+  "faucets/policies/policy_manager_v2",
+  "faucets/policies/transfer/allow_all",
+  "faucets/policies/transfer/allowlist/manager",
+  "faucets/policies/transfer/basic_allowlist",
+  "faucets/policies/transfer/basic_blocklist",
+  "faucets/policies/transfer/blocklist/manager",
+  "fees/policies/basic_constant_fee",
+  "fees/policies/constant_fee_manager",
+  "inspection/code_inspection",
+  "inspection/schema_commitment",
+  "note/note_creator",
+  "oracle/price_oracle",
+  "upgrade/manager",
+  "wallets/basic_wallet",
+]
+
+[workspace.package]
+version = "0.17.2"
+
+[workspace.dependencies]
+miden-core      = { linkage = "dynamic", version = "0.36" }
+miden-protocol  = { linkage = "dynamic", version = "0.17.2" }
+miden-standards = { linkage = "dynamic", version = "0.17.2" }

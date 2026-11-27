@@ -4,13 +4,12 @@ use clap::Parser;
 use miden_assembly_syntax::ast::types::CallConv;
 use miden_client::{
     ClientError,
-    account::{Account, AccountComponentInterfaceExt, AccountId},
+    account::{Account, AccountId},
     address::{Address, AddressId, NetworkId},
     builder::ClientBuilder,
     keystore::FilesystemKeyStore,
     note::{Note, NoteFile, NoteId, NoteScript},
     rpc::{Endpoint, GrpcClient},
-    transaction::AccountComponentInterface,
     utils::Deserializable,
     vm::{Package, PackageExport},
 };
@@ -26,6 +25,7 @@ use miden_client_sqlite_store::ClientBuilderSqliteExt;
 // };
 use miden_standards::note::StandardNote;
 use serde_json::{Value, json};
+use standard_components::classify;
 use std::fmt;
 use std::fs;
 use std::process::ExitCode;
@@ -134,42 +134,20 @@ fn parse_resource_id(resource_id: &str) -> Result<Resource> {
 }
 
 fn verify_account_component(account: Account, package: Package) -> Result<Value> {
-    // `AccountInterface::from_account` would be the obvious call here, but it
-    // asserts that the account has exactly one auth component and panics when
-    // that does not hold. The account may be the caller's own bytes, and a
-    // panic here would answer them with a 502. Classifying the procedures
-    // directly yields the same component list without going through that
-    // constructor.
-    let interface = AccountComponentInterface::from_procedures(account.code().procedures());
-    let mut components = Vec::new();
-    let mut has_custom_code = false;
-    for component in &interface {
-        let name = match component {
-            AccountComponentInterface::BasicWallet => "BasicWallet",
-            AccountComponentInterface::NoteCreator => "NoteCreator",
-            AccountComponentInterface::FungibleFaucet => "FungibleFaucet",
-            AccountComponentInterface::CodeInspection => "CodeInspection",
-            AccountComponentInterface::Authority => "Authority",
-            AccountComponentInterface::Ownable2Step => "Ownable2Step",
-            AccountComponentInterface::RoleBasedAccessControl => "RoleBasedAccessControl",
-            AccountComponentInterface::AuthSingleSig => "AuthSingleSig",
-            AccountComponentInterface::AuthMultisig => "AuthMultisig",
-            AccountComponentInterface::AuthMultisigSmart => "AuthMultisigSmart",
-            AccountComponentInterface::AuthGuardedMultisig => "AuthGuardedMultisig",
-            AccountComponentInterface::AuthNoAuth => "AuthNoAuth",
-            AccountComponentInterface::AuthNetworkAccount => "AuthNetworkAccount",
-            AccountComponentInterface::AuthTxFeeCollector => "AuthTxFeeCollector",
-            // A non-standard auth procedure gets its own `CustomAuth` bucket
-            // instead of landing in `Custom` with the rest, so an account whose
-            // only custom code is its auth component has no `Custom` at all.
-            // Both are code a package can account for.
-            AccountComponentInterface::CustomAuth(_) | AccountComponentInterface::Custom(_) => {
-                has_custom_code = true;
-                continue;
-            }
-        };
-        components.push(name.to_string());
-    }
+    // Classified by the list `miden-import` names standard components from
+    // (see `standard_components`), so an account the web-viewer shows as made
+    // of standard components alone is one no package verifies. Upstream's
+    // `AccountInterface::from_account` also asserts exactly one auth component
+    // and panics otherwise, which the caller's own bytes could trigger (a 502).
+    let classification = classify(account.code().procedures());
+    let mut components: Vec<_> = classification
+        .standard
+        .iter()
+        .map(|component| component.name.to_string())
+        .collect();
+    // Procedures no standard component claims, a custom auth procedure
+    // included: code a package can account for.
+    let has_custom_code = !classification.custom.is_empty();
 
     if has_custom_code {
         if package.manifest.num_exports() == 0 {

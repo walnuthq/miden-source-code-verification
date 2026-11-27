@@ -9,4 +9,5 @@ members = [
     "miden-import",
     "miden-package-metadata",
     "miden-verifier",
+    "standard-components",
 ]

@@ -19,6 +19,9 @@ use miden_assembly::debuginfo::{
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+/// A project manifest's file name.
+const MANIFEST: &str = "miden-project.toml";
+
 #[derive(Debug)]
 pub struct ProjectSourceManager {
     root: PathBuf,
@@ -37,6 +40,15 @@ impl ProjectSourceManager {
     /// `uri` relative to the project root, when it names a file under it.
     fn relative(&self, uri: &Uri) -> Option<Uri> {
         let path = uri.to_path()?;
+        // A manifest keeps its absolute name: the project loader resolves a
+        // workspace's members against its manifest's directory, and refuses
+        // every member when that directory is relative ("workspace members
+        // must be located within the workspace root"). No manifest reaches
+        // the debug info, and the diagnostics name files relative to the root
+        // themselves.
+        if path.file_name().is_some_and(|name| name == MANIFEST) {
+            return None;
+        }
         let relative = path.strip_prefix(&self.root).ok()?;
         (!relative.as_os_str().is_empty()).then(|| Uri::from(relative))
     }

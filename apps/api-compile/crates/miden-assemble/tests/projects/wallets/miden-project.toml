@@ -1,0 +1,12 @@
+# A workspace laid out as `miden-standards`' components workspace is: the
+# member inherits its version and dependencies.
+[workspace]
+members = ["basic"]
+
+[workspace.package]
+version = "0.1.0"
+
+[workspace.dependencies]
+miden-core = { linkage = "dynamic", version = "0.36" }
+miden-protocol = { linkage = "dynamic", version = "0.17.2" }
+miden-standards = { linkage = "dynamic", version = "0.17.2" }

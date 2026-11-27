@@ -1,6 +1,7 @@
 //! Runs the binary on the projects in `tests/projects`: a counter account
-//! component, a note and a transaction script that call it, and an account
-//! component that makes a foreign procedure invocation.
+//! component, a note and a transaction script that call it, an account
+//! component that makes a foreign procedure invocation, and a workspace whose
+//! member re-exports the standard wallet's procedures.
 
 use miden_mast_package::Package;
 use miden_serde_utils::Deserializable;
@@ -9,11 +10,12 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-const PROJECTS: [&str; 4] = [
+const PROJECTS: [&str; 5] = [
     "counter-account",
     "increment-note",
     "increment-script",
     "fpi-account",
+    "wallets/basic",
 ];
 
 /// A fresh copy of `tests/projects`, as `<dir>/projects`, in its own

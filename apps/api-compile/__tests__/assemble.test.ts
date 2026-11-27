@@ -93,23 +93,8 @@ describe("POST /compile a MASM project", () => {
     expect(res.body.accountProcedures).toEqual([expect.any(String)]);
   });
 
-  it("names the basic wallet's parameters from its source", async () => {
-    const files = await masmExamples();
-    const res = await api.post("/compile").send({ files, entrypoint: "basic-wallet" });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("built", true);
-    expect(res.body.parameters).toEqual({
-      "::basic_wallet::move_asset_to_note": [
-        { name: "asset", type: "Asset" },
-        { name: "note_idx", type: "u16" },
-      ],
-      "::basic_wallet::receive_asset": [{ name: "asset", type: "Asset" }],
-    });
-  });
-
   it("builds a project at the root", async () => {
-    const files = await readProjectFiles(`${masmExamplesDir}/basic-wallet`);
+    const files = await readProjectFiles(`${masmExamplesDir}/counter-contract`);
     const res = await api.post("/compile").send({ files });
 
     expect(res.status).toBe(200);
@@ -181,7 +166,7 @@ describe("POST /compile a MASM project", () => {
 
   it("takes a project with a stray Cargo.lock but no Cargo.toml", async () => {
     const files = {
-      ...(await readProjectFiles(`${masmExamplesDir}/basic-wallet`)),
+      ...(await readProjectFiles(`${masmExamplesDir}/counter-contract`)),
       "Cargo.lock": "# not a cargo project\n",
     };
     const res = await api.post("/compile").send({ files });
