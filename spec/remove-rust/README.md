@@ -2,7 +2,7 @@
 
 Written 2026-11-25 at `ba261ab`.
 
-Status: **done** (2026-11-27). Plans 01 to 10 are merged and deployed, and plan 09's deletion of the Rust packages has run in production. Plan 10 shipped in two releases, because the deployed registry still selected the columns it drops: #160 stopped selecting them and did the docs cleanup (api-compile container v142), then #161 dropped `schemas`, `debug_commitment` and `debug_built_with` (migration `20261127155806_drop_rust_columns`, applied in production on 2026-11-27). What is left is in other repos: the Playground's cleanup and the `miden-verify` CLI.
+Status: **done** (2026-11-27). Plans 01 to 10 are merged and deployed, and plan 09's deletion of the Rust packages has run in production. Plan 10 shipped in two releases, because the deployed registry still selected the columns it drops: #160 stopped selecting them and did the docs cleanup (api-compile container v142), then #161 dropped `schemas`, `debug_commitment` and `debug_built_with` (migration `20261127155806_drop_rust_columns`, applied in production on 2026-11-27). What is left is in other repos: the Playground's cleanup. The `miden-verify` CLI uploads MASM projects since 0.8.0 (walnuthq/miden-verify#8, released and published to crates.io on 2026-11-27); its midenup entry for the `0.18.0` channel is 0xMiden/midenup#344.
 
 The Miden Rust compiler (`cargo-miden`, `midenc`) is being phased out. Accounts, notes and transaction scripts are written in plain MASM again, as `miden-project.toml` projects that `miden-assembly` builds into `.masp` packages. This repo must stop building, storing and showing Rust projects, and do the same job for MASM projects.
 
@@ -56,7 +56,7 @@ Taken by the user on 2026-11-24 and 2026-11-25. The numbers are those of the Pla
 6. A Playground script is one MASM file plus a generated `miden-project.toml`. Projects uploaded to the verifier can have more modules and path dependencies.
 7. Both paths live in api-compile until the Playground has switched: a project with a `Cargo.toml` at its entrypoint is a Rust project, any other is a MASM project. Cargo is removed last.
 
-The `miden-verify` CLI is updated after plan 09. Until then the released CLI uploads Rust projects, and it prints the registry's answer, so plan 09's refusal message matters.
+The `miden-verify` CLI is updated after plan 09. Until then the released CLI uploads Rust projects, and it prints the registry's answer, so plan 09's refusal message matters. Done: 0.8.0, the version that message names, uploads MASM projects; 0.7.0 and earlier still upload Rust ones.
 
 ## What the spike established
 
