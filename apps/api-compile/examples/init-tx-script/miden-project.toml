@@ -3,7 +3,7 @@ name = "init-tx-script"
 version = "0.1.0"
 
 [lib]
-kind = "tx-script"
+kind = "transaction-script"
 namespace = "init_tx_script"
 path = "init_tx_script.masm"
 

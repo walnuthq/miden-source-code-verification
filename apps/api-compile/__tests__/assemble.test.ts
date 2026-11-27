@@ -12,7 +12,8 @@ import { describe, expect, it } from "vitest";
 
 // `/compile` and `/verify`: `miden-assemble` in the compose stack's image, on
 // the examples. The examples sit side by side, as the projects of one root:
-// the note depends on the counter by path.
+// the counter's note, script and reader depend on it by path, and the bank's
+// script and notes on the bank component.
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const masmExamplesDir = path.resolve(__dirname, "../examples");

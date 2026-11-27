@@ -3,7 +3,7 @@ name = "counter-script"
 version = "0.1.0"
 
 [lib]
-kind = "tx-script"
+kind = "transaction-script"
 namespace = "counter_script"
 path = "counter_script.masm"
 
