@@ -1,0 +1,13 @@
+[package]
+name = "bank-account"
+version = "0.1.0"
+
+[lib]
+kind = "account-component"
+namespace = "bank_account"
+path = "bank_account.masm"
+
+[dependencies]
+miden-core = "*"
+miden-protocol = "*"
+miden-standards = "*"

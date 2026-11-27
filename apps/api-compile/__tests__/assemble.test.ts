@@ -93,6 +93,50 @@ describe("POST /compile a MASM project", () => {
     expect(res.body.accountProcedures).toEqual([expect.any(String)]);
   });
 
+  it("builds a transaction script with a path dependency on the counter", async () => {
+    const files = await masmExamples();
+    const res = await api.post("/compile").send({ files, entrypoint: "counter-script" });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      built: true,
+      kind: "transaction-script",
+      diagnostics: [],
+    });
+    // The counter procedure it calls: `increment_count`.
+    expect(res.body.accountProcedures).toEqual([expect.any(String)]);
+  });
+
+  it("builds a component that reads the counter through a foreign call", async () => {
+    const files = await masmExamples();
+    const res = await api.post("/compile").send({ files, entrypoint: "count-reader" });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      built: true,
+      kind: "account-component",
+      diagnostics: [],
+      readOnly: { "::count_reader::copy_count": false },
+      callsForeign: { "::count_reader::copy_count": true },
+    });
+  });
+
+  // The Miden Bank, as the playground ships it: the bank component, the
+  // transaction script that initializes it, and the notes that deposit into
+  // it and request a withdrawal.
+  it.each([
+    { entrypoint: "bank-account", kind: "account-component" },
+    { entrypoint: "init-tx-script", kind: "transaction-script" },
+    { entrypoint: "deposit-note", kind: "note" },
+    { entrypoint: "withdraw-request-note", kind: "note" },
+  ])("builds the bank's $entrypoint", async ({ entrypoint, kind }) => {
+    const files = await masmExamples();
+    const res = await api.post("/compile").send({ files, entrypoint });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ built: true, kind, diagnostics: [] });
+  });
+
   it("builds a project at the root", async () => {
     const files = await readProjectFiles(`${masmExamplesDir}/counter-contract`);
     const res = await api.post("/compile").send({ files });

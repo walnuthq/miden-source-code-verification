@@ -1,0 +1,13 @@
+[package]
+name = "deposit-note"
+version = "0.1.0"
+
+[lib]
+kind = "note"
+namespace = "deposit_note"
+path = "deposit_note.masm"
+
+[dependencies]
+miden-core = "*"
+miden-protocol = "*"
+bank-account = { path = "../bank-account" }

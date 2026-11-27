@@ -1,0 +1,30 @@
+use miden::protocol::native_account
+use miden::protocol::tx
+use miden::core::sys
+use {AccountId} from miden::protocol::types
+use counter_contract
+
+const COUNT_SLOT = word("count_reader::count")
+
+#! Copies the count of the counter account `counter_account_id` into this
+#! account's storage, read through a foreign call to its `get_count`.
+#!
+#! Inputs:  [counter_account_id_suffix, counter_account_id_prefix, pad(14)]
+#! Outputs: [pad(16)]
+@account_procedure
+@locals(2)
+pub proc copy_count(counter_account_id: AccountId)
+    loc_store.0 loc_store.1
+    # => [pad(16)]
+    padw padw padw padw
+    # => [pad(16), pad(16)]: `get_count` takes no inputs
+    procref.counter_contract::get_count
+    loc_load.1 loc_load.0
+    # => [counter_account_id_suffix, counter_account_id_prefix, GET_COUNT_ROOT, pad(32)]
+    exec.tx::execute_foreign_procedure
+    # => [count, pad(15), pad(16)]
+    push.COUNT_SLOT[0..2] exec.native_account::set_item
+    # => [OLD_VALUE, pad(28)]
+    dropw
+    exec.sys::truncate_stack
+end
