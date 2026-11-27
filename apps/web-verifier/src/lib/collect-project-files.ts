@@ -1,24 +1,15 @@
 // Filters a directory selected via a `webkitdirectory` input down to the subset
 // the verifier cares about, and reads the kept files into a path -> content map.
 //
-// A project is a directory holding a `miden-project.toml` or a `Cargo.toml`. It
-// is a Rust project when a `Cargo.toml` sits there, a MASM project otherwise.
-// A file belongs to the nearest project above it. Kept files:
-//
-// - every `*.masm` file and every `miden-project.toml`, wherever it sits: a
-//   MASM manifest's `[lib] path` can point anywhere;
-// - in a Rust project, or outside any project, also the rules of the
-//   walnuthq/miden-verify CLI (`is_included`): files under any `src/` dir, plus
-//   `Cargo.toml`, `Cargo.lock`, `build.rs`, `rust-toolchain.toml` and
-//   `.cargo/config.toml`. `Cargo.lock` pins dependency versions, so the
-//   verifier builds what the author built. Outside any project, because a Rust
-//   workspace can keep `.cargo/config.toml` above its crates.
-//
-// `target/` and hidden dirs (except `.cargo`) are pruned everywhere.
+// A project is a directory holding a `miden-project.toml`. Kept files: every
+// `*.masm` file and every `miden-project.toml`, wherever it sits, since a
+// manifest's `[lib] path` can point anywhere. `target/` and hidden dirs are
+// pruned everywhere.
 //
 // The entrypoints are the project directories, plus the root (`.`) when it
-// holds a `miden-project.toml`. A root holding only a `Cargo.toml` is a Rust
-// workspace, not something to build, so it stays out of the list.
+// holds a `miden-project.toml`. A folder with a `Cargo.toml` and no
+// `miden-project.toml` is a Rust project, which is refused before anything is
+// read.
 
 export type ProjectFiles = {
   files: Record<string, string>;
@@ -33,6 +24,9 @@ export const MAX_PROJECT_BYTES = 1_000_000;
 // `error` is why the folder can't be submitted, worded for the user.
 export type ProjectFilesResult = ProjectFiles | { error: string };
 
+export const RUST_FOLDER_ERROR =
+  "This is a Rust project, and Rust projects are no longer verified. Miden projects are written in MASM: pick a folder with a miden-project.toml.";
+
 // The browser prefixes every `webkitRelativePath` with the picked folder's own
 // name; drop it so keys are relative to the selected folder.
 function stripRoot(path: string): string {
@@ -40,28 +34,15 @@ function stripRoot(path: string): string {
   return slash === -1 ? path : path.slice(slash + 1);
 }
 
-// Mirrors the CLI's walker pruning `target/` and hidden dirs other than `.cargo`.
 function isSkippedDir(parents: string[]): boolean {
-  return parents.some((part) => part === "target" || (part.startsWith(".") && part !== ".cargo"));
+  return parents.some((part) => part === "target" || part.startsWith("."));
 }
 
-function isRustBuildInput(name: string, parents: string[]): boolean {
-  if (parents.includes("src")) return true;
-  if (
-    name === "Cargo.toml" ||
-    name === "Cargo.lock" ||
-    name === "build.rs" ||
-    name === "rust-toolchain.toml"
-  )
-    return true;
-  return name === "config.toml" && parents[parents.length - 1] === ".cargo";
-}
+const MIDEN_PROJECT_TOML = "miden-project.toml";
 
-function isMasmBuildInput(name: string): boolean {
-  return name === "miden-project.toml" || name.endsWith(".masm");
+function isBuildInput(name: string): boolean {
+  return name === MIDEN_PROJECT_TOML || name.endsWith(".masm");
 }
-
-type ProjectKind = "rust" | "masm";
 
 type SplitPath = { rel: string; name: string; parents: string[] };
 
@@ -70,61 +51,29 @@ function splitPath(rel: string): SplitPath {
   return { rel, name: parts[parts.length - 1], parents: parts.slice(0, -1) };
 }
 
-// The kind of each project directory, keyed by its path ("" for the root).
-function findProjects(paths: SplitPath[]): Map<string, ProjectKind> {
-  const projects = new Map<string, ProjectKind>();
-  for (const { name, parents } of paths) {
-    const dir = parents.join("/");
-    if (name === "Cargo.toml") projects.set(dir, "rust");
-    else if (name === "miden-project.toml" && !projects.has(dir)) {
-      projects.set(dir, "masm");
-    }
-  }
-  return projects;
-}
-
-// The kind of the nearest project holding the file, or null outside any.
-function owningProjectKind(
-  parents: string[],
-  projects: Map<string, ProjectKind>,
-): ProjectKind | null {
-  for (let depth = parents.length; depth >= 0; depth--) {
-    const kind = projects.get(parents.slice(0, depth).join("/"));
-    if (kind) return kind;
-  }
-  return null;
-}
-
 /**
  * Pure path filtering over raw `webkitRelativePath` strings. Returns the kept
- * paths (relative to the selected folder) and the sorted entrypoints.
+ * paths (relative to the selected folder), the sorted entrypoints, and whether
+ * the folder is a Rust project: a `Cargo.toml` and no `miden-project.toml`.
  */
 export function selectProjectFiles(webkitRelativePaths: string[]): {
   includedPaths: string[];
   entrypoints: string[];
+  isRustProject: boolean;
 } {
-  // Pruning runs first: a `src` dir or a manifest can exist under `target`.
+  // Pruning runs first: a manifest can exist under `target`.
   const paths = webkitRelativePaths
     .map((path) => splitPath(stripRoot(path)))
     .filter(({ parents }) => !isSkippedDir(parents));
-  const projects = findProjects(paths);
 
-  const includedPaths = paths
-    .filter(
-      ({ name, parents }) =>
-        isMasmBuildInput(name) ||
-        (owningProjectKind(parents, projects) !== "masm" && isRustBuildInput(name, parents)),
-    )
-    .map(({ rel }) => rel);
-
-  const rootHasManifest = paths.some(
-    ({ name, parents }) => parents.length === 0 && name === "miden-project.toml",
+  const includedPaths = paths.filter(({ name }) => isBuildInput(name)).map(({ rel }) => rel);
+  const projectDirs = new Set(
+    paths
+      .filter(({ name }) => name === MIDEN_PROJECT_TOML)
+      .map(({ parents }) => (parents.length === 0 ? "." : parents.join("/"))),
   );
-  const entrypoints = [...projects.keys()]
-    .filter((dir) => dir !== "")
-    .concat(rootHasManifest ? ["."] : [])
-    .sort();
-  return { includedPaths, entrypoints };
+  const isRustProject = projectDirs.size === 0 && paths.some(({ name }) => name === "Cargo.toml");
+  return { includedPaths, entrypoints: [...projectDirs].sort(), isRustProject };
 }
 
 // Reads a file's text content; `null` when its bytes aren't UTF-8.
@@ -147,9 +96,12 @@ export async function collectProjectFiles(
   const files = Array.from(fileList);
 
   // Pass the raw paths — selectProjectFiles strips the root itself.
-  const { includedPaths, entrypoints } = selectProjectFiles(
+  const { includedPaths, entrypoints, isRustProject } = selectProjectFiles(
     files.map((file) => file.webkitRelativePath || file.name),
   );
+  if (isRustProject) {
+    return { error: RUST_FOLDER_ERROR };
+  }
   const included = new Set(includedPaths);
 
   const kept = files

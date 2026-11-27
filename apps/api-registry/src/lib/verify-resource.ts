@@ -68,12 +68,8 @@ const insertPackage = async (
       commitment: build.commitment,
       manifest: build.manifest,
       readOnly: build.readOnly,
-      // A MASM package has no storage schemas. The column stays until
-      // `spec/remove-rust` plan 10 drops it.
-      schemas: {},
       // `{}` when api-compile answers no names: its tool couldn't parse the
-      // package's WIT or MASM source (a package without one already gives
-      // `{}`).
+      // project's MASM source.
       parameters: build.parameters ?? {},
       entrypoint,
       // The versions the assembler was built with.

@@ -129,85 +129,11 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *           type: array
  *           items:
  *             $ref: '#/components/schemas/PackageDependency'
- *     StorageSlotSchema:
- *       type: object
- *       description: >
- *         One of an account component's storage slots, from the account
- *         component metadata in its package. Types are the schema's names:
- *         `word` and `felt`, or a named type such as
- *         `miden::standards::auth::pub_key`. A composite value slot (one
- *         schema per felt) is reported as a `word` with neither its felts'
- *         types nor its default; a map's default entries aren't reported.
- *       required: [name, type, valueType]
- *       properties:
- *         name:
- *           type: string
- *           description: The slot's full name, e.g. `counter_contract::counter_contract::count_map`.
- *         description:
- *           type: string
- *         type:
- *           type: string
- *           enum: [value, map]
- *         valueType:
- *           type: string
- *         keyType:
- *           type: string
- *           description: A map slot's key type.
- *         defaultValue:
- *           type: string
- *           description: A value slot's default word (32-byte hex), when the schema gives one.
- *     NoteStorageField:
- *       type: object
- *       description: One of a note's storage fields (its inputs), in storage order.
- *       required: [name, type]
- *       properties:
- *         name:
- *           type: string
- *           description: The field's WIT name, e.g. `target-account-id`.
- *         type:
- *           type: string
- *           description: >
- *             Its WIT type name (`felt`, `word`, `account-id`, `u64`, ..., or a
- *             record the note defines, whose own fields aren't reported), or
- *             `record`, `option` or `variant` for a type with no name.
- *         width:
- *           type: integer
- *           description: The felts it takes in the note's storage. Absent when that varies.
- *         description:
- *           type: string
- *     PackageSchemas:
- *       type: object
- *       description: >
- *         A package's storage schemas. A key is absent when the package has no
- *         such schema: `{}` for a MASM package, which has none.
- *       properties:
- *         storage:
- *           type: object
- *           description: An account component's storage slots, in slot order.
- *           required: [slots]
- *           properties:
- *             slots:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/StorageSlotSchema'
- *         noteStorage:
- *           type: object
- *           description: A note's storage schema.
- *           required: [name, fields]
- *           properties:
- *             name:
- *               type: string
- *               description: The storage record's WIT name, e.g. `p2id-note`.
- *             fields:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/NoteStorageField'
  *     Package:
  *       type: object
  *       description: >
- *         A compiled Miden project recorded in the registry: a MASM project
- *         (`miden-project.toml`), or a Rust one (`Cargo.toml`) until Rust
- *         support is removed.
+ *         A compiled Miden project recorded in the registry: a MASM project,
+ *         with a `miden-project.toml` at its entrypoint.
  *       properties:
  *         id:
  *           type: string
@@ -215,19 +141,14 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *         name:
  *           type: string
  *           description: >
- *             Package name: the `[package] name` of its `Cargo.toml`, or of its
- *             `miden-project.toml` for a MASM project.
+ *             Package name: the `[package] name` of its `miden-project.toml`.
  *         type:
  *           $ref: '#/components/schemas/PackageType'
  *         files:
  *           type: object
  *           description: >
  *             Map of project-relative file paths to their UTF-8 source contents
- *             (the exact inputs that were compiled). For a Rust project,
- *             includes the `Cargo.lock` the build used, even when the
- *             verification request didn't send one, so the dependency versions
- *             behind `commitment` are recorded. A MASM project is stored as
- *             sent: it has no lockfile.
+ *             (the exact inputs that were compiled), as sent.
  *           additionalProperties:
  *             type: string
  *         commitment:
@@ -247,21 +168,9 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *         builtWith:
  *           type: [string, "null"]
  *           description: >
- *             The toolchain that built the package, when known: the version of
- *             cargo-miden for a Rust project, the versions the assembler was
- *             built with for a MASM one (`miden-assembly 0.36.4,
- *             miden-protocol 0.18.0`).
- *         debugCommitment:
- *           type: [string, "null"]
- *           description: >
- *             Commitment of the package's debug build (32-byte hex), served as
- *             `/v1/{networkId}/packages/masp/{commitment}.debug.masp`. Null
- *             when it has none: packages verified since debug builds were
- *             retired have none, and a MASM package, which is its own debug
- *             build (see `debugPackage`), has none either.
- *         debugBuiltWith:
- *           type: [string, "null"]
- *           description: Version of cargo-miden that built the debug build, when known.
+ *             The versions the assembler that built the package was built
+ *             with, when known (`miden-assembly 0.36.5, miden-protocol
+ *             0.18.0`).
  *         readOnly:
  *           type: object
  *           description: >
@@ -272,21 +181,12 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *             or a procedure from another package).
  *           additionalProperties:
  *             type: [boolean, "null"]
- *         schemas:
- *           $ref: '#/components/schemas/PackageSchemas'
  *         parameters:
  *           type: object
  *           description: >
  *             Each exported procedure's parameters, in order, keyed by its
- *             export path. For a Rust project, from the WIT the toolchain
- *             embeds in the package: each one's `name` and `type` as the WIT
- *             spells them, in kebab case (`deposit-asset`, `account-id`; a type
- *             with no name gives its kind, such as `list`). An export is listed
- *             only when its WIT function has as many parameters as its
- *             signature, so the two pair by index. `{}` for a package without a
- *             WIT (a transaction script) or whose WIT couldn't be read. For a
- *             MASM project, the names from its source, with the types of the
- *             package's signatures.
+ *             export path: the names and types its MASM source declares
+ *             (`amount: felt`). `{}` when the source couldn't be read.
  *           additionalProperties:
  *             type: array
  *             items:
@@ -334,18 +234,6 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *           format: date-time
  *         package:
  *           $ref: '#/components/schemas/Package'
- *         debugPackage:
- *           type: [object, "null"]
- *           description: >
- *             The component package's debug build, whose debug info names
- *             call-trace frames, or null when it has none. Download it from
- *             `/v1/{networkId}/packages/masp/{packageCommitment}.debug.masp`.
- *             A MASM package carries its debug info itself: its debug build is
- *             the package, under the package's own commitment.
- *           properties:
- *             commitment:
- *               type: string
- *               description: The debug build's own commitment (32-byte hex).
  *     VerifiedAccount:
  *       type: object
  *       description: >
@@ -540,9 +428,8 @@ export const createApp = ({
   app.use(
     cors({
       origin: allowedOrigins.includes("*") ? true : allowedOrigins,
-      // Lets browser clients read how long to wait after a 503, and a debug
-      // build's commitment next to its `.debug.masp`.
-      exposedHeaders: ["Retry-After", "X-Debug-Commitment"],
+      // Lets browser clients read how long to wait after a 503.
+      exposedHeaders: ["Retry-After"],
     }),
   );
 

@@ -1,9 +1,7 @@
-import rust from "@shikijs/langs/rust";
 import toml from "@shikijs/langs/toml";
 import githubDark from "@shikijs/themes/github-dark";
 import githubLight from "@shikijs/themes/github-light";
 import type { Package } from "miden-source-code-verification-utils/api-registry";
-import { storedProjectKind } from "miden-source-code-verification-utils/project";
 import { createHighlighterCore, type HighlighterCore } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 
@@ -14,7 +12,7 @@ import { formatUtcTimestamp } from "@/lib/timestamps";
 
 // Created on first use and kept for the life of the server instance (Node
 // process or Worker isolate): compiling the grammars is the expensive part.
-// Only the three languages and two themes the pages need are bundled (MASM's
+// Only the two languages and two themes the pages need are bundled (MASM's
 // grammar is this repo's own, `masm/grammar.ts`), and the JavaScript regex
 // engine replaces Shiki's default Oniguruma WASM one, which Workers can't
 // instantiate from bytes.
@@ -23,7 +21,7 @@ let highlighter: Promise<HighlighterCore> | undefined;
 function getHighlighter() {
   highlighter ??= createHighlighterCore({
     themes: [githubLight, githubDark],
-    langs: [masmGrammar, rust, toml],
+    langs: [masmGrammar, toml],
     engine: createJavaScriptRegexEngine(),
   });
   return highlighter;
@@ -31,8 +29,7 @@ function getHighlighter() {
 
 // The language a displayed file is highlighted as: the only other files shown
 // are manifests (see `isDisplayedSourceFile`).
-const languageOf = (path: string) =>
-  path.endsWith(".masm") ? "masm" : path.endsWith(".rs") ? "rust" : "toml";
+const languageOf = (path: string) => (path.endsWith(".masm") ? "masm" : "toml");
 
 // A package's sources as its Source Code section renders them: the displayed
 // files, highlighted here so no highlighter ships to the browser, plus every
@@ -41,17 +38,7 @@ const languageOf = (path: string) =>
 // app's theme. Shiki escapes the source text, so the HTML is safe to inject even
 // though anyone can submit sources for verification.
 export async function loadPackageSources(
-  {
-    name,
-    commitment,
-    files,
-    entrypoint,
-    manifest,
-    readOnly,
-    parameters,
-    schemas,
-    debugCommitment,
-  }: Package,
+  { name, commitment, files, manifest, readOnly, parameters }: Package,
   // The record verifying the package against the resource: an account's
   // component, or the note itself.
   { createdAt, source }: { createdAt: string; source: string },
@@ -62,15 +49,7 @@ export async function loadPackageSources(
   return {
     name,
     commitment,
-    hasDebugBuild: debugCommitment !== null,
-    procedures: packageProcedures({
-      kind: storedProjectKind(files, entrypoint),
-      manifest,
-      readOnly,
-      parameters,
-    }),
-    storageSlots: schemas.storage?.slots ?? [],
-    noteStorageFields: schemas.noteStorage?.fields ?? [],
+    procedures: packageProcedures({ manifest, readOnly, parameters }),
     verifiedAt: formatUtcTimestamp(createdAt),
     source,
     // Only what the page shows; the manifest's `kind` stays on the server.

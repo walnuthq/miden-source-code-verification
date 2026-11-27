@@ -51,23 +51,13 @@ const verifyCounterNote = () =>
 const getMasp = (file: string) =>
   apiV1.get(`/${networkId}/packages/masp/${file}`).responseType("blob");
 
-// A MASM package's `.debug.masp` is the package itself, under its own
-// commitment. Returns the response, for its body.
-const expectDebugMasp = async (commitment: string, downloadName: string) => {
-  const res = await getMasp(`${commitment}.debug.masp`);
-  expect(res.status).toBe(200);
-  expect(res.headers["x-debug-commitment"]).toBe(commitment);
-  expect(res.headers["content-disposition"]).toBe(`attachment; filename=${downloadName}`);
-  return res;
-};
-
-// What every MASM package's row holds in place of a Rust one's: the
-// assembler's versions, no debug build of its own and no schemas.
+// What every package's row holds: the assembler's versions, and neither a
+// debug build nor storage schemas on the wire.
 const expectMasmPackage = (pkg: Package, files: Record<string, string>) => {
   expect(pkg.builtWith).toMatch(/^miden-assembly \d+\.\d+\.\d+, /);
-  expect(pkg.debugCommitment).toBeNull();
-  expect(pkg.debugBuiltWith).toBeNull();
-  expect(pkg.schemas).toEqual({});
+  expect(pkg).not.toHaveProperty("debugCommitment");
+  expect(pkg).not.toHaveProperty("debugBuiltWith");
+  expect(pkg).not.toHaveProperty("schemas");
   // Stored as sent: a MASM project has no lockfile to add.
   expect(pkg.files).toEqual(files);
 };
@@ -95,11 +85,10 @@ describe("a MASM account component", () => {
         "::counter_contract::increment_count": [expect.objectContaining({ name: "amount" })],
       }),
     );
-    // Its debug build is the package itself.
-    expect(component.debugPackage).toEqual({ commitment: pkg.commitment });
+    expect(component).not.toHaveProperty("debugPackage");
   });
 
-  it("serves its package as both .masp and .debug.masp", async () => {
+  it("serves its package as .masp, and no .debug.masp", async () => {
     await verifyCounterContract();
     const accountRes = await apiV1
       .get(`/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID}`)
@@ -113,8 +102,9 @@ describe("a MASM account component", () => {
       "attachment; filename=counter_contract.masp",
     );
 
-    const debugRes = await expectDebugMasp(commitment, "counter_contract.debug.masp");
-    expect(debugRes.body).toEqual(releaseRes.body);
+    const debugRes = await apiV1.get(`/${networkId}/packages/masp/${commitment}.debug.masp`).send();
+    expect(debugRes.status).toBe(400);
+    expect(debugRes.body).toEqual({ error: "invalid package commitment" });
   });
 
   it("doesn't verify with a changed constant, and records nothing", async () => {
@@ -153,6 +143,8 @@ describe("a MASM note with a path dependency", () => {
     });
     expectMasmPackage(pkg, files);
 
-    await expectDebugMasp(pkg.commitment, "counter_note.debug.masp");
+    const maspRes = await getMasp(`${pkg.commitment}.masp`);
+    expect(maspRes.status).toBe(200);
+    expect(maspRes.headers["content-disposition"]).toBe("attachment; filename=counter_note.masp");
   });
 });

@@ -21,7 +21,7 @@ _Avoid_: code (alone), hash
 ### Verification
 
 **Package**:
-The compiled Miden package a project builds to, identified by its commitment. Its bytes are the `.masp` artifact, kept under its commitment and downloaded under the package name as Rust spells the crate (`counter_contract.masp`), `.debug.masp` for its debug build.
+The compiled Miden package a project builds to, identified by its commitment. Its bytes are the `.masp` artifact, debug info included, kept under its commitment and downloaded under the package name with underscores (`counter_contract.masp`).
 _Avoid_: artifact (for the package itself), binary
 
 **Commitment**:
@@ -47,7 +47,7 @@ What assembling a project yields: built, with its package and the assembler's re
 _Avoid_: compile result, compilation output
 
 **Debug build**:
-The dev-profile build of a verified package's sources, kept so a simulator can name call-trace frames. It never decided whether anything is verified. No longer made: the registry serves only the ones it stored before (`<commitment>.debug.masp`). A MASM package carries its debug info in the one package that verifies.
+The dev-profile build of a Rust package's sources, kept beside it (`<commitment>.debug.masp`) so a simulator could name call-trace frames. It never decided whether anything is verified. Gone with the Rust packages: a MASM package carries its debug info in the one package that verifies.
 _Avoid_: dev build, debug package
 
 ### Sources

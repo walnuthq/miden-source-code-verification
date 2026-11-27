@@ -17,20 +17,20 @@ const UNAVAILABLE =
 const digest = (n: number) => `0x${n.toString(16).padStart(64, "0")}` as `0x${string}`;
 const at = "2026-11-06T20:33:09.307Z";
 
-// A package exporting `digests` as account procedures (abi 3), with the crate
-// its entry file is found by.
+// A package exporting `digests` as account procedures (abi 3), with the
+// manifest its entry file is found by.
 const pkg = (name: string, ...digests: `0x${string}`[]): Package => {
-  // Paths as the compiler spells them: the crate's WIT world, then the
-  // kebab-cased, quoted procedure name.
-  const paths = digests.map((_, i) => `::"miden:${name}/${name}@0.1.0"::"proc-${i}"`);
+  // Paths as the assembler spells them: the module, then the procedure.
+  const module = name.replaceAll("-", "_");
+  const paths = digests.map((_, i) => `::${module}::proc_${i}`);
   return {
     id: `${name}-id`,
     name,
     type: "account-component",
     files: {
-      "Cargo.toml": `[package]\nname = "${name}"\n`,
-      "src/lib.rs": "pub fn proc_0() {}\n",
-      "Cargo.lock": "",
+      "miden-project.toml": `[package]\nname = "${name}"\nversion = "0.1.0"\n\n[lib]\npath = "lib.masm"\n`,
+      "lib.masm": "pub proc proc_0()\nend\n",
+      "README.md": "",
     },
     commitment: digest(0xc0),
     manifest: {
@@ -48,10 +48,7 @@ const pkg = (name: string, ...digests: `0x${string}`[]): Package => {
     },
     entrypoint: ".",
     builtWith: null,
-    debugCommitment: null,
-    debugBuiltWith: null,
     readOnly: Object.fromEntries(paths.map((path) => [path, true])),
-    schemas: {},
     parameters: Object.fromEntries(paths.map((path) => [path, []])),
     createdAt: at,
     updatedAt: at,
@@ -67,7 +64,6 @@ const component = (verifiedPackage: Package, source: string): VerifiedAccountCom
   createdAt: at,
   updatedAt: at,
   package: verifiedPackage,
-  debugPackage: null,
 });
 
 // Four procedures: two from the wallet, one from `counter-contract`, one
@@ -252,15 +248,15 @@ describe("loadResourcePage", () => {
       { name: "other", source: "web-verifier" },
     ]);
     const [counter] = page.packages;
-    // The displayed sources, highlighted, without the lockfile; every file raw.
-    expect(counter.files.map(({ path }) => path)).toEqual(["Cargo.toml", "src/lib.rs"]);
-    expect(counter.files[1].html).toContain("proc_0");
-    expect(counter.entryPath).toBe("src/lib.rs");
-    expect(Object.keys(counter.rawFiles)).toContain("Cargo.lock");
+    // The displayed sources, highlighted, without the README; every file raw.
+    expect(counter.files.map(({ path }) => path)).toEqual(["lib.masm", "miden-project.toml"]);
+    expect(counter.files[0].html).toContain("proc_0");
+    expect(counter.entryPath).toBe("lib.masm");
+    expect(Object.keys(counter.rawFiles)).toContain("README.md");
     expect(counter.procedures).toEqual([
       {
         name: "proc_0",
-        signature: "fn proc_0();",
+        signature: "pub proc proc_0()",
         digest: digest(3),
         readOnly: true,
       },

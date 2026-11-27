@@ -1,11 +1,5 @@
 import type { StandardAccountComponent } from "./api-compile.ts";
-import type {
-  Manifest,
-  PackageSchemas,
-  ProcedureParameters,
-  ReadOnlyProcedures,
-  TargetType,
-} from "./manifest.ts";
+import type { Manifest, ProcedureParameters, ReadOnlyProcedures, TargetType } from "./manifest.ts";
 
 // What api-registry answers, how it names a package's artifact, and how a
 // client waits out its 503. The registry's lookups build their answers against
@@ -21,35 +15,24 @@ import type {
 // from and what api-compile read of the build. Timestamps are ISO 8601.
 export type Package = {
   id: string;
-  // The `[package] name` of the project's `Cargo.toml`, or of its
-  // `miden-project.toml` for a MASM project.
+  // The `[package] name` of the project's `miden-project.toml`.
   name: string;
   type: TargetType;
   // The sources, keyed by project-relative path: the exact inputs behind
-  // `commitment`, with the lockfile the build used for a Rust project.
+  // `commitment`.
   files: Record<string, string>;
   commitment: string;
   manifest: Manifest;
   // The project directory within `files` the package was built from (`.` for
   // the root). Null for packages recorded before it was stored.
   entrypoint: string | null;
-  // The toolchain that built it, when known: cargo-miden's version for a Rust
-  // package, the versions the assembler was built with for a MASM one
-  // (`miden-assembly 0.36.4, miden-protocol 0.18.0`).
+  // The versions the assembler that built it was built with, when known
+  // (`miden-assembly 0.36.5, miden-protocol 0.18.0`).
   builtWith: string | null;
-  // The debug build of the same sources: its own commitment, served at
-  // `packageMaspPath(…, "debug")`, and the cargo-miden that built it. Null
-  // for every package verified since debug builds were retired, and for every
-  // MASM package.
-  debugCommitment: string | null;
-  debugBuiltWith: string | null;
   // Whether each exported procedure is read-only, by export path.
   readOnly: ReadOnlyProcedures;
-  // Its storage schemas: an account component's storage slots, a note's
-  // storage fields. `{}` for a MASM package, which has none.
-  schemas: PackageSchemas;
   // Each exported procedure's parameter names and types, by export path, from
-  // the WIT or the MASM source (see `ProcedureParameters` in `manifest.ts`).
+  // the MASM source (see `ProcedureParameters` in `manifest.ts`).
   parameters: ProcedureParameters;
   createdAt: string;
   updatedAt: string;
@@ -68,10 +51,6 @@ export type VerifiedAccountComponent = {
   createdAt: string;
   updatedAt: string;
   package: Package;
-  // The package's debug build, whose debug info names call-trace frames, or
-  // null when it has none: known without fetching the build first. A MASM
-  // package is its own debug build, under its own commitment.
-  debugPackage: { commitment: string } | null;
 };
 
 // `GET /v1/{networkId}/verified-accounts/code/{code}`: the verified account
@@ -120,56 +99,32 @@ export type VerificationResponse = { verified: boolean };
 
 // ─── MASP artifact ──────────────────────────────────────────────────────────
 
-// Which build of a package an artifact is: the `release` build that verified,
-// or the `debug` build of the same sources, whose debug info names call-trace
-// frames. Both are keyed by the release build's commitment.
-export type MaspVariant = "release" | "debug";
+// The key of a package's artifact, e.g. `0xd4ae…9d.masp`: the object key the
+// registry stores it under and the file name it serves it at
+// (`packageMaspPath`), which `parseMaspKey` reads back. The artifact is the
+// package api-compile assembled, debug info included.
+export const maspKey = (commitment: string) => `${commitment.toLowerCase()}.masp`;
 
-// The key of a package's artifact, e.g. `0xd4ae…9d.masp`, or
-// `0xd4ae…9d.debug.masp` for its debug build: the object key the registry
-// stores it under and the file name it serves it at (`packageMaspPath`),
-// which `parseMaspKey` reads back.
-export const maspKey = (commitment: string, variant: MaspVariant = "release") =>
-  `${commitment.toLowerCase()}${variant === "debug" ? ".debug" : ""}.masp`;
+const MASP_KEY_PATTERN = /^(0x[0-9a-f]{64})\.masp$/i;
 
-const MASP_KEY_PATTERN = /^(0x[0-9a-f]{64})(\.debug)?\.masp$/i;
-
-// The inverse of `maspKey`: `null` when `key` isn't one.
-export const parseMaspKey = (key: string): { commitment: string; variant: MaspVariant } | null => {
-  const match = MASP_KEY_PATTERN.exec(key);
-  if (!match?.[1]) {
-    return null;
-  }
-  return {
-    commitment: match[1].toLowerCase(),
-    variant: match[2] ? "debug" : "release",
-  };
-};
+// The inverse of `maspKey`, the commitment in lower case: `null` when `key`
+// isn't one.
+export const parseMaspKey = (key: string): string | null =>
+  MASP_KEY_PATTERN.exec(key)?.[1]?.toLowerCase() ?? null;
 
 // The name a package's artifact is downloaded as, e.g. `counter_contract.masp`
-// for `counter-contract` or `counter_contract.debug.masp` for its debug build:
-// the package name as Rust spells the crate, which is how cargo-miden names the
-// artifact and what the simulator's `miden-client call --package` line uses.
-// A MASM package's `miden-project.toml` name is spelled the same way.
-// Each run of characters outside `[A-Za-z0-9.]` becomes `_`, then leading `_`
-// are dropped, so WIT-style names (`miden:basic-wallet/basic-wallet`) work too.
-// When nothing is left of the name, the artifact's key. The registry sends it
-// as the `Content-Disposition` of the artifact, and the web-viewer shows it.
-export const maspDownloadName = (
-  name: string,
-  commitment: string,
-  variant: MaspVariant = "release",
-) => {
+// for `counter-contract`: each run of characters outside `[A-Za-z0-9.]`
+// becomes `_`, then leading `_` are dropped. When nothing is left of the name,
+// the artifact's key. The registry sends it as the `Content-Disposition` of
+// the artifact, and the web-viewer shows it.
+export const maspDownloadName = (name: string, commitment: string) => {
   const base = name.replace(/[^A-Za-z0-9.]+/g, "_").replace(/^_+/, "");
-  return base ? `${base}${variant === "debug" ? ".debug" : ""}.masp` : maspKey(commitment, variant);
+  return base ? `${base}.masp` : maspKey(commitment);
 };
 
 // The registry's path to a package's artifact, for `networkId`.
-export const packageMaspPath = (
-  networkId: string,
-  commitment: string,
-  variant: MaspVariant = "release",
-) => `/v1/${networkId}/packages/masp/${maspKey(commitment, variant)}`;
+export const packageMaspPath = (networkId: string, commitment: string) =>
+  `/v1/${networkId}/packages/masp/${maspKey(commitment)}`;
 
 // ─── A busy registry ────────────────────────────────────────────────────────
 

@@ -78,6 +78,10 @@ describe("POST /:networkId/verified-accounts", () => {
     const res = await verifyCounterContract(files);
     expect(res.status).toBe(400);
     expect(res.body).toEqual({ error: RUST_PROJECT_ERROR });
+    // The released `miden verify` CLI prints it as is.
+    expect(res.body.error).toBe(
+      "Rust projects are no longer verified. Miden projects are written in MASM: upload a `miden-project.toml` project. If you use the `miden verify` CLI, upgrade to 0.8.0 or later.",
+    );
   });
 
   it("rejects a file path that would leave the project", async () => {
