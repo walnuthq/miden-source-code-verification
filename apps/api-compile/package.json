@@ -21,10 +21,10 @@
   "devDependencies": {
     "@types/cors": "2.8.19",
     "@types/express": "5.0.6",
-    "@types/node": "26.6.10",
+    "@types/node": "26.6.11",
     "miden-source-code-verification-test-utils": "workspace:*",
     "typescript": "7.0.2",
-    "vite": "8.3.8",
+    "vite": "8.4.0",
     "vitest": "5.1.2"
   }
 }
