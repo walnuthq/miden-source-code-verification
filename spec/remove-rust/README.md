@@ -2,7 +2,7 @@
 
 Written 2026-11-25 at `ba261ab`.
 
-Status (2026-11-27): plans 01 to 09 are merged and deployed; plan 09's deletion of the Rust packages has run in production. Plan 10 ships in two releases, because the deployed registry still selected the columns it drops: the first stops selecting them and does the docs cleanup; the second drops `schemas`, `debug_commitment` and `debug_built_with` in a migration, once the first is deployed.
+Status: **done** (2026-11-27). Plans 01 to 10 are merged and deployed, and plan 09's deletion of the Rust packages has run in production. Plan 10 shipped in two releases, because the deployed registry still selected the columns it drops: #160 stopped selecting them and did the docs cleanup (api-compile container v142), then #161 dropped `schemas`, `debug_commitment` and `debug_built_with` (migration `20261127155806_drop_rust_columns`, applied in production on 2026-11-27). What is left is in other repos: the Playground's cleanup and the `miden-verify` CLI.
 
 The Miden Rust compiler (`cargo-miden`, `midenc`) is being phased out. Accounts, notes and transaction scripts are written in plain MASM again, as `miden-project.toml` projects that `miden-assembly` builds into `.masp` packages. This repo must stop building, storing and showing Rust projects, and do the same job for MASM projects.
 

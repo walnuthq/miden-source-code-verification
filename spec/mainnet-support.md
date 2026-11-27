@@ -1,6 +1,6 @@
 # Mainnet support (Miden Partner Mainnet)
 
-Status: **implemented** on branch `feat/mainnet-support` (2026-11-04); see "What shipped". Written 2026-11-04, from the Miden Playground's Mainnet sandbox work (walnuthq/miden-playground, branch `feat/mainnet-sandbox`).
+Status: **deployed** (2026-11-04, PR #80); see "What shipped". Open: the Partner Mainnet reset policy and a Mainnet status probe. Written 2026-11-04, from the Miden Playground's Mainnet sandbox work (walnuthq/miden-playground, branch `feat/mainnet-sandbox`).
 
 ## Why
 

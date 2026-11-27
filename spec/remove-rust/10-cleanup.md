@@ -2,6 +2,7 @@
 
 > **Executor**: read `spec/remove-rust/README.md` first; its rules apply. Read `docs/claude/database-migrations.md`: a dropped column ships with its migration and only after a release that no longer reads it. Drift check: confirm plans 08 and 09 are merged and deployed, and that the Rust deletion has run.
 
+- **Status**: done (2026-11-27), in two releases: #160, then #161 with the column drop.
 - **Rollout step**: 7
 - **Effort**: S
 - **Risk**: LOW, except the column drops (MEDIUM)

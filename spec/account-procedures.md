@@ -1,6 +1,6 @@
 # Account procedures a note or transaction script calls
 
-Status: **in progress** (2026-11-13). Steps 1–7 done on branch `feat/account-procedures`; step 8 (deploy, production check) waits on the merge. This is the api-compile half. The Playground half is `spec/simulate-target-accounts.md` in walnuthq/miden-playground; ship this half and deploy it first.
+Status: **deployed** (2026-11-13, PR #140). This is the api-compile half. The Playground half is `spec/simulate-target-accounts.md` in walnuthq/miden-playground; ship this half and deploy it first.
 
 ## Why
 

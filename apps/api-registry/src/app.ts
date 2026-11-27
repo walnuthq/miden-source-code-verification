@@ -26,7 +26,7 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *       enum: [library, executable, kernel, account-component, note, transaction-script]
  *     ValueType:
  *       description: >
- *         A Miden type, serialized as the compiler emits it: a string for a
+ *         A Miden type, serialized as `miden-package-metadata` prints it: a string for a
  *         primitive (e.g. `Felt`, `I32`), or an object keyed on the compound
  *         kind (e.g. `{ "Struct": { name, repr, size, fields } }`) whose fields
  *         nest further types.
@@ -163,8 +163,8 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *           type: [string, "null"]
  *           description: >
  *             The project directory within `files` the package was built from
- *             (`.` for the root). Null for packages recorded before it was
- *             stored.
+ *             (`.` for the root). Set on every package since the Rust packages
+ *             were deleted; null only on a row from before it was stored.
  *         builtWith:
  *           type: [string, "null"]
  *           description: >
