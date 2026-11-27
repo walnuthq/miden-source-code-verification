@@ -4,14 +4,12 @@ import type {
   ReadOnlyProcedures,
   Type,
 } from "miden-source-code-verification-utils/manifest";
-import type { ProjectKind } from "miden-source-code-verification-utils/project";
 
 import type { PackageManifest } from "@/lib/api-registry.server";
 
 // A procedure a package installs in its account (or a note's entrypoint), as
-// its card lists it: its name and signature in the language of the project it
-// was built from, its digest, and whether it is read-only (`null` when that
-// can't be told).
+// its card lists it: its name and MASM signature, its digest, and whether it
+// is read-only (`null` when that can't be told).
 export type PackageProcedure = {
   name: string;
   signature: string;
@@ -25,97 +23,18 @@ export type PackageProcedure = {
 // and `verify_note_script`).
 const COMPONENT_MODEL_ABI = 3;
 
-// `deposit-asset` → `deposit_asset`.
-function snakeCase(name: string): string {
-  return name.replaceAll("-", "_");
-}
-
-// The last segment of an export's path: the procedure's name as the package
-// spells it, quoted when it has to be (`"get-count"`).
+// The last segment of an export's path: the procedure's name as the MASM
+// source declares it, `::counter_contract::get_count` → `get_count`.
 const lastSegment = (path: string) => path.slice(path.lastIndexOf("::") + 2);
 
-// The Rust name of an exported procedure: the last segment of its path, which
-// the compiler kebab-cases and quotes when it has to, e.g.
-// `::"miden:counter-contract/counter-contract@0.1.0"::"get-count"` → `get_count`.
-export function procedureName(path: string): string {
-  return snakeCase(lastSegment(path).replace(/^"|"$/g, ""));
-}
-
-// `account-id` → `AccountId`.
-const pascalCase = (name: string) =>
-  name
-    .split(/[-_]/)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join("");
-
-// A manifest type's name as the Rust SDK spells it: its last segment,
-// `miden:base/core-types@1.0.0/account-id` → `AccountId`.
-const typeName = (name: string) => pascalCase(name.slice(name.lastIndexOf("/") + 1));
-
-// A type of the manifest's signature as the Rust SDK names it: a struct or enum
-// by the last segment of its name (`miden:base/core-types@1.0.0/account-id` →
-// `AccountId`), integers as Rust's. `fallback` names a type the manifest leaves
-// unnamed.
-function rustType(type: Type, fallback = "_"): string {
-  if (typeof type === "string") {
-    switch (type) {
-      case "Felt":
-        return "Felt";
-      case "I1":
-        return "bool";
-      case "Unknown":
-      case "Never":
-      case "Variadic":
-        return fallback;
-      default:
-        return type.toLowerCase();
-    }
-  }
-  if ("Struct" in type || "Enum" in type) {
-    const name = "Struct" in type ? type.Struct.name : type.Enum.name;
-    return name ? typeName(name) : fallback;
-  }
-  if ("Rec" in type) {
-    return type.Rec ? typeName(type.Rec) : fallback;
-  }
-  if ("Array" in type) {
-    return `[${rustType(type.Array.ty)}; ${type.Array.len}]`;
-  }
-  if ("List" in type) {
-    return `Vec<${rustType(type.List)}>`;
-  }
-  return fallback;
-}
-
-// A signature's results after its parameters, the same in Rust and MASM:
-// nothing, ` -> T`, or ` -> (T, U)`, each type written by `typeOf`.
-const resultsOf = (results: Type[], typeOf: (type: Type) => string) =>
+// A signature's results after its parameters: nothing, ` -> T`, or
+// ` -> (T, U)`.
+const resultsOf = (results: Type[]) =>
   results.length === 0
     ? ""
     : results.length === 1
-      ? ` -> ${typeOf(results[0])}`
-      : ` -> (${results.map((result) => typeOf(result)).join(", ")})`;
-
-// `fn deposit(depositor: AccountId, deposit_asset: Asset);`: the names from the
-// package's WIT, in snake case, the types and results from the manifest's
-// signature, which the WIT names pair with by index. Without names (an export
-// `parameters` leaves out), each parameter is `_`.
-function rustSignature(
-  name: string,
-  { params, results }: { params: Type[]; results: Type[] },
-  parameters: ProcedureParameter[] | undefined,
-): string {
-  const args = params
-    .map((type, index) => {
-      const parameter = parameters?.[index];
-      return parameter
-        ? `${snakeCase(parameter.name)}: ${rustType(type, pascalCase(parameter.type))}`
-        : `_: ${rustType(type)}`;
-    })
-    .join(", ");
-  const returned = resultsOf(results, rustType);
-  return `fn ${name}(${args})${returned};`;
-}
+      ? ` -> ${masmType(results[0])}`
+      : ` -> (${results.map((result) => masmType(result)).join(", ")})`;
 
 // A type of the manifest's signature as MASM spells it: its primitives in
 // lower case, a `[felt; 4]` as `word`, other arrays as `[T; N]`, a pointer as
@@ -165,22 +84,19 @@ function masmSignature(
       return parameter ? `${parameter.name}: ${parameter.type}` : masmType(type);
     })
     .join(", ");
-  const returned = resultsOf(results, masmType);
+  const returned = resultsOf(results);
   return `pub proc ${name}(${args})${returned}`;
 }
 
 // The package's account procedures (or a note's entrypoint), in the manifest's
-// order, each signature written in the language of the project the package
-// was built from (`kind`), from the parameter names the package's WIT or MASM
+// order, each signature written from the parameter names the package's MASM
 // source gives (`parameters`) and the manifest's types. `readOnly` has every
 // exported procedure's path.
 export function packageProcedures({
-  kind,
   manifest,
   readOnly,
   parameters,
 }: {
-  kind: ProjectKind;
   manifest: PackageManifest;
   readOnly: ReadOnlyProcedures;
   parameters: ProcedureParameters;
@@ -191,12 +107,11 @@ export function packageProcedures({
       return [];
     }
     const { path, digest } = Procedure;
-    const name = kind === "masm" ? lastSegment(path) : procedureName(path);
-    const writeSignature = kind === "masm" ? masmSignature : rustSignature;
+    const name = lastSegment(path);
     return [
       {
         name,
-        signature: writeSignature(name, signature, parameters[path]),
+        signature: masmSignature(name, signature, parameters[path]),
         digest,
         readOnly: readOnly[path],
       },

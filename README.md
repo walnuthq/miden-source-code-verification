@@ -10,7 +10,7 @@ A small set of services that can be deployed independently or together:
 
 1. **Compilation & Verification API** (`apps/api-compile`) — stateless, Node with four Rust helper tools in a container. Assembles a MASM project into a package and checks it against an on-chain account/note.
 2. **Verified Accounts & Notes Registry API** (`apps/api-registry`) — stateful, Node.js + Postgres. Delegates compilation to (1) and persists verified results.
-3. **Accounts & Notes Verifier UI** (`apps/web-verifier`) — a static Vite/React webapp where a user submits a resource ID plus a source directory to verify; talks to (2). From the selected directory it uploads what the [`miden-verify`](https://github.com/walnuthq/miden-verify) CLI does: `Cargo.toml`, `Cargo.lock`, `build.rs`, `miden-project.toml`, `rust-toolchain.toml`, `.cargo/config.toml` and everything under `src/`, skipping `target/` and hidden folders. Verifications it submits are recorded with the source `web-verifier`.
+3. **Accounts & Notes Verifier UI** (`apps/web-verifier`) — a static Vite/React webapp where a user submits a resource ID plus a source directory to verify; talks to (2). From the selected directory it uploads every `miden-project.toml` and `*.masm` file, skipping `target/` and hidden folders, and refuses a Rust project (a `Cargo.toml` with no `miden-project.toml`). Verifications it submits are recorded with the source `web-verifier`.
 4. **Verified Accounts & Notes Viewer UI** (`apps/web-viewer`) — a server-rendered React Router (Vite) webapp for browsing verified results, talking to (2). Each verified account or note gets a page (`/{networkId}/verified-accounts/{accountId}`, `/{networkId}/verified-notes/{noteId}`) with its verification status and, for every verified package, its details (commitment, procedures, dependencies, when and from which client it was verified) and a browsable, downloadable copy of its source code.
 
 The registry never compiles or verifies on its own; it always delegates to the Compilation API and persists the result. This keeps the tools that parse untrusted projects apart from the database tier.
@@ -23,7 +23,7 @@ The networks served are Testnet (`mtst`, the default), Devnet (`mdev`) and Mainn
 
 ### Compiling: queue, timeouts and diagnostics
 
-- **Projects are MASM projects.** A project is a `miden-project.toml` with a `[package]` at its entrypoint, and its modules, which `miden-assemble` assembles into one dev package (with debug info) in some 20 ms. The debug info names each source by its path in the project (`counter-contract/counter_contract.masm`, the key of its file in `files`), not where the server wrote it, so the same project always gives the same bytes. A project with a `Cargo.toml` at its entrypoint is a Rust project, which is no longer built: `POST /compile` and `POST /verify` answer `400` with ``Rust projects are no longer supported: Miden projects are written in MASM (`miden-project.toml`)``. `masm`, `warmLockfile` and `debug` in a request are ignored. `apps/api-compile/examples` holds three projects: a counter, a note that calls it through a path dependency, and a basic wallet.
+- **Projects are MASM projects.** A project is a `miden-project.toml` with a `[package]` at its entrypoint, and its modules, which `miden-assemble` assembles into one dev package (with debug info) in some 20 ms. The debug info names each source by its path in the project (`counter-contract/counter_contract.masm`, the key of its file in `files`), not where the server wrote it, so the same project always gives the same bytes. A project with a `Cargo.toml` at its entrypoint is a Rust project, which is no longer built: `POST /compile` and `POST /verify` answer `400` with ``Rust projects are no longer verified. Miden projects are written in MASM: upload a `miden-project.toml` project. If you use the `miden verify` CLI, upgrade to 0.8.0 or later.``, and the registry answers the same: the released CLI uploads Rust projects and prints it as is. `masm`, `warmLockfile` and `debug` in a request are ignored. `apps/api-compile/examples` holds three projects: a counter, a note that calls it through a path dependency, and a basic wallet.
 - **A few builds at once.** A build runs none of the project's code ([ADR 0007](docs/adr/0007-masm-builds-run-no-project-code.md)), so builds share nothing on disk: 4 run at once and 16 more wait (`ASSEMBLE_CONCURRENCY`, `ASSEMBLE_QUEUE_SIZE`); past that, `POST /compile` and `POST /verify` answer `503` with `Retry-After: 30`. A request whose client disconnects leaves the queue, or has its tools stopped. Imports have a queue of their own: 4 run at once and 16 more wait (`IMPORT_CONCURRENCY`, `IMPORT_QUEUE_SIZE`); past that `GET /{networkId}/import/{resourceId}` answers the same `503`. The helper tools run as the `api` user, which owns the client stores (`/cache/stores`); the image has no setuid binaries and caps processes at 4096 per user.
 - **Every step is time-limited.** Each tool gets 30 s, and one request gets 45 s for all of its tools together (`ASSEMBLE_DEADLINE_MS`), answered with a `504` past that: assembling takes milliseconds, so most of it is for the verifier, which reads the resource from its network. On Cloudflare, the Worker in front of the container also gives up with a `504` after 90 s for `GET /`, 120 s for imports and 120 s for compiles, each of which allows for a cold start. The registry itself gives up on an import after 120 s and on a verification after 150 s, with a `504`.
 - **The files come back as sent.** A successful `POST /compile` or `POST /verify` returns `files`, the project as sent, which the registry stores with each new package.
@@ -36,10 +36,7 @@ The networks served are Testnet (`mtst`, the default), Devnet (`mdev`) and Mainn
 
 ### Debug builds
 
-A verified package's release build carries no debug info, so a transaction simulator (Walnut's) can't name the frames of a call trace from it. The registry used to store a **debug build** of each verified account component as well: the same sources built with the dev profile (`cargo miden build` with no `--release`). It no longer makes new ones: the helper tools are on the 0.36 VM crates, which can't read the debug info `cargo-miden` 0.11.0 writes. A MASM package needs no second build: its dev and release assemblies have the same procedure roots and commitment, so the one package it verifies with can carry the debug info.
-
-- **The stored ones are still served.** `GET /v1/{networkId}/packages/masp/{commitment}.debug.masp` serves a debug build stored before, with an `X-Debug-Commitment` header, and the package row still has its `debugCommitment` and the cargo-miden that built it. Each verified account component carries `debugPackage: { commitment } | null`, so a client knows before downloading whether one exists. A package verified since has `debugPackage: null`.
-- **They never decided anything.** A debug build has other procedure roots than the deployed code, so it verified nothing. Debug builds embed absolute build paths, so their bytes differ between machines even when their commitment is the same.
+A MASM package carries its debug info, which names a call trace's frames by their source location: its dev and release assemblies have the same procedure roots and commitment, so the one package it verifies with is the one to debug with. The registry serves no separate debug build. It used to store one for each Rust-built account component (`<commitment>.debug.masp`), and those went with the Rust packages (see "Deleting the Rust packages").
 
 ### Read-only procedures
 
@@ -47,11 +44,11 @@ A verified package's release build carries no debug info, so a transaction simul
 
 It also tells whether each exported procedure can make a foreign procedure invocation (see `foreign_calls.rs`): `true` when `miden::protocol::tx::execute_foreign_procedure` is reachable, `false` when it isn't and everything reachable could be followed, `null` when it wasn't found but something couldn't be followed (a dynamic call, a procedure from another package, or an export whose root isn't in the package's forest). Which foreign account or procedure is called isn't recoverable. `POST /compile` and `POST /verify` return it as `callsForeign`, keyed by export path, for every package kind; the registry doesn't store it. The Playground uses it to refuse simulating a procedure that makes a foreign call.
 
-It also names each exported procedure's parameters (see `source_parameters.rs`), which a manifest's signature types but doesn't name. The tool reads them from the project's MASM source, as the assembler parses it: `[{ "name": "amount", "type": "felt" }, …]`, as the source spells them. `POST /compile` and `POST /verify` return them as `parameters`, keyed by export path, for every package kind. An export is listed only when its procedure has as many named parameters as its signature, so the two pair by index; a source that can't be read leaves the key out. The registry stores them with each package, and the web-viewer writes each procedure's signature from them. Packages verified from Rust projects have theirs from the WIT `cargo-miden` embedded, kebab case.
+It also names each exported procedure's parameters (see `source_parameters.rs`), which a manifest's signature types but doesn't name. The tool reads them from the project's MASM source, as the assembler parses it: `[{ "name": "amount", "type": "felt" }, …]`, as the source spells them. `POST /compile` and `POST /verify` return them as `parameters`, keyed by export path, for every package kind. An export is listed only when its procedure has as many named parameters as its signature, so the two pair by index; a source that can't be read leaves the key out. The registry stores them with each package, and the web-viewer writes each procedure's signature from them.
 
 ### Storage schemas
 
-A MASM package has no storage schema and no note storage schema, so api-compile returns neither. The registry still holds the schemas it read from the Rust-built packages it stored before, and the web-viewer lists them on the account and note pages, until those packages are deleted (`spec/remove-rust`, plan 09).
+A MASM package has no storage schema and no note storage schema, so api-compile returns neither and the registry stores none. The `schemas` column of `packages` keeps a `{}` default until `spec/remove-rust` plan 10 drops it.
 
 ### Account procedures
 
@@ -240,7 +237,26 @@ curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
   https://miden-source-code-verification-api-registry.walnut.dev/admin/playground/cleanup
 ```
 
-It deletes their verified account components and notes, then the account codes left with no component and the packages nothing references any more. Last come those packages' `.masp` and `.debug.masp`, unless another package row has the same commitment. A package or account code that another source also verified stays. A playground record that another source verifies again becomes that source's, so it stays too. It answers with the counts: `{ verifiedAccountComponents, verifiedAccounts, verifiedNotes, packages, masps }`.
+It deletes their verified account components and notes, then the account codes left with no component and the packages nothing references any more. Last come those packages' `.masp` files. A package or account code that another source also verified stays. A playground record that another source verifies again becomes that source's, so it stays too. It answers with the counts: `{ verifiedAccountComponents, verifiedAccounts, verifiedNotes, packages, masps }`.
+
+### Deleting the Rust packages
+
+Rust projects are no longer verified (`spec/remove-rust`, decision 6), so the packages `cargo-miden` built are deleted, on every network: a package row whose `files` hold a `Cargo.toml` at its `entrypoint`, or that has no `entrypoint`. With it go every verified account with a component built from one (its MASM components too, as an account can't stay verified with part of its code), every verified note built from one, and the stored `.masp` and `.debug.masp` files. Those accounts and notes show as not verified afterwards. There is no undo short of a database restore.
+
+Two operator routes do it, with the same `ADMIN_TOKEN` as above: `GET /admin/rust-packages` is the dry run, which lists per network what would go and deletes nothing, and `POST /admin/rust-packages/delete` deletes the next batch (`{ "limit": 50 }` by default, at most 200) and answers how many are left. Each batch deletes its rows in one transaction and the files after, so no record points at a missing file. `scripts/delete-rust-packages.ts` drives them:
+
+```bash
+# Dry run: counts per network, accounts that also have a MASM component, and the
+# full listing in the report file.
+REGISTRY_URL=https://miden-source-code-verification-api-registry.walnut.dev ADMIN_TOKEN=… \
+  pnpm --filter miden-source-code-verification-api-registry exec node --conditions development --env-file-if-exists=.env scripts/delete-rust-packages.ts --report=rust-packages.json
+
+# The deletion, then a listing that must be empty (the script exits non-zero otherwise).
+REGISTRY_URL=https://miden-source-code-verification-api-registry.walnut.dev ADMIN_TOKEN=… \
+  pnpm --filter miden-source-code-verification-api-registry exec node --conditions development --env-file-if-exists=.env scripts/delete-rust-packages.ts --apply
+```
+
+Running it again is safe: it finds nothing. A run cut off between a batch's rows and its files leaves those files in the bucket with no row; the dry run's report lists every key.
 
 ### Front-end URLs on Cloudflare
 

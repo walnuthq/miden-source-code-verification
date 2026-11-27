@@ -1,15 +1,5 @@
-import {
-  type MaspVariant,
-  packageMaspPath,
-} from "miden-source-code-verification-utils/api-registry";
-import type {
-  NoteStorageField,
-  StorageSlotSchema,
-} from "miden-source-code-verification-utils/manifest";
-import {
-  cargoPackageName,
-  midenProjectLibrary,
-} from "miden-source-code-verification-utils/project";
+import { packageMaspPath } from "miden-source-code-verification-utils/api-registry";
+import { midenProjectLibrary } from "miden-source-code-verification-utils/project";
 
 import type { PackageDependency } from "@/lib/api-registry.server";
 import { PUBLIC_API_REGISTRY_URL } from "@/lib/constants";
@@ -23,18 +13,12 @@ export type SourceFile = { path: string; html: string };
 // renders: the displayed files, sorted by path, and the one opened first.
 // `rawFiles` is every file the registry kept for the package, including those
 // the explorer hides, for the Download Sources archive. The name, commitment,
-// procedures, storage schemas, dependencies, verification time and source
-// head the package's card.
+// procedures, dependencies, verification time and source head the package's
+// card.
 export type PackageSources = {
   name: string;
   commitment: string;
-  // Whether the registry holds a debug build of the package to download.
-  hasDebugBuild: boolean;
   procedures: PackageProcedure[];
-  // An account component's storage slots, and a note's storage fields (its
-  // inputs): empty when the package has none.
-  storageSlots: StorageSlotSchema[];
-  noteStorageFields: NoteStorageField[];
   dependencies: PackageDependency[];
   // When the package was verified against the resource, formatted in UTC.
   verifiedAt: string;
@@ -60,21 +44,18 @@ export function sourcesArchiveName({
   return `${networkId}-${id.slice(0, 10)}-${packageName}.zip`;
 }
 
-// Where the page downloads a package's compiled MASP, or its debug build:
-// straight from the registry, whose `Content-Disposition` names the file
-// (`maspDownloadName`, which the page shows next to the link, since a
-// cross-origin link's `download` attribute is ignored). `commitment` is the
-// release build's either way.
+// Where the page downloads a package's compiled MASP: straight from the
+// registry, whose `Content-Disposition` names the file (`maspDownloadName`,
+// which the page shows next to the link, since a cross-origin link's
+// `download` attribute is ignored).
 export function packageMaspUrl({
   networkId,
   commitment,
-  variant = "release",
 }: {
   networkId: string;
   commitment: string;
-  variant?: MaspVariant;
 }): string {
-  return `${PUBLIC_API_REGISTRY_URL}${packageMaspPath(networkId, commitment, variant)}`;
+  return `${PUBLIC_API_REGISTRY_URL}${packageMaspPath(networkId, commitment)}`;
 }
 
 // A file (no `children`) or folder in the Source Code explorer.
@@ -84,23 +65,15 @@ export type FileTreeNode = {
   children?: FileTreeNode[];
 };
 
-const CARGO_TOML = "Cargo.toml";
 const MIDEN_PROJECT_TOML = "miden-project.toml";
-const MANIFESTS = [CARGO_TOML, MIDEN_PROJECT_TOML];
 
-// The files a package's Source Code section shows: its manifests, the MASM
-// modules, and the Rust sources under a `src/` dir. Paths can be prefixed by a
-// project dir when the upload held local dependencies too
-// (`counter-note/src/lib.rs`, `counter-note/counter_note.masm`), so all are
-// matched at any depth. The rest of what the verifier kept (lockfiles, build
-// scripts, toolchain and Cargo config) is dropped.
+// The files a package's Source Code section shows: its manifests and its MASM
+// modules. Paths can be prefixed by a project dir when the upload held local
+// dependencies too (`counter-note/counter_note.masm`), so all are matched at
+// any depth.
 export function isDisplayedSourceFile(path: string): boolean {
-  const parts = path.split("/");
-  const name = parts[parts.length - 1];
-  if (MANIFESTS.includes(name) || name.endsWith(".masm")) {
-    return true;
-  }
-  return name.endsWith(".rs") && parts.slice(0, -1).includes("src");
+  const name = path.slice(path.lastIndexOf("/") + 1);
+  return name === MIDEN_PROJECT_TOML || name.endsWith(".masm");
 }
 
 export function filterSourceFiles(files: Record<string, string>): Record<string, string> {
@@ -131,41 +104,23 @@ const isManifest = (path: string, manifest: string) =>
   path === manifest || path.endsWith(`/${manifest}`);
 
 // The file a package's viewer opens first: the root module of the project the
-// package was built from, i.e. the one whose manifest carries the package's
-// name, since an upload can also hold the project's local dependencies. For a
-// Rust project that's the `src/lib.rs` next to its `Cargo.toml`; for a MASM
-// project, a `miden-project.toml` with no `Cargo.toml` beside it, the module
-// its `[lib] path` names. Falls back to any `src/lib.rs`, then to the first
-// MASM module, then to the first file.
+// package was built from, i.e. the module named by the `[lib] path` of the
+// `miden-project.toml` that carries the package's name, since an upload can
+// also hold the project's local dependencies. Falls back to the first MASM
+// module, then to the first file.
 export function findEntryFile(files: Record<string, string>, packageName: string): string | null {
   const paths = Object.keys(files).sort();
   for (const path of paths) {
-    if (isManifest(path, CARGO_TOML)) {
-      const libPath = `${directoryOf(path, CARGO_TOML)}src/lib.rs`;
-      // A manifest that doesn't parse, or has no [package], can't be the
-      // entry. Both names come from a manifest, so they match exactly or not
-      // at all.
-      if (libPath in files && cargoPackageName(files[path] ?? "") === packageName) {
-        return libPath;
-      }
-    } else if (isManifest(path, MIDEN_PROJECT_TOML)) {
-      const dir = directoryOf(path, MIDEN_PROJECT_TOML);
-      if (`${dir}${CARGO_TOML}` in files) {
-        continue;
-      }
+    if (isManifest(path, MIDEN_PROJECT_TOML)) {
       const library = midenProjectLibrary(files[path] ?? "");
-      const libPath = library?.libPath && resolvePath(dir, library.libPath);
+      const libPath =
+        library?.libPath && resolvePath(directoryOf(path, MIDEN_PROJECT_TOML), library.libPath);
       if (library?.name === packageName && libPath && libPath in files) {
         return libPath;
       }
     }
   }
-  return (
-    paths.find((path) => path === "src/lib.rs" || path.endsWith("/src/lib.rs")) ??
-    paths.find((path) => path.endsWith(".masm")) ??
-    paths[0] ??
-    null
-  );
+  return paths.find((path) => path.endsWith(".masm")) ?? paths[0] ?? null;
 }
 
 // Folders first, then files, each alphabetically, as VS Code's explorer does.

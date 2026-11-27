@@ -227,67 +227,8 @@ export type ProcedureParameters = Record<string, ProcedureParameter[]>;
 // another kind of package) alike: no constraint.
 export type AccountProcedures = string[] | null;
 
-// An account component's storage slots, from the account component metadata
-// the toolchain embeds in its package (`schemas.rs` in
-// `miden-package-metadata`), in the metadata's order. Types are the schema's
-// names: `word` and `felt`, or a named type such as
-// `miden::standards::auth::pub_key`.
-export type StorageSchema = { slots: StorageSlotSchema[] };
-
-export type StorageSlotSchema = {
-  // The slot's full name, e.g. `counter_contract::counter_contract::count_map`.
-  name: string;
-  description?: string;
-} & (
-  | {
-      type: "value";
-      valueType: string;
-      // The slot's default word (32-byte hex), when the schema gives one. A
-      // composite slot (one schema per felt) is reported as a `word` with
-      // neither its felts' types nor its default.
-      defaultValue?: string;
-    }
-  // A map's default entries aren't reported.
-  | { type: "map"; keyType: string; valueType: string }
-);
-
-// A note's storage, its inputs: the fields of the record the toolchain embeds
-// as the note's storage schema (WIT, in the `note_storage_schema` section), in
-// declaration order, which is the order their felts take in the note's
-// storage.
-export type NoteStorageSchema = {
-  // The record's WIT name, e.g. `p2id-note` (`storage` if it had none, which
-  // WIT doesn't allow).
-  name: string;
-  fields: NoteStorageField[];
-};
-
-export type NoteStorageField = {
-  // The field's WIT name, in kebab case, e.g. `target-account-id`.
-  name: string;
-  // Its WIT type name: `felt`, `word`, `account-id`, `asset-amount`, `u64`,
-  // `u32`, `u8`, `bool`, or a record the note defines. A structural kind
-  // (`option`, `variant`, `record`) when the type has no name.
-  type: string;
-  // The felts it takes in the note's storage. Absent when that varies (an
-  // `option`, or a `variant` whose cases differ in width). A record the note
-  // defines comes with its width only, not its own fields.
-  width?: number;
-  description?: string;
-};
-
-// The storage schemas a package carries, as the registry stores them: an
-// account component's `storage`, a note's `noteStorage`. A key is absent when
-// the package has no such schema, or when it couldn't be read.
-export type PackageSchemas = {
-  storage?: StorageSchema;
-  noteStorage?: NoteStorageSchema;
-};
-
 // The paths of the procedures a manifest exports, e.g.
-// `miden:counter-contract/counter-contract@0.1.0#increment-count`. A release
-// and a debug build of the same source export the same paths under different
-// digests, which is how the simulator pairs them.
+// `::counter_contract::increment_count`.
 export const procedureExportPaths = (manifest: Manifest) =>
   manifest.exports.flatMap((packageExport) =>
     "Procedure" in packageExport ? [packageExport.Procedure.path] : [],

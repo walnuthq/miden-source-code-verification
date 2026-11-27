@@ -50,10 +50,7 @@ export function PackageSection({
           networkId={networkId}
           name={pkg.name}
           commitment={pkg.commitment}
-          hasDebugBuild={pkg.hasDebugBuild}
           procedures={pkg.procedures}
-          storageSlots={pkg.storageSlots}
-          noteStorageFields={pkg.noteStorageFields}
           dependencies={pkg.dependencies}
           verifiedAt={pkg.verifiedAt}
           source={pkg.source}

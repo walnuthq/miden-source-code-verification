@@ -94,7 +94,7 @@ describe("verifyResource", () => {
     }
   };
 
-  it("stores an account's release build, with no debug build", async () => {
+  it("stores an account's package", async () => {
     const root = `0x${"01".repeat(32)}`;
     const apiCompile = fakeApiCompile({
       verify: vi.fn(async () => ({ ...built(), root })),
@@ -110,11 +110,8 @@ describe("verifyResource", () => {
     expect(await getPackage(COMMITMENT)).toMatchObject({
       entrypoint: ".",
       builtWith: "miden-assembly 0.36.5",
-      debugCommitment: null,
-      debugBuiltWith: null,
     });
     expect(Buffer.from((await maspStore.get(COMMITMENT)) ?? []).toString()).toBe("release");
-    expect(await maspStore.get(COMMITMENT, "debug")).toBeNull();
   });
 
   it("records a note", async () => {
@@ -138,7 +135,7 @@ describe("verifyResource", () => {
       {
         packageCommitment: COMMITMENT,
         source: "unknown",
-        package: { type: "note", debugCommitment: null },
+        package: { type: "note" },
       },
     );
     expect(Buffer.from((await maspStore.get(COMMITMENT)) ?? []).toString()).toBe("release");
@@ -429,7 +426,7 @@ describe("verifyResource", () => {
   });
 
   describe("storage schemas", () => {
-    it("stores `{}`: a package has none", async () => {
+    it("leaves the column to its `{}` default", async () => {
       await verifyBuilt(ACCOUNT, built(), `0x${"42".repeat(32)}`);
       expect(await getPackage(COMMITMENT)).toHaveProperty("schemas", {});
     });
@@ -493,9 +490,6 @@ describe("verifyResource", () => {
         files: masmFiles,
         entrypoint: ".",
         builtWith: "miden-assembly 0.36.5, miden-protocol 0.18.0",
-        debugCommitment: null,
-        debugBuiltWith: null,
-        schemas: {},
         parameters: answer.parameters,
         readOnly: answer.readOnly,
       });
@@ -507,9 +501,11 @@ describe("verifyResource", () => {
         kind: "account",
         root,
       });
-      expect(record.verifiedAccountComponents[0]).toHaveProperty("debugPackage", {
+      expect(record.verifiedAccountComponents[0]?.package).toMatchObject({
         commitment: MASM_COMMITMENT,
       });
+      expect(record.verifiedAccountComponents[0]).not.toHaveProperty("debugPackage");
+      expect(record.verifiedAccountComponents[0]?.package).not.toHaveProperty("schemas");
     });
   });
 });

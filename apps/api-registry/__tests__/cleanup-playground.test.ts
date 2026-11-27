@@ -32,14 +32,11 @@ const firstId = ([row]: { id: string }[]) => {
 
 const insertPackage = async (maspStore: MaspStore, commitment: string) => {
   await maspStore.put(commitment, Buffer.from("release"));
-  await maspStore.put(commitment, Buffer.from("debug"), "debug");
   const rows = await db
     .insert(packagesTable)
     .values({
       commitment,
-      debugCommitment: hex("ff"),
       readOnly: {},
-      schemas: {},
       parameters: {},
     })
     .returning({ id: packagesTable.id });
@@ -129,7 +126,6 @@ describe("cleanupPlaygroundResources", () => {
     });
     for (const commitment of [hex("a1"), hex("a2")]) {
       expect(await maspStore.get(commitment)).toBeNull();
-      expect(await maspStore.get(commitment, "debug")).toBeNull();
     }
   });
 

@@ -1,14 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  cargoPackageName,
+  isStoredRustProject,
   midenProjectLibrary,
   openProject,
   RUST_PROJECT_ERROR,
-  storedProjectKind,
 } from "../src/project.ts";
-
-const cargoToml = (name: string) => `[package]\nname = "${name}"\n`;
 
 const midenProjectToml = (name: string) => `[package]\nname = "${name}"\nversion = "0.1.0"\n`;
 
@@ -128,7 +125,7 @@ describe("openProject", () => {
       openProject({ ...masmProject, "increment-note/Cargo.toml": "" }, "increment-note"),
     ).toEqual({ error: RUST_PROJECT_ERROR });
     expect(RUST_PROJECT_ERROR).toBe(
-      "Rust projects are no longer supported: Miden projects are written in MASM (`miden-project.toml`)",
+      "Rust projects are no longer verified. Miden projects are written in MASM: upload a `miden-project.toml` project. If you use the `miden verify` CLI, upgrade to 0.8.0 or later.",
     );
   });
 
@@ -174,17 +171,6 @@ describe("openProject", () => {
   });
 });
 
-describe("cargoPackageName", () => {
-  it("reads the [package] name", () => {
-    expect(cargoPackageName(cargoToml("counter-contract"))).toBe("counter-contract");
-  });
-
-  it("is undefined for a workspace root or a file that doesn't parse", () => {
-    expect(cargoPackageName("[workspace]\nmembers = []\n")).toBeUndefined();
-    expect(cargoPackageName("not = [toml")).toBeUndefined();
-  });
-});
-
 describe("midenProjectLibrary", () => {
   it("reads the [package] name and the [lib] path", () => {
     expect(
@@ -210,25 +196,26 @@ describe("midenProjectLibrary", () => {
   });
 });
 
-describe("storedProjectKind", () => {
-  it("is rust with a Cargo.toml at the entrypoint", () => {
+describe("isStoredRustProject", () => {
+  it("is true with a Cargo.toml at the entrypoint", () => {
     const files = {
       "counter-note/Cargo.toml": "",
       "counter-note/miden-project.toml": "",
     };
-    expect(storedProjectKind(files, "counter-note")).toBe("rust");
+    expect(isStoredRustProject(files, "counter-note")).toBe(true);
+    expect(isStoredRustProject({ "Cargo.toml": "" }, ".")).toBe(true);
   });
 
-  it("is masm with no Cargo.toml at the entrypoint", () => {
+  it("is false with no Cargo.toml at the entrypoint", () => {
     const files = {
       "Cargo.toml": "",
       "counter-note/miden-project.toml": "",
     };
-    expect(storedProjectKind(files, "counter-note")).toBe("masm");
-    expect(storedProjectKind({ "miden-project.toml": "" }, ".")).toBe("masm");
+    expect(isStoredRustProject(files, "counter-note")).toBe(false);
+    expect(isStoredRustProject({ "miden-project.toml": "" }, ".")).toBe(false);
   });
 
-  it("is rust for a project stored without its entrypoint", () => {
-    expect(storedProjectKind({ "miden-project.toml": "" }, null)).toBe("rust");
+  it("is true for a project stored without its entrypoint", () => {
+    expect(isStoredRustProject({ "miden-project.toml": "" }, null)).toBe(true);
   });
 });

@@ -99,11 +99,10 @@ export const cleanupPlaygroundResources = async ({
   });
 
   // Artifacts are keyed by commitment, one row per commitment, so a deleted
-  // row's artifacts go with it. Deleted after the rows, so a row never
+  // row's artifact goes with it. Deleted after the rows, so a row never
   // outlives its artifact.
   for (const { commitment } of deleted.packages) {
-    await maspStore.delete(commitment, "release");
-    await maspStore.delete(commitment, "debug");
+    await maspStore.delete(commitment);
   }
 
   return {

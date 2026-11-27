@@ -2,12 +2,18 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { Request } from "express";
-import { type MaspVariant, maspKey } from "miden-source-code-verification-utils/api-registry";
+import { maspKey } from "miden-source-code-verification-utils/api-registry";
 
 // The artifact's key is the registry's wire too (the file name it is served
 // at), so it lives in `miden-source-code-verification-utils/api-registry`;
-// re-exported here with the variant for the stores that file artifacts by it.
-export { type MaspVariant, maspKey };
+// re-exported here for the stores that file artifacts by it.
+export { maspKey };
+
+// Where a Rust package's debug build was stored, next to its artifact, before
+// debug builds were retired. The registry no longer serves them; `delete`
+// removes one with its package. Goes with the Rust packages
+// (`spec/remove-rust`, plan 10).
+export const debugMaspKey = (commitment: string) => `${commitment.toLowerCase()}.debug.masp`;
 
 /**
  * Object storage for compiled packages (`.masp`), keyed by package commitment.
@@ -16,22 +22,25 @@ export { type MaspVariant, maspKey };
  * backend (a local directory on Node, an R2 bucket on Cloudflare Workers).
  */
 export type MaspStore = {
-  put(commitment: string, masp: Uint8Array, variant?: MaspVariant): Promise<void>;
+  put(commitment: string, masp: Uint8Array): Promise<void>;
   /** `null` when no artifact is stored for `commitment`. */
-  get(commitment: string, variant?: MaspVariant): Promise<Uint8Array | null>;
-  /** Removes the artifact, if one is stored. */
-  delete(commitment: string, variant?: MaspVariant): Promise<void>;
+  get(commitment: string): Promise<Uint8Array | null>;
+  /**
+   * Removes the artifact, and the debug build stored next to it before debug
+   * builds were retired, if either is stored.
+   */
+  delete(commitment: string): Promise<void>;
 };
 
 /** A {@link MaspStore} backed by a local directory, created on first write. */
 export const createFsMaspStore = (dir: string): MaspStore => ({
-  async put(commitment, masp, variant) {
+  async put(commitment, masp) {
     await mkdir(dir, { recursive: true });
-    await writeFile(join(dir, maspKey(commitment, variant)), masp);
+    await writeFile(join(dir, maspKey(commitment)), masp);
   },
-  async get(commitment, variant) {
+  async get(commitment) {
     try {
-      return await readFile(join(dir, maspKey(commitment, variant)));
+      return await readFile(join(dir, maspKey(commitment)));
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {
         return null;
@@ -39,8 +48,9 @@ export const createFsMaspStore = (dir: string): MaspStore => ({
       throw error;
     }
   },
-  async delete(commitment, variant) {
-    await rm(join(dir, maspKey(commitment, variant)), { force: true });
+  async delete(commitment) {
+    await rm(join(dir, maspKey(commitment)), { force: true });
+    await rm(join(dir, debugMaspKey(commitment)), { force: true });
   },
 });
 

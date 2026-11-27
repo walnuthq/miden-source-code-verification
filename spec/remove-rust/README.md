@@ -77,7 +77,7 @@ Run on 2026-11-24. Its code was in `spike/masm-assembly` (untracked, removed by 
 
 Plan 03 implemented it, the Playground's plans read it, and since plan 08 it is the only format. Change it only by changing this section in the same PR.
 
-A project is a files map plus an entrypoint, with a `miden-project.toml` there. A project with a `Cargo.toml` at the entrypoint is a Rust project: since plan 08 `POST /compile` and `POST /verify` refuse it with a `400`, ``{ "error": "Rust projects are no longer supported: Miden projects are written in MASM (`miden-project.toml`)" }``. Until plan 08 both paths lived in api-compile, and a Rust project's answer had `storage`, `noteStorage`, `masm`, `cargoMidenVersion` and the lockfile in `files`.
+A project is a files map plus an entrypoint, with a `miden-project.toml` there. A project with a `Cargo.toml` at the entrypoint is a Rust project: since plan 08 `POST /compile` and `POST /verify` refuse it with a `400`, and since plan 09 with the message the registry answers too, written for the released CLI's users: ``{ "error": "Rust projects are no longer verified. Miden projects are written in MASM: upload a `miden-project.toml` project. If you use the `miden verify` CLI, upgrade to 0.8.0 or later." }``. Until plan 08 both paths lived in api-compile, and a Rust project's answer had `storage`, `noteStorage`, `masm`, `cargoMidenVersion` and the lockfile in `files`.
 
 `POST /compile` answers `CompileResponse` (`packages/utils/src/api-compile.ts`):
 

@@ -140,7 +140,7 @@ describe("GET /:networkId/verified-notes/:noteId", () => {
     expect(Object.keys(res2.body.package.readOnly).sort()).toEqual(
       procedureExportPaths(res2.body.package.manifest).sort(),
     );
-    expect(res2.body.package).toHaveProperty("schemas", {});
+    expect(res2.body.package).not.toHaveProperty("schemas");
     expect(res2.body.package.parameters).toEqual({ "::counter_note::main": [] });
 
     const res3 = await apiV1

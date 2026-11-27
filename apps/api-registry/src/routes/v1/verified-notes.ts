@@ -79,7 +79,7 @@ type VerifyNoteRequestBody = {
  *           or `files`; a file path that isn't project-relative (`..`, a
  *           leading `/`), or a file whose content isn't a string; an
  *           `entrypoint` that isn't a relative directory; a `Cargo.toml` at the
- *           entrypoint (a Rust project, no longer supported); no
+ *           entrypoint (a Rust project, no longer verified); no
  *           `miden-project.toml` there, or one that isn't valid TOML or has
  *           no `[package]` (a workspace root). Also a
  *           project the compilation service couldn't build, or a note it

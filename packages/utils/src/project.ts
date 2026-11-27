@@ -4,9 +4,9 @@ import { parse } from "smol-toml";
 // one package. Keys are project-relative paths. A project is a MASM project: a
 // `miden-project.toml` with a `[package]` at its entrypoint, which the
 // assembler builds. A `Cargo.toml` at the entrypoint marks a Rust project,
-// which is no longer built. This module is the only reader of `Cargo.toml` and
-// `miden-project.toml` in the repo, and the one place that says why a
-// submitted files map isn't a project.
+// which is refused. This module is the only reader of `miden-project.toml` in
+// the repo, and the one place that says why a submitted files map isn't a
+// project.
 export type Project = {
   files: Record<string, string>;
   // `.` for the root, otherwise a relative directory with no leading `./` and
@@ -16,14 +16,11 @@ export type Project = {
   name: string;
 };
 
-// What built a project the registry stored: cargo-miden, or the MASM
-// assembler. The registry still holds Rust projects verified before cargo left
-// api-compile (`spec/remove-rust`, plan 09).
-export type ProjectKind = "rust" | "masm";
-
-// Why a project with a `Cargo.toml` at its entrypoint is refused.
+// Why a project with a `Cargo.toml` at its entrypoint is refused. The released
+// `miden verify` CLI uploads Rust projects and prints the registry's answer as
+// is, so the message is written for its users too.
 export const RUST_PROJECT_ERROR =
-  "Rust projects are no longer supported: Miden projects are written in MASM (`miden-project.toml`)";
+  "Rust projects are no longer verified. Miden projects are written in MASM: upload a `miden-project.toml` project. If you use the `miden verify` CLI, upgrade to 0.8.0 or later.";
 
 // `error` is the reason a files map isn't a project, worded for the client:
 // the routes answer it as a 400 as is.
@@ -102,9 +99,9 @@ const normalizeEntrypoint = (value: unknown): string | null => {
 const projectPath = (entrypoint: string, file: string) =>
   entrypoint === "." ? file : `${entrypoint}/${file}`;
 
-// The `[package] name` of a TOML manifest, `Cargo.toml` or
-// `miden-project.toml`, or why there is none: the file isn't TOML, or it has
-// no `[package]` (a workspace root only lists members).
+// The `[package] name` of a `miden-project.toml`, or why there is none: the
+// file isn't TOML, or it has no `[package]` (a workspace root only lists
+// members).
 const readPackageName = (
   manifest: string,
 ): { name: string } | { error: "invalid toml" | "no package" } => {
@@ -125,13 +122,6 @@ const readPackageName = (
 // The reason a manifest at `path` names no package, worded for the client.
 const packageError = (path: string, error: "invalid toml" | "no package") =>
   error === "invalid toml" ? `${path} is not valid TOML` : `${path} has no [package]`;
-
-// The `[package] name` of a Cargo.toml, undefined when it has none or doesn't
-// parse. For callers that read the Rust projects the registry stored.
-export const cargoPackageName = (cargoToml: string) => {
-  const cargoPackage = readPackageName(cargoToml);
-  return "name" in cargoPackage ? cargoPackage.name : undefined;
-};
 
 // The `[package] name` and `[lib] path` of a `miden-project.toml`: the
 // package and the module its library target is built from, relative to the
@@ -198,13 +188,10 @@ export const openProject = (files: unknown, entrypoint?: unknown): ProjectResult
   return { project: { files: projectFiles, entrypoint: dir, name: masmPackage.name } };
 };
 
-// The kind of a project the registry stored: Rust when its `files` hold a
-// `Cargo.toml` at its entrypoint, MASM otherwise. A project stored before its
-// entrypoint was recorded (`null`) is a Rust one: MASM projects came later.
-export const storedProjectKind = (
-  files: Record<string, string>,
-  entrypoint: string | null,
-): ProjectKind =>
-  entrypoint === null || Object.hasOwn(files, projectPath(entrypoint, CARGO_TOML))
-    ? "rust"
-    : "masm";
+// Whether a project the registry stored is a Rust one, built by cargo-miden
+// before cargo left api-compile: its `files` hold a `Cargo.toml` at its
+// entrypoint. A project stored before its entrypoint was recorded (`null`) is
+// one too: MASM projects came later. The registry's deletion of Rust-built
+// packages selects the same rows in SQL (`rustPackageCondition`).
+export const isStoredRustProject = (files: Record<string, string>, entrypoint: string | null) =>
+  entrypoint === null || Object.hasOwn(files, projectPath(entrypoint, CARGO_TOML));
