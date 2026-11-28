@@ -275,7 +275,9 @@ router.get("/:networkId/verified-accounts/code/:code", async (req, res) => {
  *       "404":
  *         description: >
  *           No verified account found for the given parameters, or no account
- *           with this id on `networkId`.
+ *           with this id on `networkId`. An account whose every procedure
+ *           belongs to a standard component is never verified: its 404 names
+ *           the components in `standardAccountComponents`.
  *         content:
  *           application/json:
  *             schema:
@@ -283,6 +285,14 @@ router.get("/:networkId/verified-accounts/code/:code", async (req, res) => {
  *               properties:
  *                 error:
  *                   type: string
+ *                 standardAccountComponents:
+ *                   type: array
+ *                   description: >
+ *                     The standard components (e.g. `BasicWallet`,
+ *                     `AuthSingleSig`) the account is made of, when it is
+ *                     made of standard components alone.
+ *                   items:
+ *                     type: string
  *       "500":
  *         description: Retrieval failed.
  *         content:

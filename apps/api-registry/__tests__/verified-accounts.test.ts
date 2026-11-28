@@ -298,8 +298,44 @@ describe("GET /:networkId/verified-accounts/:accountId with a faked import", () 
     const app = appWhoseImport(async () => ({
       type: "note",
       code: ACCOUNT_CODE,
+      standardNote: null,
     }));
     const res = await app.get(`/v1/${networkId}/verified-accounts/${COUNTER_NOTE_ID}`);
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "verified account not found" });
+  });
+
+  // A code root no record carries, and procedure roots, made up.
+  const unverifiedCode = `0x${"ab".repeat(32)}`;
+  const procedure = (byte: string) => `0x${byte.repeat(32)}`;
+
+  it("names the standard components of an account made of them alone", async () => {
+    // Standard code is never verified, which the 404 says.
+    const app = appWhoseImport(async () => ({
+      type: "account",
+      code: unverifiedCode,
+      standardAccountComponents: [
+        { name: "BasicWallet", procedures: [procedure("01"), procedure("02")] },
+        { name: "AuthNoAuth", procedures: [procedure("03")] },
+      ],
+      procedures: [procedure("01"), procedure("02"), procedure("03")],
+    }));
+    const res = await app.get(`/v1/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID}`);
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({
+      error: "verified account not found",
+      standardAccountComponents: ["BasicWallet", "AuthNoAuth"],
+    });
+  });
+
+  it("names no component of an unverified account with custom code", async () => {
+    const app = appWhoseImport(async () => ({
+      type: "account",
+      code: unverifiedCode,
+      standardAccountComponents: [{ name: "AuthNoAuth", procedures: [procedure("03")] }],
+      procedures: [procedure("03"), procedure("04")],
+    }));
+    const res = await app.get(`/v1/${networkId}/verified-accounts/${COUNTER_CONTRACT_ID}`);
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: "verified account not found" });
   });

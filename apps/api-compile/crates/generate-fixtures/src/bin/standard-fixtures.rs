@@ -274,6 +274,19 @@ fn render(
             BASE64_STANDARD.encode(note.to_bytes()),
         );
     }
+    out.push_str("};\n\n");
+    out.push_str(
+        "// Each standard component's procedure roots, keyed by the name miden-import\n\
+         // reports it under (`standard_components::STANDARD_COMPONENTS`).\n",
+    );
+    out.push_str("export const standardComponentProcedures: Record<string, string[]> = {\n");
+    for (name, code) in STANDARD_COMPONENTS {
+        let roots: Vec<_> = code()
+            .procedure_roots()
+            .map(|root| format!("    \"{}\",", root.mast_root().to_hex()))
+            .collect();
+        let _ = writeln!(out, "  {name}: [\n{}\n  ],", roots.join("\n"));
+    }
     out.push_str("};\n");
     out
 }

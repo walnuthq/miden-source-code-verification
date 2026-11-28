@@ -11,6 +11,7 @@ use miden_client::{
     rpc::{Endpoint, GrpcClient},
 };
 use miden_client_sqlite_store::ClientBuilderSqliteExt;
+use miden_standards::note::StandardNote;
 use serde_json::{Value, json};
 use standard_components::{StandardComponent, classify};
 use std::fmt;
@@ -234,8 +235,12 @@ async fn run() -> Result<()> {
                 .get_input_note(note_id)
                 .await?
                 .ok_or_else(|| anyhow!("note '{}' not found", args.resource_id))?;
-            let code = note_record.details().script().root().to_hex();
-            json!({ "type": "note", "code": code })
+            let script = note_record.details().script();
+            let code = script.root().to_hex();
+            // A standard note is never verified: the name tells the web-viewer
+            // to say so rather than offer to verify it.
+            let standard_note = StandardNote::from_script(script).map(|note| note.name());
+            json!({ "type": "note", "code": code, "standardNote": standard_note })
         }
     };
 

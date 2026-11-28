@@ -91,7 +91,7 @@ export type StandardAccountComponent = { name: string; procedures: string[] };
 // account code root or a note script root, which the registry keys its records
 // on. An account also comes back with its standard components and every
 // procedure root in its code, which the id-keyed account lookup forwards as
-// is.
+// is; a note with the name of the standard note it is (`P2ID`, …), or null.
 export type ImportedResource =
   | {
       type: "account";
@@ -99,4 +99,4 @@ export type ImportedResource =
       standardAccountComponents: StandardAccountComponent[];
       procedures: string[];
     }
-  | { type: "note"; code: string };
+  | { type: "note"; code: string; standardNote: string | null };

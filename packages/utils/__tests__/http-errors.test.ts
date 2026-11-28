@@ -17,6 +17,12 @@ app.get("/busy", () => {
 app.get("/rejected", async () => {
   throw new HttpError(400, "invalid code");
 });
+app.get("/detailed", async () => {
+  // A detail can't take the place of the message.
+  throw new HttpError(404, "verified note not found", {
+    details: { standardNote: "P2ID", error: "shadowed" },
+  });
+});
 app.get("/failed", async () => {
   throw new Error("db down");
 });
@@ -82,6 +88,16 @@ describe("errorHandler", () => {
     expect(res.status).toBe(400);
     await expect(res.json()).resolves.toEqual({ error: "invalid code" });
     expect(error).not.toHaveBeenCalled();
+  });
+
+  it("answers an HttpError's details next to its message", async () => {
+    const res = await fetch(`${url}/detailed`);
+
+    expect(res.status).toBe(404);
+    await expect(res.json()).resolves.toEqual({
+      error: "verified note not found",
+      standardNote: "P2ID",
+    });
   });
 
   it("answers 500 with the message of an error without a status, and logs it", async () => {

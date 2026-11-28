@@ -272,7 +272,8 @@ router.get("/:networkId/verified-notes/script/:script", async (req, res) => {
  *       "404":
  *         description: >
  *           No verified note found for the given parameters, or no note
- *           with this id on `networkId`.
+ *           with this id on `networkId`. A standard note is never verified:
+ *           its 404 names it in `standardNote`.
  *         content:
  *           application/json:
  *             schema:
@@ -280,6 +281,11 @@ router.get("/:networkId/verified-notes/script/:script", async (req, res) => {
  *               properties:
  *                 error:
  *                   type: string
+ *                 standardNote:
+ *                   type: string
+ *                   description: >
+ *                     The standard note (e.g. `P2ID`) the note is, when it is
+ *                     one.
  *       "500":
  *         description: Retrieval failed.
  *         content:

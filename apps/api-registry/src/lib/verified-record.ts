@@ -1,5 +1,7 @@
+import type { ImportedResource } from "miden-source-code-verification-utils/api-compile";
 import type {
   Package,
+  StandardResource,
   VerifiedAccount,
   VerifiedAccountById,
   VerifiedAccountComponent,
@@ -21,8 +23,47 @@ import type { Resource } from "./verify-resource.ts";
 // The kind of a resource, which picks the table its verified record is in.
 type Kind = Resource["kind"];
 
-const notFound = (kind: Kind) =>
-  new HttpError(404, kind === "account" ? "verified account not found" : "verified note not found");
+const notFound = (kind: Kind, details?: StandardResource) =>
+  new HttpError(
+    404,
+    kind === "account" ? "verified account not found" : "verified note not found",
+    {
+      details,
+    },
+  );
+
+// What the import says of a resource that is standard code, which is never
+// verified: an account whose every procedure belongs to a standard component,
+// with the components' names, or a standard note, with its name. Undefined for
+// any other resource.
+const standardResource = (imported: ImportedResource): StandardResource | undefined => {
+  if (imported.type === "note") {
+    return imported.standardNote === null ? undefined : { standardNote: imported.standardNote };
+  }
+  const claimed = new Set(
+    imported.standardAccountComponents.flatMap(({ procedures }) => procedures),
+  );
+  const standardOnly =
+    imported.procedures.length > 0 &&
+    imported.procedures.every((procedure) => claimed.has(procedure));
+  return standardOnly
+    ? { standardAccountComponents: imported.standardAccountComponents.map(({ name }) => name) }
+    : undefined;
+};
+
+// The record keyed on `root`, or, when there is none, the 404 that says
+// whether the resource is standard code.
+const recordOrStandardNotFound = <T>(
+  kind: Kind,
+  imported: ImportedResource,
+  record: Promise<T>,
+): Promise<T> =>
+  record.catch((error: unknown) => {
+    if (error instanceof HttpError && error.status === 404) {
+      throw notFound(kind, standardResource(imported));
+    }
+    throw error;
+  });
 
 // The rows a lookup reads, with the relations it loads.
 type PackageRow = typeof packagesTable.$inferSelect;
@@ -147,7 +188,8 @@ export function findVerifiedRecordByRoot({
  * import found in its code. Throws a 404 `HttpError` when api-compile finds no
  * such resource on the network, when the id is a resource of the other kind,
  * or when its root has no record: the registry has nothing for the id either
- * way. Any other failure of the import passes through, as it says nothing
+ * way. A root with no record that is standard code, which is never verified,
+ * gets a 404 that says so (`StandardResource`). Any other failure of the import passes through, as it says nothing
  * about the registry.
  */
 export function findVerifiedRecord(input: {
@@ -183,11 +225,11 @@ export async function findVerifiedRecord({
   if (resource.kind === "account" && imported.type === "account") {
     const { code, standardAccountComponents, procedures } = imported;
     return {
-      ...(await findVerifiedRecordByRoot({
-        networkId,
-        kind: "account",
-        root: code,
-      })),
+      ...(await recordOrStandardNotFound(
+        "account",
+        imported,
+        findVerifiedRecordByRoot({ networkId, kind: "account", root: code }),
+      )),
       accountId: resource.accountId,
       standardAccountComponents,
       procedures,
@@ -195,11 +237,11 @@ export async function findVerifiedRecord({
   }
   if (resource.kind === "note" && imported.type === "note") {
     return {
-      ...(await findVerifiedRecordByRoot({
-        networkId,
-        kind: "note",
-        root: imported.code,
-      })),
+      ...(await recordOrStandardNotFound(
+        "note",
+        imported,
+        findVerifiedRecordByRoot({ networkId, kind: "note", root: imported.code }),
+      )),
       noteId: resource.noteId,
     };
   }
