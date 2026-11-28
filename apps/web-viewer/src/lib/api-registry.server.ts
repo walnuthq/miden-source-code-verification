@@ -1,4 +1,5 @@
 import type {
+  StandardResource,
   VerifiedAccountById,
   VerifiedNoteById,
 } from "miden-source-code-verification-utils/api-registry";
@@ -49,13 +50,33 @@ const unavailable = (status: number) =>
 const unavailableAfter = (error: unknown) =>
   unavailable(error instanceof Error && error.name === "TimeoutError" ? 504 : 502);
 
-// `null` when the registry answers 404: it has no verified record for the
-// resource, which includes ids that don't resolve on-chain. A 502–504 means it
-// couldn't look the resource up (its compiler, or the node, failed), which the
-// error page reports as temporary rather than as an unexpected error. A
-// registry that can't be reached, takes too long or answers something that
-// isn't JSON is reported the same way.
-async function getVerifiedResource<T>(path: string): Promise<T | null> {
+// What the registry answers for a resource: its verified record, or, when it
+// answers 404, that it has none, which includes ids that don't resolve
+// on-chain, and whether the resource is standard code, which is never verified.
+export type Lookup<T> = { record: T } | { record: null; standard: StandardResource | null };
+
+// What a 404's body says of standard code, when it says anything the page can
+// show.
+const standardOf = (body: unknown): StandardResource | null => {
+  if (typeof body !== "object" || body === null) {
+    return null;
+  }
+  const { standardAccountComponents, standardNote } = body as Record<string, unknown>;
+  if (
+    Array.isArray(standardAccountComponents) &&
+    standardAccountComponents.every((name) => typeof name === "string")
+  ) {
+    return { standardAccountComponents };
+  }
+  return typeof standardNote === "string" ? { standardNote } : null;
+};
+
+// The registry's answer for `path`, as a `Lookup`. A 502–504 means it couldn't
+// look the resource up (its compiler, or the node, failed), which the error
+// page reports as temporary rather than as an unexpected error. A registry
+// that can't be reached, takes too long or answers something that isn't JSON
+// is reported the same way.
+async function getVerifiedResource<T>(path: string): Promise<Lookup<T>> {
   let response: Response;
   try {
     response = await fetch(`${API_REGISTRY_URL}${path}`, {
@@ -65,7 +86,9 @@ async function getVerifiedResource<T>(path: string): Promise<T | null> {
     throw unavailableAfter(error);
   }
   if (response.status === 404) {
-    return null;
+    // An unreadable body only loses what it would have said.
+    const body: unknown = await response.json().catch(() => null);
+    return { record: null, standard: standardOf(body) };
   }
   if (response.status >= 502 && response.status <= 504) {
     throw unavailable(response.status);
@@ -73,9 +96,10 @@ async function getVerifiedResource<T>(path: string): Promise<T | null> {
   if (!response.ok) {
     throw new Error(`api-registry responded ${response.status} for ${path}`);
   }
-  return response.json().catch((error: unknown) => {
+  const record = (await response.json().catch((error: unknown) => {
     throw unavailableAfter(error);
-  });
+  })) as T;
+  return { record };
 }
 
 // The verified record for a resource on a network, by its on-chain id: the
@@ -84,18 +108,18 @@ async function getVerifiedResource<T>(path: string): Promise<T | null> {
 export function getVerifiedRecord(lookup: {
   networkId: string;
   resource: Extract<ResourceId, { kind: "account" }>;
-}): Promise<VerifiedAccountById | null>;
+}): Promise<Lookup<VerifiedAccountById>>;
 export function getVerifiedRecord(lookup: {
   networkId: string;
   resource: Extract<ResourceId, { kind: "note" }>;
-}): Promise<VerifiedNoteById | null>;
+}): Promise<Lookup<VerifiedNoteById>>;
 export function getVerifiedRecord({
   networkId,
   resource,
 }: {
   networkId: string;
   resource: ResourceId;
-}): Promise<VerifiedAccountById | VerifiedNoteById | null> {
+}): Promise<Lookup<VerifiedAccountById> | Lookup<VerifiedNoteById>> {
   const collection =
     resource.kind === "account"
       ? `verified-accounts/${encodeURIComponent(resource.accountId)}`

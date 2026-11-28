@@ -7,19 +7,29 @@ import type { ErrorRequestHandler, RequestHandler } from "express";
 // HTML page.
 
 // An error answered with its own status and headers, and its message as the
-// body's `error`.
+// body's `error`, next to the `details` it carries.
 export class HttpError extends Error {
   readonly status: number;
   readonly headers: Record<string, string>;
+  readonly details: Record<string, unknown>;
 
   constructor(
     status: number,
     message: string,
-    { headers = {}, cause }: { headers?: Record<string, string>; cause?: unknown } = {},
+    {
+      headers = {},
+      details = {},
+      cause,
+    }: {
+      headers?: Record<string, string>;
+      details?: Record<string, unknown>;
+      cause?: unknown;
+    } = {},
   ) {
     super(message, { cause });
     this.status = status;
     this.headers = headers;
+    this.details = details;
   }
 }
 
@@ -86,5 +96,5 @@ export const errorHandler: ErrorRequestHandler = (error: unknown, _req, res, nex
   res
     .status(status)
     .set(headersOf(error))
-    .json({ error: messageOf(error) });
+    .json({ ...(error instanceof HttpError && error.details), error: messageOf(error) });
 };

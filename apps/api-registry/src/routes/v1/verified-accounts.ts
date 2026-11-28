@@ -275,14 +275,18 @@ router.get("/:networkId/verified-accounts/code/:code", async (req, res) => {
  *       "404":
  *         description: >
  *           No verified account found for the given parameters, or no account
- *           with this id on `networkId`.
+ *           with this id on `networkId`. An account whose every procedure
+ *           belongs to a standard component is never verified: its 404 names
+ *           the components in `standardAccountComponents`.
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
+ *               allOf:
+ *                 - type: object
+ *                   properties:
+ *                     error:
+ *                       type: string
+ *                 - $ref: '#/components/schemas/StandardResource'
  *       "500":
  *         description: Retrieval failed.
  *         content:

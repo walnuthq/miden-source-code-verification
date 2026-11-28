@@ -133,7 +133,51 @@ describe("loadResourcePage", () => {
         networkId: "mtst",
         resource: { kind: "note", noteId: NOTE_ID },
       }),
-    ).rejects.toMatchObject({ init: { status: 404 } });
+    ).rejects.toMatchObject({ data: { standard: null }, init: { status: 404 } });
+  });
+
+  it("passes on what the registry's 404 says of a standard account", async () => {
+    registry(() =>
+      json(
+        {
+          error: "verified account not found",
+          standardAccountComponents: ["BasicWallet", "AuthNoAuth"],
+        },
+        404,
+      ),
+    );
+    await expect(
+      loadResourcePage({
+        networkId: "mtst",
+        resource: { kind: "account", accountId: ACCOUNT_ID },
+      }),
+    ).rejects.toMatchObject({
+      data: { standard: { standardAccountComponents: ["BasicWallet", "AuthNoAuth"] } },
+      init: { status: 404 },
+    });
+  });
+
+  it("passes on what the registry's 404 says of a standard note", async () => {
+    registry(() => json({ error: "verified note not found", standardNote: "P2ID" }, 404));
+    await expect(
+      loadResourcePage({
+        networkId: "mtst",
+        resource: { kind: "note", noteId: NOTE_ID },
+      }),
+    ).rejects.toMatchObject({
+      data: { standard: { standardNote: "P2ID" } },
+      init: { status: 404 },
+    });
+  });
+
+  it("throws a plain 404 when the registry's 404 isn't JSON", async () => {
+    registry(() => new Response("not found", { status: 404 }));
+    await expect(
+      loadResourcePage({
+        networkId: "mtst",
+        resource: { kind: "note", noteId: NOTE_ID },
+      }),
+    ).rejects.toMatchObject({ data: { standard: null }, init: { status: 404 } });
   });
 
   it("reports a registry that couldn't look the resource up as temporary", async () => {

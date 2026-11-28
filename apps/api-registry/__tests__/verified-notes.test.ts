@@ -256,6 +256,32 @@ describe("GET /:networkId/verified-notes/:noteId with a faked import", () => {
     expect(res.body).toEqual({ error: "verified note not found" });
   });
 
+  // A script root no record carries, made up.
+  const unverifiedScript = `0x${"cd".repeat(32)}`;
+
+  it("names a standard note", async () => {
+    // Standard code is never verified, which the 404 says.
+    const app = appWhoseImport(async () => ({
+      type: "note",
+      code: unverifiedScript,
+      standardNote: "P2ID",
+    }));
+    const res = await app.get(`/v1/${networkId}/verified-notes/${COUNTER_NOTE_ID}`);
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "verified note not found", standardNote: "P2ID" });
+  });
+
+  it("names nothing of an unverified custom note", async () => {
+    const app = appWhoseImport(async () => ({
+      type: "note",
+      code: unverifiedScript,
+      standardNote: null,
+    }));
+    const res = await app.get(`/v1/${networkId}/verified-notes/${COUNTER_NOTE_ID}`);
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "verified note not found" });
+  });
+
   it.each([
     [502, "rpc error: request timed out"],
     [504, "api-compile did not answer in time"],

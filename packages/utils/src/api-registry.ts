@@ -91,6 +91,13 @@ export type VerifiedNote = {
 // through the note's on-chain script, with the id echoed back.
 export type VerifiedNoteById = VerifiedNote & { noteId: string };
 
+// What the 404 of `GET /v1/{networkId}/verified-accounts/{accountId}` or
+// `…/verified-notes/{noteId}` adds to its `error` when the resource is
+// standard code, which is never verified: an account whose every procedure
+// belongs to a standard component, with the components' names, or a standard
+// note, with its name.
+export type StandardResource = { standardAccountComponents: string[] } | { standardNote: string };
+
 // `POST /v1/{networkId}/verified-accounts` and `…/verified-notes`: whether the
 // project's package is the resource's on chain. A refused request (a project
 // that doesn't build, a resource not on the network, a root already verified

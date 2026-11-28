@@ -1,4 +1,4 @@
-import { ShieldQuestionMark } from "lucide-react";
+import { Library, ShieldQuestionMark } from "lucide-react";
 import {
   buttonVariants,
   cn,
@@ -14,7 +14,8 @@ import { WEB_VERIFIER_URL } from "@/lib/constants";
 
 // Body of a resource's "not verified" 404 page, below its ResourceHeader: a CTA
 // to the web-verifier, whose form is seeded from the `resource` and `network`
-// query params.
+// query params. Standard code, which is never verified, gets
+// `StandardCodeNotice` instead.
 export function NotVerified({
   kind,
   id,
@@ -45,6 +46,28 @@ export function NotVerified({
           Verify {label}
         </a>
       </EmptyContent>
+    </Empty>
+  );
+}
+
+// Body of the "not verified" 404 page of standard code, below its
+// ResourceHeader, which names the standard components or the standard note:
+// why there is nothing to verify, and no CTA, as no project would verify it.
+export function StandardCodeNotice({ kind }: { kind: "account" | "note" }) {
+  return (
+    <Empty className="mt-6 border">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <Library />
+        </EmptyMedia>
+        <EmptyTitle>{kind === "account" ? "Standard account" : "Standard note"}</EmptyTitle>
+        <EmptyDescription>
+          {kind === "account"
+            ? "Every procedure of this account belongs to one of Miden's standard components, listed above."
+            : "This note's script is one of Miden's standard notes, named above."}{" "}
+          Standard code is published with Miden itself, so it isn't verified from source here.
+        </EmptyDescription>
+      </EmptyHeader>
     </Empty>
   );
 }

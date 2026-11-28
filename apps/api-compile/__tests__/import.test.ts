@@ -86,6 +86,8 @@ describe("GET /:networkId/import/:resourceId", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("type", "note");
     expect(res.body).toHaveProperty("code", code);
+    // A custom note: no standard note's name.
+    expect(res.body).toHaveProperty("standardNote", null);
     expect(res.body).not.toHaveProperty("standardAccountComponents");
     expect(res.body).not.toHaveProperty("procedures");
   });

@@ -21,6 +21,7 @@
   "include": [
     "src/**/*.ts",
     "__tests__/**/*.ts",
+    "scripts/**/*.ts",
     "drizzle.config.ts",
     "vitest.config.ts",
     "vitest.pure.config.ts"

@@ -28,6 +28,7 @@ import {
   ReceiptText,
   Scale,
   ScanSearch,
+  ScrollText,
   Send,
   ShieldCheck,
   ShieldOff,
@@ -93,6 +94,7 @@ export function ResourceHeader({
   verified = false,
   verificationStatus,
   standardAccountComponents = [],
+  standardNote,
 }: {
   kind: "account" | "note";
   id: string;
@@ -102,6 +104,8 @@ export function ResourceHeader({
   verified?: boolean;
   verificationStatus?: VerificationStatus;
   standardAccountComponents?: string[];
+  // The standard note (`P2ID`, …) a note is, on its "not verified" page.
+  standardNote?: string;
 }) {
   const label = kind === "account" ? "Account" : "Note";
   const fields: DetailField[] = [
@@ -136,6 +140,19 @@ export function ResourceHeader({
             );
           })}
         </span>
+      ),
+    });
+  }
+
+  if (standardNote) {
+    fields.push({
+      label: "Standard Note",
+      icon: ScrollText,
+      value: (
+        <Badge variant="success">
+          <ScrollText />
+          {standardNote}
+        </Badge>
       ),
     });
   }

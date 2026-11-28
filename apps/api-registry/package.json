@@ -27,6 +27,7 @@
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "find-standard-records": "node --env-file-if-exists=.env scripts/find-standard-records.ts",
     "lint": "oxlint --deny-warnings && oxfmt --check",
     "format": "oxfmt && oxlint --fix"
   },
