@@ -277,15 +277,12 @@ router.get("/:networkId/verified-notes/script/:script", async (req, res) => {
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                 standardNote:
- *                   type: string
- *                   description: >
- *                     The standard note (e.g. `P2ID`) the note is, when it is
- *                     one.
+ *               allOf:
+ *                 - type: object
+ *                   properties:
+ *                     error:
+ *                       type: string
+ *                 - $ref: '#/components/schemas/StandardResource'
  *       "500":
  *         description: Retrieval failed.
  *         content:

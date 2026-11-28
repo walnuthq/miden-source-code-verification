@@ -281,18 +281,12 @@ router.get("/:networkId/verified-accounts/code/:code", async (req, res) => {
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                 standardAccountComponents:
- *                   type: array
- *                   description: >
- *                     The standard components (e.g. `BasicWallet`,
- *                     `AuthSingleSig`) the account is made of, when it is
- *                     made of standard components alone.
- *                   items:
- *                     type: string
+ *               allOf:
+ *                 - type: object
+ *                   properties:
+ *                     error:
+ *                       type: string
+ *                 - $ref: '#/components/schemas/StandardResource'
  *       "500":
  *         description: Retrieval failed.
  *         content:

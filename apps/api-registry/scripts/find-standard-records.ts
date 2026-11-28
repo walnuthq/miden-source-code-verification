@@ -10,6 +10,13 @@
 //   listed is to be looked at, not removed as is.
 // - a verified note whose script is a standard note's (`standardNotes`).
 //
+// The roots are those of the `miden-standards` the fixtures were generated
+// from (0.18.0 when written): a component's roots change when the crate's MASM
+// does, so a record built against another version reads as custom code. Every
+// record was built against 0.18 when this was written: the registry took MASM
+// projects only after the 0.18 bump (#149, #153), and #159 deleted the Rust
+// packages.
+//
 // Read only: one READ ONLY transaction of SELECTs, against DATABASE_URL.
 // Exits 0 whatever it finds, 1 when it can't read the database.
 //
@@ -38,8 +45,10 @@ const standardNoteOf = new Map(
 );
 
 const accountProcedures = (manifest: Manifest) =>
-  manifest.exports.flatMap(({ Procedure }) =>
-    Procedure?.signature?.abi === ACCOUNT_PROCEDURE_ABI ? [Procedure.digest.toLowerCase()] : [],
+  manifest.exports.flatMap((exported) =>
+    "Procedure" in exported && exported.Procedure.signature?.abi === ACCOUNT_PROCEDURE_ABI
+      ? [exported.Procedure.digest.toLowerCase()]
+      : [],
   );
 
 type AccountRow = {

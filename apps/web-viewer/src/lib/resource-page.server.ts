@@ -1,9 +1,10 @@
-import type { Package, StandardResource } from "miden-source-code-verification-utils/api-registry";
+import type { Package } from "miden-source-code-verification-utils/api-registry";
 import { getNetworkName } from "miden-source-code-verification-utils/networks";
 import type { ResourceId } from "miden-source-code-verification-utils/resource-id";
 import { data } from "react-router";
 
 import { getVerifiedRecord } from "@/lib/api-registry.server";
+import type { NotVerifiedPage } from "@/lib/not-verified-page";
 import { loadPackageSources } from "@/lib/package-sources.server";
 import type { PackageSources } from "@/lib/source-files";
 import { getVerificationStatus, type VerificationStatus } from "@/lib/verification-status";
@@ -26,11 +27,6 @@ export type ResourcePage = {
 type VerifiedRecord = Pick<ResourcePage, "verificationStatus" | "standardAccountComponents"> & {
   components: { package: Package; createdAt: string; source: string }[];
 };
-
-// The data of the "not verified" 404 page: whether the resource is standard
-// code, which is never verified, as the registry's 404 said. Null on a network
-// the registry doesn't serve, and for a resource that isn't standard code.
-export type NotVerifiedPage = { standard: StandardResource | null };
 
 // Throws a 404 for a network the registry doesn't serve and for a resource it
 // has no verified record of, which includes ids that don't resolve on-chain,

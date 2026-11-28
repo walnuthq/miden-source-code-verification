@@ -71,11 +71,11 @@ const standardOf = (body: unknown): StandardResource | null => {
   return typeof standardNote === "string" ? { standardNote } : null;
 };
 
-// A 502–504 means it
-// couldn't look the resource up (its compiler, or the node, failed), which the
-// error page reports as temporary rather than as an unexpected error. A
-// registry that can't be reached, takes too long or answers something that
-// isn't JSON is reported the same way.
+// The registry's answer for `path`, as a `Lookup`. A 502–504 means it couldn't
+// look the resource up (its compiler, or the node, failed), which the error
+// page reports as temporary rather than as an unexpected error. A registry
+// that can't be reached, takes too long or answers something that isn't JSON
+// is reported the same way.
 async function getVerifiedResource<T>(path: string): Promise<Lookup<T>> {
   let response: Response;
   try {

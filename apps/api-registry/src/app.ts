@@ -276,6 +276,24 @@ import { createFsMaspStore, type MaspStore } from "./storage/masp-store.ts";
  *           type: array
  *           items:
  *             type: string
+ *     StandardResource:
+ *       type: object
+ *       description: >
+ *         What the 404 of a lookup by id adds to its `error` when the resource
+ *         is standard code, which is never verified: an account whose every
+ *         procedure belongs to a standard component, with the components'
+ *         names, or a standard note, with its name. At most one of the two.
+ *       properties:
+ *         standardAccountComponents:
+ *           type: array
+ *           description: >
+ *             The standard components (e.g. `BasicWallet`, `AuthSingleSig`)
+ *             an account made of standard components alone is made of.
+ *           items:
+ *             type: string
+ *         standardNote:
+ *           type: string
+ *           description: The standard note (e.g. `P2ID`) the note is.
  *     VerifiedAccountById:
  *       description: >
  *         The same record, found through an account's on-chain code: what

@@ -15,7 +15,7 @@ import { WEB_VERIFIER_URL } from "@/lib/constants";
 // Body of a resource's "not verified" 404 page, below its ResourceHeader: a CTA
 // to the web-verifier, whose form is seeded from the `resource` and `network`
 // query params. Standard code, which is never verified, gets
-// `StandardResource` instead.
+// `StandardCodeNotice` instead.
 export function NotVerified({
   kind,
   id,
@@ -53,7 +53,7 @@ export function NotVerified({
 // Body of the "not verified" 404 page of standard code, below its
 // ResourceHeader, which names the standard components or the standard note:
 // why there is nothing to verify, and no CTA, as no project would verify it.
-export function StandardResource({ kind }: { kind: "account" | "note" }) {
+export function StandardCodeNotice({ kind }: { kind: "account" | "note" }) {
   return (
     <Empty className="mt-6 border">
       <EmptyHeader>

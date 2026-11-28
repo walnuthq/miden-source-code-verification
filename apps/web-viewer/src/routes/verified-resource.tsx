@@ -3,11 +3,12 @@ import { encodeAddress, type ResourceId } from "miden-source-code-verification-u
 import { isRouteErrorResponse } from "react-router";
 
 import { ErrorPage } from "@/components/error-page";
-import { NotVerified, StandardResource } from "@/components/not-verified";
+import { NotVerified, StandardCodeNotice } from "@/components/not-verified";
 import { ResourceHeader } from "@/components/resource-header";
 import { PackageSection } from "@/components/source-code/package-section";
 import { getExplorerUrl } from "@/lib/constants";
-import { loadResourcePage, type NotVerifiedPage } from "@/lib/resource-page.server";
+import { standardOf404 } from "@/lib/not-verified-page";
+import { loadResourcePage } from "@/lib/resource-page.server";
 
 import type { Route } from "./+types/verified-resource";
 
@@ -109,7 +110,7 @@ export function ErrorBoundary({ error, params }: Route.ErrorBoundaryProps) {
   }
   const id = idOf(resource);
   // What the registry's 404 said: whether the resource is standard code.
-  const { standard } = (error.data as NotVerifiedPage | null) ?? { standard: null };
+  const standard = standardOf404(error.data);
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
       {/* No explorer link: the resource may not exist on-chain. */}
@@ -126,7 +127,7 @@ export function ErrorBoundary({ error, params }: Route.ErrorBoundaryProps) {
         standardNote={standard && "standardNote" in standard ? standard.standardNote : undefined}
       />
       {standard ? (
-        <StandardResource kind={resource.kind} />
+        <StandardCodeNotice kind={resource.kind} />
       ) : (
         <NotVerified kind={resource.kind} id={id} networkId={networkId} />
       )}
